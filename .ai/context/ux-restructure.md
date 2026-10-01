@@ -68,7 +68,7 @@ modo que uma mesma classe tenha sempre a mesma cor em todos os gráficos.
 ## Fatias
 
 1. [010 — Navegação no topo e seletor global de mês](../specs/010-global-shell-month-selector.md): concluída.
-2. [011 — Visão Geral](../specs/011-overview-tab.md): planejada.
+2. [011 — Visão Geral](../specs/011-overview-tab.md): concluída.
 3. [012 — Aba de alocação com sub-abas](../specs/012-allocation-tabs.md): planejada.
 4. [013 — Posições editáveis](../specs/013-positions-editing.md): planejada.
 5. [014 — Configuração da carteira](../specs/014-target-settings.md): planejada.

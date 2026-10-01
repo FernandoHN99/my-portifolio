@@ -24,6 +24,16 @@ export function formatPercent(value: number) {
   }).format(value / 100);
 }
 
+export function formatMonthCompact(date: Date) {
+  const month = new Intl.DateTimeFormat("pt-BR", { month: "short", timeZone: "UTC" })
+    .format(date)
+    .replace(".", "");
+
+  return `${month.charAt(0).toLocaleUpperCase("pt-BR")}${month.slice(1)}/${String(
+    date.getUTCFullYear(),
+  ).slice(2)}`;
+}
+
 export function formatMonth(date: Date, short = false) {
   const formatted = new Intl.DateTimeFormat("pt-BR", {
     month: short ? "short" : "long",

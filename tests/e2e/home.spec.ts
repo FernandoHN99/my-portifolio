@@ -10,16 +10,8 @@ test("apresenta a carteira normalizada", async ({ page }) => {
     }),
   ).toBeVisible();
   await expect(page.getByTestId("portfolio-total")).toContainText("R$");
-  await expect(page.getByRole("heading", { name: "Principais posições" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Por instituição" })).toBeVisible();
-
-  const editPositions = page.getByRole("link", { name: "Editar posições" });
-  if (await editPositions.isVisible()) {
-    await editPositions.click();
-    await expect(page.getByRole("heading", { name: "Ajuste o que mudou no mês." })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Salvar alterações" })).toBeDisabled();
-    await page.getByRole("link", { name: "Voltar para visão geral" }).click();
-  }
+  await expect(page.getByRole("heading", { name: "Evolução do patrimônio" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Classe de ativos" })).toBeVisible();
 
   await page.getByRole("link", { name: "Configuração da carteira" }).click();
   await expect(page.getByRole("heading", { level: 1, name: "Metas da carteira" })).toBeVisible();
@@ -55,4 +47,20 @@ test("um mês inexistente cai para a competência mais recente", async ({ page }
 
   await expect(page.getByRole("heading", { level: 1, name: "Patrimônio consolidado" })).toBeVisible();
   await expect(page.getByTestId("portfolio-total")).toContainText("R$");
+});
+
+test("a visão geral alterna o empilhamento e leva à alocação", async ({ page }) => {
+  await page.goto("/?mes=2026-05");
+
+  await expect(page.getByTestId("portfolio-total")).toContainText("R$");
+
+  await page.getByRole("button", { name: "Classe", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Classe", exact: true })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+
+  await page.getByRole("link", { name: /Fora da meta/ }).click();
+  await expect(page).toHaveURL(/\/alocacao\?mes=2026-05/);
+  await expect(page.getByRole("heading", { level: 1, name: "Atual contra meta" })).toBeVisible();
 });

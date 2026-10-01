@@ -1,7 +1,7 @@
 import { AppShell } from "@/components/product/app-shell";
 import { getMonthContext } from "@/modules/portfolio/application/get-month-context";
-import { getPortfolioOverview } from "@/modules/portfolio/application/get-portfolio-overview";
-import { PortfolioDashboard } from "@/modules/portfolio/ui/portfolio-dashboard";
+import { getOverviewData } from "@/modules/portfolio/application/get-overview-data";
+import { OverviewDashboard } from "@/modules/portfolio/ui/overview-dashboard";
 
 export const dynamic = "force-dynamic";
 
@@ -12,11 +12,14 @@ export default async function Home({
 }) {
   const { mes } = await searchParams;
   const { months, selected } = await getMonthContext(mes);
-  const portfolio = await getPortfolioOverview(selected?.referenceDate);
+  const overview = await getOverviewData(selected?.referenceDate);
 
   return (
     <AppShell active="overview" months={months} selectedMonth={selected?.month ?? null}>
-      <PortfolioDashboard overview={portfolio} />
+      <OverviewDashboard
+        overview={overview}
+        isLatestMonth={selected?.month === months.at(-1)?.month}
+      />
     </AppShell>
   );
 }

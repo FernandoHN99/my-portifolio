@@ -14,7 +14,7 @@ Esta pasta organiza a implementação em fatias pequenas e revisáveis.
 - [008 — Tela de alocação](008-allocation-view.md): concluída.
 - [009 — Rótulo e valor de rebalanceamento](009-rebalance-labels.md): concluída.
 - [010 — Navegação no topo e seletor global de mês](010-global-shell-month-selector.md): concluída.
-- [011 — Visão Geral](011-overview-tab.md): planejada.
+- [011 — Visão Geral](011-overview-tab.md): concluída.
 - [012 — Aba de alocação com sub-abas](012-allocation-tabs.md): planejada.
 - [013 — Posições editáveis](013-positions-editing.md): planejada.
 - [014 — Configuração da carteira](014-target-settings.md): planejada.

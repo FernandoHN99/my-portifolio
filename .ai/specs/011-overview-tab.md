@@ -1,6 +1,6 @@
 # 011 — Visão Geral
 
-Estado: planejada
+Estado: concluída em 2026-10-01
 Definida em: 2026-10-01
 
 ## Problema
@@ -57,6 +57,38 @@ estratégia.
   vender da aba de alocação para o mesmo mês;
 - a cor de cada categoria é a mesma em todos os gráficos;
 - lint, tipos, build e testes de interface passam.
+
+## Decisões tomadas
+
+A contagem de itens fora da meta precisa de uma faixa de tolerância, caso
+contrário quase toda linha aparece como fora. Foi adotada a faixa de dois
+pontos percentuais, exibida na própria tela como "itens além de ±2%". A
+tolerância configurável prevista na spec 012 deve passar a alimentar esse
+indicador.
+
+Os blocos de maiores posições e de distribuição por instituição saíram desta
+aba, porque a aba de posições passa a cobrir esse recorte com filtros e
+agrupamento. A consulta e os componentes que só os serviam foram removidos
+em vez de mantidos sem uso.
+
+## Verificação
+
+Os indicadores conferiram com o gráfico de evolução da planilha em várias
+competências: agosto de 2026 com R$ 223.307, maio de 2026 com R$ 219.506 e
+fevereiro de 2026 com R$ 187.954,69. O equivalente em dólar, a variação
+mensal, a variação em doze meses e as cotações do mês acompanham a
+competência selecionada.
+
+Dois defeitos foram corrigidos durante a verificação. As células de cor do
+gráfico eram indexadas contra a série completa, enquanto a seleção de
+intervalo renderiza apenas uma fatia, o que deslocava o destaque para a
+coluna errada. E o clique na coluna não chegava a trocar a competência
+porque dependia do índice ativo do gráfico; passou a usar o rótulo ativo.
+
+Foram conferidos os três modos de empilhamento, os atalhos de período, a
+seleção de intervalo, o clique na coluna e a consistência de cor entre o
+gráfico de evolução e os seis donuts. Quatro cenários no Playwright, em
+desktop e mobile. `pnpm check`, `pnpm build` e `pnpm test:e2e` passaram.
 
 ## Referências
 
