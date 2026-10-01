@@ -1,0 +1,72 @@
+// Os primeiros modelos preservam a origem da importação. Entidades
+// financeiras normalizadas serão adicionadas somente depois da revisão.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum ImportStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  COMPLETED_WITH_ISSUES
+  FAILED
+}
+
+enum ImportIssueSeverity {
+  INFO
+  WARNING
+  ERROR
+}
+
+model ImportBatch {
+  id          String            @id @default(uuid()) @db.Uuid
+  sourcePath  String            @map("source_path")
+  sourceHash  String            @map("source_hash")
+  status      ImportStatus      @default(PENDING)
+  rowsRead    Int               @default(0) @map("rows_read")
+  startedAt   DateTime          @default(now()) @map("started_at") @db.Timestamptz(3)
+  completedAt DateTime?         @map("completed_at") @db.Timestamptz(3)
+  sourceRows  ImportSourceRow[]
+  issues      ImportIssue[]
+
+  @@unique([sourceHash])
+  @@map("import_batches")
+}
+
+model ImportSourceRow {
+  id          BigInt      @id @default(autoincrement())
+  batchId     String      @map("batch_id") @db.Uuid
+  sourceSheet String      @map("source_sheet")
+  sourceTable String      @map("source_table")
+  sourceRow   Int         @map("source_row")
+  content     Json
+  batch       ImportBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
+  @@unique([batchId, sourceTable, sourceRow])
+  @@index([sourceSheet, sourceTable])
+  @@map("import_source_rows")
+}
+
+model ImportIssue {
+  id          BigInt              @id @default(autoincrement())
+  batchId     String              @map("batch_id") @db.Uuid
+  severity    ImportIssueSeverity
+  code        String
+  message     String
+  sourceSheet String?             @map("source_sheet")
+  sourceTable String?             @map("source_table")
+  sourceRow   Int?                @map("source_row")
+  sourceField String?             @map("source_field")
+  rawValue    Json?               @map("raw_value")
+  createdAt   DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
+  batch       ImportBatch         @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
+  @@index([batchId, severity])
+  @@map("import_issues")
+}

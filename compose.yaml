@@ -1,0 +1,25 @@
+services:
+  postgres:
+    image: postgres:18-alpine
+    container_name: my-portifolio-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-my_portifolio}
+      POSTGRES_USER: ${POSTGRES_USER:-my_portifolio}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-my_portifolio_local}
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-my_portifolio} -d ${POSTGRES_DB:-my_portifolio}",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - portfolio_postgres_data:/var/lib/postgresql
+
+volumes:
+  portfolio_postgres_data:
