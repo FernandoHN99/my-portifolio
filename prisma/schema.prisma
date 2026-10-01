@@ -35,21 +35,23 @@ model ImportBatch {
   sourceRows  ImportSourceRow[]
   issues      ImportIssue[]
   months      PortfolioMonth[]
+  targetPlans TargetPlan[]
 
   @@unique([sourceHash])
   @@map("import_batches")
 }
 
 model ImportSourceRow {
-  id          BigInt       @id @default(autoincrement())
-  batchId     String       @map("batch_id") @db.Uuid
-  sourceSheet String       @map("source_sheet")
-  sourceTable String       @map("source_table")
-  sourceRow   Int          @map("source_row")
-  content     Json
-  batch       ImportBatch  @relation(fields: [batchId], references: [id], onDelete: Cascade)
-  position    Position?
-  marketQuote MarketQuote?
+  id                 BigInt              @id @default(autoincrement())
+  batchId            String              @map("batch_id") @db.Uuid
+  sourceSheet        String              @map("source_sheet")
+  sourceTable        String              @map("source_table")
+  sourceRow          Int                 @map("source_row")
+  content            Json
+  batch              ImportBatch         @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  position           Position?
+  marketQuote        MarketQuote?
+  positionAllocation PositionAllocation?
 
   @@unique([batchId, sourceTable, sourceRow])
   @@index([sourceSheet, sourceTable])
@@ -131,22 +133,23 @@ model PortfolioMonth {
 }
 
 model Position {
-  id               String           @id @default(uuid()) @db.Uuid
-  portfolioMonthId String           @map("portfolio_month_id") @db.Uuid
-  accountId        String           @map("account_id") @db.Uuid
-  assetId          String           @map("asset_id") @db.Uuid
-  sourceRowId      BigInt?          @unique @map("source_row_id")
-  quantity         Decimal          @db.Decimal(30, 12)
-  unitPriceBrl     Decimal?         @map("unit_price_brl") @db.Decimal(24, 8)
-  exchangeRateBrl  Decimal?         @map("exchange_rate_brl") @db.Decimal(20, 8)
-  totalBrl         Decimal          @map("total_brl") @db.Decimal(24, 2)
+  id               String               @id @default(uuid()) @db.Uuid
+  portfolioMonthId String               @map("portfolio_month_id") @db.Uuid
+  accountId        String               @map("account_id") @db.Uuid
+  assetId          String               @map("asset_id") @db.Uuid
+  sourceRowId      BigInt?              @unique @map("source_row_id")
+  quantity         Decimal              @db.Decimal(30, 12)
+  unitPriceBrl     Decimal?             @map("unit_price_brl") @db.Decimal(24, 8)
+  exchangeRateBrl  Decimal?             @map("exchange_rate_brl") @db.Decimal(20, 8)
+  totalBrl         Decimal              @map("total_brl") @db.Decimal(24, 2)
   strategy         String?
-  createdAt        DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt        DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
-  portfolioMonth   PortfolioMonth   @relation(fields: [portfolioMonthId], references: [id], onDelete: Cascade)
-  account          Account          @relation(fields: [accountId], references: [id], onDelete: Restrict)
-  asset            Asset            @relation(fields: [assetId], references: [id], onDelete: Restrict)
-  sourceRow        ImportSourceRow? @relation(fields: [sourceRowId], references: [id], onDelete: SetNull)
+  createdAt        DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime             @updatedAt @map("updated_at") @db.Timestamptz(3)
+  portfolioMonth   PortfolioMonth       @relation(fields: [portfolioMonthId], references: [id], onDelete: Cascade)
+  account          Account              @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  asset            Asset                @relation(fields: [assetId], references: [id], onDelete: Restrict)
+  sourceRow        ImportSourceRow?     @relation(fields: [sourceRowId], references: [id], onDelete: SetNull)
+  allocations      PositionAllocation[]
 
   @@unique([portfolioMonthId, accountId, assetId])
   @@index([portfolioMonthId])
@@ -215,4 +218,61 @@ model QuoteUpdateResult {
   @@unique([runId, symbol])
   @@index([runId, status])
   @@map("quote_update_results")
+}
+
+model PositionAllocation {
+  id          String           @id @default(uuid()) @db.Uuid
+  positionId  String           @map("position_id") @db.Uuid
+  sourceRowId BigInt?          @unique @map("source_row_id")
+  assetClass  String           @map("asset_class")
+  subclass    String
+  duration    String
+  weight      Decimal          @db.Decimal(12, 10)
+  createdAt   DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
+  position    Position         @relation(fields: [positionId], references: [id], onDelete: Cascade)
+  sourceRow   ImportSourceRow? @relation(fields: [sourceRowId], references: [id], onDelete: SetNull)
+
+  @@unique([positionId, assetClass, subclass, duration])
+  @@index([positionId])
+  @@map("position_allocations")
+}
+
+enum AllocationTargetScope {
+  ASSET_CLASS
+  CURRENCY
+  STRATEGY
+  CLASS_CURRENCY
+  FIXED_INCOME
+  VARIABLE_INCOME
+}
+
+model TargetPlan {
+  id            String             @id @default(uuid()) @db.Uuid
+  sourceBatchId String             @unique @map("source_batch_id") @db.Uuid
+  name          String
+  isActive      Boolean            @default(true) @map("is_active")
+  createdAt     DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
+  sourceBatch   ImportBatch        @relation(fields: [sourceBatchId], references: [id], onDelete: Cascade)
+  targets       AllocationTarget[]
+
+  @@map("target_plans")
+}
+
+model AllocationTarget {
+  id             String                @id @default(uuid()) @db.Uuid
+  planId         String                @map("plan_id") @db.Uuid
+  key            String
+  scope          AllocationTargetScope
+  primaryLabel   String                @map("primary_label")
+  secondaryLabel String?               @map("secondary_label")
+  percentage     Decimal               @db.Decimal(12, 10)
+  sourceSheet    String                @map("source_sheet")
+  sourceCell     String                @map("source_cell")
+  plan           TargetPlan            @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@unique([planId, key])
+  @@index([planId, scope])
+  @@map("allocation_targets")
 }

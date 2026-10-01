@@ -18,6 +18,7 @@
     "db:studio": "prisma studio",
     "import:excel": "tsx scripts/import-excel.ts",
     "normalize:portfolio": "tsx scripts/normalize-portfolio.ts",
+    "normalize:allocations": "tsx scripts/normalize-allocations.ts",
     "postinstall": "prisma generate"
   },
   "dependencies": {

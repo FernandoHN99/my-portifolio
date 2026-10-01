@@ -136,6 +136,7 @@ async function ensureMonthlyDraft(targetMonth: Date) {
       id: true,
       positions: {
         select: {
+          id: true,
           accountId: true,
           assetId: true,
           quantity: true,
@@ -143,6 +144,14 @@ async function ensureMonthlyDraft(targetMonth: Date) {
           exchangeRateBrl: true,
           totalBrl: true,
           strategy: true,
+          allocations: {
+            select: {
+              assetClass: true,
+              subclass: true,
+              duration: true,
+              weight: true,
+            },
+          },
         },
       },
     },
@@ -163,10 +172,38 @@ async function ensureMonthlyDraft(targetMonth: Date) {
 
     await transaction.position.createMany({
       data: sourceMonth.positions.map((position) => ({
-        ...position,
+        accountId: position.accountId,
+        assetId: position.assetId,
+        quantity: position.quantity,
+        unitPriceBrl: position.unitPriceBrl,
+        exchangeRateBrl: position.exchangeRateBrl,
+        totalBrl: position.totalBrl,
+        strategy: position.strategy,
         portfolioMonthId: month.id,
       })),
     });
+
+    const targetPositions = await transaction.position.findMany({
+      where: { portfolioMonthId: month.id },
+      select: { id: true, accountId: true, assetId: true },
+    });
+    const sourceByIdentity = new Map(
+      sourceMonth.positions.map((position) => [
+        `${position.accountId}:${position.assetId}`,
+        position,
+      ]),
+    );
+    const copiedAllocations = targetPositions.flatMap((position) => {
+      const source = sourceByIdentity.get(`${position.accountId}:${position.assetId}`);
+      return (source?.allocations ?? []).map((allocation) => ({
+        positionId: position.id,
+        ...allocation,
+      }));
+    });
+
+    if (copiedAllocations.length > 0) {
+      await transaction.positionAllocation.createMany({ data: copiedAllocations });
+    }
 
     const run = await transaction.monthlyUpdateRun.create({
       data: {
