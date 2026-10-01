@@ -50,7 +50,9 @@ const UNCLASSIFIED_LABEL = "Sem classificação";
 const FIXED_INCOME_CLASS = "Renda Fixa";
 const VARIABLE_INCOME_CLASS = "Renda Variável";
 
-export async function getAllocationOverview(): Promise<AllocationOverview | null> {
+export async function getAllocationOverview(
+  referenceDate?: Date,
+): Promise<AllocationOverview | null> {
   const prisma = getPrismaClient();
 
   if (!prisma) {
@@ -59,6 +61,7 @@ export async function getAllocationOverview(): Promise<AllocationOverview | null
 
   try {
     const latestMonth = await prisma.portfolioMonth.findFirst({
+      where: referenceDate ? { referenceDate } : undefined,
       orderBy: { referenceDate: "desc" },
       select: {
         referenceDate: true,

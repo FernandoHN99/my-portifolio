@@ -1,0 +1,18 @@
+import {
+  getPortfolioMonths,
+  type PortfolioMonthSummary,
+} from "@/modules/portfolio/application/get-portfolio-months";
+import { resolveSelectedMonth } from "@/modules/portfolio/presentation/reference-month";
+
+export type MonthContext = {
+  months: PortfolioMonthSummary[];
+  selected: PortfolioMonthSummary | null;
+};
+
+export async function getMonthContext(
+  value: string | string[] | undefined,
+): Promise<MonthContext> {
+  const months = await getPortfolioMonths();
+
+  return { months, selected: resolveSelectedMonth(months, value) as PortfolioMonthSummary | null };
+}

@@ -18,7 +18,7 @@ export default async function EditPortfolioPage({
   const month = await getEditablePortfolioMonth();
 
   return (
-    <AppShell active="overview">
+    <AppShell active="none" months={[]} selectedMonth={null}>
       {month ? <PositionEditor month={month} saved={salvo === "1"} /> : <EmptyDraft />}
     </AppShell>
   );

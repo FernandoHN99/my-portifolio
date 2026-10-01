@@ -22,7 +22,7 @@ export default async function MonthlyUpdateRunPage({
   }
 
   return (
-    <AppShell active="refresh">
+    <AppShell active="none" months={[]} selectedMonth={null}>
       <MonthlyUpdateView update={update} />
     </AppShell>
   );

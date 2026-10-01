@@ -14,7 +14,7 @@ export default async function ImportPage() {
   const latestImport = await getLatestImportOverview();
 
   return (
-    <AppShell active="imports">
+    <AppShell active="none" months={[]} selectedMonth={null}>
       <ImportReview overview={latestImport} />
     </AppShell>
   );

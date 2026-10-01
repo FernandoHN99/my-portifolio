@@ -15,7 +15,7 @@ export default async function MonthlyUpdatePage() {
   const update = await getMonthlyUpdate();
 
   return (
-    <AppShell active="refresh">
+    <AppShell active="none" months={[]} selectedMonth={null}>
       {update ? <MonthlyUpdateView update={update} /> : <EmptyMonthlyUpdate />}
     </AppShell>
   );

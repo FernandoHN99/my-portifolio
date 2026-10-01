@@ -52,7 +52,9 @@ type PositionWithRelations = {
   };
 };
 
-export async function getPortfolioOverview(): Promise<PortfolioOverview | null> {
+export async function getPortfolioOverview(
+  referenceDate?: Date,
+): Promise<PortfolioOverview | null> {
   const prisma = getPrismaClient();
 
   if (!prisma) {
@@ -88,7 +90,11 @@ export async function getPortfolioOverview(): Promise<PortfolioOverview | null> 
       },
     });
 
-    const latestMonth = months.at(-1);
+    const requestedIndex = referenceDate
+      ? months.findIndex((month) => month.referenceDate.getTime() === referenceDate.getTime())
+      : -1;
+    const selectedIndex = requestedIndex === -1 ? months.length - 1 : requestedIndex;
+    const latestMonth = months[selectedIndex];
 
     if (!latestMonth || latestMonth.positions.length === 0) {
       return null;
@@ -98,8 +104,8 @@ export async function getPortfolioOverview(): Promise<PortfolioOverview | null> 
       date: month.referenceDate,
       totalBrl: sumPositions(month.positions).toNumber(),
     }));
-    const latestHistory = history.at(-1)!;
-    const previousHistory = history.at(-2) ?? null;
+    const latestHistory = history[selectedIndex];
+    const previousHistory = history[selectedIndex - 1] ?? null;
     const changeBrl = previousHistory
       ? latestHistory.totalBrl - previousHistory.totalBrl
       : null;
