@@ -91,6 +91,10 @@ Em 2026-10-01, a implementação foi iniciada conforme as specs:
   cotações;
 - a visão geral apresenta o patrimônio real, evolução, moedas, posições e
   instituições; a revisão dos 16 achados possui rota própria.
+- a atualização mensal manual possui rascunho idempotente, provedores de
+  cotações isolados, registro por símbolo e aplicação atômica dos preços;
+- a atualização real de outubro de 2026 concluiu as 10 cotações previstas;
+  as credenciais permanecem somente no `.env` local ignorado pelo Git.
 
 ## Questões em aberto
 

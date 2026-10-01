@@ -6,7 +6,7 @@ Esta pasta organiza a implementação em fatias pequenas e revisáveis.
 
 - [001 — Fundação da aplicação](001-foundation.md): concluída.
 - [002 — Importação auditável do Excel](002-excel-import.md): concluída.
-- [003 — Atualização mensal manual](003-manual-monthly-update.md): planejada.
+- [003 — Atualização mensal manual](003-manual-monthly-update.md): concluída.
 - [004 — Shell visual dark e revisão](004-dark-product-shell.md): concluída.
 - [005 — Domínio inicial da carteira](005-portfolio-domain.md): concluída.
 

@@ -51,3 +51,18 @@ O comando usa o hash do arquivo para não duplicar uma carga já concluída. As
 linhas são preservadas como JSON e os achados ficam vinculados ao mesmo lote.
 O normalizador cria as instituições, contas, ativos, competências, posições e
 cotações usadas pela aplicação. As duas operações são idempotentes.
+
+## Atualização de cotações
+
+Preencha no `.env` apenas as chaves dos provedores usados pela carteira:
+
+```dotenv
+AWESOME_API_KEY=
+COINGECKO_API_KEY=
+FINNHUB_API_KEY=
+ALPHA_VANTAGE_API_KEY=
+```
+
+As chaves são lidas somente no servidor. O botão **Atualizar carteira** copia a
+última competência para um rascunho e consulta os provedores naquele momento.
+Se alguma cotação falhar, nenhum novo preço é aplicado parcialmente.
