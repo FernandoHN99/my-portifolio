@@ -7,6 +7,14 @@ export function formatBrl(value: number, options?: { compact?: boolean }) {
   }).format(value);
 }
 
+export function formatSharePercent(value: number) {
+  return new Intl.NumberFormat("pt-BR", {
+    style: "percent",
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  }).format(value / 100);
+}
+
 export function formatPercent(value: number) {
   return new Intl.NumberFormat("pt-BR", {
     style: "percent",

@@ -4,13 +4,14 @@ import {
   FileSearchIcon,
   HouseIcon,
   LockKeyIcon,
+  ScalesIcon,
 } from "@phosphor-icons/react/dist/ssr";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
 
-type NavigationKey = "overview" | "imports" | "refresh";
+type NavigationKey = "overview" | "allocation" | "imports" | "refresh";
 
 type AppShellProps = {
   active: NavigationKey;
@@ -19,6 +20,12 @@ type AppShellProps = {
 
 const navigation = [
   { key: "overview", label: "Visão geral", href: "/", icon: HouseIcon },
+  {
+    key: "allocation",
+    label: "Alocação",
+    href: "/alocacao",
+    icon: ScalesIcon,
+  },
   {
     key: "refresh",
     label: "Atualização",
