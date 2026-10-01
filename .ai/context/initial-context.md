@@ -95,6 +95,8 @@ Em 2026-10-01, a implementação foi iniciada conforme as specs:
   cotações isolados, registro por símbolo e aplicação atômica dos preços;
 - a atualização real de outubro de 2026 concluiu as 10 cotações previstas;
   as credenciais permanecem somente no `.env` local ignorado pelo Git.
+- a competência em rascunho permite editar quantidades cotadas e saldos
+  manuais com validação e recálculo decimal atômico no servidor.
 
 ## Questões em aberto
 
