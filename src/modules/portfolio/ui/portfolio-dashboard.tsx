@@ -7,6 +7,7 @@ import {
   ChartLineUpIcon,
   CoinsIcon,
   FileSearchIcon,
+  PencilSimpleLineIcon,
   WalletIcon,
 } from "@phosphor-icons/react/dist/ssr";
 import Link from "next/link";
@@ -63,13 +64,21 @@ export function PortfolioDashboard({ overview }: { overview: PortfolioOverview |
             ) : null}
           </div>
           {overview.updateRunId ? (
-            <Link
-              href={`/atualizacao/${overview.updateRunId}`}
-              className="inline-flex h-11 items-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground outline-none transition-colors hover:bg-primary/90 focus-visible:ring-3 focus-visible:ring-ring/40"
-            >
-              Ver atualização
-              <ArrowRightIcon aria-hidden="true" size={15} weight="bold" />
-            </Link>
+            <div className="flex flex-wrap items-center gap-3">
+              <Link
+                href={`/atualizacao/${overview.updateRunId}`}
+                className="text-xs font-medium text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50"
+              >
+                Ver atualização
+              </Link>
+              <Link
+                href="/carteira/editar"
+                className="inline-flex h-11 items-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground outline-none transition-[background-color,transform] duration-150 ease-out hover:bg-primary/90 focus-visible:ring-3 focus-visible:ring-ring/40 active:scale-[0.98]"
+              >
+                <PencilSimpleLineIcon aria-hidden="true" size={15} weight="bold" />
+                Editar posições
+              </Link>
+            </div>
           ) : (
             <form action={refreshPortfolioMonthAction}>
               <RefreshPortfolioButton />

@@ -4,6 +4,7 @@ import {
   CheckCircleIcon,
   ClockIcon,
   CurrencyCircleDollarIcon,
+  PencilSimpleLineIcon,
   WarningCircleIcon,
   XCircleIcon,
 } from "@phosphor-icons/react/dist/ssr";
@@ -92,11 +93,20 @@ export function MonthlyUpdateView({ update }: { update: MonthlyUpdateOverview })
         )}
       </section>
 
-      <div className="mt-6 flex justify-end">
+      <div className="mt-6 flex flex-wrap items-center justify-end gap-4">
         <Link className="group inline-flex items-center gap-2 text-xs font-medium text-muted-foreground hover:text-foreground" href="/">
           Abrir carteira
           <ArrowRightIcon className="text-primary transition-transform group-hover:translate-x-0.5" aria-hidden="true" size={14} />
         </Link>
+        {update.status === "COMPLETED" ? (
+          <Link
+            href="/carteira/editar"
+            className="inline-flex h-11 items-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground outline-none transition-[background-color,transform] duration-150 ease-out hover:bg-primary/90 focus-visible:ring-3 focus-visible:ring-ring/40 active:scale-[0.98]"
+          >
+            <PencilSimpleLineIcon aria-hidden="true" size={15} weight="bold" />
+            Editar posições
+          </Link>
+        ) : null}
       </div>
     </div>
   );
