@@ -84,9 +84,13 @@ Em 2026-10-01, a implementação foi iniciada conforme as specs:
   Node.js 26 encontrado inicialmente no ambiente;
 - a [spec 002](../specs/002-excel-import.md) está em andamento;
 - a primeira importação preservou 904 linhas das três tabelas-base e
-  registrou 14 achados, sem alterar o XLSM;
+  registrou 14 achados iniciais, sem alterar o XLSM;
 - uma segunda execução confirmou idempotência pelo hash do arquivo;
-- a interface inicial apresenta o estado real do banco e da importação.
+- a normalização adicionou 2 achados de duplicidade exata e produziu 31
+  competências, 12 instituições, 12 contas, 62 ativos, 362 posições e 156
+  cotações;
+- a visão geral apresenta o patrimônio real, evolução, moedas, posições e
+  instituições; a revisão dos 16 achados possui rota própria.
 
 ## Questões em aberto
 
@@ -96,12 +100,25 @@ Em 2026-10-01, a implementação foi iniciada conforme as specs:
   posições separadas e só é agregado em relatórios.
 - A posição inconsistente de Bitcoin de junho de 2023 permanece pendente, sem
   reconstrução automática.
+- Instituição e conta são entidades distintas; uma instituição pode ter várias
+  contas e cada posição pertence a uma conta.
 - Comportamento pretendido dos percentuais e metas relacionados.
 - Preservação e eventual correção do histórico.
 - Fontes gratuitas de cotações, limites e tratamento de indisponibilidade.
 - Hospedagem futura, fora do escopo local atual.
 - Validação do comportamento das macros em execução e da interface
   diretamente no Excel.
+
+## Direção visual confirmada
+
+A aplicação terá somente tema escuro e deverá transmitir a linguagem de uma
+fintech moderna, premium e confiável. A interface deve priorizar clareza,
+acabamento e confiança, sem inventar dados financeiros para fins decorativos.
+
+O usuário pediu explicitamente que a aplicação não gaste interface descrevendo
+o que já foi feito, o que falta ou as pendências de desenvolvimento. Esse
+acompanhamento deve ficar na conversa e em `.ai/`. A estilização e o espaço do
+produto são reservados às funcionalidades financeiras.
 
 ## Escopo da etapa atual
 

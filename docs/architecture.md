@@ -66,19 +66,33 @@ previdência. Cada fatia deve introduzir apenas as abstrações necessárias ao
 comportamento implementado, com nomes explícitos, funções pequenas e testes
 concentrados nas regras financeiras de maior risco.
 
+Instituição e conta são entidades distintas. Uma instituição pode conter uma
+ou mais contas, e cada posição pertence a uma conta. Essa separação deve
+existir mesmo quando a carga inicial tiver apenas uma conta conhecida na
+instituição.
+
 ### Direção visual
 
-A interface deve ter acabamento profissional, identidade própria e modo
-escuro. A direção estética exata e a existência de um tema claro alternativo
-serão definidas com o usuário antes do redesenho da interface-base.
+A interface usa exclusivamente tema escuro. Sua direção é a de uma fintech
+moderna, premium e confiável: superfícies grafite, contraste alto, cor de
+destaque contida, tipografia precisa, números legíveis e densidade adequada a
+dados financeiros. Profundidade, transições e estados interativos devem ser
+discretos e funcionais.
+
+Não haverá alternância para tema claro. O produto deve evitar aparência de
+landing page, efeitos decorativos excessivos e valores financeiros fictícios.
+
+A interface não deve narrar o andamento da implementação, roadmap técnico ou
+estado das specs. Esses registros pertencem a `.ai/` e à conversa. Cada tela
+do aplicativo deve ajudar o usuário a consultar, revisar ou administrar dados
+financeiros reais.
 
 ## Questões ainda em aberto
 
 - Regras finais de correção e auditoria após a importação inicial.
 - Fontes gratuitas de cotações, prioridade entre provedores e tratamento
   específico dos limites de cada serviço.
-- Direção estética, comportamento do tema e biblioteca dos gráficos, a definir
-  junto da primeira visão.
+- Biblioteca dos gráficos, a definir junto da primeira visão analítica.
 - Hospedagem e empacotamento fora do ambiente de desenvolvimento.
 
 ## Base técnica aprovada

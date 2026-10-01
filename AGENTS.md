@@ -35,6 +35,10 @@ Instruções locais aplicam-se à respectiva subárvore.
   use referências.
 - Registre descobertas relevantes para permitir continuidade entre
   agentes, seguindo `.ai/README.md`.
+- A interface do aplicativo deve servir às tarefas financeiras do usuário.
+  Não criar telas ou componentes para narrar andamento do projeto, roadmap,
+  pendências de desenvolvimento ou estado de specs; registre isso em `.ai/`
+  e informe o usuário pela conversa.
 - Não trate sugestões anteriores como decisões aprovadas.
 - Antes de preparar ou executar commits, consulte
   [o fluxo de Git](docs/git-workflow.md), fonte das regras de

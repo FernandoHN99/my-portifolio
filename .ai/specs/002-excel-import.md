@@ -1,6 +1,6 @@
 # 002 — Importação auditável do Excel
 
-Estado: em andamento
+Estado: concluída em 2026-10-01
 Definida em: 2026-10-01
 
 ## Problema
@@ -60,12 +60,14 @@ Spec 001 concluída.
 - importador em streaming das tabelas `Table_Investimentos_Main`,
   `Table_Investimentos_Porcent` e `Table_Cotacoes`;
 - idempotência pelo SHA-256 do arquivo;
-- primeira carga verificada com 904 linhas e 14 achados: 7 valores numéricos
-  inválidos, 6 identidades ambíguas e 1 regra de busca sem instituição.
+- primeira carga verificada com 904 linhas e 14 achados iniciais: 7 valores
+  numéricos inválidos, 6 identidades ambíguas e 1 regra de busca sem
+  instituição;
+- a normalização detectou mais 2 posições exatamente duplicadas, preservou as
+  linhas e retirou as duplicatas dos totais;
+- a tela de revisão apresenta os 16 achados reais do lote.
 
-## Próximo incremento
+## Pendência preservada
 
-Criar a tela de revisão dos achados restantes e, depois, introduzir as
-entidades financeiras normalizadas em migrações pequenas. A linha de junho de
-2023 continuará visível como pendência até existir evidência suficiente ou uma
-decisão explícita do usuário.
+A linha de junho de 2023 continuará visível como pendência até existir
+evidência suficiente ou uma decisão explícita do usuário.
