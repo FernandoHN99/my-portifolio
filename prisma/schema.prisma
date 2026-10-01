@@ -124,6 +124,8 @@ model PortfolioMonth {
   createdAt     DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
   sourceBatch   ImportBatch?         @relation(fields: [sourceBatchId], references: [id], onDelete: SetNull)
   positions     Position[]
+  sourceUpdates MonthlyUpdateRun[]   @relation("MonthlyUpdateSource")
+  targetUpdate  MonthlyUpdateRun?    @relation("MonthlyUpdateTarget")
 
   @@map("portfolio_months")
 }
@@ -167,4 +169,50 @@ model MarketQuote {
   @@unique([referenceDate, symbol])
   @@index([symbol])
   @@map("market_quotes")
+}
+
+enum MonthlyUpdateStatus {
+  RUNNING
+  COMPLETED
+  COMPLETED_WITH_ISSUES
+  FAILED
+}
+
+enum QuoteUpdateStatus {
+  SUCCESS
+  FAILED
+  SKIPPED
+}
+
+model MonthlyUpdateRun {
+  id            String              @id @default(uuid()) @db.Uuid
+  sourceMonthId String              @map("source_month_id") @db.Uuid
+  targetMonthId String              @unique @map("target_month_id") @db.Uuid
+  status        MonthlyUpdateStatus @default(RUNNING)
+  startedAt     DateTime            @default(now()) @map("started_at") @db.Timestamptz(3)
+  completedAt   DateTime?           @map("completed_at") @db.Timestamptz(3)
+  errorMessage  String?             @map("error_message")
+  sourceMonth   PortfolioMonth      @relation("MonthlyUpdateSource", fields: [sourceMonthId], references: [id], onDelete: Restrict)
+  targetMonth   PortfolioMonth      @relation("MonthlyUpdateTarget", fields: [targetMonthId], references: [id], onDelete: Cascade)
+  quoteResults  QuoteUpdateResult[]
+
+  @@index([status])
+  @@map("monthly_update_runs")
+}
+
+model QuoteUpdateResult {
+  id           BigInt            @id @default(autoincrement())
+  runId        String            @map("run_id") @db.Uuid
+  symbol       String
+  provider     String
+  status       QuoteUpdateStatus
+  valueBrl     Decimal?          @map("value_brl") @db.Decimal(24, 8)
+  errorCode    String?           @map("error_code")
+  errorMessage String?           @map("error_message")
+  fetchedAt    DateTime          @default(now()) @map("fetched_at") @db.Timestamptz(3)
+  run          MonthlyUpdateRun  @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@unique([runId, symbol])
+  @@index([runId, status])
+  @@map("quote_update_results")
 }

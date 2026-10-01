@@ -1,5 +1,6 @@
 import {
   ChartDonutIcon,
+  ArrowClockwiseIcon,
   FileSearchIcon,
   HouseIcon,
   LockKeyIcon,
@@ -9,7 +10,7 @@ import type { ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
 
-type NavigationKey = "overview" | "imports";
+type NavigationKey = "overview" | "imports" | "refresh";
 
 type AppShellProps = {
   active: NavigationKey;
@@ -18,6 +19,12 @@ type AppShellProps = {
 
 const navigation = [
   { key: "overview", label: "Visão geral", href: "/", icon: HouseIcon },
+  {
+    key: "refresh",
+    label: "Atualização",
+    href: "/atualizacao",
+    icon: ArrowClockwiseIcon,
+  },
   {
     key: "imports",
     label: "Revisão de dados",

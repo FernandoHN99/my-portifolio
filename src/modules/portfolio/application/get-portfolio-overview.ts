@@ -1,4 +1,4 @@
-import { Prisma } from "@/generated/prisma/client";
+import { Prisma, type PortfolioMonthStatus } from "@/generated/prisma/client";
 import { getPrismaClient } from "@/lib/prisma";
 
 export type PortfolioHistoryPoint = {
@@ -24,6 +24,8 @@ export type PortfolioPositionItem = {
 
 export type PortfolioOverview = {
   referenceDate: Date;
+  monthStatus: PortfolioMonthStatus;
+  updateRunId: string | null;
   totalBrl: number;
   previousTotalBrl: number | null;
   changeBrl: number | null;
@@ -62,6 +64,8 @@ export async function getPortfolioOverview(): Promise<PortfolioOverview | null> 
       orderBy: { referenceDate: "asc" },
       select: {
         referenceDate: true,
+        status: true,
+        targetUpdate: { select: { id: true } },
         positions: {
           select: {
             id: true,
@@ -116,6 +120,8 @@ export async function getPortfolioOverview(): Promise<PortfolioOverview | null> 
 
     return {
       referenceDate: latestMonth.referenceDate,
+      monthStatus: latestMonth.status,
+      updateRunId: latestMonth.targetUpdate?.id ?? null,
       totalBrl,
       previousTotalBrl: previousHistory?.totalBrl ?? null,
       changeBrl,

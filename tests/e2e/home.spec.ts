@@ -13,6 +13,13 @@ test("apresenta a carteira normalizada", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Principais posições" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Por instituição" })).toBeVisible();
 
+  await page.getByRole("link", { name: "Atualização" }).click();
+  await expect(
+    page.getByRole("heading", {
+      name: /Prepare a próxima competência|Atualização de/,
+    }),
+  ).toBeVisible();
+
   await page.getByRole("link", { name: "Revisão de dados" }).click();
   await expect(page.getByRole("heading", { name: /achados, sem correções silenciosas/ })).toBeVisible();
 });

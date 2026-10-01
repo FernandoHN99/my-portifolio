@@ -12,6 +12,7 @@ import {
 import Link from "next/link";
 import type { ReactNode } from "react";
 
+import { refreshPortfolioMonthAction } from "@/app/actions/refresh-portfolio-month";
 import type {
   PortfolioBreakdownItem,
   PortfolioOverview,
@@ -22,6 +23,7 @@ import {
   formatPercent,
 } from "@/modules/portfolio/presentation/portfolio-format";
 import { PortfolioValueChart } from "@/modules/portfolio/ui/portfolio-value-chart";
+import { RefreshPortfolioButton } from "@/modules/portfolio/ui/refresh-portfolio-button";
 
 const CHART_COLORS = ["#5ce4a4", "#6ea8ff", "#b394ff", "#f2bb66", "#e2799c"];
 
@@ -50,9 +52,29 @@ export function PortfolioDashboard({ overview }: { overview: PortfolioOverview |
             Posições separadas por conta, consolidadas em uma única visão.
           </p>
         </div>
-        <div className="inline-flex w-fit items-center gap-2 rounded-xl border border-border bg-card/70 px-3.5 py-2.5 text-xs text-muted-foreground">
-          <CalendarBlankIcon aria-hidden="true" className="text-primary" size={15} weight="duotone" />
-          <span>{formatMonth(overview.referenceDate)}</span>
+        <div className="flex flex-col items-start gap-3 sm:items-end">
+          <div className="inline-flex w-fit items-center gap-2 rounded-xl border border-border bg-card/70 px-3.5 py-2.5 text-xs text-muted-foreground">
+            <CalendarBlankIcon aria-hidden="true" className="text-primary" size={15} weight="duotone" />
+            <span>{formatMonth(overview.referenceDate)}</span>
+            {overview.monthStatus === "DRAFT" ? (
+              <span className="rounded-full bg-warning/10 px-2 py-0.5 text-[9px] font-semibold tracking-[0.08em] text-warning-foreground uppercase">
+                Rascunho
+              </span>
+            ) : null}
+          </div>
+          {overview.updateRunId ? (
+            <Link
+              href={`/atualizacao/${overview.updateRunId}`}
+              className="inline-flex h-11 items-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground outline-none transition-colors hover:bg-primary/90 focus-visible:ring-3 focus-visible:ring-ring/40"
+            >
+              Ver atualização
+              <ArrowRightIcon aria-hidden="true" size={15} weight="bold" />
+            </Link>
+          ) : (
+            <form action={refreshPortfolioMonthAction}>
+              <RefreshPortfolioButton />
+            </form>
+          )}
         </div>
       </header>
 
