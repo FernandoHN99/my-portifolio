@@ -143,6 +143,14 @@ A [spec 008](../specs/008-allocation-view.md) foi concluída em 2026-10-01: a
 rota `/alocacao` apresenta a alocação atual da competência mais recente ao
 lado da meta vigente, nas seis famílias da spec 007.
 
+Em 2026-10-01 o usuário pediu uma reestruturação da UX, comparando o app com
+a planilha e registrando o propósito do produto: percorrer o histórico mês a
+mês e saber o que fazer na prática. A direção está em
+[Decisões de arquitetura](../../docs/architecture.md) e a execução foi
+dividida em fatias a partir da [spec 010](../specs/010-global-shell-month-selector.md),
+entregue com a navegação no topo e o seletor global de mês. Previdência
+permanece fora de todas essas fatias por decisão explícita do usuário.
+
 A [spec 009](../specs/009-rebalance-labels.md) foi concluída em 2026-10-01:
 cada linha com meta na tela de alocação recebe o rótulo comprar/vender e o
 valor em BRL da diferença, preservando a regra diagnosticada no Excel

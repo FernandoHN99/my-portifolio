@@ -9,6 +9,14 @@ O projeto entrou em implementação incremental, orientada por specs
 pequenas em `.ai/specs/`. O desenvolvimento será AI-first, com Codex
 e Claude Code consultando a mesma base de conhecimento.
 
+## Trabalho em andamento
+
+O projeto está executando a reestruturação da UX pedida pelo usuário,
+dividida nas specs 010 a 014. O propósito, as restrições e as regras de
+cálculo dessa iniciativa estão em `.ai/context/ux-restructure.md`, e o estado
+de cada fatia fica em `.ai/specs/README.md`. Previdência está explicitamente
+fora dessa iniciativa.
+
 ## Como trabalhar neste projeto
 
 1. Leia `.ai/README.md` para entender a organização do contexto.

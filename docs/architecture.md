@@ -87,6 +87,18 @@ estado das specs. Esses registros pertencem a `.ai/` e à conversa. Cada tela
 do aplicativo deve ajudar o usuário a consultar, revisar ou administrar dados
 financeiros reais.
 
+### Navegação e competência selecionada
+
+A navegação principal fica no topo, em abas: Visão Geral, Alocação e
+Posições, com a configuração da carteira em um acesso próprio. Não há barra
+lateral.
+
+Um seletor global de competência governa todas as telas e fica registrado na
+URL. O propósito do produto é percorrer o histórico mês a mês e comparar a
+alocação atual com a meta, obtendo a ação correspondente. Após a carga
+inicial, o aplicativo é a fonte da verdade; não haverá sincronização
+contínua com a planilha.
+
 ## Questões ainda em aberto
 
 - Regras finais de correção e auditoria após a importação inicial.
