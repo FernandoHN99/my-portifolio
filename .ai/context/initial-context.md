@@ -1,7 +1,7 @@
 # Contexto inicial
 
 Registrado em: 2026-09-21
-Última atualização: 2026-10-01
+Última atualização: 2026-10-01 (spec 007)
 Origem: conversa de descoberta com o usuário.
 Estágio: implementação incremental autorizada, começando pela fundação
 técnica; nenhuma funcionalidade financeira concluída ainda.
@@ -96,7 +96,13 @@ Em 2026-10-01, a implementação foi iniciada conforme as specs:
 - a atualização real de outubro de 2026 concluiu as 10 cotações previstas;
   as credenciais permanecem somente no `.env` local ignorado pelo Git.
 - a competência em rascunho permite editar quantidades cotadas e saldos
-  manuais com validação e recálculo decimal atômico no servidor.
+  manuais com validação e recálculo decimal atômico no servidor;
+- as classificações de `Table_Investimentos_Porcent` foram normalizadas por
+  posição e as seis famílias de metas de `Tables_Atual_Ideal` foram
+  importadas com planilha e célula de origem; correspondências ambíguas por
+  instituição permanecem como achados, sem escolha automática; novos
+  rascunhos recebem as classificações do mês anterior por identidade de
+  conta e ativo.
 
 ## Questões em aberto
 
