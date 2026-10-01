@@ -59,7 +59,7 @@ export function TabViewport({ active, children }: { active: TabKey | "none"; chi
   return (
     <div onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
       <motion.div
-        key={`${pathname}?${searchParams.get("mes") ?? ""}`}
+        key={pathname}
         initial={reduceMotion ? false : { opacity: 0, y: 6 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.22, ease: [0.23, 1, 0.32, 1] }}

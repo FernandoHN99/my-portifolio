@@ -6,8 +6,10 @@ import type { OverviewData } from "@/modules/portfolio/application/get-overview-
 import { formatMonth } from "@/modules/portfolio/presentation/portfolio-format";
 import { toMonthParam } from "@/modules/portfolio/presentation/reference-month";
 import { CompositionDonuts } from "@/modules/portfolio/ui/composition-donuts";
+import { FixedIncomeDurationChart } from "@/modules/portfolio/ui/fixed-income-duration-chart";
 import { OverviewKpis } from "@/modules/portfolio/ui/overview-kpis";
 import { PortfolioEvolutionChart } from "@/modules/portfolio/ui/portfolio-evolution-chart";
+import { RebalancePanel } from "@/modules/portfolio/ui/rebalance-panel";
 import { RefreshPortfolioButton } from "@/modules/portfolio/ui/refresh-portfolio-button";
 
 export function OverviewDashboard({
@@ -58,10 +60,14 @@ export function OverviewDashboard({
       </header>
 
       <div className="mt-7">
-        <OverviewKpis overview={overview} monthParam={monthParam} />
+        <OverviewKpis overview={overview} />
       </div>
 
-      <section className="premium-panel mt-6 rounded-[24px] p-5 sm:p-7" aria-labelledby="evolution-title">
+      <section
+        id="evolucao"
+        className="premium-panel mt-6 rounded-[24px] p-5 sm:p-7"
+        aria-labelledby="evolution-title"
+      >
         <div className="mb-1 flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 id="evolution-title" className="text-base font-semibold tracking-[-0.025em]">
@@ -85,6 +91,16 @@ export function OverviewDashboard({
 
       <div className="mt-6">
         <CompositionDonuts groups={overview.composition} />
+      </div>
+
+      <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1.6fr)_minmax(320px,0.9fr)]">
+        <RebalancePanel
+          groups={overview.rebalanceGroups}
+          tolerance={overview.offTargetTolerance}
+        />
+        <FixedIncomeDurationChart
+          group={overview.rebalanceGroups.find((group) => group.key === "FIXED_INCOME")}
+        />
       </div>
     </div>
   );

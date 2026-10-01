@@ -53,6 +53,24 @@ A planilha era inconsistente neste ponto. A definição adotada é:
 - o valor ideal de uma subcategoria é o percentual ideal aplicado ao valor
   ideal da classe-mãe.
 
+## Valor ideal e diferença
+
+Conferido em 2026-10-01 contra as capturas da tabela dinâmica enviadas pelo
+usuário, em setembro de 2026, com patrimônio de R$ 251.151,11:
+
+- o valor ideal de uma categoria do recorte geral é o percentual ideal
+  aplicado ao patrimônio total: renda fixa com 25% resulta em R$ 62.787,78;
+- o valor ideal de uma subcategoria encadeia pelo ideal da classe-mãe, não
+  pelo total atual dela: caixa em dólar com 40% sobre o ideal de caixa,
+  R$ 37.672,67, resulta em R$ 15.069,07; IPCA curto com 10% sobre o ideal de
+  renda fixa resulta em R$ 6.278,78;
+- a diferença é o valor atual menos o valor ideal, em reais; caixa em dólar
+  com R$ 14.078,13 atual resulta em menos R$ 990,93, portanto comprar.
+
+Esta é a definição correta. A spec 009 havia aplicado a diferença percentual
+sobre o total atual da categoria, o que produz outro número, e foi corrigida
+pela spec 012.
+
 ## Bibliotecas escolhidas para a iniciativa
 
 Gráficos com Recharts pelo wrapper de gráfico do shadcn; tabela com
@@ -65,20 +83,58 @@ na URL com `nuqs`; transições com `motion`; formulários com
 Formatação com `Intl.NumberFormat` em pt-BR e cores fixas por categoria, de
 modo que uma mesma classe tenha sempre a mesma cor em todos os gráficos.
 
+## Retorno do usuário após as fatias 010 e 011
+
+Registrado em 2026-10-01, com novas capturas da tabela dinâmica.
+
+- o padrão de transições agradou e deve ser mantido;
+- a aba de alocação deve deixar de existir; toda a análise se concentra na
+  Visão Geral, com gráficos fáceis de ler e interação no nível do gráfico de
+  evolução do patrimônio;
+- dos gráficos da planilha, falta reproduzir renda fixa por duração;
+- a troca de mês e o gesto lateral ainda parecem um recarregamento; isso deve
+  ficar contínuo, usando os recursos do próprio Next;
+- a aba de posições deve receber filtros de seleção múltipla por instituição,
+  moeda e classe, para consultar e editar um recorte específico, como a
+  planilha permite;
+- em algum momento será preciso editar os valores das posições e as metas da
+  carteira ideal; o usuário não fixou se agora ou depois;
+- ideia registrada para o futuro: clicar em uma linha da aba de posições abre
+  a evolução daquela posição e também a do ativo em si.
+
+## Recortes da tabela dinâmica
+
+As capturas mostram dois níveis de segmentação que o produto deve reproduzir:
+
+| Classificação | Subclassificação | Escopo correspondente |
+|---|---|---|
+| 1- Geral | 1- Classe | classe de ativos |
+| 1- Geral | 2- Moeda | moeda geral |
+| 1- Geral | 3- Estratégia | estratégia |
+| 2- Caixa | 1- Moeda | moeda dentro da classe caixa |
+| 2- Renda Fixa | 1- Subclasse | subclasse e duração da renda fixa |
+| 3- Renda Variável | 1- Subclasse | subclasse da renda variável |
+
+A tabela resultante agrupa as linhas sob os títulos COMPRAR e VENDER e traz
+percentual atual, percentual ideal, valor atual, valor ideal e diferença.
+
 ## Fatias
 
 1. [010 — Navegação no topo e seletor global de mês](../specs/010-global-shell-month-selector.md): concluída.
 2. [011 — Visão Geral](../specs/011-overview-tab.md): concluída.
-3. [012 — Aba de alocação com sub-abas](../specs/012-allocation-tabs.md): planejada.
-4. [013 — Posições editáveis](../specs/013-positions-editing.md): planejada.
-5. [014 — Configuração da carteira](../specs/014-target-settings.md): planejada.
+3. [012 — Rebalanceamento na Visão Geral](../specs/012-rebalancing-in-overview.md): concluída.
+4. [015 — Transições sem recarregamento](../specs/015-seamless-transitions.md): concluída.
+5. [013 — Posições com filtros e edição](../specs/013-positions-editing.md): planejada.
+6. [014 — Configuração da carteira](../specs/014-target-settings.md): planejada.
+7. [016 — Histórico de uma posição e de um ativo](../specs/016-position-history.md): planejada, sem prazo.
 
 Cada fatia termina com `pnpm check`, `pnpm build` e os testes do Playwright.
 
 ## Critérios de aceite da iniciativa
 
-- não existe barra lateral; as abas ficam no topo, com transição, e há gesto
-  lateral no mobile;
+- não existe barra lateral nem aba de alocação; a análise fica na Visão
+  Geral e as abas no topo têm transição, com gesto lateral no mobile;
+- trocar de mês ou de aba não produz sensação de recarregamento;
 - trocar o mês no seletor global atualiza indicadores, gráficos, alocação e
   posições, e o mês permanece na URL;
 - o gráfico de evolução tem seleção de intervalo e atalhos de período, e

@@ -15,13 +15,17 @@ Esta pasta organiza a implementação em fatias pequenas e revisáveis.
 - [009 — Rótulo e valor de rebalanceamento](009-rebalance-labels.md): concluída.
 - [010 — Navegação no topo e seletor global de mês](010-global-shell-month-selector.md): concluída.
 - [011 — Visão Geral](011-overview-tab.md): concluída.
-- [012 — Aba de alocação com sub-abas](012-allocation-tabs.md): planejada.
-- [013 — Posições editáveis](013-positions-editing.md): planejada.
+- [012 — Rebalanceamento na Visão Geral](012-rebalancing-in-overview.md): concluída.
+- [013 — Posições com filtros e edição](013-positions-editing.md): planejada.
 - [014 — Configuração da carteira](014-target-settings.md): planejada.
+- [015 — Transições sem recarregamento](015-seamless-transitions.md): concluída.
+- [016 — Histórico de uma posição e de um ativo](016-position-history.md): planejada, sem prazo.
 
-As specs 010 a 014 formam a reestruturação da UX pedida pelo usuário. O
+As specs 010 a 016 formam a reestruturação da UX pedida pelo usuário. O
 propósito, as restrições e as regras de cálculo comuns a elas estão em
-[Reestruturação da UX](../context/ux-restructure.md).
+[Reestruturação da UX](../context/ux-restructure.md). A ordem de execução
+acordada está registrada lá, e não segue a numeração: depois da 012 vem a
+015, depois a 013 e a 014.
 
 Cada spec deve preservar o problema, objetivo, requisitos,
 restrições, comportamento esperado, decisões tomadas, referências

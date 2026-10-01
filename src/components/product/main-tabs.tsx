@@ -6,11 +6,10 @@ import { useSearchParams } from "next/navigation";
 
 import { cn } from "@/lib/utils";
 
-export type TabKey = "overview" | "allocation" | "positions";
+export type TabKey = "overview" | "positions";
 
 export const MAIN_TABS = [
   { key: "overview", label: "Visão Geral", href: "/" },
-  { key: "allocation", label: "Alocação", href: "/alocacao" },
   { key: "positions", label: "Posições", href: "/posicoes" },
 ] as const;
 

@@ -2,7 +2,7 @@
 
 import { CaretLeftIcon, CaretRightIcon } from "@phosphor-icons/react/dist/ssr";
 import { useQueryState } from "nuqs";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useTransition } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 
 import { cn } from "@/lib/utils";
@@ -14,7 +14,8 @@ type MonthTimelineProps = {
 };
 
 export function MonthTimeline({ months, selectedMonth }: MonthTimelineProps) {
-  const [, setMonth] = useQueryState("mes", { shallow: false });
+  const [isPending, startTransition] = useTransition();
+  const [, setMonth] = useQueryState("mes", { shallow: false, startTransition });
   const selectedRef = useRef<HTMLButtonElement>(null);
   const selectedIndex = months.findIndex((month) => month.month === selectedMonth);
   const latestMonth = months.at(-1);
@@ -41,7 +42,20 @@ export function MonthTimeline({ months, selectedMonth }: MonthTimelineProps) {
   const years = [...new Set(months.map((month) => month.referenceDate.getUTCFullYear()))];
 
   return (
-    <div className="flex items-center gap-2 border-b border-border/70 bg-background/80 px-4 py-2.5 backdrop-blur-xl sm:px-6">
+    <div className="relative flex items-center gap-2 border-b border-border/70 bg-background/80 px-4 py-2.5 backdrop-blur-xl sm:px-6">
+      <span
+        aria-hidden="true"
+        className={cn(
+          "pointer-events-none absolute inset-x-0 bottom-0 h-px overflow-hidden transition-opacity duration-150",
+          isPending ? "opacity-100" : "opacity-0",
+        )}
+      >
+        <span className="month-progress block h-full w-1/3 bg-primary" />
+      </span>
+      <span aria-live="polite" className="sr-only">
+        {isPending ? "Carregando competência" : ""}
+      </span>
+
       <TimelineButton
         label="Mês anterior"
         disabled={selectedIndex <= 0}

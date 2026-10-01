@@ -1,7 +1,7 @@
 "use client";
 
 import { useQueryState } from "nuqs";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useTransition } from "react";
 import {
   Bar,
   BarChart,
@@ -50,7 +50,8 @@ export function PortfolioEvolutionChart({
   classLabels: string[];
   currencyLabels: string[];
 }) {
-  const [, setMonth] = useQueryState("mes", { shallow: false });
+  const [, startTransition] = useTransition();
+  const [, setMonth] = useQueryState("mes", { shallow: false, startTransition });
   const [stackMode, setStackMode] = useState<StackMode>("total");
   const [range, setRange] = useState<[number, number]>([
     Math.max(history.length - 12, 0),

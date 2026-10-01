@@ -1,7 +1,9 @@
 import { Prisma, type PortfolioMonthStatus } from "@/generated/prisma/client";
 import { getPrismaClient } from "@/lib/prisma";
 
-export type RebalanceDirection = "SELL" | "BUY";
+export type RebalanceDirection = "SELL" | "BUY" | "BALANCED";
+
+export const REBALANCE_TOLERANCE = 2;
 
 export type AllocationRow = {
   key: string;
@@ -9,9 +11,10 @@ export type AllocationRow = {
   currentBrl: number;
   currentShare: number;
   targetShare: number | null;
+  targetBrl: number | null;
   differenceShare: number | null;
-  rebalanceDirection: RebalanceDirection | null;
-  rebalanceBrl: number | null;
+  differenceBrl: number | null;
+  direction: RebalanceDirection | null;
 };
 
 export type AllocationGroupKey =
@@ -109,30 +112,43 @@ export async function getAllocationOverview(
     const fixedIncomeTotals = aggregateClassSubclass(positions, FIXED_INCOME_CLASS, true);
     const variableIncomeTotals = aggregateClassSubclass(positions, VARIABLE_INCOME_CLASS, false);
 
+    const assetClassTargetBrl = new Map(
+      targets
+        .filter((target) => target.scope === "ASSET_CLASS")
+        .map((target) => [target.primaryLabel, target.percentage.toNumber() * totalBrl]),
+    );
+    const parentTargetBrl = (label: string) => assetClassTargetBrl.get(label) ?? 0;
+
     const groups: AllocationGroup[] = [
       {
         key: "ASSET_CLASS",
         title: "Classe de ativos",
         description: "Percentual sobre o patrimônio total da competência.",
-        rows: buildRows(assetClassTotals, totalBrl, targets, "ASSET_CLASS", unclassifiedBrl),
+        rows: buildRows(assetClassTotals, totalBrl, totalBrl, targets, "ASSET_CLASS", unclassifiedBrl),
       },
       {
         key: "CURRENCY",
         title: "Moeda geral",
         description: "Percentual sobre o patrimônio total da competência.",
-        rows: buildRows(currencyTotals, totalBrl, targets, "CURRENCY"),
+        rows: buildRows(currencyTotals, totalBrl, totalBrl, targets, "CURRENCY"),
       },
       {
         key: "STRATEGY",
         title: "Estratégia",
         description: "Percentual sobre o patrimônio total da competência.",
-        rows: buildRows(strategyTotals, totalBrl, targets, "STRATEGY"),
+        rows: buildRows(strategyTotals, totalBrl, totalBrl, targets, "STRATEGY"),
       },
       {
         key: "CLASS_CURRENCY",
         title: "Moeda por classe",
         description: "Percentual sobre o total atual de cada classe.",
-        rows: buildNestedRows(classCurrencyTotals, assetClassTotals, targets, "CLASS_CURRENCY"),
+        rows: buildNestedRows(
+          classCurrencyTotals,
+          assetClassTotals,
+          parentTargetBrl,
+          targets,
+          "CLASS_CURRENCY",
+        ),
       },
       {
         key: "FIXED_INCOME",
@@ -141,6 +157,7 @@ export async function getAllocationOverview(
         rows: buildNestedRows(
           fixedIncomeTotals,
           new Map([[FIXED_INCOME_CLASS, assetClassTotals.get(FIXED_INCOME_CLASS) ?? new Prisma.Decimal(0)]]),
+          parentTargetBrl,
           targets,
           "FIXED_INCOME",
           FIXED_INCOME_CLASS,
@@ -153,6 +170,7 @@ export async function getAllocationOverview(
         rows: buildNestedRows(
           variableIncomeTotals,
           new Map([[VARIABLE_INCOME_CLASS, assetClassTotals.get(VARIABLE_INCOME_CLASS) ?? new Prisma.Decimal(0)]]),
+          parentTargetBrl,
           targets,
           "VARIABLE_INCOME",
           VARIABLE_INCOME_CLASS,
@@ -260,6 +278,7 @@ function aggregateClassSubclass(
 function buildRows(
   totals: Map<string, Prisma.Decimal>,
   denominatorBrl: number,
+  targetBaseBrl: number,
   targets: { scope: string; primaryLabel: string; secondaryLabel: string | null; percentage: Prisma.Decimal }[],
   scope: string,
   unclassifiedBrl?: number,
@@ -269,11 +288,20 @@ function buildRows(
   );
 
   const rows = [...totals.entries()].map(([label, value]) =>
-    toRow(label, label, value.toNumber(), denominatorBrl, targetByLabel.get(label) ?? null),
+    toRow(
+      label,
+      label,
+      value.toNumber(),
+      denominatorBrl,
+      targetBaseBrl,
+      targetByLabel.get(label) ?? null,
+    ),
   );
 
   if (unclassifiedBrl !== undefined && unclassifiedBrl > 0) {
-    rows.push(toRow(UNCLASSIFIED_LABEL, UNCLASSIFIED_LABEL, unclassifiedBrl, denominatorBrl, null));
+    rows.push(
+      toRow(UNCLASSIFIED_LABEL, UNCLASSIFIED_LABEL, unclassifiedBrl, denominatorBrl, targetBaseBrl, null),
+    );
   }
 
   return rows.sort((left, right) => right.currentBrl - left.currentBrl);
@@ -282,6 +310,7 @@ function buildRows(
 function buildNestedRows(
   totals: NestedTotal[],
   parentTotals: Map<string, Prisma.Decimal>,
+  parentTargetBrl: (label: string) => number,
   targets: { scope: string; primaryLabel: string; secondaryLabel: string | null; percentage: Prisma.Decimal }[],
   scope: string,
   fixedParent?: string,
@@ -298,7 +327,14 @@ function buildNestedRows(
     const label = secondary !== null ? `${primary} · ${secondary}` : primary;
     const key = `${primary}\u0000${secondary ?? ""}`;
 
-    return toRow(key, label, value.toNumber(), denominatorBrl, target?.percentage ?? null);
+    return toRow(
+      key,
+      label,
+      value.toNumber(),
+      denominatorBrl,
+      parentTargetBrl(parentKey),
+      target?.percentage ?? null,
+    );
   });
 
   return rows.sort((left, right) => right.currentBrl - left.currentBrl);
@@ -309,11 +345,14 @@ function toRow(
   label: string,
   currentBrl: number,
   denominatorBrl: number,
+  targetBaseBrl: number,
   targetPercentage: Prisma.Decimal | null,
 ): AllocationRow {
   const currentShare = denominatorBrl === 0 ? 0 : (currentBrl / denominatorBrl) * 100;
   const targetShare = targetPercentage === null ? null : targetPercentage.mul(100).toNumber();
+  const targetBrl = targetPercentage === null ? null : targetPercentage.toNumber() * targetBaseBrl;
   const differenceShare = targetShare === null ? null : currentShare - targetShare;
+  const differenceBrl = targetBrl === null ? null : currentBrl - targetBrl;
 
   return {
     key,
@@ -321,8 +360,16 @@ function toRow(
     currentBrl,
     currentShare,
     targetShare,
+    targetBrl,
     differenceShare,
-    rebalanceDirection: differenceShare === null ? null : differenceShare > 0 ? "SELL" : "BUY",
-    rebalanceBrl: differenceShare === null ? null : Math.abs((differenceShare / 100) * denominatorBrl),
+    differenceBrl,
+    direction:
+      differenceShare === null || differenceBrl === null
+        ? null
+        : Math.abs(differenceShare) <= REBALANCE_TOLERANCE
+          ? "BALANCED"
+          : differenceBrl > 0
+            ? "SELL"
+            : "BUY",
   };
 }

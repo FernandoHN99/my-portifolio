@@ -1,7 +1,12 @@
-# 013 — Posições editáveis
+# 013 — Posições com filtros e edição
 
 Estado: planejada
 Definida em: 2026-10-01
+
+O usuário reforçou em 2026-10-01 que os filtros de seleção múltipla por
+instituição, moeda e classe são o ponto mais importante desta fatia, porque
+servem tanto para consultar quanto para editar um recorte específico, como a
+planilha já permitia.
 
 ## Problema
 

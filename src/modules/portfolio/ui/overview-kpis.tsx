@@ -9,20 +9,13 @@ import {
   ScalesIcon,
   TrendUpIcon,
 } from "@phosphor-icons/react/dist/ssr";
-import Link from "next/link";
 import type { ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
 import type { OverviewData } from "@/modules/portfolio/application/get-overview-data";
 import { formatBrl } from "@/modules/portfolio/presentation/portfolio-format";
 
-export function OverviewKpis({
-  overview,
-  monthParam,
-}: {
-  overview: OverviewData;
-  monthParam: string;
-}) {
+export function OverviewKpis({ overview }: { overview: OverviewData }) {
   return (
     <section aria-label="Indicadores da competência" className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
       <KpiCard
@@ -93,8 +86,8 @@ export function OverviewKpis({
         }
       />
 
-      <Link
-        href={`/alocacao?mes=${monthParam}`}
+      <a
+        href="#rebalanceamento"
         className="metric-card rounded-2xl p-4 outline-none focus-visible:ring-2 focus-visible:ring-ring/50 sm:p-5"
       >
         <div className="flex items-start justify-between gap-4">
@@ -111,7 +104,7 @@ export function OverviewKpis({
         <p className="mt-1.5 text-xs text-muted-foreground">
           Itens além de ±{overview.offTargetTolerance}%
         </p>
-      </Link>
+      </a>
 
       <div className="metric-card rounded-2xl p-4 sm:col-span-2 sm:p-5 xl:col-span-4">
         <div className="flex flex-wrap items-center gap-x-8 gap-y-4">

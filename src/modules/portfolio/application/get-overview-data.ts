@@ -1,9 +1,11 @@
 import { Prisma, type PortfolioMonthStatus } from "@/generated/prisma/client";
 import { getPrismaClient } from "@/lib/prisma";
-import { getAllocationOverview } from "@/modules/portfolio/application/get-allocation-overview";
+import {
+  getAllocationOverview,
+  REBALANCE_TOLERANCE,
+  type AllocationGroup,
+} from "@/modules/portfolio/application/get-allocation-overview";
 import { toMonthParam } from "@/modules/portfolio/presentation/reference-month";
-
-export const OFF_TARGET_TOLERANCE = 2;
 
 export type OverviewHistoryPoint = {
   month: string;
@@ -42,6 +44,7 @@ export type OverviewData = {
   offTargetTolerance: number;
   history: OverviewHistoryPoint[];
   composition: CompositionGroup[];
+  rebalanceGroups: AllocationGroup[];
   classLabels: string[];
   currencyLabels: string[];
 };
@@ -144,12 +147,7 @@ export async function getOverviewData(referenceDate?: Date): Promise<OverviewDat
       }));
     const offTargetCount = (allocation?.groups ?? []).reduce(
       (total, group) =>
-        total +
-        group.rows.filter(
-          (row) =>
-            row.differenceShare !== null &&
-            Math.abs(row.differenceShare) > OFF_TARGET_TOLERANCE,
-        ).length,
+        total + group.rows.filter((row) => row.direction === "BUY" || row.direction === "SELL").length,
       0,
     );
 
@@ -175,9 +173,10 @@ export async function getOverviewData(referenceDate?: Date): Promise<OverviewDat
         selected.positions.map((position) => position.account.institutionId),
       ).size,
       offTargetCount,
-      offTargetTolerance: OFF_TARGET_TOLERANCE,
+      offTargetTolerance: REBALANCE_TOLERANCE,
       history,
       composition,
+      rebalanceGroups: allocation?.groups ?? [],
       classLabels: collectLabels(history, "byClass"),
       currencyLabels: collectLabels(history, "byCurrency"),
     };
