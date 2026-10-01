@@ -1,6 +1,8 @@
 import { Prisma, type PortfolioMonthStatus } from "@/generated/prisma/client";
 import { getPrismaClient } from "@/lib/prisma";
 
+export type RebalanceDirection = "SELL" | "BUY";
+
 export type AllocationRow = {
   key: string;
   label: string;
@@ -8,6 +10,8 @@ export type AllocationRow = {
   currentShare: number;
   targetShare: number | null;
   differenceShare: number | null;
+  rebalanceDirection: RebalanceDirection | null;
+  rebalanceBrl: number | null;
 };
 
 export type AllocationGroupKey =
@@ -306,6 +310,7 @@ function toRow(
 ): AllocationRow {
   const currentShare = denominatorBrl === 0 ? 0 : (currentBrl / denominatorBrl) * 100;
   const targetShare = targetPercentage === null ? null : targetPercentage.mul(100).toNumber();
+  const differenceShare = targetShare === null ? null : currentShare - targetShare;
 
   return {
     key,
@@ -313,6 +318,8 @@ function toRow(
     currentBrl,
     currentShare,
     targetShare,
-    differenceShare: targetShare === null ? null : currentShare - targetShare,
+    differenceShare,
+    rebalanceDirection: differenceShare === null ? null : differenceShare > 0 ? "SELL" : "BUY",
+    rebalanceBrl: differenceShare === null ? null : Math.abs((differenceShare / 100) * denominatorBrl),
   };
 }

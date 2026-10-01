@@ -106,9 +106,9 @@ function AllocationGroupCard({ group }: { group: AllocationGroup }) {
                       <span className="text-muted-foreground/50">/ {formatSharePercent(row.targetShare)}</span>
                       <span
                         className={
-                          (row.differenceShare ?? 0) >= 0
-                            ? "text-primary"
-                            : "text-destructive"
+                          row.rebalanceDirection === "SELL"
+                            ? "text-destructive"
+                            : "text-primary"
                         }
                       >
                         {formatPercent(row.differenceShare ?? 0)}
@@ -119,6 +119,20 @@ function AllocationGroupCard({ group }: { group: AllocationGroup }) {
                   )}
                 </div>
               </div>
+              {row.rebalanceDirection !== null ? (
+                <div className="mt-1.5 flex items-center justify-end gap-1.5 text-[10px]">
+                  <span
+                    className={
+                      row.rebalanceDirection === "SELL"
+                        ? "rounded-full bg-destructive/10 px-2 py-0.5 font-semibold tracking-[0.04em] text-destructive uppercase"
+                        : "rounded-full bg-primary/10 px-2 py-0.5 font-semibold tracking-[0.04em] text-primary uppercase"
+                    }
+                  >
+                    {row.rebalanceDirection === "SELL" ? "Vender" : "Comprar"}
+                  </span>
+                  <span className="font-mono text-muted-foreground">{formatBrl(row.rebalanceBrl ?? 0)}</span>
+                </div>
+              ) : null}
               <div className="relative mt-2 h-1.5 overflow-hidden rounded-full bg-white/[0.045]">
                 <div
                   className="h-full rounded-full bg-primary/75"
