@@ -1,12 +1,18 @@
-# Diagnóstico inicial do Excel
+# Diagnóstico do Excel
 
-Data da análise: 2026-09-21
-Fonte: `01-Investimentos.xlsm`, na raiz do projeto.
-Método: leitura estática do conteúdo OOXML, dados salvos e código VBA.
+Análise inicial: 2026-09-21
+Última verificação: 2026-10-01
+Fonte atual: `raw_file/01-Investimentos.xlsm`.
+Método: leitura estática do conteúdo OOXML, dos valores salvos e dos
+módulos VBA exportados em `raw_file/automacaoVBA/`.
 
-A planilha não foi alterada. As macros não foram executadas e as
-APIs não foram consultadas com as credenciais presentes no arquivo.
-Funcionamento ao vivo e aparência no Excel não foram validados.
+A versão atual também foi comparada com o arquivo registrado no commit
+`86d4f27`. O resumo fornecido pelo usuário em 2026-10-01 foi usado como
+fonte secundária e conferido contra os arquivos.
+
+A planilha não foi alterada. As macros não foram executadas e as APIs
+não foram consultadas. O funcionamento ao vivo e a aparência no Excel
+continuam sem validação.
 
 ## Inventário
 
@@ -16,8 +22,9 @@ Funcionamento ao vivo e aparência no Excel não foram validados.
 - 12 gráficos.
 - 10 segmentações de dados.
 - 3.266 células com fórmulas.
-- 15 componentes VBA: 7 módulos padrão, 1 classe e 7 componentes
-  do arquivo e das abas.
+- 15 componentes VBA no projeto: 7 módulos padrão, 1 classe e 7
+  componentes do arquivo e das abas. Os oito arquivos com lógica
+  estão exportados em `raw_file/automacaoVBA/`.
 - 365 registros de posições, 383 de classificação e 156 de cotações.
 - 31 meses registrados entre junho de 2023 e setembro de 2026,
   com lacunas no histórico.
@@ -44,7 +51,7 @@ registrada separadamente.
 
 ## VBA
 
-- `modMain`: coordena atualização, recálculo, pivôs e salvamento.
+- `modMain`: coordena atualização, recálculo e salvamento.
 - `modInvestments`: copia posições e classificações para o novo mês.
 - `modQuotes`: busca, converte e grava cotações.
 - `modTables`: localiza tabelas e manipula conjuntos mensais.
@@ -58,7 +65,11 @@ de eventos.
 
 O botão “Atualizar Planilha” chama `AtualizarInvestimentos`.
 A rotina copia o último conjunto quando muda o mês, busca preços,
-registra a atualização, recalcula, atualiza pivôs e salva.
+registra a atualização, recalcula e salva.
+
+O `modMain.bas` exportado não chama `RefreshAll`. Portanto, a atualização
+dos pivôs não faz parte do fluxo explícito desse módulo, mesmo que o
+arquivo atual tenha sido salvo com os caches atualizados.
 
 Os serviços presentes no código são AwesomeAPI, CoinGecko, Finnhub
 e Alpha Vantage. A existência dessa integração não comprova
@@ -66,6 +77,9 @@ disponibilidade ou funcionamento atual dos serviços.
 
 Não existe agendamento no arquivo nem preenchimento automático
 dos meses intermediários ausentes.
+
+O comportamento detalhado e os riscos dos módulos estão registrados em
+[Análise dos módulos VBA](vba-analysis.md).
 
 ## Análises e controles
 
@@ -88,44 +102,69 @@ A previdência calcula períodos trabalhados, renda proporcional
 quando indicada, contribuições por ano e pendência conforme
 o percentual de 12% fixado na planilha.
 
-## Achados para validação antes da migração
+## Comparação com a versão anterior
 
-1. O cache dos pivôs está desatualizado em relação a duas posições
-   de setembro de 2026: Flexible Account e Porquinho.
-   A diferença agregada é R$ 1.045,80.
-   Referências: Investimentos_Porcent, linhas 365 e 378;
-   Tables_Atual_Ideal, C11; cache de Table_Investimentos_Porcent.
+A estrutura, os registros das tabelas e as fórmulas da versão atual são
+semanticamente equivalentes aos da versão registrada anteriormente.
+A diferença funcional observada está nos caches das tabelas dinâmicas e
+nos resultados consolidados salvos.
 
-2. As buscas por data e nome ignoram instituição. Nomes repetidos
+Na versão anterior, duas posições de setembro de 2026, Flexible Account
+e Porquinho, não apareciam no cache. A diferença era R$ 1.045,80. No
+arquivo atual, o total salvo em `Tables_Atual_Ideal!C11` passou de
+R$ 251.151,12 para R$ 252.196,92 e o cache contém essas posições.
+Esse achado está resolvido no arquivo atual, mas permanece relevante para
+projetar uma atualização que não dependa de cache manual.
+
+O arquivo atual também contém metadados de uma extensão de painel do
+Office que não existiam na versão registrada. Não foi identificado efeito
+dessas partes sobre as regras financeiras.
+
+## Achados ainda pendentes antes da migração
+
+1. As buscas por data e nome ignoram instituição. Nomes repetidos
    fazem a classificação reutilizar a primeira posição encontrada.
    Existem diferenças nos totais históricos de outubro/2023,
    dezembro/2023, janeiro/2024, julho/2025, agosto/2025
    e setembro/2025.
 
-3. A linha 5 de Investimentos_Main e Investimentos_Porcent contém
+2. A linha 5 de Investimentos_Main e Investimentos_Porcent contém
    textos em campos numéricos e calculados.
    `modTables.IsFormulaColumn` verifica somente a primeira linha,
    criando risco de sobrescrever fórmulas durante a duplicação.
 
-4. Tables_Atual_Ideal!M80:M81 e M88:M92 usam o total ideal da
+3. Tables_Atual_Ideal!M80:M81 e M88:M92 usam o total ideal da
    classe como denominador do percentual atual, diferentemente
    de outras comparações.
 
-5. As metas gerais de moeda em J29:L33 não coincidem com a
+4. As metas gerais de moeda em J29:L33 não coincidem com a
    composição implícita das metas de classe e moeda em J5:O19.
    A intenção dessa independência ainda precisa ser discutida.
 
-6. As macros dependem da ordem das linhas, podem gravar “Error”
+5. As macros dependem da ordem das linhas, podem gravar “Error”
    como cotação e absorvem alguns erros intermediários.
    Não há reversão integral da atualização.
 
-7. A previdência possui filtros anuais independentes para rendas
+6. A previdência possui filtros anuais independentes para rendas
    e contribuições. Os cálculos conferiram com os valores salvos,
    mas a seleção pode combinar anos diferentes.
 
-8. Há credenciais no VBA, um campo calculado experimental TESTE
+7. Há credenciais no VBA, um campo calculado experimental TESTE
    com referência inválida, o nome definido oi com #REF! e
    anotações avulsas em Graficos!W26:X29.
+
+## Reconciliação do resumo recebido
+
+O resumo fornecido em 2026-10-01 descreve corretamente o funcionamento
+geral, o histórico mensal, as metas, o rebalanceamento e a previdência.
+Dois números foram atualizados pela inspeção direta:
+
+- existem 14 tabelas estruturadas, não 11;
+- o patrimônio consolidado salvo para setembro de 2026 é
+  R$ 252.196,92 no arquivo atual.
+
+O resumo não teve acesso ao VBA. As inferências sobre a automação foram
+substituídas pela leitura direta dos módulos exportados.
 
 Não reproduzir credenciais neste contexto. Não tratar os achados
 como regras desejadas ou correções aprovadas. O diagnóstico deve

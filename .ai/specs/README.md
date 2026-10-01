@@ -1,14 +1,19 @@
 # Specs
 
-Esta pasta receberá demandas e features conforme forem definidas.
-Ainda não existem specs de funcionalidades.
+Esta pasta organiza a implementação em fatias pequenas e revisáveis.
+
+## Índice
+
+- [001 — Fundação da aplicação](001-foundation.md): concluída.
+- [002 — Importação auditável do Excel](002-excel-import.md): em andamento.
+- [003 — Atualização mensal manual](003-manual-monthly-update.md): planejada.
 
 Cada spec deve preservar o problema, objetivo, requisitos,
 restrições, comportamento esperado, decisões tomadas, referências
 arquiteturais e estado de implementação, quando aplicável.
 
-A organização interna será definida com as primeiras demandas.
-Não criar features, templates ou divisões artificiais antecipadamente.
+Cada spec recebe um número sequencial e registra seu estado. Novas specs
+devem ser criadas somente quando a fatia correspondente estiver definida.
 
 Referencie descobertas de `../context/` e documentação de `../../docs/`
 quando forem relevantes. Ao consolidar um assunto, mantenha uma

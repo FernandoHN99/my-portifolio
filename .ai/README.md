@@ -9,7 +9,11 @@ Os entrypoints indicam como chegar a esse conhecimento.
   do usuário e questões em aberto.
 - `context/excel-analysis.md`: diagnóstico do sistema existente,
   evidências e limitações da análise.
+- `context/vba-analysis.md`: funcionamento dos módulos exportados,
+  integrações, falhas conhecidas e implicações para a migração.
 - `specs/README.md`: finalidade e evolução das futuras specs.
+- [Decisões de arquitetura e funcionamento](../docs/architecture.md):
+  escolhas confirmadas e pendências da aplicação.
 - `../docs/README.md`: organização da documentação para humanos.
 
 Leia primeiro o contexto inicial e depois apenas os assuntos

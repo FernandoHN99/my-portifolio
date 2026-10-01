@@ -1,0 +1,118 @@
+# Decisões de arquitetura e funcionamento
+
+Estado: base aprovada; implementação incremental autorizada.
+Origem: decisões explícitas do usuário na conversa de descoberta.
+Registrado em: 2026-09-21.
+Última atualização: 2026-10-01.
+
+Este documento é a fonte principal das decisões consolidadas abaixo.
+O diagnóstico do sistema existente permanece em
+[Análise do Excel](../.ai/context/excel-analysis.md).
+
+## Decisões confirmadas
+
+### Interface e backend no mesmo projeto Next.js
+
+Manter a interface e as funções de servidor no mesmo projeto Next.js,
+com cálculos e integrações separados das telas. A organização interna
+e as bibliotecas específicas ainda serão definidas.
+
+### Ambiente de desenvolvimento
+
+Executar Next.js diretamente no computador e PostgreSQL em Docker
+durante o desenvolvimento. Esta decisão não define o empacotamento
+nem a hospedagem de produção.
+
+### Evolução do histórico
+
+Guardar preços diários e posições mensais revisadas, evoluindo o
+modelo da planilha. Uma atualização de preço não representa uma
+mudança de quantidade.
+
+Ao clicar em atualizar, o sistema cria o mês a partir do mês anterior,
+busca as cotações e deixa as posições disponíveis para edição manual.
+Não haverá agendamento nem tentativa de atualizar com o aplicativo
+desligado.
+
+### Importação do Excel
+
+Usar o próprio Excel como fonte da carga inicial. Preservar os dados de
+origem e apresentar inconsistências encontradas para revisão, sem aplicar
+correções silenciosas.
+
+A identidade do ativo é independente da custódia. Bitcoin, USDC e qualquer
+outro ativo mantido em instituições ou contas diferentes gera posições
+separadas. Relatórios podem consolidar essas posições pelo ativo, sem apagar a
+origem de cada saldo.
+
+A linha inconsistente de Bitcoin de junho de 2023 permanece pendente. A carga
+inicial deve preservá-la como evidência, mas não deve criar uma posição
+financeira corrigida por suposição.
+
+### Acesso inicial
+
+A primeira versão funciona somente no computador local e não possui
+autenticação.
+
+### Organização do código
+
+Organizar o sistema por módulos funcionais, mantendo rotas e componentes de
+página como pontos de composição. Regras financeiras e casos de uso ficam fora
+da interface e do acesso ao banco; integrações com Prisma e provedores de
+cotação implementam essas fronteiras.
+
+As primeiras áreas previstas são importação, carteira, cotações, alocação e
+previdência. Cada fatia deve introduzir apenas as abstrações necessárias ao
+comportamento implementado, com nomes explícitos, funções pequenas e testes
+concentrados nas regras financeiras de maior risco.
+
+### Direção visual
+
+A interface deve ter acabamento profissional, identidade própria e modo
+escuro. A direção estética exata e a existência de um tema claro alternativo
+serão definidas com o usuário antes do redesenho da interface-base.
+
+## Questões ainda em aberto
+
+- Regras finais de correção e auditoria após a importação inicial.
+- Fontes gratuitas de cotações, prioridade entre provedores e tratamento
+  específico dos limites de cada serviço.
+- Direção estética, comportamento do tema e biblioteca dos gráficos, a definir
+  junto da primeira visão.
+- Hospedagem e empacotamento fora do ambiente de desenvolvimento.
+
+## Base técnica aprovada
+
+Esta combinação reduz decisões durante a primeira implementação e mantém
+as regras financeiras independentes da interface:
+
+- TypeScript em todo o projeto;
+- Next.js com App Router;
+- Server Components para leituras e Server Actions para mutações da
+  interface; Route Handlers somente quando houver um consumidor HTTP ou
+  integração externa;
+- PostgreSQL no Docker Compose durante o desenvolvimento;
+- ORM tipado com migrações versionadas, com Prisma como primeira opção;
+- valores financeiros e percentuais em tipos decimais exatos no banco;
+- Tailwind CSS e shadcn/ui para a interface;
+- Zod nas fronteiras de entrada e nos dados recebidos dos provedores;
+- Playwright para os poucos fluxos completos de maior risco financeiro.
+
+Usar pnpm como gerenciador do projeto. Fixar versões estáveis das
+dependências e manter as migrações do banco no Git. A biblioteca de
+gráficos será escolhida quando a primeira visão for especificada.
+
+A fundação usa Node.js 24.20.0, Next.js 16, PostgreSQL 18 e Prisma 7.10.
+O Prisma 8 disponível durante a criação ainda era uma versão candidata;
+por isso, a versão estável 7 foi escolhida e fixada.
+
+## Sequência inicial
+
+1. Fundação técnica e interface-base.
+2. Importação auditável do Excel.
+3. Atualização mensal manual e cotações sob demanda.
+4. Patrimônio, classificações e metas.
+5. Rebalanceamento.
+6. Previdência.
+
+As specs em `../.ai/specs/` são a fonte do escopo e do estado de cada fatia.

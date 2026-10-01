@@ -9,6 +9,8 @@ O contexto de descoberta e trabalho dos agentes está em
 
 ## Guias disponíveis
 
+- [Decisões de arquitetura e funcionamento](architecture.md):
+  escolhas confirmadas e questões ainda em aberto.
 - [Fluxo de Git e commits](git-workflow.md): aprovação do usuário,
   padrão das mensagens e organização do histórico.
 
