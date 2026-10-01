@@ -12,6 +12,7 @@ Esta pasta organiza a implementação em fatias pequenas e revisáveis.
 - [006 — Edição das posições do rascunho](006-draft-position-editing.md): concluída.
 - [007 — Classificações e metas de alocação](007-allocation-data.md): concluída.
 - [008 — Tela de alocação](008-allocation-view.md): concluída.
+- [009 — Rótulo e valor de rebalanceamento](009-rebalance-labels.md): concluída.
 
 Cada spec deve preservar o problema, objetivo, requisitos,
 restrições, comportamento esperado, decisões tomadas, referências

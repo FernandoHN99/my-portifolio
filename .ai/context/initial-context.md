@@ -141,8 +141,13 @@ reproduzem a atualização mensal manual antes das análises avançadas.
 
 A [spec 008](../specs/008-allocation-view.md) foi concluída em 2026-10-01: a
 rota `/alocacao` apresenta a alocação atual da competência mais recente ao
-lado da meta vigente, nas seis famílias da spec 007, sem edição nem sugestão
-de rebalanceamento.
+lado da meta vigente, nas seis famílias da spec 007.
+
+A [spec 009](../specs/009-rebalance-labels.md) foi concluída em 2026-10-01:
+cada linha com meta na tela de alocação recebe o rótulo comprar/vender e o
+valor em BRL da diferença, preservando a regra diagnosticada no Excel
+(diferença positiva vende; zero ou negativa compra). Nenhuma ordem é
+executada e nenhum ativo específico é sugerido.
 
 Quando o usuário autorizar uma nova etapa, atualizar este registro
 e os documentos relacionados para refletir o novo estado.
