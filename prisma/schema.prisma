@@ -34,19 +34,22 @@ model ImportBatch {
   completedAt DateTime?         @map("completed_at") @db.Timestamptz(3)
   sourceRows  ImportSourceRow[]
   issues      ImportIssue[]
+  months      PortfolioMonth[]
 
   @@unique([sourceHash])
   @@map("import_batches")
 }
 
 model ImportSourceRow {
-  id          BigInt      @id @default(autoincrement())
-  batchId     String      @map("batch_id") @db.Uuid
-  sourceSheet String      @map("source_sheet")
-  sourceTable String      @map("source_table")
-  sourceRow   Int         @map("source_row")
+  id          BigInt       @id @default(autoincrement())
+  batchId     String       @map("batch_id") @db.Uuid
+  sourceSheet String       @map("source_sheet")
+  sourceTable String       @map("source_table")
+  sourceRow   Int          @map("source_row")
   content     Json
-  batch       ImportBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  batch       ImportBatch  @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  position    Position?
+  marketQuote MarketQuote?
 
   @@unique([batchId, sourceTable, sourceRow])
   @@index([sourceSheet, sourceTable])
@@ -69,4 +72,99 @@ model ImportIssue {
 
   @@index([batchId, severity])
   @@map("import_issues")
+}
+
+enum PortfolioMonthStatus {
+  IMPORTED
+  DRAFT
+  REVIEWED
+}
+
+model Institution {
+  id             String    @id @default(uuid()) @db.Uuid
+  name           String
+  normalizedName String    @unique @map("normalized_name")
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  accounts       Account[]
+
+  @@map("institutions")
+}
+
+model Account {
+  id            String      @id @default(uuid()) @db.Uuid
+  institutionId String      @map("institution_id") @db.Uuid
+  name          String
+  createdAt     DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+  institution   Institution @relation(fields: [institutionId], references: [id], onDelete: Restrict)
+  positions     Position[]
+
+  @@unique([institutionId, name])
+  @@map("accounts")
+}
+
+model Asset {
+  id            String     @id @default(uuid()) @db.Uuid
+  normalizedKey String     @unique @map("normalized_key")
+  name          String
+  ticker        String?
+  quoteSymbol   String?    @map("quote_symbol")
+  baseCurrency  String     @map("base_currency")
+  createdAt     DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+  positions     Position[]
+
+  @@index([ticker])
+  @@map("assets")
+}
+
+model PortfolioMonth {
+  id            String               @id @default(uuid()) @db.Uuid
+  sourceBatchId String?              @map("source_batch_id") @db.Uuid
+  referenceDate DateTime             @unique @map("reference_date") @db.Date
+  status        PortfolioMonthStatus @default(IMPORTED)
+  createdAt     DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
+  sourceBatch   ImportBatch?         @relation(fields: [sourceBatchId], references: [id], onDelete: SetNull)
+  positions     Position[]
+
+  @@map("portfolio_months")
+}
+
+model Position {
+  id               String           @id @default(uuid()) @db.Uuid
+  portfolioMonthId String           @map("portfolio_month_id") @db.Uuid
+  accountId        String           @map("account_id") @db.Uuid
+  assetId          String           @map("asset_id") @db.Uuid
+  sourceRowId      BigInt?          @unique @map("source_row_id")
+  quantity         Decimal          @db.Decimal(30, 12)
+  unitPriceBrl     Decimal?         @map("unit_price_brl") @db.Decimal(24, 8)
+  exchangeRateBrl  Decimal?         @map("exchange_rate_brl") @db.Decimal(20, 8)
+  totalBrl         Decimal          @map("total_brl") @db.Decimal(24, 2)
+  strategy         String?
+  createdAt        DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
+  portfolioMonth   PortfolioMonth   @relation(fields: [portfolioMonthId], references: [id], onDelete: Cascade)
+  account          Account          @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  asset            Asset            @relation(fields: [assetId], references: [id], onDelete: Restrict)
+  sourceRow        ImportSourceRow? @relation(fields: [sourceRowId], references: [id], onDelete: SetNull)
+
+  @@unique([portfolioMonthId, accountId, assetId])
+  @@index([portfolioMonthId])
+  @@index([accountId])
+  @@index([assetId])
+  @@map("positions")
+}
+
+model MarketQuote {
+  id             String           @id @default(uuid()) @db.Uuid
+  sourceRowId    BigInt?          @unique @map("source_row_id")
+  referenceDate  DateTime         @map("reference_date") @db.Date
+  symbol         String
+  instrumentType String           @map("instrument_type")
+  baseCurrency   String           @map("base_currency")
+  valueBrl       Decimal          @map("value_brl") @db.Decimal(24, 8)
+  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  sourceRow      ImportSourceRow? @relation(fields: [sourceRowId], references: [id], onDelete: SetNull)
+
+  @@unique([referenceDate, symbol])
+  @@index([symbol])
+  @@map("market_quotes")
 }

@@ -17,6 +17,7 @@
     "db:validate": "prisma validate",
     "db:studio": "prisma studio",
     "import:excel": "tsx scripts/import-excel.ts",
+    "normalize:portfolio": "tsx scripts/normalize-portfolio.ts",
     "postinstall": "prisma generate"
   },
   "dependencies": {

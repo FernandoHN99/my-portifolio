@@ -18,6 +18,7 @@ correta do Node.js. O Prisma 7 não oferece suporte ao Node.js 26.
 cp .env.example .env
 pnpm install
 pnpm db:up
+pnpm db:migrate
 pnpm dev
 ```
 
@@ -43,7 +44,10 @@ Com o PostgreSQL ativo, importe as três tabelas-base do arquivo de referência:
 
 ```bash
 pnpm import:excel
+pnpm normalize:portfolio
 ```
 
 O comando usa o hash do arquivo para não duplicar uma carga já concluída. As
 linhas são preservadas como JSON e os achados ficam vinculados ao mesmo lote.
+O normalizador cria as instituições, contas, ativos, competências, posições e
+cotações usadas pela aplicação. As duas operações são idempotentes.
