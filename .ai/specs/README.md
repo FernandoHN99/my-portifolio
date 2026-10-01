@@ -11,6 +11,7 @@ Esta pasta organiza a implementação em fatias pequenas e revisáveis.
 - [005 — Domínio inicial da carteira](005-portfolio-domain.md): concluída.
 - [006 — Edição das posições do rascunho](006-draft-position-editing.md): concluída.
 - [007 — Classificações e metas de alocação](007-allocation-data.md): concluída.
+- [008 — Tela de alocação](008-allocation-view.md): concluída.
 
 Cada spec deve preservar o problema, objetivo, requisitos,
 restrições, comportamento esperado, decisões tomadas, referências

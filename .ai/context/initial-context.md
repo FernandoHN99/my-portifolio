@@ -139,5 +139,10 @@ A primeira fatia estabelece Next.js, PostgreSQL local, persistência,
 interface-base e verificações. As etapas seguintes importam o Excel e
 reproduzem a atualização mensal manual antes das análises avançadas.
 
+A [spec 008](../specs/008-allocation-view.md) foi concluída em 2026-10-01: a
+rota `/alocacao` apresenta a alocação atual da competência mais recente ao
+lado da meta vigente, nas seis famílias da spec 007, sem edição nem sugestão
+de rebalanceamento.
+
 Quando o usuário autorizar uma nova etapa, atualizar este registro
 e os documentos relacionados para refletir o novo estado.
