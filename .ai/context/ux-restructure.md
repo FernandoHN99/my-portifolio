@@ -150,9 +150,9 @@ confusão. O usuário separou:
    gera todas as competências faltantes, considerando a data do último dia de
    cada mês.
 
-A forma de interpretar "considerando a data do último dia do mês" ainda
-precisa ser confirmada: provavelmente a cotação de cada competência gerada
-deve ser a do último dia daquele mês.
+Confirmado pelo usuário em 2026-10-02: "considerando a data do último dia do
+mês" significa que a cotação de cada competência gerada é a do último dia
+daquele mês.
 
 Pergunta do usuário: "temos uma tabela de cotação?". Sim: `market_quotes`,
 com uma cotação em reais por símbolo e competência (data no primeiro dia do
@@ -162,6 +162,10 @@ Decisão do usuário em 2026-10-02: as cotações guardam **histórico diário**
 por ativo, como já previa o documento de arquitetura. A atualização horária
 acumula o histórico do dia em vez de sobrescrever a cotação do mês, e a
 cotação de uma competência passa a ser derivada desse histórico.
+
+Decisão do usuário em 2026-10-02 sobre o "a cada hora": não haverá
+agendador. Ao abrir o aplicativo, ele verifica se a última atualização de
+cotações tem mais de uma hora e, nesse caso, atualiza.
 
 ### Edição: lápis em vez de duplo clique
 
