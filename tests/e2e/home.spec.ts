@@ -102,6 +102,24 @@ test("competência passada exige confirmação para editar", async ({ page }) =>
   await expect(page.locator("[data-edit-cell]")).toHaveCount(0);
 });
 
+test("a configuração simula metas antes de salvar", async ({ page }) => {
+  await page.goto("/configuracao?mes=2026-09");
+
+  await expect(page.getByRole("heading", { level: 1, name: "Metas da carteira" })).toBeVisible();
+  const preview = page.getByRole("complementary", { name: "Prévia do rebalanceamento" });
+  await expect(preview).toContainText("Set/26");
+
+  const caixa = page.getByRole("textbox", { name: "Percentual de Caixa" });
+  const original = await caixa.inputValue();
+  await caixa.fill(String(Number(original.replace(",", ".")) + 5).replace(".", ","));
+
+  await expect(page.getByText("1 grupo não soma 100%")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Salvar metas" })).toBeDisabled();
+
+  await page.getByRole("button", { name: "Descartar" }).click();
+  await expect(caixa).toHaveValue(original);
+});
+
 test("o rebalanceamento troca de recorte", async ({ page }) => {
   await page.goto("/?mes=2026-09");
 

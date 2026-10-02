@@ -177,13 +177,20 @@ async function main() {
   const targets = await readTargets(sourcePath);
   pendingIssues.push(...validateTargets(targets));
 
+  const otherActivePlans = await prisma.targetPlan.count({
+    where: {
+      isActive: true,
+      OR: [{ sourceBatchId: null }, { sourceBatchId: { not: batch.id } }],
+    },
+  });
   const targetPlan = await prisma.targetPlan.upsert({
     where: { sourceBatchId: batch.id },
     create: {
       sourceBatchId: batch.id,
       name: "Plano principal do Excel",
+      isActive: otherActivePlans === 0,
     },
-    update: { name: "Plano principal do Excel", isActive: true },
+    update: { name: "Plano principal do Excel" },
     select: { id: true },
   });
 

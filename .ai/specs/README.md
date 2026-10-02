@@ -17,7 +17,7 @@ Esta pasta organiza a implementação em fatias pequenas e revisáveis.
 - [011 — Visão Geral](011-overview-tab.md): concluída.
 - [012 — Rebalanceamento na Visão Geral](012-rebalancing-in-overview.md): concluída.
 - [013 — Posições: filtros e consulta](013-positions-filters.md): concluída.
-- [014 — Configuração da carteira](014-target-settings.md): planejada.
+- [014 — Configuração da carteira](014-target-settings.md): concluída.
 - [015 — Transições sem recarregamento](015-seamless-transitions.md): concluída.
 - [016 — Histórico de uma posição e de um ativo](016-position-history.md): planejada, sem prazo.
 - [017 — Posições: edição](017-positions-editing.md): concluída.

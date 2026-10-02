@@ -2,7 +2,7 @@
 
 Registrado em: 2026-10-01
 Origem: briefing do usuário, com capturas da planilha anexadas na conversa.
-Estágio: em execução, dividida nas specs 010 a 017; resta a 014.
+Estágio: fatias acordadas concluídas em 2026-10-02; resta a 016, sem prazo, e as decisões abertas abaixo.
 
 Este documento é a fonte principal do propósito, das restrições e das regras
 de cálculo desta iniciativa. As specs descrevem cada fatia e apontam para
@@ -126,10 +126,30 @@ percentual atual, percentual ideal, valor atual, valor ideal e diferença.
 4. [015 — Transições sem recarregamento](../specs/015-seamless-transitions.md): concluída.
 5. [013 — Posições: filtros e consulta](../specs/013-positions-filters.md): concluída.
 6. [017 — Posições: edição](../specs/017-positions-editing.md): concluída.
-7. [014 — Configuração da carteira](../specs/014-target-settings.md): planejada.
+7. [014 — Configuração da carteira](../specs/014-target-settings.md): concluída.
 8. [016 — Histórico de uma posição e de um ativo](../specs/016-position-history.md): planejada, sem prazo.
 
 Cada fatia termina com `pnpm check`, `pnpm build` e os testes do Playwright.
+
+## Decisões abertas após as fatias acordadas
+
+Registradas em 2026-10-02, aguardando o usuário:
+
+- executar "Atualizar carteira" sobre um rascunho sobrescreve cotações
+  editadas manualmente; decidir entre avisar, preservar ou sobrescrever
+  ([spec 017](../specs/017-positions-editing.md));
+- oferecer edição de posições no celular, onde a coluna de quantidade fica
+  oculta (spec 017);
+- criar ativos e contas novos pela interface, o que exige definir símbolo e
+  tipo de cotação (spec 017);
+- confirmar o ativo "Solana" com ticker USD, que convive com o "Solana" de
+  ticker SOL (spec 017);
+- tornar configurável a faixa de tolerância, hoje fixa em dois pontos
+  percentuais ([spec 012](../specs/012-rebalancing-in-overview.md));
+- permitir criar e remover categorias de metas
+  ([spec 014](../specs/014-target-settings.md));
+- agendar a [spec 016](../specs/016-position-history.md), histórico de uma
+  posição e de um ativo.
 
 ## Critérios de aceite da iniciativa
 

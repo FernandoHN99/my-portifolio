@@ -25,6 +25,10 @@ pnpm dev
 A aplicação fica disponível em `http://localhost:3000`. O PostgreSQL é
 publicado somente em `127.0.0.1`.
 
+Depois de aplicar uma migração, rode `pnpm db:generate`, porque o Prisma 7
+não regenera o cliente automaticamente, e reinicie o `pnpm dev`, que mantém o
+cliente anterior em memória.
+
 ## Verificações
 
 ```bash

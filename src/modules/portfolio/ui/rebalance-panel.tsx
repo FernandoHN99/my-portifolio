@@ -7,7 +7,7 @@ import type {
   AllocationGroup,
   AllocationGroupKey,
   AllocationRow,
-} from "@/modules/portfolio/application/get-allocation-overview";
+} from "@/modules/portfolio/domain/rebalance";
 import { categoryColor } from "@/modules/portfolio/presentation/category-colors";
 import { formatBrl, formatSharePercent } from "@/modules/portfolio/presentation/portfolio-format";
 

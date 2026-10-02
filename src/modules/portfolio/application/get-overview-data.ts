@@ -1,10 +1,11 @@
 import { Prisma, type PortfolioMonthStatus } from "@/generated/prisma/client";
 import { getPrismaClient } from "@/lib/prisma";
+import { getAllocationOverview } from "@/modules/portfolio/application/get-allocation-overview";
 import {
-  getAllocationOverview,
+  countOffTarget,
   REBALANCE_TOLERANCE,
   type AllocationGroup,
-} from "@/modules/portfolio/application/get-allocation-overview";
+} from "@/modules/portfolio/domain/rebalance";
 import { toMonthParam } from "@/modules/portfolio/presentation/reference-month";
 
 export type OverviewHistoryPoint = {
@@ -145,11 +146,7 @@ export async function getOverviewData(referenceDate?: Date): Promise<OverviewDat
           targetShare: row.targetShare,
         })),
       }));
-    const offTargetCount = (allocation?.groups ?? []).reduce(
-      (total, group) =>
-        total + group.rows.filter((row) => row.direction === "BUY" || row.direction === "SELL").length,
-      0,
-    );
+    const offTargetCount = countOffTarget(allocation?.groups ?? []);
 
     return {
       referenceDate: selected.referenceDate,

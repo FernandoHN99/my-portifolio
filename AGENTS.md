@@ -11,11 +11,12 @@ e Claude Code consultando a mesma base de conhecimento.
 
 ## Trabalho em andamento
 
-O projeto está executando a reestruturação da UX pedida pelo usuário,
-dividida nas specs 010 a 017. O propósito, as restrições e as regras de
-cálculo dessa iniciativa estão em `.ai/context/ux-restructure.md`, e o estado
-de cada fatia fica em `.ai/specs/README.md`. Previdência está explicitamente
-fora dessa iniciativa.
+A reestruturação da UX pedida pelo usuário, nas specs 010 a 017, teve as
+fatias acordadas concluídas em 2026-10-02. O propósito, as restrições, as
+regras de cálculo e as decisões ainda abertas estão em
+`.ai/context/ux-restructure.md`, e o estado de cada fatia fica em
+`.ai/specs/README.md`. Previdência continua fora dessa iniciativa até o
+usuário decidir o próximo passo.
 
 ## Como trabalhar neste projeto
 

@@ -2,7 +2,7 @@
 
 import { Bar, BarChart, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
-import type { AllocationGroup } from "@/modules/portfolio/application/get-allocation-overview";
+import type { AllocationGroup } from "@/modules/portfolio/domain/rebalance";
 import { categoryColor } from "@/modules/portfolio/presentation/category-colors";
 import { formatSharePercent } from "@/modules/portfolio/presentation/portfolio-format";
 
