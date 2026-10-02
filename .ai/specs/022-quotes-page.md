@@ -1,7 +1,7 @@
 # 022 — Página de cotações em Posições
 
-Estado: concluída em 2026-10-02; as propostas em "Questões em aberto"
-aguardam o usuário
+Estado: concluída em 2026-10-02; questões respondidas na
+[spec 028](028-quote-rules.md)
 Definida em: 2026-10-02
 
 ## Problema
@@ -355,23 +355,19 @@ execução de cotações e o BTC de outubro em 395.046.
 
 ## Questões em aberto
 
-Escolhas feitas pelo agente, em vigor no código, que aguardam o usuário:
+Respondidas pelo usuário em 2026-10-02 (segunda rodada) e implementadas na
+[spec 028](028-quote-rules.md):
 
-- o botão se chama "Cotações" e fica no cabeçalho de Posições, ao lado de
-  "Editar posições". É esse o botão que o usuário imaginou em "acessada
-  direto por um botão existente em posição"?
-- o histórico e o último resultado por cotação seguem a competência
-  selecionada; numa competência passada o histórico costuma ficar vazio. O
-  usuário prefere ver sempre todas as execuções, independentemente do mês?
-- o histórico mostra as 30 execuções mais recentes do mês, com o total. Com
-  a atualização ao abrir, um mês pode acumular centenas; o limite atende?
-- a execução antiga de "Atualizar carteira" continua visível em leitura no
-  histórico. Pode ficar ou deve sumir?
-- os endereços antigos levam às telas atuais; podem ser retirados quando o
-  usuário não precisar mais deles.
-- seguem abertas na [spec 020](020-daily-quotes.md), e ficam visíveis nesta
-  página, a troca do "tudo ou nada" por símbolos independentes e a cotação
-  editada à mão no mês corrente, que a próxima atualização substitui.
+- o botão "Cotações" no cabeçalho de Posições está correto;
+- o histórico mostra todas as execuções, de qualquer mês, dos últimos 36
+  meses;
+- os endereços antigos foram removidos;
+- edição restrita às cotações não encontradas ou com falha.
+
+Aguardando explicação ao usuário: a execução antiga de "Atualizar carteira"
+continua visível no histórico, marcada como "Fluxo anterior". Ela é o registro
+da atualização mensal da spec 003, que buscava as cotações e criava o mês num
+botão só; foi substituída pelas specs 020 e 021.
 
 ## Referências
 

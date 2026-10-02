@@ -7,7 +7,9 @@ import { MonthTimeline } from "@/components/product/month-timeline";
 import { QuoteRefreshIndicator } from "@/components/product/quote-refresh-indicator";
 import { TabViewport } from "@/components/product/tab-viewport";
 import type { PortfolioMonthSummary } from "@/modules/portfolio/application/get-portfolio-months";
+import { toMonthParam } from "@/modules/portfolio/presentation/reference-month";
 import { getRequestQuoteRefreshSummary } from "@/modules/quotes/application/refresh-quotes";
+import { currentReferenceMonth } from "@/modules/quotes/domain/calendar";
 
 type AppShellProps = {
   active: TabKey | "none";
@@ -18,6 +20,10 @@ type AppShellProps = {
 
 export async function AppShell({ active, months, selectedMonth, children }: AppShellProps) {
   const quoteRefresh = await getRequestQuoteRefreshSummary();
+  // A seta de atualizar só aparece no mês corrente (spec 028): as cotações
+  // buscadas só reprecificam a competência do mês corrente. Telas sem mês
+  // selecionado, como a configuração, mantêm a seta.
+  const canRefresh = selectedMonth === null || selectedMonth === toMonthParam(currentReferenceMonth());
 
   return (
     <main className="app-canvas min-h-[100dvh] bg-background text-foreground">
@@ -48,7 +54,7 @@ export async function AppShell({ active, months, selectedMonth, children }: AppS
           </div>
 
           <div className="flex shrink-0 items-center gap-2">
-            <QuoteRefreshIndicator summary={quoteRefresh} />
+            <QuoteRefreshIndicator summary={quoteRefresh} canRefresh={canRefresh} />
             <Link
               href="/configuracao"
               aria-label="Configuração da carteira"

@@ -1,25 +1,18 @@
-import {
-  MonthlyUpdateStatus,
-  Prisma,
-  QuoteUpdateStatus,
-  type PortfolioMonthStatus,
-} from "@/generated/prisma/client";
+import { Prisma, QuoteUpdateStatus, type PortfolioMonthStatus } from "@/generated/prisma/client";
 import { getPrismaClient } from "@/lib/prisma";
 import { toMonthParam } from "@/modules/portfolio/presentation/reference-month";
 import { addMonths, currentReferenceMonth, toDateKey } from "@/modules/quotes/domain/calendar";
-import type {
-  QuoteFailureView,
-  QuoteRefreshRunStatus,
-  QuoteRefreshTriggerKind,
-} from "@/modules/quotes/domain/quote-refresh";
+import { isQuoteEditable, type QuoteRefreshTriggerKind } from "@/modules/quotes/domain/quote-refresh";
 
 // Dados da página de cotações de uma competência: cada cotação com os ativos
-// que a usam, a origem do valor e o último resultado da atualização no mês, e
-// o histórico das execuções do mês.
+// que a usam, a origem do valor, o último resultado da atualização no mês e se
+// pode ser editada à mão (spec 028). O histórico de execuções é de todos os
+// meses e fica em `get-run-history`.
 
 export type QuoteLastResult = {
   status: "SUCCESS" | "FAILED";
-  trigger: QuoteRefreshTriggerKind;
+  /** "INCLUSION": cotação buscada ao incluir a posição, antes de uma atualização. */
+  trigger: QuoteRefreshTriggerKind | "INCLUSION";
   fetchedAt: string;
   provider: string;
   valueBrl: number | null;
@@ -43,25 +36,8 @@ export type MonthQuoteRow = {
   quantities: number[];
   totalBrl: number;
   lastResult: QuoteLastResult | null;
-};
-
-export type QuoteRunOrigin = QuoteRefreshTriggerKind | "MONTHLY_UPDATE";
-
-// "INTERRUPTED" só vale para a execução antiga: ela ficou RUNNING quando o
-// processo parou no meio, e o código que a encerrava foi removido.
-export type QuoteRunHistoryStatus = QuoteRefreshRunStatus | "INTERRUPTED";
-
-export type QuoteRunHistoryEntry = {
-  id: string;
-  origin: QuoteRunOrigin;
-  status: QuoteRunHistoryStatus;
-  // Instante mostrado e usado na ordenação: o início da execução, ou, na
-  // execução antiga, o fim da última tentativa, porque cada nova tentativa
-  // substituía os resultados mantendo o início da primeira.
-  at: string;
-  succeeded: number;
-  failures: QuoteFailureView[];
-  errorMessage: string | null;
+  /** Sem valor no mês, repetida de outro mês ou com falha na última busca. */
+  editable: boolean;
 };
 
 export type MonthQuotesView = {
@@ -76,11 +52,7 @@ export type MonthQuotesView = {
   currentMonthExists: boolean;
   totalBrl: number;
   quotes: MonthQuoteRow[];
-  runs: QuoteRunHistoryEntry[];
-  runCount: number;
 };
-
-export const RUN_HISTORY_LIMIT = 30;
 
 export async function getMonthQuotes(referenceDate?: Date): Promise<MonthQuotesView | null> {
   const prisma = getPrismaClient();
@@ -122,7 +94,7 @@ export async function getMonthQuotes(referenceDate?: Date): Promise<MonthQuotesV
       quoteDate: { gte: month.referenceDate, lt: addMonths(month.referenceDate, 1) },
     } satisfies Prisma.QuoteRefreshRunWhereInput;
 
-    const [storedQuotes, runs, runCount, lastResults, legacyRun] = await Promise.all([
+    const [storedQuotes, lastResults, inclusions] = await Promise.all([
       prisma.marketQuote.findMany({
         where: { referenceDate: month.referenceDate },
         select: {
@@ -134,24 +106,6 @@ export async function getMonthQuotes(referenceDate?: Date): Promise<MonthQuotesV
           carriedFrom: true,
         },
       }),
-      prisma.quoteRefreshRun.findMany({
-        where: runsInMonth,
-        orderBy: { startedAt: "desc" },
-        take: RUN_HISTORY_LIMIT,
-        select: {
-          id: true,
-          trigger: true,
-          status: true,
-          startedAt: true,
-          finishedAt: true,
-          errorMessage: true,
-          results: {
-            orderBy: { symbol: "asc" },
-            select: { symbol: true, provider: true, status: true, errorCode: true, errorMessage: true },
-          },
-        },
-      }),
-      prisma.quoteRefreshRun.count({ where: runsInMonth }),
       prisma.quoteRefreshResult.findMany({
         where: { run: runsInMonth },
         orderBy: [{ fetchedAt: "desc" }, { id: "desc" }],
@@ -166,21 +120,13 @@ export async function getMonthQuotes(referenceDate?: Date): Promise<MonthQuotesV
           run: { select: { trigger: true } },
         },
       }),
-      // A atualização da spec 003, removida pela spec 022, registrava uma
-      // execução por competência criada; ela continua visível no histórico.
-      prisma.monthlyUpdateRun.findUnique({
-        where: { targetMonthId: month.id },
-        select: {
-          id: true,
-          status: true,
-          startedAt: true,
-          completedAt: true,
-          errorMessage: true,
-          quoteResults: {
-            orderBy: { symbol: "asc" },
-            select: { symbol: true, provider: true, status: true, errorCode: true, errorMessage: true },
-          },
-        },
+      // Cotação buscada pela inclusão de uma posição nova (spec 026): fica no
+      // histórico diário sem execução até a próxima atualização.
+      prisma.dailyQuote.findMany({
+        where: { runId: null, quoteDate: runsInMonth.quoteDate },
+        orderBy: { fetchedAt: "desc" },
+        distinct: ["symbol"],
+        select: { symbol: true, provider: true, valueBrl: true, fetchedAt: true },
       }),
     ]);
 
@@ -207,47 +153,7 @@ export async function getMonthQuotes(referenceDate?: Date): Promise<MonthQuotesV
     );
     const assetsOf = (symbol: string) =>
       [...(usage.get(symbol)?.assets ?? [])].sort((left, right) => left.localeCompare(right, "pt-BR"));
-    const failureView = (result: {
-      symbol: string;
-      provider: string;
-      errorCode: string | null;
-      errorMessage: string | null;
-    }): QuoteFailureView => ({
-      symbol: result.symbol,
-      assets: assetsOf(result.symbol),
-      provider: result.provider,
-      errorCode: result.errorCode ?? "UNKNOWN",
-      errorMessage: result.errorMessage ?? "Falha sem descrição.",
-    });
-
-    const history: QuoteRunHistoryEntry[] = runs.map((run) => {
-      const failed = run.results.filter((result) => result.status === QuoteUpdateStatus.FAILED);
-
-      return {
-        id: run.id,
-        origin: run.trigger,
-        status: run.status,
-        at: run.startedAt.toISOString(),
-        succeeded: run.results.length - failed.length,
-        failures: failed.map(failureView),
-        errorMessage: run.errorMessage,
-      };
-    });
-
-    if (legacyRun) {
-      const failed = legacyRun.quoteResults.filter((result) => result.status === QuoteUpdateStatus.FAILED);
-      history.push({
-        id: legacyRun.id,
-        origin: "MONTHLY_UPDATE",
-        status: legacyRun.status === MonthlyUpdateStatus.RUNNING ? "INTERRUPTED" : legacyRun.status,
-        at: (legacyRun.completedAt ?? legacyRun.startedAt).toISOString(),
-        succeeded: legacyRun.quoteResults.length - failed.length,
-        failures: failed.map(failureView),
-        errorMessage: legacyRun.errorMessage,
-      });
-      history.sort((left, right) => right.at.localeCompare(left.at));
-      history.splice(RUN_HISTORY_LIMIT);
-    }
+    const inclusionBySymbol = new Map(inclusions.map((quote) => [quote.symbol, quote]));
 
     return {
       id: month.id,
@@ -265,6 +171,26 @@ export async function getMonthQuotes(referenceDate?: Date): Promise<MonthQuotesV
         const quote = stored.get(symbol);
         const used = usage.get(symbol);
         const last = lastBySymbol.get(symbol);
+        const inclusion = last ? undefined : inclusionBySymbol.get(symbol);
+        const lastResult: QuoteLastResult | null = last
+          ? {
+              status: last.status === QuoteUpdateStatus.SUCCESS ? "SUCCESS" : "FAILED",
+              trigger: last.run.trigger,
+              fetchedAt: last.fetchedAt.toISOString(),
+              provider: last.provider,
+              valueBrl: last.valueBrl?.toNumber() ?? null,
+              errorMessage: last.errorMessage,
+            }
+          : inclusion
+            ? {
+                status: "SUCCESS",
+                trigger: "INCLUSION",
+                fetchedAt: inclusion.fetchedAt.toISOString(),
+                provider: inclusion.provider,
+                valueBrl: inclusion.valueBrl.toNumber(),
+                errorMessage: null,
+              }
+            : null;
 
         return {
           symbol,
@@ -277,20 +203,14 @@ export async function getMonthQuotes(referenceDate?: Date): Promise<MonthQuotesV
           assets: assetsOf(symbol),
           quantities: used?.quantities ?? [],
           totalBrl: used?.total.toNumber() ?? 0,
-          lastResult: last
-            ? {
-                status: last.status === QuoteUpdateStatus.SUCCESS ? "SUCCESS" : "FAILED",
-                trigger: last.run.trigger,
-                fetchedAt: last.fetchedAt.toISOString(),
-                provider: last.provider,
-                valueBrl: last.valueBrl?.toNumber() ?? null,
-                errorMessage: last.errorMessage,
-              }
-            : null,
+          lastResult,
+          editable: isQuoteEditable({
+            hasValue: quote !== undefined,
+            carried: Boolean(quote?.carriedFrom),
+            lastFailed: lastResult?.status === "FAILED",
+          }),
         };
       }),
-      runs: history,
-      runCount: runCount + (legacyRun ? 1 : 0),
     };
   } catch (error) {
     console.error("Não foi possível ler as cotações da competência.", error);

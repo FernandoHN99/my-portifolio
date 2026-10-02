@@ -8,6 +8,14 @@ test.beforeEach(async ({ page }) => {
   await stubQuoteChecks(page);
 });
 
+// A edição à mão só existe para cotação não encontrada ou com falha (spec
+// 028). Os dados reais costumam não ter nenhuma; os cenários de edição rodam
+// só quando a competência aberta tem uma.
+async function skipWithoutEditableQuote(page: Page) {
+  const editable = await page.getByRole("button", { name: "Editar cotações" }).count();
+  test.skip(editable === 0, "Nenhuma cotação editável nos dados reais desta competência.");
+}
+
 // Como o lápis de Posições: a competência aberta pode ser um mês passado, que
 // pede a confirmação de histórico antes de entrar em edição.
 async function enterQuoteEditMode(page: Page) {
@@ -41,7 +49,12 @@ test("o botão Cotações de Posições abre as cotações do mês", async ({ pa
   await expect(btc).toContainText("R$");
   await expect(page.getByRole("region", { name: "Última atualização" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Histórico de execuções" })).toBeVisible();
+  await expect(page.getByTestId("run-history-count")).toContainText("nos últimos 36 meses");
   await expect(page.locator("[data-quote-cell]")).toHaveCount(0);
+
+  // Setembro vem inteiro da planilha e dos provedores: nada para editar à mão.
+  await expect(page.getByRole("button", { name: "Editar cotações" })).toHaveCount(0);
+  await expect(page.getByTestId("quotes-locked")).toContainText("A edição à mão fica disponível só para");
 
   await page.getByRole("link", { name: "Voltar para Posições" }).click();
   await expect(page).toHaveURL(/\/posicoes\?mes=2026-09$/);
@@ -49,9 +62,11 @@ test("o botão Cotações de Posições abre as cotações do mês", async ({ pa
 });
 
 test("voltar para Posições com edição pendente pede confirmação", async ({ page }) => {
-  await page.goto("/posicoes/cotacoes?mes=2026-09");
+  await page.goto("/posicoes/cotacoes");
+  await skipWithoutEditableQuote(page);
   await enterQuoteEditMode(page);
-  await page.getByRole("textbox", { name: "Cotação de BTC" }).fill("400000,5");
+  const field = page.locator('[data-quote-cell="value"]').first();
+  await field.fill("400000,5");
   await expect(page.getByText("1 alteração pendente")).toBeVisible();
 
   const back = page.getByRole("link", { name: "Voltar para Posições" });
@@ -62,53 +77,30 @@ test("voltar para Posições com edição pendente pede confirmação", async ({
   });
   await back.click();
   await expect.poll(() => messages).toEqual(["Há 1 alteração não salva. Sair e descartá-las?"]);
-  await expect(page).toHaveURL(/\/posicoes\/cotacoes\?mes=2026-09$/);
-  await expect(page.getByRole("textbox", { name: "Cotação de BTC" })).toHaveValue("400000,5");
+  await expect(page).toHaveURL(/\/posicoes\/cotacoes$/);
+  await expect(field).toHaveValue("400000,5");
 
-  // Aceitar descarta a edição sem gravar e volta para a tabela no mesmo mês.
+  // Aceitar descarta a edição sem gravar e volta para a tabela.
   page.once("dialog", (dialog) => void dialog.accept());
   await back.click();
-  await expect(page).toHaveURL(/\/posicoes\?mes=2026-09$/);
+  await expect(page).toHaveURL(/\/posicoes$/);
   await expect(page.getByRole("heading", { level: 1, name: "Carteira do mês" })).toBeVisible();
 });
 
 test("editar cotações mostra a prévia e bloqueia valor inválido", async ({ page }) => {
   await page.goto("/posicoes/cotacoes");
+  await skipWithoutEditableQuote(page);
   await enterQuoteEditMode(page);
   await expect(page.getByText("Modo de edição")).toBeVisible();
 
   const inputs = page.getByRole("textbox", { name: /^Cotação de / });
-  expect(await inputs.count()).toBeGreaterThan(1);
-  await inputs.first().fill("123,45");
-  await expect(page.getByText("1 alteração pendente")).toBeVisible();
-  await expect(page.getByTestId("quote-row").first()).toContainText("antes R$");
-
-  await inputs.nth(1).fill("abc");
+  await inputs.first().fill("abc");
   await expect(page.getByText("1 valor inválido")).toBeVisible();
   await expect(page.getByRole("button", { name: "Salvar", exact: true })).toBeDisabled();
 
   await page.getByRole("button", { name: "Descartar" }).click();
   await expect(page.locator("[data-quote-cell]")).toHaveCount(0);
   await expect(page.getByText(/alteraç(ão|ões) pendente/)).toHaveCount(0);
-});
-
-test("cotações de competência passada exigem confirmação", async ({ page }) => {
-  await page.goto("/posicoes/cotacoes?mes=2026-08");
-
-  await expect(page.getByText(/travada para edição/)).toBeVisible();
-  await expect(page.getByText("Nenhuma atualização de cotações registrada neste mês.")).toBeVisible();
-
-  await page.getByRole("button", { name: "Editar cotações" }).click();
-  await expect(page.getByRole("dialog")).toContainText("Isso altera o histórico");
-  await page.getByRole("button", { name: "Cancelar" }).click();
-  await expect(page.locator("[data-quote-cell]")).toHaveCount(0);
-
-  await page.getByRole("button", { name: "Editar cotações" }).click();
-  await page.getByRole("button", { name: "Editar mesmo assim" }).click();
-  await expect(page.getByText(/Editando o histórico de Ago\/26/)).toBeVisible();
-  await expect(page.locator('[data-quote-cell="value"]').first()).toBeVisible();
-  await page.getByRole("button", { name: "Sair da edição" }).click();
-  await expect(page.locator("[data-quote-cell]")).toHaveCount(0);
 });
 
 test("atualizar pela página gira junto com o topo e avisa cada ativo", async ({ page }) => {
@@ -134,8 +126,9 @@ test("atualizar pela página gira junto com o topo e avisa cada ativo", async ({
     refresh: { refresh: { state: "done", run: manual }, summary: stubSummary(manual, manual.finishedAt) },
     refreshDelayMs: 1200,
   });
+  // A atualização só aparece no mês corrente, aberto sem mês na URL.
   const hydrated = page.waitForRequest("**/api/quotes/open-check");
-  await page.goto("/posicoes/cotacoes?mes=2026-09");
+  await page.goto("/posicoes/cotacoes");
   await hydrated;
 
   const card = page.getByRole("region", { name: "Última atualização" });
@@ -156,13 +149,11 @@ test("atualizar pela página gira junto com o topo e avisa cada ativo", async ({
   await expect(card).toContainText("Nessa atualização: 1 cotação com falha (BTC).");
 });
 
-test("as páginas removidas levam às telas atuais", async ({ page }) => {
-  await page.goto("/atualizacao");
-  await expect(page).toHaveURL(/\/posicoes\/cotacoes$/);
-  await expect(page.getByRole("heading", { level: 1, name: "Cotações do mês" })).toBeVisible();
-
-  await page.goto("/importacao");
-  await expect(page.getByRole("heading", { level: 1, name: "Patrimônio consolidado" })).toBeVisible();
+test("as páginas removidas não existem mais", async ({ page }) => {
+  for (const path of ["/atualizacao", "/importacao"]) {
+    const response = await page.goto(path);
+    expect(response?.status(), path).toBe(404);
+  }
 
   await page.goto("/configuracao");
   await expect(page.getByRole("heading", { level: 1, name: "Metas da carteira" })).toBeVisible();

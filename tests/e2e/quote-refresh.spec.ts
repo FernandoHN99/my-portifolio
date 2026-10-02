@@ -84,8 +84,9 @@ test("o botão do topo atualiza as cotações manualmente", async ({ page }, tes
     refresh: { refresh: { state: "done", run: manual }, summary: summary(manual, manual.finishedAt) },
     refreshDelayMs: 1200,
   });
+  // Sem mês na URL, a competência aberta é a do mês corrente, a única com a seta.
   const hydrated = page.waitForRequest("**/api/quotes/open-check");
-  await page.goto("/?mes=2026-09");
+  await page.goto("/");
   await hydrated;
 
   // Pelo teclado: o botão continua focado enquanto a atualização roda.
@@ -111,11 +112,30 @@ test("o botão do topo atualiza as cotações manualmente", async ({ page }, tes
 test("uma atualização já em andamento é avisada", async ({ page }) => {
   await stubQuoteChecks(page);
   const hydrated = page.waitForRequest("**/api/quotes/open-check");
-  await page.goto("/?mes=2026-09");
+  await page.goto("/");
   await hydrated;
 
   await page.getByRole("button", { name: /^Atualizar cotações/ }).click();
   await expect(page.getByTestId("app-toast")).toContainText("Já existe uma atualização de cotações em andamento.");
+});
+
+test("fora do mês corrente o topo mostra só o horário, sem a seta", async ({ page }, testInfo) => {
+  const lastRun = run();
+  await stubQuoteChecks(page, {
+    openCheck: {
+      refresh: { state: "fresh", lastStartedAt: lastRun.startedAt },
+      summary: summary(lastRun, lastRun.finishedAt),
+    },
+  });
+  await page.goto("/?mes=2026-09");
+
+  const indicator = page.getByTestId("quote-refresh");
+  await expect(indicator).toContainText(testInfo.project.name.startsWith("mobile") ? "5 min" : "Atualizado há 5 min");
+  await expect(page.getByRole("button", { name: /^Atualizar cotações/ })).toHaveCount(0);
+
+  await page.goto("/posicoes/cotacoes?mes=2026-09");
+  await expect(page.getByRole("region", { name: "Última atualização" }).getByRole("button")).toHaveCount(0);
+  await expect(page.getByRole("region", { name: "Última atualização" })).toContainText(/só muda [A-Z][a-z]{2}\/\d{2}, o mês corrente/);
 });
 
 test("uma falha ao gravar a atualização indica cada ativo", async ({ page }) => {
@@ -168,9 +188,10 @@ test("o indicador do topo não corta as abas em telas estreitas", async ({ page 
       openCheck: { refresh: { state: "fresh", lastStartedAt: lastUpdatedAt }, summary: summary(lastRun, lastUpdatedAt) },
     });
 
-    for (const width of widths) {
+    // O mês corrente tem a seta; um mês passado, só o horário (spec 028).
+    for (const [width, path] of widths.flatMap((width) => ["/posicoes", "/posicoes?mes=2026-09"].map((path) => [width, path] as const))) {
       await page.setViewportSize({ width, height: 760 });
-      await page.goto("/posicoes?mes=2026-09");
+      await page.goto(path);
       const nav = page.getByRole("navigation", { name: "Navegação principal" });
       await expect(page.getByTestId("quote-refresh")).toContainText(/\d/);
       await expect(page.getByRole("link", { name: "Posições" })).toBeVisible();
@@ -179,7 +200,7 @@ test("o indicador do topo não corta as abas em telas estreitas", async ({ page 
         const parent = element.parentElement as HTMLElement;
         return { clientWidth: parent.clientWidth, scrollWidth: parent.scrollWidth };
       });
-      expect(scroller.scrollWidth, `abas cortadas em ${width} px`).toBeLessThanOrEqual(scroller.clientWidth);
+      expect(scroller.scrollWidth, `abas cortadas em ${width} px (${path})`).toBeLessThanOrEqual(scroller.clientWidth);
     }
   }
 });

@@ -23,14 +23,15 @@ Esta pasta organiza a implementação em fatias pequenas e revisáveis.
 - [017 — Posições: edição](017-positions-editing.md): concluída.
 - [018 — Faixa de tolerância ajustável](018-adjustable-tolerance.md): concluída.
 - [019 — Modo de edição com lápis](019-pencil-edit-mode.md): concluída.
-- [020 — Cotações diárias e atualização ao abrir](020-daily-quotes.md): concluída; questões em aberto aguardam o usuário.
+- [020 — Cotações diárias e atualização ao abrir](020-daily-quotes.md): concluída.
 - [021 — Virada de mês automática](021-automatic-month-rollover.md): concluída; questões em aberto aguardam o usuário.
-- [022 — Página de cotações em Posições](022-quotes-page.md): concluída; questões em aberto aguardam o usuário.
+- [022 — Página de cotações em Posições](022-quotes-page.md): concluída.
 - [023 — Linha do tempo compacta](023-compact-month-timeline.md): concluída.
 - [024 — Visão Geral: duração, variação no período e hover](024-overview-adjustments.md): concluída.
 - [025 — Listas de seleção estilizadas](025-styled-pickers.md): concluída.
 - [026 — Inclusão de posição com conta, instituição, ativo e vencimento novos](026-new-position-entities.md): concluída; questões em aberto aguardam o usuário.
 - [027 — Ajustes na configuração de metas](027-target-settings-adjustments.md): concluída.
+- [028 — Regras de cotação: fechamento, edição restrita e histórico global](028-quote-rules.md): concluída.
 
 As specs 010 a 017 formam a reestruturação da UX pedida pelo usuário. O
 propósito, as restrições e as regras de cálculo comuns a elas estão em

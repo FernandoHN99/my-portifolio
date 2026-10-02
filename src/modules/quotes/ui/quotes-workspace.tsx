@@ -29,6 +29,7 @@ import { parseMonthParam } from "@/modules/portfolio/presentation/reference-mont
 import { HistoryUnlockDialog } from "@/modules/portfolio/ui/edit-dialogs";
 import { EditToast, type EditToastState } from "@/modules/portfolio/ui/edit-toast";
 import type { MonthQuoteRow, MonthQuotesView } from "@/modules/quotes/application/get-month-quotes";
+import type { QuoteRunHistoryPage } from "@/modules/quotes/application/get-run-history";
 import { providerLabel, type QuoteRefreshSummary } from "@/modules/quotes/domain/quote-refresh";
 import { LastRefreshCard } from "@/modules/quotes/ui/last-refresh-card";
 import { RefreshRunHistory } from "@/modules/quotes/ui/refresh-run-history";
@@ -53,9 +54,11 @@ type QuoteDraftRow = MonthQuoteRow & {
 export function QuotesWorkspace({
   month,
   summary,
+  history,
 }: {
   month: MonthQuotesView | null;
   summary: QuoteRefreshSummary | null;
+  history: QuoteRunHistoryPage | null;
 }) {
   const router = useRouter();
   const monthParam = useSearchParams().get("mes");
@@ -122,6 +125,7 @@ export function QuotesWorkspace({
   const usdRate = usdRow ? previewPrice(usdRow) : null;
   const carriedCount = month.quotes.filter((quote) => quote.carriedFrom !== null).length;
   const failedCount = month.quotes.filter((quote) => quote.lastResult?.status === "FAILED").length;
+  const editableCount = month.quotes.filter((quote) => quote.editable).length;
 
   const notify = (result: EditActionResult) =>
     setToast({
@@ -200,7 +204,7 @@ export function QuotesWorkspace({
             {formatBrl(previewTotal)}
             {usdRate ? ` · US$ ${formatUsd(previewTotal / usdRate)}` : ""}
           </p>
-          {editMode || month.quotes.length === 0 ? null : month.isLatest ? (
+          {editMode || editableCount === 0 ? null : month.isLatest ? (
             <button
               type="button"
               onClick={() => setEditMode(true)}
@@ -215,7 +219,18 @@ export function QuotesWorkspace({
         </div>
       </header>
 
-      {!month.isLatest && !editMode ? (
+      {editableCount === 0 && month.quotes.length > 0 ? (
+        <div
+          data-testid="quotes-locked"
+          className="mt-6 flex items-center gap-3 rounded-2xl border border-border bg-card/60 px-4 py-3"
+        >
+          <LockKeyIcon aria-hidden="true" className="shrink-0 text-muted-foreground" size={16} weight="duotone" />
+          <p className="text-xs text-muted-foreground">
+            As cotações de {monthLabel} vêm dos provedores ou da planilha. A edição à mão fica disponível só para
+            cotação não encontrada ou com falha na última atualização.
+          </p>
+        </div>
+      ) : !month.isLatest && !editMode ? (
         <div className="mt-6 flex flex-wrap items-center gap-3 rounded-2xl border border-border bg-card/60 px-4 py-3">
           <LockKeyIcon aria-hidden="true" className="text-muted-foreground" size={16} weight="duotone" />
           <p className="text-xs text-muted-foreground">
@@ -266,8 +281,9 @@ export function QuotesWorkspace({
 
         {editMode ? (
           <p className="border-b border-border/60 px-5 py-2.5 text-[11px] text-muted-foreground sm:px-6">
-            Alterar uma cotação recalcula o total de todas as posições daquele símbolo em {monthLabel}.
-            {month.isCurrent ? " A próxima atualização de cotações substitui o valor editado." : ""}
+            Só as cotações não encontradas ou com falha na última atualização podem ser editadas; as demais
+            vêm dos provedores. Alterar uma cotação recalcula o total das posições daquele símbolo em {monthLabel}.
+            {month.isCurrent ? " A próxima atualização bem-sucedida substitui o valor editado." : ""}
           </p>
         ) : null}
 
@@ -295,11 +311,10 @@ export function QuotesWorkspace({
                   </td>
                 </tr>
               ) : (
-                rows.map((row, index) => (
+                rows.map((row) => (
                   <QuoteRow
                     key={row.symbol}
                     row={row}
-                    rowIndex={index}
                     editMode={editMode}
                     onChange={(text) => setDrafts((current) => ({ ...current, [row.symbol]: text }))}
                   />
@@ -310,7 +325,7 @@ export function QuotesWorkspace({
         </div>
       </section>
 
-      <RefreshRunHistory runs={month.runs} runCount={month.runCount} monthLabel={formatMonth(month.referenceDate)} />
+      <RefreshRunHistory initial={history} />
 
       {editMode ? (
         <div className="fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom,0px)+16px)] z-40 flex justify-center px-4">
@@ -360,12 +375,10 @@ export function QuotesWorkspace({
 
 function QuoteRow({
   row,
-  rowIndex,
   editMode,
   onChange,
 }: {
   row: QuoteDraftRow;
-  rowIndex: number;
   editMode: boolean;
   onChange: (text: string) => void;
 }) {
@@ -403,12 +416,11 @@ function QuoteRow({
           row.changed && "bg-warning/25 shadow-[inset_2px_0_0_var(--warning-border)]",
         )}
       >
-        {editMode ? (
+        {editMode && row.editable ? (
           <label className="relative ml-auto flex w-full min-w-[104px] items-center sm:min-w-[164px]">
             <span className="pointer-events-none absolute left-2.5 text-[11px] text-muted-foreground">R$</span>
             <input
               data-quote-cell="value"
-              data-row={rowIndex}
               inputMode="decimal"
               aria-label={`Cotação de ${row.symbol}`}
               aria-invalid={row.invalid}
@@ -416,7 +428,7 @@ function QuoteRow({
               placeholder="sem cotação"
               onChange={(event) => onChange(event.target.value)}
               onFocus={(event) => event.currentTarget.select()}
-              onKeyDown={(event) => moveFocus(event, rowIndex)}
+              onKeyDown={moveFocus}
               className={cn(
                 "h-8 w-full rounded-md border bg-background/60 pr-2 pl-8 text-right font-mono text-xs text-foreground outline-none placeholder:text-muted-foreground/60 focus-visible:ring-2",
                 row.invalid
@@ -428,9 +440,16 @@ function QuoteRow({
             />
           </label>
         ) : (
-          <span className="font-mono text-xs font-medium whitespace-nowrap text-foreground sm:text-sm">
-            {row.valueBrl === null ? <span className="text-muted-foreground">Sem cotação</span> : formatPriceBrl(row.valueBrl)}
-          </span>
+          <>
+            <span className="font-mono text-xs font-medium whitespace-nowrap text-foreground sm:text-sm">
+              {row.valueBrl === null ? <span className="text-muted-foreground">Sem cotação</span> : formatPriceBrl(row.valueBrl)}
+            </span>
+            {editMode ? (
+              <p title="Vem dos provedores pela atualização de cotações." className="mt-1 text-[9px] text-muted-foreground">
+                Automática
+              </p>
+            ) : null}
+          </>
         )}
         {row.changed && !row.invalid && row.valueBrl !== null ? (
           <p className="mt-1 font-mono text-[9px] text-muted-foreground sm:whitespace-nowrap">
@@ -527,12 +546,14 @@ function LastResult({ row, compact = false }: { row: MonthQuoteRow; compact?: bo
       )}
       <div className="min-w-0 text-[11px] leading-snug">
         <p className={ok ? "text-foreground/85" : "text-destructive"}>
-          {ok ? "Atualizada" : "Falhou"} em <LocalDateTime iso={result.fetchedAt} />
+          {result.trigger === "INCLUSION" ? "Incluída" : ok ? "Atualizada" : "Falhou"} em{" "}
+          <LocalDateTime iso={result.fetchedAt} />
         </p>
         {/* Motivos com termos longos, como ALPHA_VANTAGE_API_KEY, quebram em
             qualquer ponto para não alargar a coluna no celular. */}
         <p className={cn("text-muted-foreground wrap-anywhere", compact && "max-w-[260px]")}>
           {providerLabel(result.provider)}
+          {result.trigger === "INCLUSION" ? " · ao incluir a posição" : null}
           {ok ? null : `: ${result.errorMessage ?? "falha sem descrição."}`}
         </p>
       </div>
@@ -574,14 +595,16 @@ function formatDay(dateKey: string) {
   return dayFormat.format(new Date(`${dateKey}T00:00:00Z`));
 }
 
-function moveFocus(event: KeyboardEvent<HTMLInputElement>, rowIndex: number) {
+// Só as cotações editáveis têm campo; as setas e o Enter andam entre elas.
+function moveFocus(event: KeyboardEvent<HTMLInputElement>) {
   const step = event.key === "ArrowDown" || event.key === "Enter" ? 1 : event.key === "ArrowUp" ? -1 : 0;
 
   if (step === 0) {
     return;
   }
 
-  const target = document.querySelector<HTMLElement>(`[data-quote-cell="value"][data-row="${rowIndex + step}"]`);
+  const inputs = [...document.querySelectorAll<HTMLElement>('[data-quote-cell="value"]')];
+  const target = inputs[inputs.indexOf(event.currentTarget) + step];
 
   if (target) {
     event.preventDefault();

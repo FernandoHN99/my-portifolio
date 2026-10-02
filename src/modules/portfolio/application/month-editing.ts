@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 
-import { PortfolioMonthStatus, Prisma } from "@/generated/prisma/client";
+import { PortfolioMonthStatus, Prisma, QuoteUpdateStatus } from "@/generated/prisma/client";
 import { getPrismaClient } from "@/lib/prisma";
 import {
   ASSET_KIND_DEFINITIONS,
@@ -15,7 +15,8 @@ import {
   type AssetKind,
 } from "@/modules/portfolio/domain/asset-kinds";
 import { readVerifiedTicker } from "@/modules/quotes/application/check-ticker";
-import { currentReferenceMonth } from "@/modules/quotes/domain/calendar";
+import { addMonths, currentReferenceMonth } from "@/modules/quotes/domain/calendar";
+import { isQuoteEditable } from "@/modules/quotes/domain/quote-refresh";
 
 type Transaction = Prisma.TransactionClient;
 
@@ -711,6 +712,12 @@ export async function updateMonthQuotes(input: {
   }
 
   return withUndo(input.monthId, input.confirmHistory, async (transaction, month) => {
+    await assertQuotesEditable(
+      transaction,
+      month.referenceDate,
+      parsed.map((quote) => quote.symbol),
+    );
+
     for (const quote of parsed) {
       const existing = await transaction.marketQuote.findUnique({
         where: { referenceDate_symbol: { referenceDate: month.referenceDate, symbol: quote.symbol } },
@@ -914,6 +921,44 @@ export async function undoChange(token: string) {
     },
     { maxWait: 10_000, timeout: 60_000 },
   );
+}
+
+/**
+ * A edição à mão vale só para cotações não encontradas ou com falha na última
+ * busca do mês (spec 028); as demais vêm dos provedores.
+ */
+async function assertQuotesEditable(transaction: Transaction, referenceDate: Date, symbols: string[]) {
+  const [quotes, lastResults] = await Promise.all([
+    transaction.marketQuote.findMany({
+      where: { referenceDate, symbol: { in: symbols } },
+      select: { symbol: true, carriedFrom: true },
+    }),
+    transaction.quoteRefreshResult.findMany({
+      where: {
+        symbol: { in: symbols },
+        run: { quoteDate: { gte: referenceDate, lt: addMonths(referenceDate, 1) } },
+      },
+      orderBy: [{ fetchedAt: "desc" }, { id: "desc" }],
+      distinct: ["symbol"],
+      select: { symbol: true, status: true },
+    }),
+  ]);
+  const quoteBySymbol = new Map(quotes.map((quote) => [quote.symbol, quote]));
+  const failed = new Set(
+    lastResults.filter((result) => result.status === QuoteUpdateStatus.FAILED).map((result) => result.symbol),
+  );
+  const locked = symbols.filter((symbol) => {
+    const quote = quoteBySymbol.get(symbol);
+    return !isQuoteEditable({ hasValue: quote !== undefined, carried: Boolean(quote?.carriedFrom), lastFailed: failed.has(symbol) });
+  });
+
+  if (locked.length > 0) {
+    throw new MonthEditError(
+      `${locked.join(", ")} ${locked.length === 1 ? "vem" : "vêm"} da atualização automática e não ${
+        locked.length === 1 ? "pode" : "podem"
+      } ser ${locked.length === 1 ? "editada" : "editadas"}.`,
+    );
+  }
 }
 
 async function withUndo(

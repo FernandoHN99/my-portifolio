@@ -1,7 +1,7 @@
 # 020 — Cotações diárias e atualização ao abrir
 
-Estado: concluída em 2026-10-02; as propostas em "Questões em aberto"
-aguardam o usuário
+Estado: concluída em 2026-10-02; questões respondidas na
+[spec 028](028-quote-rules.md)
 Definida em: 2026-10-02
 
 ## Problema
@@ -172,28 +172,18 @@ Migração aditiva `daily_quotes`:
 
 ## Questões em aberto
 
-Escolhas feitas pelo agente durante a implementação, em vigor no código, que
-aguardam confirmação do usuário:
+Respondidas pelo usuário em 2026-10-02 (segunda rodada), registradas em
+[Reestruturação da UX](../context/ux-restructure.md):
 
-- cada símbolo é independente: os sucessos são aplicados e os que falharam
-  mantêm o valor anterior. A spec 003 tinha a regra confirmada de aplicar
-  tudo ou nada; com atualização automática, um provedor que falha sempre, como
-  o Alpha Vantage sem chave, congelaria todas as cotações. O usuário confirma
-  essa troca para a atualização do topo?
-- voltar a uma aba que ficou aberta por mais de uma hora conta como abrir o
-  aplicativo e dispara a checagem. É essa a leitura de "quando abrir"?
-- um aviso por execução lista todos os ativos com falha, em vez de um aviso
-  por ativo; cada ativo aparece nomeado com o motivo, e uma queda de rede não
-  empilha dez avisos. Atende a "exibir toast indicando o ativo"?
-- a regra de uma hora conta qualquer tentativa, com sucesso ou falha, de
-  qualquer gatilho, para que um provedor fora do ar não seja consultado a cada
-  abertura; a seta manual ignora essa regra;
-- consequência conhecida: uma cotação da competência corrente editada à mão
-  na página de cotações ([spec 022](022-quotes-page.md)) é sobrescrita pela próxima atualização, automática ou
-  manual. Cotações de competências passadas editadas à mão são preservadas. O
-  usuário aceita esse comportamento ou prefere proteger a cotação editada?
-- respondida pela [spec 022](022-quotes-page.md): `/atualizacao` e o fluxo
-  tudo ou nada foram removidos;
+- símbolos independentes: confirmado;
+- voltar a uma aba aberta há mais de uma hora conta como abrir: confirmado;
+- um aviso por execução com todos os ativos com falha: confirmado;
+- a regra de uma hora conta qualquer tentativa: mantida;
+- cotação editada à mão no mês corrente: o usuário não pretende editar; a
+  edição ficou restrita às cotações não encontradas ou com falha, e a próxima
+  busca bem-sucedida as substitui ([spec 028](028-quote-rules.md));
+- a seta de atualizar só aparece no mês corrente
+  ([spec 028](028-quote-rules.md));
 - abaixo de 360 px de largura a marca do topo some para as abas caberem.
 
 ## Fora do escopo

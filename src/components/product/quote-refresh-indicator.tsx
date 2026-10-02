@@ -8,7 +8,14 @@ import { useQuoteRefresh } from "@/components/product/use-quote-refresh";
 import { cn } from "@/lib/utils";
 import type { QuoteRefreshSummary } from "@/modules/quotes/domain/quote-refresh";
 
-export function QuoteRefreshIndicator({ summary: serverSummary }: { summary: QuoteRefreshSummary | null }) {
+export function QuoteRefreshIndicator({
+  summary: serverSummary,
+  canRefresh = true,
+}: {
+  summary: QuoteRefreshSummary | null;
+  /** Falso fora do mês corrente: só o horário aparece, sem a seta. */
+  canRefresh?: boolean;
+}) {
   const { client, summary, time, hasIssues, issueText, onDataChanged, refresh } = useQuoteRefresh(serverSummary);
 
   useEffect(() => {
@@ -31,6 +38,45 @@ export function QuoteRefreshIndicator({ summary: serverSummary }: { summary: Quo
   const title = [time ? `Última atualização das cotações em ${time.absolute}` : null, issueText]
     .filter(Boolean)
     .join(". ");
+
+  // Fora do mês corrente, o horário da última atualização continua visível,
+  // sem a seta: a checagem ao abrir segue rodando normalmente.
+  if (!canRefresh && !client.spinning) {
+    return (
+      <div
+        data-testid="quote-refresh"
+        title={title || undefined}
+        aria-label={[longLabel ?? "Cotações", issueText].filter(Boolean).join(". ")}
+        role="status"
+        className="relative flex h-9 min-w-9 shrink-0 items-center justify-center rounded-xl border border-border bg-card/70 px-1 md:px-3"
+      >
+        <span
+          className={cn(
+            "hidden text-[11px] whitespace-nowrap text-muted-foreground tabular-nums md:inline",
+            longLabel === null && "invisible",
+          )}
+        >
+          {longLabel ?? "Atualizado há 10 min"}
+        </span>
+        <span
+          aria-hidden="true"
+          className={cn(
+            "text-[9px] leading-none font-medium whitespace-nowrap text-muted-foreground tabular-nums md:hidden",
+            shortLabel === null && "invisible",
+          )}
+        >
+          {shortLabel ?? "10 min"}
+        </span>
+        {hasIssues ? (
+          <span
+            aria-hidden="true"
+            data-testid="quote-refresh-issue"
+            className="absolute top-1 right-1 size-1.5 rounded-full bg-destructive ring-2 ring-card"
+          />
+        ) : null}
+      </div>
+    );
+  }
 
   return (
     <div

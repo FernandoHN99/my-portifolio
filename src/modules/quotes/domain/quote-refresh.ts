@@ -3,6 +3,9 @@
 
 export const QUOTE_REFRESH_INTERVAL_MS = 60 * 60 * 1000;
 
+/** Janela do histórico de execuções da página de cotações (spec 028). */
+export const RUN_HISTORY_MONTHS = 36;
+
 export type QuoteRefreshTriggerKind = "AUTO" | "MANUAL";
 export type QuoteRefreshRunStatus = "RUNNING" | "COMPLETED" | "COMPLETED_WITH_ISSUES" | "FAILED";
 
@@ -43,6 +46,23 @@ export type ManualRefreshResponse = {
   refresh: QuoteRefreshOutcome;
   summary: QuoteRefreshSummary | null;
 };
+
+/**
+ * Cotação que pode ser editada à mão (spec 028). O usuário não pretende editar
+ * cotações: a edição existe só para a que não foi encontrada (sem valor no
+ * mês ou repetida de outro mês) ou cuja última busca no mês falhou.
+ */
+export function isQuoteEditable({
+  hasValue,
+  carried,
+  lastFailed,
+}: {
+  hasValue: boolean;
+  carried: boolean;
+  lastFailed: boolean;
+}) {
+  return !hasValue || carried || lastFailed;
+}
 
 export function isRefreshDue(lastStartedAt: Date | null, now: Date) {
   if (!lastStartedAt) {
