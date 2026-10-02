@@ -124,9 +124,10 @@ percentual atual, percentual ideal, valor atual, valor ideal e diferença.
 2. [011 — Visão Geral](../specs/011-overview-tab.md): concluída.
 3. [012 — Rebalanceamento na Visão Geral](../specs/012-rebalancing-in-overview.md): concluída.
 4. [015 — Transições sem recarregamento](../specs/015-seamless-transitions.md): concluída.
-5. [013 — Posições com filtros e edição](../specs/013-positions-editing.md): planejada.
-6. [014 — Configuração da carteira](../specs/014-target-settings.md): planejada.
-7. [016 — Histórico de uma posição e de um ativo](../specs/016-position-history.md): planejada, sem prazo.
+5. [013 — Posições: filtros e consulta](../specs/013-positions-filters.md): concluída.
+6. [017 — Posições: edição](../specs/017-positions-editing.md): planejada.
+7. [014 — Configuração da carteira](../specs/014-target-settings.md): planejada.
+8. [016 — Histórico de uma posição e de um ativo](../specs/016-position-history.md): planejada, sem prazo.
 
 Cada fatia termina com `pnpm check`, `pnpm build` e os testes do Playwright.
 

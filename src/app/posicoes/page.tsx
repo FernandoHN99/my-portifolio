@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { AppShell } from "@/components/product/app-shell";
 import { getMonthContext } from "@/modules/portfolio/application/get-month-context";
 import { getMonthPositions } from "@/modules/portfolio/application/get-month-positions";
-import { PositionsTable } from "@/modules/portfolio/ui/positions-table";
+import { PositionsWorkspace } from "@/modules/portfolio/ui/positions-workspace";
 
 export const dynamic = "force-dynamic";
 
@@ -22,7 +22,7 @@ export default async function PositionsPage({
 
   return (
     <AppShell active="positions" months={months} selectedMonth={selected?.month ?? null}>
-      <PositionsTable month={month} />
+      <PositionsWorkspace month={month} />
     </AppShell>
   );
 }

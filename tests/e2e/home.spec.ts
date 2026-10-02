@@ -58,6 +58,24 @@ test("a visão geral alterna o empilhamento do gráfico", async ({ page }) => {
   );
 });
 
+test("os filtros de posições combinam e somam o recorte", async ({ page }) => {
+  await page.goto("/posicoes?mes=2026-09");
+
+  await expect(page.getByText("21 de 21 posições")).toBeVisible();
+
+  await page.getByRole("button", { name: "Instituição", exact: true }).first().click();
+  await page.getByRole("menuitemcheckbox", { name: "Inter" }).click();
+  await page.keyboard.press("Escape");
+  await expect(page).toHaveURL(/inst=Inter/);
+  await expect(page.getByText(/^\d+ de 21 posições$/)).not.toHaveText("21 de 21 posições");
+
+  await page.goto("/posicoes?mes=2026-09&classe=Renda%20Vari%C3%A1vel&agrupar=classe");
+  await expect(page.getByText("Parcela nas classes selecionadas")).toBeVisible();
+
+  await page.reload();
+  await expect(page.getByRole("button", { name: /Classe\s*1/ })).toBeVisible();
+});
+
 test("o rebalanceamento troca de recorte", async ({ page }) => {
   await page.goto("/?mes=2026-09");
 

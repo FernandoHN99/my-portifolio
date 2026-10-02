@@ -37,5 +37,5 @@ posição ao longo do tempo e também a evolução do ativo correspondente.
 ## Referências
 
 - [Reestruturação da UX](../context/ux-restructure.md)
-- [Posições com filtros e edição](013-positions-editing.md)
+- [Posições: filtros e consulta](013-positions-filters.md)
 - [Diagnóstico do Excel](../context/excel-analysis.md)
