@@ -40,7 +40,7 @@ usuário clica nela; "Restaurar padrão do Excel" continua disponível.
 ## Comportamento
 
 - todos os deslizantes de meta e o da tolerância andam de 1 em 1 ponto, ao
-  arrastar, ao clicar no trilho e pelas setas do teclado;
+  arrastar, ao clicar no trilho com o mouse e pelas setas do teclado;
 - o campo numérico ao lado aceita valor quebrado, como 12,5, com as mesmas
   validações de antes: metas de 0 a 100 e tolerância de 0 a 20 com até duas
   casas;
@@ -51,7 +51,12 @@ usuário clica nela; "Restaurar padrão do Excel" continua disponível.
   anterior: de 12,5, a seta para a direita leva a 13 e a seta para a esquerda
   leva a 12;
 - Shift com as setas, Page Up e Page Down andam 10 pontos nas metas e 5 na
-  tolerância;
+  tolerância; a partir de um valor quebrado, vão até o inteiro mais distante
+  sem passar desse passo: de 12,5, Page Up leva a 22 e Page Down leva a 3;
+- no toque, encostar o dedo no deslizante, no polegar ou no trilho, não muda
+  o valor; só um arraste horizontal muda, de 1 em 1 ponto, com o polegar
+  acompanhando o dedo; um gesto vertical que comece sobre o deslizante rola a
+  página;
 - editar uma meta ou a tolerância, por campo, deslizante ou teclado, não troca
   a aba da prévia de comprar e vender; a aba só muda pelo clique;
 - "Restaurar padrão do Excel" continua preenchendo o rascunho com as metas
@@ -83,14 +88,36 @@ usuário clica nela; "Restaurar padrão do Excel" continua disponível.
   editor passaram a ser criados uma vez só;
 - a matriz de renda fixa continua só com campos numéricos, sem deslizante,
   como antes;
+- o toque é tratado pelo próprio componente, e não pelo Base UI. O Base UI
+  muda o valor no `touchstart` e, com `touch-action: none`, impedia a rolagem:
+  na revisão, um gesto vertical sobre o deslizante de Caixa levou a meta de
+  15 a 78 sem rolar a página. Agora o controle usa `touch-action: pan-y`, o
+  toque é interceptado na raiz do deslizante antes de chegar ao Base UI e só
+  vira arraste depois de o dedo andar 8 pixels na horizontal, mais do que na
+  vertical; o mouse continua com o Base UI;
+- interpretação registrada: no toque, tocar sem arrastar não muda o valor nem
+  no trilho. Assim um toque para parar a rolagem ou um toque acidental não
+  altera metas nem arredonda os valores quebrados do Excel, como BTC 32,5 e
+  USD 28,5. Com o mouse, clicar no trilho continua levando o polegar ao ponto
+  clicado;
+- a regra do valor quebrado também vale para ajustes que passam pelo
+  `input type="range"` oculto, como os gestos de leitores de tela: o
+  navegador guarda nele o valor ajustado ao passo, 16 para 15,5, e sem a regra
+  um ajuste para cima levaria a 17;
+- o deslizante passou para `src/modules/portfolio/ui/step-slider.tsx`, para
+  manter o editor de metas legível;
 - o servidor, as ações e as regras de validação não mudaram; a mudança é só de
   interface.
 
 ## Limites conhecidos
 
-- pela leitura do código do Base UI, no toque o simples encostar no polegar já
-  conta como início do arraste e pode levar um valor quebrado ao inteiro mais
-  próximo; com o mouse isso não acontece. Não foi testado em aparelho real;
+- o gesto de toque foi verificado na emulação do Pixel 7 do Chrome, com
+  eventos de toque enviados pelo protocolo do navegador, que passam pela
+  rolagem e pelo `touch-action` reais; não foi testado em aparelho real;
+- o `input type="range"` oculto continua guardando o valor ajustado ao passo,
+  16 para 15,5. O Chrome informa 15,5 e "15,5%" aos leitores de tela, mas
+  ferramentas que leem esse campo direto, como o `ariaSnapshot` do
+  Playwright, mostram 16;
 - a tarefa longa única no perfil de celular, descrita em Verificação, não foi
   eliminada.
 
@@ -105,6 +132,8 @@ usuário clica nela; "Restaurar padrão do Excel" continua disponível.
 - arrastar um deslizante produz apenas valores inteiros;
 - um valor quebrado digitado é exibido sem alteração até o deslizante ser
   movido;
+- no toque, um gesto vertical sobre o deslizante rola a página e não muda a
+  meta, e tocar sem arrastar não muda o valor;
 - editar uma meta não troca a aba da prévia;
 - "Restaurar padrão do Excel" volta as metas importadas e a tolerância 2;
 - lint, tipos, build e testes de interface passam.
@@ -139,6 +168,34 @@ exibido sem arredondar. Os quatro falham com o código anterior e passam com o
 novo. A suíte completa passou com 28 cenários no desktop e no celular, e os
 novos cenários passaram 32 vezes seguidas. `pnpm lint`, `pnpm typecheck` e
 `pnpm build` passaram. As capturas de desktop e celular foram conferidas.
+
+Correções da revisão, também em 2026-10-02, no mesmo banco e servidor. A
+revisão reproduziu, no perfil de celular, que um gesto vertical de 250 pixels
+sobre o deslizante de Caixa não rolava a página e mudava a meta de 15 para 78;
+a mesma medição, repetida antes da correção, deu o mesmo resultado. Depois da
+correção, gestos verticais começando a 15% e a 75% do deslizante e sobre o
+polegar rolaram a página, de 0 para cerca de 600 pixels, com Caixa mantida;
+tocar no polegar e no trilho depois de digitar 15,5 manteve 15,5; um arraste
+horizontal de 45 pixels a partir do polegar passou só por inteiros, de 22 a
+50, com o polegar acompanhando o dedo. Pelo teclado, de 15,5: Shift com seta
+para a direita e Page Up levaram a 25, Shift com seta para a esquerda e Page
+Down a 6, Home a 0 e End a 100; de 95,5, Page Up parou em 100; na tolerância,
+de 2,25, Page Up levou a 7. Pelo `input type="range"` oculto, `stepUp` a
+partir de 15,5 levou a 16, e não mais a 17, e `stepDown` a partir de 15,3
+levou a 15. Uma tolerância arrastada pelo toque até 6 foi salva e gerou nova
+versão com 6; em seguida a tolerância 2 foi salva de novo.
+
+O arquivo de testes ganhou, no cenário do valor quebrado, Shift com as setas,
+Page Up, Page Down e o ajuste pelo campo oculto, e dois cenários só do
+celular com toque real: rolagem sobre o deslizante sem mudar a meta, com
+toques no polegar e no trilho mantendo 15,5, e arraste horizontal só com
+inteiros. O cenário do valor quebrado e o da rolagem falham com o código
+anterior; o do arraste horizontal passa nos dois e protege o arraste pelo
+toque. A suíte completa passou duas vezes com 30 cenários e 2 pulados, os de
+toque no perfil de desktop; os cenários da spec passaram 8 vezes seguidas nos
+dois perfis. `pnpm lint`, `pnpm typecheck` e `pnpm build` passaram. As
+capturas de desktop e celular, inclusive durante o arraste pelo toque, foram
+conferidas.
 
 ## Referências
 

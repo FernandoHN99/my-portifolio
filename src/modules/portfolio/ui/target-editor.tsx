@@ -1,6 +1,5 @@
 "use client";
 
-import { Slider } from "@base-ui/react/slider";
 import {
   ArrowCounterClockwiseIcon,
   ArrowRightIcon,
@@ -17,7 +16,6 @@ import {
   useRef,
   useState,
   useTransition,
-  type KeyboardEvent,
 } from "react";
 
 import { saveTargetPlanAction } from "@/app/actions/target-plan";
@@ -42,10 +40,9 @@ import {
 } from "@/modules/portfolio/presentation/portfolio-format";
 import { TARGET_SCOPES, targetGroupKey } from "@/modules/portfolio/presentation/target-groups";
 import { EditToast, type EditToastState } from "@/modules/portfolio/ui/edit-toast";
+import { StepSlider } from "@/modules/portfolio/ui/step-slider";
 
 const SUM_EPSILON = 0.01;
-// O deslizante anda de 1 em 1 ponto; o campo numérico continua aceitando valor quebrado.
-const SLIDER_STEP = 1;
 const EMPTY_ROWS: AllocationRow[] = [];
 
 type Draft = Record<string, string>;
@@ -440,75 +437,6 @@ const TargetRow = memo(function TargetRow({
     </div>
   );
 });
-
-/**
- * Deslizante de 1 em 1 ponto. Um valor quebrado digitado no campo, como 12,5, é exibido na posição exata e
- * só muda quando o usuário arrasta o deslizante ou usa as setas; nesse caso as setas vão para o inteiro
- * seguinte ou anterior, em vez de arredondar e depois somar um passo.
- */
-function StepSlider({
-  value,
-  max,
-  largeStep = 10,
-  label,
-  valueText,
-  onChange,
-}: {
-  value: number;
-  max: number;
-  largeStep?: number;
-  label: string;
-  valueText: (value: number) => string;
-  onChange: (value: number) => void;
-}) {
-  const shown = Number.isFinite(value) ? Math.min(Math.max(value, 0), max) : 0;
-
-  const stepFromFraction = (event: KeyboardEvent<HTMLInputElement>) => {
-    if (event.shiftKey || Number.isInteger(shown)) {
-      return;
-    }
-    const direction =
-      event.key === "ArrowRight" || event.key === "ArrowUp"
-        ? 1
-        : event.key === "ArrowLeft" || event.key === "ArrowDown"
-          ? -1
-          : 0;
-    if (direction === 0) {
-      return;
-    }
-    event.preventDefault();
-    onChange(direction > 0 ? Math.ceil(shown) : Math.floor(shown));
-  };
-
-  return (
-    <Slider.Root
-      value={shown}
-      min={0}
-      max={max}
-      step={SLIDER_STEP}
-      largeStep={largeStep}
-      thumbAlignment="edge"
-      onValueChange={(next) => {
-        if (typeof next === "number") {
-          onChange(next);
-        }
-      }}
-      className="w-full"
-    >
-      <Slider.Control className="flex h-8 w-full cursor-pointer touch-none items-center select-none">
-        <Slider.Track className="relative h-1.5 w-full rounded-full bg-white/[0.08]">
-          <Slider.Indicator className="rounded-full bg-primary" />
-          <Slider.Thumb
-            aria-label={label}
-            getAriaValueText={(_formatted, current) => valueText(current)}
-            onKeyDown={stepFromFraction}
-            className="size-4 rounded-full border-[3px] border-card bg-primary shadow-[0_1px_3px_rgb(0_0_0/0.45)] outline-none transition-[box-shadow,scale] duration-150 ease-out select-none hover:ring-4 hover:ring-primary/15 has-[:focus-visible]:ring-4 has-[:focus-visible]:ring-ring/45 data-dragging:scale-110 data-dragging:ring-4 data-dragging:ring-primary/20"
-          />
-        </Slider.Track>
-      </Slider.Control>
-    </Slider.Root>
-  );
-}
 
 function FixedIncomeMatrix({ items, sum, valueOf, textOf, onChange, changedKeys }: GroupProps) {
   const subclasses = [...new Set(items.map((item) => item.primaryLabel))];
