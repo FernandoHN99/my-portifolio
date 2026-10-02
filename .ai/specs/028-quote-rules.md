@@ -122,6 +122,20 @@ fica para o [passo pré-produção](../context/pre-deploy.md).
 - a recusa do servidor foi conferida com um roteiro descartável: editar o BTC
   de Set/26 foi recusado e o valor continuou R$ 395.046,00.
 
+## Correção posterior: limite do Alpha Vantage
+
+Em 2026-10-02, depois da entrega, a atualização ao abrir mostrou o GPCA11.SAO
+com "O provedor respondeu em um formato inesperado". O Alpha Vantage gratuito
+permite 25 consultas por dia, e o aviso de limite vem com HTTP 200 em "Note"
+ou "Information". A conferência de ticker já tratava esse caso; a atualização
+não. Agora a falha diz "limite de 25 consultas por dia atingido ou chave sem
+acesso", e um símbolo desconhecido diz que a cotação não foi encontrada.
+
+Atenção: com a atualização a cada hora, o GPCA11.SAO sozinho pode consumir
+até 24 consultas por dia, e a busca de histórico da
+[spec 029](029-asset-price-history.md) usa a mesma cota. Com a falha, a
+cotação fica editável à mão até a próxima busca bem-sucedida, como previsto.
+
 ## Referências
 
 - [Cotações diárias e atualização ao abrir](020-daily-quotes.md)

@@ -17,6 +17,7 @@ import { saveQuotesAction, undoChangeAction, type EditActionResult } from "@/app
 import { LocalDateTime } from "@/components/product/local-time";
 import { refreshUnlessEditing, subscribeQuoteRunFinished } from "@/components/product/quote-refresh-client";
 import { confirmDiscardChanges, setPendingChanges } from "@/components/product/unsaved-changes";
+import { MonthStatusBadge } from "@/components/product/month-status-badge";
 import { cn } from "@/lib/utils";
 import {
   formatBrl,
@@ -118,7 +119,7 @@ export function QuotesWorkspace({
   }
 
   const monthLabel = formatMonthCompact(month.referenceDate);
-  const confirmHistory = editMode && !month.isLatest;
+  const confirmHistory = editMode && month.isLocked;
   const previewTotal =
     month.totalBrl + changed.reduce((total, row) => total + (row.invalid ? 0 : row.previewTotal - row.totalBrl), 0);
   const usdRow = rows.find((row) => row.symbol === "USD");
@@ -194,17 +195,13 @@ export function QuotesWorkspace({
           <div className="inline-flex w-fit items-center gap-2 rounded-xl border border-border bg-card/70 px-3.5 py-2.5 text-xs text-muted-foreground">
             <CalendarBlankIcon aria-hidden="true" className="text-primary" size={15} weight="duotone" />
             <span>{formatMonth(month.referenceDate)}</span>
-            {month.status === "DRAFT" ? (
-              <span className="rounded-full bg-warning/10 px-2 py-0.5 text-[9px] font-semibold tracking-[0.08em] text-warning-foreground uppercase">
-                Rascunho
-              </span>
-            ) : null}
+            <MonthStatusBadge status={month.status} />
           </div>
           <p className="font-mono text-xs text-muted-foreground">
             {formatBrl(previewTotal)}
             {usdRate ? ` · US$ ${formatUsd(previewTotal / usdRate)}` : ""}
           </p>
-          {editMode || editableCount === 0 ? null : month.isLatest ? (
+          {editMode || editableCount === 0 ? null : !month.isLocked ? (
             <button
               type="button"
               onClick={() => setEditMode(true)}
@@ -214,7 +211,12 @@ export function QuotesWorkspace({
               Editar cotações
             </button>
           ) : (
-            <HistoryUnlockDialog monthLabel={monthLabel} label="Editar cotações" onConfirm={() => setEditMode(true)} />
+            <HistoryUnlockDialog
+              monthLabel={monthLabel}
+              label="Editar cotações"
+              finalized={month.isLatest}
+              onConfirm={() => setEditMode(true)}
+            />
           )}
         </div>
       </header>
@@ -230,14 +232,16 @@ export function QuotesWorkspace({
             cotação não encontrada ou com falha na última atualização.
           </p>
         </div>
-      ) : !month.isLatest && !editMode ? (
+      ) : month.isLocked && !editMode ? (
         <div className="mt-6 flex flex-wrap items-center gap-3 rounded-2xl border border-border bg-card/60 px-4 py-3">
           <LockKeyIcon aria-hidden="true" className="text-muted-foreground" size={16} weight="duotone" />
           <p className="text-xs text-muted-foreground">
-            {monthLabel} é uma competência passada e está travada para edição. Editar pede confirmação.
+            {month.isLatest
+              ? `${monthLabel} está finalizado e travado para edição. Editar pede confirmação.`
+              : `${monthLabel} é uma competência passada e está travada para edição. Editar pede confirmação.`}
           </p>
         </div>
-      ) : !month.isLatest ? (
+      ) : month.isLocked ? (
         <div className="mt-6 flex items-center gap-3 rounded-2xl border border-warning-border bg-warning/30 px-4 py-3">
           <LockKeyIcon aria-hidden="true" className="text-warning-foreground" size={16} weight="duotone" />
           <p className="text-xs text-warning-foreground">

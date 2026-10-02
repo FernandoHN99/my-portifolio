@@ -924,6 +924,38 @@ export async function undoChange(token: string) {
 }
 
 /**
+ * Finaliza a competência mais recente, em rascunho, ou a reabre (spec 032).
+ * Finalizada, editar posições e cotações pede a confirmação de histórico; as
+ * cotações continuam sendo atualizadas pela atualização automática.
+ */
+export async function setMonthFinalized({ monthId, finalized }: { monthId: string; finalized: boolean }) {
+  const prisma = requirePrisma();
+  const [month, latest] = await Promise.all([
+    prisma.portfolioMonth.findUnique({ where: { id: monthId }, select: { id: true, status: true } }),
+    prisma.portfolioMonth.findFirst({ orderBy: { referenceDate: "desc" }, select: { id: true } }),
+  ]);
+
+  if (!month) {
+    throw new MonthEditError("Esta competência não existe.");
+  }
+
+  if (latest?.id !== month.id) {
+    throw new MonthEditError("Só a competência mais recente pode ser finalizada ou reaberta.");
+  }
+
+  const expected = finalized ? PortfolioMonthStatus.DRAFT : PortfolioMonthStatus.REVIEWED;
+
+  if (month.status !== expected) {
+    throw new MonthEditError(finalized ? "A competência não está em rascunho." : "A competência não está finalizada.");
+  }
+
+  await prisma.portfolioMonth.update({
+    where: { id: month.id },
+    data: { status: finalized ? PortfolioMonthStatus.REVIEWED : PortfolioMonthStatus.DRAFT },
+  });
+}
+
+/**
  * A edição à mão vale só para cotações não encontradas ou com falha na última
  * busca do mês (spec 028); as demais vêm dos provedores.
  */
@@ -1003,7 +1035,7 @@ async function withUndo(
 async function assertEditable(transaction: Transaction, monthId: string, confirmHistory: boolean) {
   const month = await transaction.portfolioMonth.findUnique({
     where: { id: monthId },
-    select: { id: true, referenceDate: true },
+    select: { id: true, referenceDate: true, status: true },
   });
 
   if (!month) {
@@ -1019,7 +1051,12 @@ async function assertEditable(transaction: Transaction, monthId: string, confirm
     throw new MonthEditError("Confirme a edição do histórico antes de alterar uma competência passada.");
   }
 
-  return month;
+  // O mês corrente finalizado pede a mesma confirmação dos passados (spec 032).
+  if (month.status === PortfolioMonthStatus.REVIEWED && !confirmHistory) {
+    throw new MonthEditError("Confirme a edição antes de alterar uma competência finalizada.");
+  }
+
+  return { id: month.id, referenceDate: month.referenceDate };
 }
 
 async function readSnapshot(

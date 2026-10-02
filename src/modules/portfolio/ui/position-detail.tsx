@@ -15,6 +15,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { parseAsStringLiteral, useQueryState } from "nuqs";
 
+import { MonthStatusBadge } from "@/components/product/month-status-badge";
 import { cn } from "@/lib/utils";
 import type { PositionHistoryView } from "@/modules/portfolio/application/get-position-history";
 import type { HistorySlot, PositionSummary, PresentSlot } from "@/modules/portfolio/domain/position-history";
@@ -144,11 +145,7 @@ export function PositionDetail({ history }: { history: PositionHistoryView | nul
           <div className="inline-flex w-fit items-center gap-2 rounded-xl border border-border bg-card/70 px-3.5 py-2.5 text-xs text-muted-foreground">
             <CalendarBlankIcon aria-hidden="true" className="text-primary" size={15} weight="duotone" />
             <span>{formatMonth(monthFromKey(history.selectedMonth))}</span>
-            {history.monthStatus === "DRAFT" ? (
-              <span className="rounded-full bg-warning/10 px-2 py-0.5 text-[9px] font-semibold tracking-[0.08em] text-warning-foreground uppercase">
-                Rascunho
-              </span>
-            ) : null}
+            <MonthStatusBadge status={history.monthStatus} />
           </div>
           <p className="font-mono text-xs text-muted-foreground">
             {current

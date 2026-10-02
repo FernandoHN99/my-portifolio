@@ -46,6 +46,8 @@ export type MonthQuotesView = {
   referenceDate: Date;
   status: PortfolioMonthStatus;
   isLatest: boolean;
+  /** Editar pede confirmação: competência passada ou finalizada (spec 032). */
+  isLocked: boolean;
   // A atualização de cotações só reprecifica a competência do mês corrente.
   isCurrent: boolean;
   currentMonth: string;
@@ -161,6 +163,7 @@ export async function getMonthQuotes(referenceDate?: Date): Promise<MonthQuotesV
       referenceDate: month.referenceDate,
       status: month.status,
       isLatest: latest?.id === month.id,
+      isLocked: latest?.id !== month.id || month.status === "REVIEWED",
       isCurrent: month.referenceDate.getTime() === current.getTime(),
       currentMonth: toMonthParam(current),
       currentMonthExists: currentMonth !== null,

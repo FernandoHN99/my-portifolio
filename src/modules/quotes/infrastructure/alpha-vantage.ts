@@ -5,7 +5,11 @@ import { quoteFailure } from "@/modules/quotes/domain/quote-types";
 import { describeProviderError, fetchJson, ProviderRefusalError } from "@/modules/quotes/infrastructure/http";
 
 const alphaVantageSchema = z.object({
-  "Global Quote": z.object({ "05. price": z.coerce.number().positive() }),
+  // Um símbolo desconhecido volta com "Global Quote" vazio.
+  "Global Quote": z.record(z.string(), z.string()).optional(),
+  Note: z.string().optional(),
+  Information: z.string().optional(),
+  "Error Message": z.string().optional(),
 });
 
 export async function fetchAlphaVantageQuotes(
@@ -32,12 +36,23 @@ export async function fetchAlphaVantageQuotes(
       url.searchParams.set("symbol", symbol);
       url.searchParams.set("apikey", apiKey);
       const payload = alphaVantageSchema.parse(await fetchJson(url));
-      results.push({
-        symbol,
-        provider: "alpha-vantage",
-        status: "SUCCESS",
-        valueBrl: payload["Global Quote"]["05. price"],
-      });
+
+      // O limite diário e a chave sem acesso vêm com HTTP 200 em "Note" ou
+      // "Information"; sem isso, a falha aparecia como formato inesperado.
+      if (payload.Note || payload.Information) {
+        throw new ProviderRefusalError(
+          "RATE_LIMITED",
+          "O Alpha Vantage recusou a consulta: limite de 25 consultas por dia atingido ou chave sem acesso.",
+        );
+      }
+
+      const price = Number(payload["Global Quote"]?.["05. price"]);
+
+      if (payload["Error Message"] || !(price > 0)) {
+        throw new ProviderRefusalError("NOT_FOUND", `O Alpha Vantage não retornou a cotação de ${symbol}.`);
+      }
+
+      results.push({ symbol, provider: "alpha-vantage", status: "SUCCESS", valueBrl: price });
     } catch (error) {
       const described = describeProviderError(error);
       results.push(

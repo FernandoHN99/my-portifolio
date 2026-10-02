@@ -42,6 +42,7 @@ import {
 
 import {
   cloneLatestMonthAction,
+  setMonthFinalizedAction,
   saveAllocationsAction,
   savePositionChangesAction,
   undoChangeAction,
@@ -49,6 +50,7 @@ import {
 } from "@/app/actions/edit-month";
 import { setPendingChanges } from "@/components/product/unsaved-changes";
 import { Picker, type PickerOption } from "@/components/ui/picker";
+import { MonthStatusBadge } from "@/components/product/month-status-badge";
 import { cn } from "@/lib/utils";
 import type { EditingCatalog } from "@/modules/portfolio/application/get-editing-catalog";
 import type { MonthPositions } from "@/modules/portfolio/application/get-month-positions";
@@ -87,7 +89,12 @@ import {
 import { positionHref } from "@/modules/portfolio/presentation/position-page";
 import { parseMonthParam } from "@/modules/portfolio/presentation/reference-month";
 import { AddPositionDialog } from "@/modules/portfolio/ui/add-position-dialog";
-import { AllocationDrawer, headerPrimaryButtonClass, HistoryUnlockDialog } from "@/modules/portfolio/ui/edit-dialogs";
+import {
+  AllocationDrawer,
+  FinalizeMonthDialog,
+  headerPrimaryButtonClass,
+  HistoryUnlockDialog,
+} from "@/modules/portfolio/ui/edit-dialogs";
 import { EditToast, type EditToastState } from "@/modules/portfolio/ui/edit-toast";
 import { MaturityBadge } from "@/modules/portfolio/ui/maturity-badge";
 import { MultiSelectFilter } from "@/modules/portfolio/ui/multi-select-filter";
@@ -255,7 +262,8 @@ export function PositionsWorkspace({
   }
 
   const canEdit = editMode;
-  const confirmHistory = editMode && !month.isLatest;
+  const confirmHistory = editMode && month.isLocked;
+  const finalized = month.isLatest && month.status === "REVIEWED";
   const monthLabel = formatMonthCompact(month.referenceDate);
   const sortedPositions = table.getRowModel().rows.map((row) => row.original);
   const activePositions = sortedPositions.filter((position) => !position.isRemoved);
@@ -454,6 +462,12 @@ export function PositionsWorkspace({
       }
     });
 
+  const toggleFinalized = (next: boolean) =>
+    startSaving(async () => {
+      notify(await setMonthFinalizedAction({ monthId: month.id, finalized: next }));
+      router.refresh();
+    });
+
   const undo = (token: string) =>
     startUndo(async () => {
       const result = await undoChangeAction(token);
@@ -529,11 +543,7 @@ export function PositionsWorkspace({
           <div className="inline-flex w-fit items-center gap-2 rounded-xl border border-border bg-card/70 px-3.5 py-2.5 text-xs text-muted-foreground">
             <CalendarBlankIcon aria-hidden="true" className="text-primary" size={15} weight="duotone" />
             <span>{formatMonth(month.referenceDate)}</span>
-            {month.status === "DRAFT" ? (
-              <span className="rounded-full bg-warning/10 px-2 py-0.5 text-[9px] font-semibold tracking-[0.08em] text-warning-foreground uppercase">
-                Rascunho
-              </span>
-            ) : null}
+            <MonthStatusBadge status={month.status} />
           </div>
           <p className="font-mono text-xs text-muted-foreground">
             {formatBrl(displayTotal)}
@@ -549,7 +559,7 @@ export function PositionsWorkspace({
                 Cotações
               </Link>
             )}
-            {editMode ? null : month.isLatest ? (
+            {editMode ? null : !month.isLocked ? (
               <button
                 type="button"
                 onClick={() => setEditMode(true)}
@@ -559,12 +569,12 @@ export function PositionsWorkspace({
                 Editar posições
               </button>
             ) : (
-              <HistoryUnlockDialog monthLabel={monthLabel} onConfirm={() => setEditMode(true)} />
+              <HistoryUnlockDialog monthLabel={monthLabel} finalized={finalized} onConfirm={() => setEditMode(true)} />
             )}
             {/* Adicionar posição fica em evidência dentro e fora do modo de
                 edição; fora dele, entra em edição antes de abrir o diálogo, com
                 a confirmação de histórico numa competência passada. */}
-            {editMode || month.isLatest ? (
+            {editMode || !month.isLocked ? (
               <button
                 ref={addButtonRef}
                 type="button"
@@ -582,12 +592,21 @@ export function PositionsWorkspace({
                 monthLabel={monthLabel}
                 label="Adicionar posição"
                 variant="add"
+                finalized={finalized}
                 onConfirm={() => {
                   setEditMode(true);
                   setAddOpen(true);
                 }}
               />
             )}
+            {month.isLatest && month.status !== "IMPORTED" && !editMode ? (
+              <FinalizeMonthDialog
+                monthLabel={monthLabel}
+                finalized={finalized}
+                disabled={isSaving || changeCount > 0}
+                onConfirm={() => toggleFinalized(!finalized)}
+              />
+            ) : null}
             {month.isLatest && !editMode && catalog.clone.allowed && cloneTarget ? (
               <button
                 type="button"
@@ -603,14 +622,16 @@ export function PositionsWorkspace({
         </div>
       </header>
 
-      {!month.isLatest && !editMode ? (
+      {month.isLocked && !editMode ? (
         <div className="mt-6 flex flex-wrap items-center gap-3 rounded-2xl border border-border bg-card/60 px-4 py-3">
           <LockKeyIcon aria-hidden="true" className="text-muted-foreground" size={16} weight="duotone" />
-          <p className="text-xs text-muted-foreground">
-            {monthLabel} é uma competência passada e está travada para edição. Editar pede confirmação.
+          <p data-testid="month-locked" className="text-xs text-muted-foreground">
+            {finalized
+              ? `${monthLabel} está finalizado e travado para edição. Editar pede confirmação.`
+              : `${monthLabel} é uma competência passada e está travada para edição. Editar pede confirmação.`}
           </p>
         </div>
-      ) : !month.isLatest ? (
+      ) : month.isLocked ? (
         <div className="mt-6 flex items-center gap-3 rounded-2xl border border-warning-border bg-warning/30 px-4 py-3">
           <LockKeyIcon aria-hidden="true" className="text-warning-foreground" size={16} weight="duotone" />
           <p className="text-xs text-warning-foreground">

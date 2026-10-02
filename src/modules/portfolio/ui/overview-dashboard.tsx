@@ -1,5 +1,6 @@
 import { CalendarBlankIcon, FileSearchIcon } from "@phosphor-icons/react/dist/ssr";
 
+import { MonthStatusBadge } from "@/components/product/month-status-badge";
 import type { OverviewData } from "@/modules/portfolio/application/get-overview-data";
 import { formatMonth } from "@/modules/portfolio/presentation/portfolio-format";
 import { toMonthParam } from "@/modules/portfolio/presentation/reference-month";
@@ -36,11 +37,7 @@ export function OverviewDashboard({ overview }: { overview: OverviewData | null 
           <div className="inline-flex w-fit items-center gap-2 rounded-xl border border-border bg-card/70 px-3.5 py-2.5 text-xs text-muted-foreground">
             <CalendarBlankIcon aria-hidden="true" className="text-primary" size={15} weight="duotone" />
             <span>{formatMonth(overview.referenceDate)}</span>
-            {overview.monthStatus === "DRAFT" ? (
-              <span className="rounded-full bg-warning/10 px-2 py-0.5 text-[9px] font-semibold tracking-[0.08em] text-warning-foreground uppercase">
-                Rascunho
-              </span>
-            ) : null}
+            <MonthStatusBadge status={overview.monthStatus} />
           </div>
         </div>
       </header>

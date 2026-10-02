@@ -10,6 +10,7 @@ import {
   cloneLatestMonth,
   MonthEditError,
   replaceAllocations,
+  setMonthFinalized,
   undoChange,
   updateMonthQuotes,
 } from "@/modules/portfolio/application/month-editing";
@@ -158,6 +159,19 @@ export async function saveAssetMaturityAction(input: unknown): Promise<EditActio
   return run(async () => {
     await updateAssetMaturity(parsed.data);
     return { ok: true, message: parsed.data.maturityDate ? "Vencimento salvo." : "Vencimento removido." };
+  });
+}
+
+export async function setMonthFinalizedAction(input: unknown): Promise<EditActionResult> {
+  const parsed = z.object({ monthId: z.string().uuid(), finalized: z.boolean() }).safeParse(input);
+
+  if (!parsed.success) {
+    return { ok: false, message: "Competência inválida." };
+  }
+
+  return run(async () => {
+    await setMonthFinalized(parsed.data);
+    return { ok: true, message: parsed.data.finalized ? "Mês finalizado." : "Mês reaberto para edição." };
   });
 }
 

@@ -43,6 +43,11 @@ export type MonthPositions = {
   referenceDate: Date;
   status: PortfolioMonthStatus;
   isLatest: boolean;
+  /**
+   * Editar pede a confirmação de histórico: competência passada ou a mais
+   * recente já finalizada (spec 032).
+   */
+  isLocked: boolean;
   /** Competência do mês corrente, a única em que a cotação de hoje vale para o mês. */
   isCurrent: boolean;
   /**
@@ -136,6 +141,7 @@ export async function getMonthPositions(
       referenceDate: month.referenceDate,
       status: month.status,
       isLatest: latest?.id === month.id,
+      isLocked: latest?.id !== month.id || month.status === "REVIEWED",
       isCurrent: month.referenceDate.getTime() === currentReferenceMonth().getTime(),
       referenceDay: toDateKey(today.getTime() < lastDay.getTime() ? today : lastDay),
       totalBrl,
