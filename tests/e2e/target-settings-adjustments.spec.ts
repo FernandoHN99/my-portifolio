@@ -1,5 +1,13 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { stubQuoteChecks } from "./support/quote-checks";
+
+// A checagem de abertura grava no banco e pode criar competências; os
+// cenários usam a resposta fixa para não alterar os dados reais.
+test.beforeEach(async ({ page }) => {
+  await stubQuoteChecks(page);
+});
+
 // Cenários da spec 027. Nenhum grava: cada um altera o rascunho e descarta.
 
 async function openSettings(page: Page) {

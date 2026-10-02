@@ -1,5 +1,14 @@
 import { expect, test } from "@playwright/test";
 
+import { enterEditMode } from "./support/edit-mode";
+import { stubQuoteChecks } from "./support/quote-checks";
+
+// A checagem de abertura grava no banco e pode criar competências; os
+// cenários usam a resposta fixa para não alterar os dados reais.
+test.beforeEach(async ({ page }) => {
+  await stubQuoteChecks(page);
+});
+
 test("os filtros abrem com busca e marcam as opções", async ({ page }) => {
   await page.goto("/posicoes?mes=2026-09");
   await expect(page.getByText("21 de 21 posições")).toBeVisible();
@@ -27,7 +36,7 @@ test("os filtros abrem com busca e marcam as opções", async ({ page }) => {
 
 test("as listas da nova posição abrem ao clicar e filtram ao digitar", async ({ page }) => {
   await page.goto("/posicoes");
-  await page.getByRole("button", { name: "Editar posições" }).click();
+  await enterEditMode(page);
   await page.getByRole("button", { name: "Adicionar posição" }).click();
   const dialog = page.getByRole("dialog");
 
@@ -79,7 +88,7 @@ test("a estratégia da tabela abre a lista e mantém as setas entre linhas", asy
   test.skip(testInfo.project.name.startsWith("mobile"), "A estratégia só aparece a partir de telas pequenas.");
 
   await page.goto("/posicoes?mes=2026-09");
-  await page.getByRole("button", { name: "Editar posições" }).click();
+  await enterEditMode(page);
   const rows = page.locator('[data-edit-cell="strategy"]');
 
   const first = page.getByRole("combobox", { name: "Estratégia de Bitcoin 01" });
@@ -124,7 +133,7 @@ test("a estratégia da tabela abre a lista e mantém as setas entre linhas", asy
 
 test("o rateio mostra todas as opções e aceita um valor novo", async ({ page }) => {
   await page.goto("/posicoes?mes=2026-09");
-  await page.getByRole("button", { name: "Editar posições" }).click();
+  await enterEditMode(page);
   await page.getByRole("button", { name: "Rateio de Bitcoin 01" }).click();
   const drawer = page.getByRole("dialog");
 

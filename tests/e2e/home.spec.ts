@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 
+import { enterEditMode } from "./support/edit-mode";
 import { stubQuoteChecks } from "./support/quote-checks";
 
 // A checagem de abertura grava no banco; aqui ela é substituída por uma
@@ -88,7 +89,7 @@ test("o lápis coloca as posições em edição até salvar ou descartar", async
   await page.goto("/posicoes");
   await expect(page.locator("[data-edit-cell]")).toHaveCount(0);
 
-  await page.getByRole("button", { name: "Editar posições" }).click();
+  await enterEditMode(page);
   await expect(page.getByText("Modo de edição")).toBeVisible();
   const inputs = page.getByRole("textbox", { name: /^(Quantidade|Saldo) de / });
   expect(await inputs.count()).toBeGreaterThan(1);

@@ -127,9 +127,27 @@ percentual atual, percentual ideal, valor atual, valor ideal e diferença.
 5. [013 — Posições: filtros e consulta](../specs/013-positions-filters.md): concluída.
 6. [017 — Posições: edição](../specs/017-positions-editing.md): concluída.
 7. [014 — Configuração da carteira](../specs/014-target-settings.md): concluída.
-8. [016 — Histórico de uma posição e de um ativo](../specs/016-position-history.md): planejada, sem prazo.
+8. [016 — Histórico de uma posição e de um ativo](../specs/016-position-history.md): agendada nesta rodada.
 9. [018 — Faixa de tolerância ajustável](../specs/018-adjustable-tolerance.md): concluída.
 10. [019 — Modo de edição com lápis](../specs/019-pencil-edit-mode.md): concluída.
+11. [020 — Cotações diárias e atualização ao abrir](../specs/020-daily-quotes.md): concluída.
+12. [021 — Virada de mês automática](../specs/021-automatic-month-rollover.md): concluída.
+13. [023 — Linha do tempo compacta](../specs/023-compact-month-timeline.md): concluída.
+14. [024 — Visão Geral: duração, variação no período e hover](../specs/024-overview-adjustments.md): concluída.
+15. [025 — Listas de seleção estilizadas](../specs/025-styled-pickers.md): concluída.
+16. [027 — Ajustes na configuração de metas](../specs/027-target-settings-adjustments.md): concluída.
+17. 022 — Página de cotações em Posições, 026 — inclusão de posição com conta,
+    ativo e vencimento novos, e a 016: em andamento, nesta ordem.
+
+As fatias 020, 021 e 023 a 027 foram implementadas em paralelo, cada uma num
+worktree com banco próprio, revisadas por um revisor independente e
+integradas em 2026-10-02. Na integração, a virada automática de mês passou a
+criar outubro de 2026 ao abrir o aplicativo, o que expôs testes que
+supunham setembro como competência mais recente. Todos os testes de
+interface passaram a substituir a checagem de abertura por uma resposta fixa
+(`tests/e2e/support/quote-checks.ts`), para nunca gravar nos dados reais, e a
+entrar em edição pelo auxiliar `tests/e2e/support/edit-mode.ts`, que confirma
+o histórico quando a competência não é a mais recente.
 
 Cada fatia termina com `pnpm check`, `pnpm build` e os testes do Playwright.
 

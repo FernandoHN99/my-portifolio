@@ -1,5 +1,14 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { enterEditMode } from "./support/edit-mode";
+import { stubQuoteChecks } from "./support/quote-checks";
+
+// A checagem de abertura grava no banco e pode criar competências; os
+// cenários usam a resposta fixa para não alterar os dados reais.
+test.beforeEach(async ({ page }) => {
+  await stubQuoteChecks(page);
+});
+
 const timeline = (page: Page) => page.getByRole("navigation", { name: "Competências" });
 const year = (page: Page, value: number) =>
   timeline(page).getByRole("button", { name: String(value), exact: true });
@@ -84,9 +93,14 @@ test("consultar outro ano não o reabre quando a competência volta", async ({ p
   await month(page, "Maio de 2024").click();
   await expect(page).toHaveURL(/mes=2024-05/);
   await page.getByRole("button", { name: "Mais recente" }).click();
-  await expect(page).toHaveURL(/mes=2026-09/);
-  await expect(year(page, 2026)).toHaveAttribute("aria-expanded", "true");
-  await expect(month(page, "Setembro de 2026")).toHaveAttribute("aria-current", "date");
+  // A competência mais recente depende da virada automática de mês: setembro
+  // de 2026 vindo da planilha, ou um mês posterior criado ao abrir o app.
+  await expect(page).not.toHaveURL(/mes=2024-05/);
+  const [, latestYear] = /mes=(\d{4})-\d{2}/.exec(page.url()) ?? [];
+  expect(`${latestYear}`.localeCompare("2026")).toBeGreaterThanOrEqual(0);
+  await expect(year(page, Number(latestYear))).toHaveAttribute("aria-expanded", "true");
+  await expect(year(page, 2024)).toHaveAttribute("aria-expanded", "false");
+  await expect(timeline(page).locator('[aria-current="date"]')).toHaveCount(1);
 });
 
 test("o foco segue para o ano que abre mesmo com toques seguidos", async ({ page }) => {
@@ -142,7 +156,7 @@ test("alterações pendentes seguram a troca de mês, mas não a de ano", async 
   });
 
   await openTimeline(page, "/posicoes");
-  await page.getByRole("button", { name: "Editar posições" }).click();
+  await enterEditMode(page);
   await page
     .getByRole("textbox", { name: /^(Quantidade|Saldo) de / })
     .first()

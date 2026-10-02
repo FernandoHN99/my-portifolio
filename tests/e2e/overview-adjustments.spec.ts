@@ -1,5 +1,13 @@
 import { expect, type Locator, type Page, test } from "@playwright/test";
 
+import { stubQuoteChecks } from "./support/quote-checks";
+
+// A checagem de abertura grava no banco e pode criar competências; os
+// cenários usam a resposta fixa para não alterar os dados reais.
+test.beforeEach(async ({ page }) => {
+  await stubQuoteChecks(page);
+});
+
 function parseShare(text: string) {
   return Number(text.replace("%", "").replace(/\./g, "").replace(",", ".").trim());
 }

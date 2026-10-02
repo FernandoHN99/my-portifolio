@@ -19,10 +19,18 @@ Esta pasta organiza a implementação em fatias pequenas e revisáveis.
 - [013 — Posições: filtros e consulta](013-positions-filters.md): concluída.
 - [014 — Configuração da carteira](014-target-settings.md): concluída.
 - [015 — Transições sem recarregamento](015-seamless-transitions.md): concluída.
-- [016 — Histórico de uma posição e de um ativo](016-position-history.md): planejada, sem prazo.
+- [016 — Histórico de uma posição e de um ativo](016-position-history.md): agendada para depois das specs 022 e 026.
 - [017 — Posições: edição](017-positions-editing.md): concluída.
 - [018 — Faixa de tolerância ajustável](018-adjustable-tolerance.md): concluída.
 - [019 — Modo de edição com lápis](019-pencil-edit-mode.md): concluída.
+- [020 — Cotações diárias e atualização ao abrir](020-daily-quotes.md): concluída; questões em aberto aguardam o usuário.
+- [021 — Virada de mês automática](021-automatic-month-rollover.md): concluída; questões em aberto aguardam o usuário.
+- 022 — Página de cotações em Posições: em definição.
+- [023 — Linha do tempo compacta](023-compact-month-timeline.md): concluída.
+- [024 — Visão Geral: duração, variação no período e hover](024-overview-adjustments.md): concluída.
+- [025 — Listas de seleção estilizadas](025-styled-pickers.md): concluída.
+- 026 — Inclusão de posição com conta, ativo e vencimento novos: em definição.
+- [027 — Ajustes na configuração de metas](027-target-settings-adjustments.md): concluída.
 
 As specs 010 a 017 formam a reestruturação da UX pedida pelo usuário. O
 propósito, as restrições e as regras de cálculo comuns a elas estão em
