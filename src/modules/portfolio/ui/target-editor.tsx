@@ -7,7 +7,16 @@ import {
   ClockCounterClockwiseIcon,
   WarningCircleIcon,
 } from "@phosphor-icons/react/dist/ssr";
-import { useCallback, useEffect, useRef, useState, useTransition } from "react";
+import {
+  memo,
+  useCallback,
+  useDeferredValue,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 
 import { saveTargetPlanAction } from "@/app/actions/target-plan";
 import { setPendingChanges } from "@/components/product/unsaved-changes";
@@ -31,11 +40,15 @@ import {
 } from "@/modules/portfolio/presentation/portfolio-format";
 import { TARGET_SCOPES, targetGroupKey } from "@/modules/portfolio/presentation/target-groups";
 import { EditToast, type EditToastState } from "@/modules/portfolio/ui/edit-toast";
+import { StepSlider } from "@/modules/portfolio/ui/step-slider";
 
 const SUM_EPSILON = 0.01;
+const EMPTY_ROWS: AllocationRow[] = [];
+
+type Draft = Record<string, string>;
 
 export function TargetEditor({ editor }: { editor: TargetEditorData }) {
-  const [draft, setDraft] = useState<Record<string, string>>({});
+  const [draft, setDraft] = useState<Draft>({});
   const [toleranceDraft, setToleranceDraft] = useState<string | null>(null);
   const [previewScope, setPreviewScope] = useState<AllocationGroupKey>("ASSET_CLASS");
   const [toast, setToast] = useState<EditToastState | null>(null);
@@ -43,10 +56,7 @@ export function TargetEditor({ editor }: { editor: TargetEditorData }) {
   const sequence = useRef(0);
   const dismissToast = useCallback(() => setToast(null), []);
 
-  const valueOf = (item: TargetEditorItem) => {
-    const text = draft[item.key];
-    return text === undefined ? item.percent : (parseLocaleNumber(text) ?? Number.NaN);
-  };
+  const valueOf = (item: TargetEditorItem) => draftValue(item, draft);
   const textOf = (item: TargetEditorItem) => draft[item.key] ?? formatInput(item.percent);
 
   const changedKeys = editor.items
@@ -65,7 +75,7 @@ export function TargetEditor({ editor }: { editor: TargetEditorData }) {
   }
 
   const toleranceText = toleranceDraft ?? formatInput(editor.tolerance);
-  const toleranceValue = toleranceDraft === null ? editor.tolerance : (parseLocaleNumber(toleranceDraft) ?? Number.NaN);
+  const toleranceValue = draftTolerance(toleranceDraft, editor.tolerance);
   const toleranceInvalid = !isValidTolerance(toleranceValue);
   const toleranceChanged = toleranceDraft !== null && Math.abs(toleranceValue - editor.tolerance) > 1e-9;
   if (toleranceInvalid) {
@@ -88,10 +98,10 @@ export function TargetEditor({ editor }: { editor: TargetEditorData }) {
 
   useEffect(() => () => setPendingChanges(0), []);
 
-  const setValue = (item: TargetEditorItem, text: string) => {
-    setPreviewScope(item.scope);
+  // A aba da prévia só muda pelo clique do usuário; editar uma meta não troca o recorte.
+  const setValue = useCallback((item: TargetEditorItem, text: string) => {
     setDraft((current) => ({ ...current, [item.key]: text }));
-  };
+  }, []);
 
   const restoreDefaults = () => {
     const next: Record<string, string> = {};
@@ -124,26 +134,26 @@ export function TargetEditor({ editor }: { editor: TargetEditorData }) {
       }
     });
 
-  const toTargets = (useDraft: boolean): TargetValue[] =>
-    editor.items.map((item) => {
-      const value = useDraft ? valueOf(item) : item.percent;
-      return {
-        scope: item.scope,
-        primaryLabel: item.primaryLabel,
-        secondaryLabel: item.secondaryLabel,
-        fraction: Number.isFinite(value) ? value / 100 : 0,
-      };
-    });
-
+  // A prévia acompanha o rascunho com prioridade baixa: enquanto o deslizante é arrastado, o polegar e o
+  // campo respondem primeiro e a tabela de comprar e vender é recalculada em seguida, sem travar o gesto.
+  const deferredDraft = useDeferredValue(draft);
+  const deferredToleranceDraft = useDeferredValue(toleranceDraft);
   const preview = editor.preview;
-  const before = preview ? buildAllocationGroups(preview.aggregates, toTargets(false), editor.tolerance) : [];
-  const after = preview
-    ? buildAllocationGroups(
-        preview.aggregates,
-        toTargets(true),
-        toleranceInvalid ? editor.tolerance : toleranceValue,
-      )
-    : [];
+  const before = useMemo(
+    () => (preview ? buildAllocationGroups(preview.aggregates, toTargets(editor.items, {}), editor.tolerance) : []),
+    [preview, editor.items, editor.tolerance],
+  );
+  const after = useMemo(() => {
+    if (!preview) {
+      return [];
+    }
+    const tolerance = draftTolerance(deferredToleranceDraft, editor.tolerance);
+    return buildAllocationGroups(
+      preview.aggregates,
+      toTargets(editor.items, deferredDraft),
+      isValidTolerance(tolerance) ? tolerance : editor.tolerance,
+    );
+  }, [preview, editor.items, editor.tolerance, deferredDraft, deferredToleranceDraft]);
   const differsFromDefault =
     Math.abs(toleranceValue - DEFAULT_REBALANCE_TOLERANCE) > 1e-9 ||
     editor.items.some(
@@ -268,9 +278,7 @@ export function TargetEditor({ editor }: { editor: TargetEditorData }) {
                     </span>
                   ) : null}
                   <span className="ml-auto font-mono text-[10px] text-muted-foreground">
-                    {new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(
-                      version.createdAt,
-                    )}
+                    {VERSION_DATE_FORMAT.format(version.createdAt)}
                   </span>
                 </li>
               ))}
@@ -283,8 +291,8 @@ export function TargetEditor({ editor }: { editor: TargetEditorData }) {
             scope={previewScope}
             onScopeChange={setPreviewScope}
             monthLabel={preview ? formatMonthCompact(preview.referenceDate) : null}
-            beforeRows={before.find((group) => group.key === previewScope)?.rows ?? []}
-            afterRows={after.find((group) => group.key === previewScope)?.rows ?? []}
+            beforeRows={before.find((group) => group.key === previewScope)?.rows ?? EMPTY_ROWS}
+            afterRows={after.find((group) => group.key === previewScope)?.rows ?? EMPTY_ROWS}
             offTargetBefore={countOffTarget(before)}
             offTargetAfter={countOffTarget(after)}
             hasChanges={pendingCount > 0}
@@ -378,36 +386,57 @@ function TargetGroup({
       />
 
       <div className="mt-4 space-y-3">
-        {items.map((item) => {
-          const value = valueOf(item);
-          const changed = changedKeys.includes(item.key);
-
-          return (
-            <div key={item.key} className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_84px] items-center gap-3">
-              <span className="flex min-w-0 items-center gap-2">
-                <span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: categoryColor(labelOf(item)) }} />
-                <span className="truncate text-xs text-foreground/85" title={item.sourceCell ? `Origem: ${item.sourceCell}` : undefined}>
-                  {labelOf(item)}
-                </span>
-              </span>
-              <input
-                type="range"
-                min={0}
-                max={100}
-                step={0.5}
-                value={Number.isFinite(value) ? Math.min(Math.max(value, 0), 100) : 0}
-                aria-label={`Meta de ${labelOf(item)}`}
-                onChange={(event) => onChange(item, formatInput(Number(event.target.value)))}
-                className="h-1.5 w-full cursor-pointer accent-[var(--primary)]"
-              />
-              <PercentInput item={item} text={textOf(item)} changed={changed} label={labelOf(item)} onChange={onChange} />
-            </div>
-          );
-        })}
+        {items.map((item) => (
+          <TargetRow
+            key={item.key}
+            item={item}
+            label={labelOf(item)}
+            value={valueOf(item)}
+            text={textOf(item)}
+            changed={changedKeys.includes(item.key)}
+            onChange={onChange}
+          />
+        ))}
       </div>
     </div>
   );
 }
+
+// Memorizada para que arrastar um deslizante redesenhe só a própria linha, e não as demais metas.
+const TargetRow = memo(function TargetRow({
+  item,
+  label,
+  value,
+  text,
+  changed,
+  onChange,
+}: {
+  item: TargetEditorItem;
+  label: string;
+  value: number;
+  text: string;
+  changed: boolean;
+  onChange: (item: TargetEditorItem, text: string) => void;
+}) {
+  return (
+    <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_84px] items-center gap-3">
+      <span className="flex min-w-0 items-center gap-2">
+        <span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: categoryColor(label) }} />
+        <span className="truncate text-xs text-foreground/85" title={item.sourceCell ? `Origem: ${item.sourceCell}` : undefined}>
+          {label}
+        </span>
+      </span>
+      <StepSlider
+        value={value}
+        max={100}
+        label={`Meta de ${label}`}
+        valueText={(current) => `${formatInput(current)}%`}
+        onChange={(next) => onChange(item, formatInput(next))}
+      />
+      <PercentInput item={item} text={text} changed={changed} label={label} onChange={onChange} />
+    </div>
+  );
+});
 
 function FixedIncomeMatrix({ items, sum, valueOf, textOf, onChange, changedKeys }: GroupProps) {
   const subclasses = [...new Set(items.map((item) => item.primaryLabel))];
@@ -557,7 +586,8 @@ const PREVIEW_SCOPES: { scope: AllocationGroupKey; label: string }[] = [
   { scope: "VARIABLE_INCOME", label: "Renda variável" },
 ];
 
-function PreviewPanel({
+// Memorizada: recebe linhas derivadas do rascunho adiado e não participa da renderização urgente do arraste.
+const PreviewPanel = memo(function PreviewPanel({
   scope,
   onScopeChange,
   monthLabel,
@@ -680,7 +710,7 @@ function PreviewPanel({
       </div>
     </section>
   );
-}
+});
 
 function DirectionBadge({ direction, highlight }: { direction: AllocationRow["direction"]; highlight: boolean }) {
   if (direction === null) {
@@ -706,7 +736,7 @@ function DirectionBadge({ direction, highlight }: { direction: AllocationRow["di
   );
 }
 
-function ToleranceCard({
+const ToleranceCard = memo(function ToleranceCard({
   text,
   value,
   invalid,
@@ -727,15 +757,13 @@ function ToleranceCard({
       </p>
 
       <div className="mt-5 grid grid-cols-[minmax(0,1fr)_84px] items-center gap-3">
-        <input
-          type="range"
-          min={0}
+        <StepSlider
+          value={value}
           max={MAX_REBALANCE_TOLERANCE}
-          step={0.5}
-          value={Number.isFinite(value) ? Math.min(Math.max(value, 0), MAX_REBALANCE_TOLERANCE) : 0}
-          aria-label="Faixa de tolerância"
-          onChange={(event) => onChange(formatInput(Number(event.target.value)))}
-          className="h-1.5 w-full cursor-pointer accent-[var(--primary)]"
+          largeStep={5}
+          label="Faixa de tolerância"
+          valueText={(current) => `${formatInput(current)} pontos percentuais`}
+          onChange={(next) => onChange(formatInput(next))}
         />
         <span className="relative flex items-center">
           <input
@@ -755,6 +783,27 @@ function ToleranceCard({
       </div>
     </section>
   );
+});
+
+function draftValue(item: TargetEditorItem, draft: Draft) {
+  const text = draft[item.key];
+  return text === undefined ? item.percent : (parseLocaleNumber(text) ?? Number.NaN);
+}
+
+function draftTolerance(text: string | null, persisted: number) {
+  return text === null ? persisted : (parseLocaleNumber(text) ?? Number.NaN);
+}
+
+function toTargets(items: TargetEditorItem[], draft: Draft): TargetValue[] {
+  return items.map((item) => {
+    const value = draftValue(item, draft);
+    return {
+      scope: item.scope,
+      primaryLabel: item.primaryLabel,
+      secondaryLabel: item.secondaryLabel,
+      fraction: Number.isFinite(value) ? value / 100 : 0,
+    };
+  });
 }
 
 function isValidTolerance(value: number) {
@@ -766,6 +815,11 @@ function isValidTolerance(value: number) {
   );
 }
 
+// Formatadores criados uma vez: `toLocaleString` com opções monta um formatador novo a cada chamada, e o
+// editor formata dezenas de valores a cada passo do deslizante.
+const INPUT_FORMAT = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 4, useGrouping: false });
+const VERSION_DATE_FORMAT = new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" });
+
 function formatInput(value: number) {
-  return value.toLocaleString("pt-BR", { maximumFractionDigits: 4, useGrouping: false });
+  return INPUT_FORMAT.format(value);
 }
