@@ -128,7 +128,7 @@ percentual atual, percentual ideal, valor atual, valor ideal e diferença.
 6. [017 — Posições: edição](../specs/017-positions-editing.md): concluída.
 7. [014 — Configuração da carteira](../specs/014-target-settings.md): concluída.
 8. [016 — Histórico de uma posição e de um ativo](../specs/016-position-history.md): planejada, sem prazo.
-9. [018 — Tolerância ajustável](../specs/018-adjustable-tolerance.md): em andamento.
+9. [018 — Tolerância ajustável](../specs/018-adjustable-tolerance.md): concluída.
 
 Cada fatia termina com `pnpm check`, `pnpm build` e os testes do Playwright.
 

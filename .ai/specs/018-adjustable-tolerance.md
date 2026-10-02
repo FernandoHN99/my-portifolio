@@ -1,6 +1,6 @@
 # 018 — Tolerância ajustável
 
-Estado: em andamento
+Estado: concluída em 2026-10-02
 Definida em: 2026-10-02
 
 ## Problema
@@ -55,6 +55,25 @@ rascunho, prévia e salvamento da [spec 014](014-target-settings.md).
   a usá-la;
 - valores fora de 0 a 20 bloqueiam o salvamento e são recusados no servidor;
 - lint, tipos, build e testes de interface passam.
+
+## Verificação
+
+Verificado em um banco local criado pelas migrações e carregado com a
+importação do Excel. Com a tolerância padrão, a Visão Geral mostrou
+"Itens dentro de ±2% ficam equilibrados", e o plano importado recebeu 2
+pela migração, o mesmo valor que estava fixo no código. Pela interface, salvar 5,5 criou uma versão vigente
+com 5,50, a Visão Geral passou a mostrar ±5,5% e as 38 metas mantiveram a
+origem no Excel; "Restaurar padrão do Excel" voltou a tolerância para 2 e
+salvou outra versão. No servidor, 25, -1, 2,555 e texto não numérico foram
+recusados, e reenviar o plano vigente sem mudanças também.
+
+O novo cenário do Playwright altera a tolerância, confere que a contagem
+fora da meta muda na prévia, que 25 bloqueia o salvamento e que descartar
+restaura o valor, sem gravar. A suíte completa passou com 19 cenários e um
+pulado intencionalmente. `pnpm check` e `pnpm build` passaram.
+
+Ao atualizar o ambiente local: aplicar a migração, rodar `pnpm db:generate`
+e reiniciar o `pnpm dev`, conforme o achado registrado na spec 014.
 
 ## Referências
 

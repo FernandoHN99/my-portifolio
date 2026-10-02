@@ -1,5 +1,6 @@
 import { Prisma } from "@/generated/prisma/client";
 import { getPrismaClient } from "@/lib/prisma";
+import { MAX_REBALANCE_TOLERANCE } from "@/modules/portfolio/domain/rebalance";
 import { targetGroupKey } from "@/modules/portfolio/presentation/target-groups";
 
 export class TargetPlanError extends Error {
@@ -11,7 +12,7 @@ export class TargetPlanError extends Error {
 
 const SUM_TOLERANCE = new Prisma.Decimal("0.0001");
 
-export async function saveTargetPlan(input: { key: string; percent: string }[]) {
+export async function saveTargetPlan(input: { targets: { key: string; percent: string }[]; tolerance: string }) {
   const prisma = getPrismaClient();
 
   if (!prisma) {
@@ -24,6 +25,7 @@ export async function saveTargetPlan(input: { key: string; percent: string }[]) 
       orderBy: { createdAt: "desc" },
       select: {
         id: true,
+        tolerance: true,
         targets: {
           select: { key: true, scope: true, primaryLabel: true, secondaryLabel: true, percentage: true },
         },
@@ -40,9 +42,9 @@ export async function saveTargetPlan(input: { key: string; percent: string }[]) 
     throw new TargetPlanError("Não existe um plano de metas ativo para editar.");
   }
 
-  const submitted = new Map(input.map((entry) => [entry.key, entry.percent]));
+  const submitted = new Map(input.targets.map((entry) => [entry.key, entry.percent]));
 
-  if (submitted.size !== input.length || submitted.size !== active.targets.length) {
+  if (submitted.size !== input.targets.length || submitted.size !== active.targets.length) {
     throw new TargetPlanError("As metas enviadas não correspondem às categorias do plano.");
   }
 
@@ -70,8 +72,10 @@ export async function saveTargetPlan(input: { key: string; percent: string }[]) 
     );
   }
 
-  if (parsed.every((target) => target.fraction.equals(target.percentage))) {
-    throw new TargetPlanError("Nenhuma meta foi alterada.");
+  const tolerance = parseTolerance(input.tolerance);
+
+  if (parsed.every((target) => target.fraction.equals(target.percentage)) && tolerance.equals(active.tolerance)) {
+    throw new TargetPlanError("Nada mudou em relação à versão vigente.");
   }
 
   const origin = new Map((imported?.targets ?? []).map((target) => [target.key, target]));
@@ -83,7 +87,7 @@ export async function saveTargetPlan(input: { key: string; percent: string }[]) 
   return prisma.$transaction(async (transaction) => {
     await transaction.targetPlan.updateMany({ where: { isActive: true }, data: { isActive: false } });
     const plan = await transaction.targetPlan.create({
-      data: { name, isActive: true },
+      data: { name, isActive: true, tolerance },
       select: { id: true, name: true },
     });
 
@@ -109,19 +113,35 @@ export async function saveTargetPlan(input: { key: string; percent: string }[]) 
   });
 }
 
-function parsePercent(raw: string) {
-  const trimmed = raw.trim().replace(/\s/g, "");
-  const normalized = trimmed.includes(",") ? trimmed.replace(/\./g, "").replace(",", ".") : trimmed;
+function parseTolerance(raw: string) {
+  const value = parseDecimal(raw);
 
-  if (!/^\d+(?:\.\d+)?$/.test(normalized)) {
-    throw new TargetPlanError("Use apenas percentuais numéricos entre 0 e 100.");
+  if (value === null || value.greaterThan(MAX_REBALANCE_TOLERANCE) || value.decimalPlaces() > 2) {
+    throw new TargetPlanError(
+      `Use uma tolerância entre 0 e ${MAX_REBALANCE_TOLERANCE} pontos, com até duas casas decimais.`,
+    );
   }
 
-  const value = new Prisma.Decimal(normalized);
+  return value;
+}
+
+function parsePercent(raw: string) {
+  const value = parseDecimal(raw);
+
+  if (value === null) {
+    throw new TargetPlanError("Use apenas percentuais numéricos entre 0 e 100.");
+  }
 
   if (value.greaterThan(100) || value.decimalPlaces() > 8) {
     throw new TargetPlanError("Use percentuais entre 0 e 100, com até oito casas decimais.");
   }
 
   return value;
+}
+
+function parseDecimal(raw: string) {
+  const trimmed = raw.trim().replace(/\s/g, "");
+  const normalized = trimmed.includes(",") ? trimmed.replace(/\./g, "").replace(",", ".") : trimmed;
+
+  return /^\d+(?:\.\d+)?$/.test(normalized) ? new Prisma.Decimal(normalized) : null;
 }

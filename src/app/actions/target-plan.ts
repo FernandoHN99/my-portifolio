@@ -5,10 +5,13 @@ import { z } from "zod";
 
 import { saveTargetPlan, TargetPlanError } from "@/modules/portfolio/application/target-plan-editing";
 
-const schema = z
-  .array(z.object({ key: z.string().min(1).max(200), percent: z.string().trim().min(1).max(20) }))
-  .min(1)
-  .max(200);
+const schema = z.object({
+  targets: z
+    .array(z.object({ key: z.string().min(1).max(200), percent: z.string().trim().min(1).max(20) }))
+    .min(1)
+    .max(200),
+  tolerance: z.string().trim().min(1).max(20),
+});
 
 export type TargetPlanActionResult = { ok: boolean; message: string };
 

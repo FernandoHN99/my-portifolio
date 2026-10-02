@@ -16,6 +16,8 @@ import type { TargetEditorData, TargetEditorItem } from "@/modules/portfolio/app
 import {
   buildAllocationGroups,
   countOffTarget,
+  DEFAULT_REBALANCE_TOLERANCE,
+  MAX_REBALANCE_TOLERANCE,
   type AllocationGroupKey,
   type AllocationRow,
   type TargetValue,
@@ -34,6 +36,7 @@ const SUM_EPSILON = 0.01;
 
 export function TargetEditor({ editor }: { editor: TargetEditorData }) {
   const [draft, setDraft] = useState<Record<string, string>>({});
+  const [toleranceDraft, setToleranceDraft] = useState<string | null>(null);
   const [previewScope, setPreviewScope] = useState<AllocationGroupKey>("ASSET_CLASS");
   const [toast, setToast] = useState<EditToastState | null>(null);
   const [isSaving, startSaving] = useTransition();
@@ -61,18 +64,27 @@ export function TargetEditor({ editor }: { editor: TargetEditorData }) {
     groupSums.set(group, (groupSums.get(group) ?? 0) + (Number.isFinite(value) ? value : 0));
   }
 
+  const toleranceText = toleranceDraft ?? formatInput(editor.tolerance);
+  const toleranceValue = toleranceDraft === null ? editor.tolerance : (parseLocaleNumber(toleranceDraft) ?? Number.NaN);
+  const toleranceInvalid = !isValidTolerance(toleranceValue);
+  const toleranceChanged = toleranceDraft !== null && Math.abs(toleranceValue - editor.tolerance) > 1e-9;
+  if (toleranceInvalid) {
+    hasInvalidValue = true;
+  }
+
+  const pendingCount = changedKeys.length + (toleranceChanged ? 1 : 0);
   const invalidGroups = [...groupSums.values()].filter((sum) => Math.abs(sum - 100) > SUM_EPSILON).length;
-  const canSave = changedKeys.length > 0 && invalidGroups === 0 && !hasInvalidValue && !isSaving;
+  const canSave = pendingCount > 0 && invalidGroups === 0 && !hasInvalidValue && !isSaving;
 
   useEffect(() => {
-    setPendingChanges(changedKeys.length);
-    if (changedKeys.length === 0) {
+    setPendingChanges(pendingCount);
+    if (pendingCount === 0) {
       return;
     }
     const warn = (event: BeforeUnloadEvent) => event.preventDefault();
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
-  }, [changedKeys.length]);
+  }, [pendingCount]);
 
   useEffect(() => () => setPendingChanges(0), []);
 
@@ -89,19 +101,26 @@ export function TargetEditor({ editor }: { editor: TargetEditorData }) {
       }
     }
     setDraft(next);
+    setToleranceDraft(formatInput(DEFAULT_REBALANCE_TOLERANCE));
+  };
+
+  const discard = () => {
+    setDraft({});
+    setToleranceDraft(null);
   };
 
   const save = () =>
     startSaving(async () => {
-      const result = await saveTargetPlanAction(
-        editor.items.map((item) => ({
+      const result = await saveTargetPlanAction({
+        targets: editor.items.map((item) => ({
           key: item.key,
           percent: draft[item.key] !== undefined ? draft[item.key].trim() : String(item.percent),
         })),
-      );
+        tolerance: toleranceDraft !== null ? toleranceDraft.trim() : String(editor.tolerance),
+      });
       setToast({ id: ++sequence.current, tone: result.ok ? "success" : "error", message: result.message });
       if (result.ok) {
-        setDraft({});
+        discard();
       }
     });
 
@@ -117,11 +136,19 @@ export function TargetEditor({ editor }: { editor: TargetEditorData }) {
     });
 
   const preview = editor.preview;
-  const before = preview ? buildAllocationGroups(preview.aggregates, toTargets(false)) : [];
-  const after = preview ? buildAllocationGroups(preview.aggregates, toTargets(true)) : [];
-  const differsFromDefault = editor.items.some(
-    (item) => item.defaultPercent !== null && Math.abs(valueOf(item) - item.defaultPercent) > 1e-9,
-  );
+  const before = preview ? buildAllocationGroups(preview.aggregates, toTargets(false), editor.tolerance) : [];
+  const after = preview
+    ? buildAllocationGroups(
+        preview.aggregates,
+        toTargets(true),
+        toleranceInvalid ? editor.tolerance : toleranceValue,
+      )
+    : [];
+  const differsFromDefault =
+    Math.abs(toleranceValue - DEFAULT_REBALANCE_TOLERANCE) > 1e-9 ||
+    editor.items.some(
+      (item) => item.defaultPercent !== null && Math.abs(valueOf(item) - item.defaultPercent) > 1e-9,
+    );
 
   return (
     <div className="relative mx-auto w-full max-w-[1472px] px-5 py-8 pb-32 sm:px-7 sm:py-10 sm:pb-32 xl:px-12 xl:py-12 xl:pb-32">
@@ -149,6 +176,14 @@ export function TargetEditor({ editor }: { editor: TargetEditorData }) {
 
       <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(420px,0.85fr)]">
         <div className="space-y-6">
+          <ToleranceCard
+            text={toleranceText}
+            value={toleranceValue}
+            invalid={toleranceInvalid}
+            changed={toleranceChanged}
+            onChange={setToleranceDraft}
+          />
+
           {TARGET_SCOPES.map(({ scope, title, description }) => {
             const items = editor.items.filter((item) => item.scope === scope);
 
@@ -252,12 +287,12 @@ export function TargetEditor({ editor }: { editor: TargetEditorData }) {
             afterRows={after.find((group) => group.key === previewScope)?.rows ?? []}
             offTargetBefore={countOffTarget(before)}
             offTargetAfter={countOffTarget(after)}
-            hasChanges={changedKeys.length > 0}
+            hasChanges={pendingCount > 0}
           />
         </aside>
       </div>
 
-      {changedKeys.length > 0 ? (
+      {pendingCount > 0 ? (
         <div className="fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom,0px)+16px)] z-40 flex justify-center px-4">
           <div
             className={cn(
@@ -274,12 +309,14 @@ export function TargetEditor({ editor }: { editor: TargetEditorData }) {
               {invalidGroups > 0
                 ? `${invalidGroups} ${invalidGroups === 1 ? "grupo não soma" : "grupos não somam"} 100%`
                 : hasInvalidValue
-                  ? "Há percentuais inválidos"
-                  : `${changedKeys.length} ${changedKeys.length === 1 ? "meta alterada" : "metas alteradas"}`}
+                  ? toleranceInvalid
+                    ? `Use uma tolerância entre 0 e ${MAX_REBALANCE_TOLERANCE}`
+                    : "Há percentuais inválidos"
+                  : `${pendingCount} ${pendingCount === 1 ? "alteração" : "alterações"}`}
             </p>
             <button
               type="button"
-              onClick={() => setDraft({})}
+              onClick={discard}
               disabled={isSaving}
               className="ml-auto h-8 rounded-lg px-3 text-xs font-medium text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50"
             >
@@ -666,6 +703,66 @@ function DirectionBadge({ direction, highlight }: { direction: AllocationRow["di
     >
       {label}
     </span>
+  );
+}
+
+function ToleranceCard({
+  text,
+  value,
+  invalid,
+  changed,
+  onChange,
+}: {
+  text: string;
+  value: number;
+  invalid: boolean;
+  changed: boolean;
+  onChange: (text: string) => void;
+}) {
+  return (
+    <section className="premium-panel rounded-[24px] p-5 sm:p-6" aria-label="Tolerância">
+      <h2 className="text-base font-semibold tracking-[-0.025em]">Tolerância</h2>
+      <p className="mt-1 text-[11px] text-muted-foreground">
+        Diferença, em pontos percentuais, até a qual um item fica equilibrado em vez de pedir compra ou venda.
+      </p>
+
+      <div className="mt-5 grid grid-cols-[minmax(0,1fr)_84px] items-center gap-3">
+        <input
+          type="range"
+          min={0}
+          max={MAX_REBALANCE_TOLERANCE}
+          step={0.5}
+          value={Number.isFinite(value) ? Math.min(Math.max(value, 0), MAX_REBALANCE_TOLERANCE) : 0}
+          aria-label="Faixa de tolerância"
+          onChange={(event) => onChange(formatInput(Number(event.target.value)))}
+          className="h-1.5 w-full cursor-pointer accent-[var(--primary)]"
+        />
+        <span className="relative flex items-center">
+          <input
+            inputMode="decimal"
+            value={text}
+            aria-label="Tolerância em pontos percentuais"
+            aria-invalid={invalid}
+            onChange={(event) => onChange(event.target.value)}
+            onFocus={(event) => event.currentTarget.select()}
+            className={cn(
+              "h-8 w-full rounded-lg border bg-background/60 pr-7 pl-2 text-right font-mono text-xs text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
+              invalid ? "border-destructive" : changed ? "border-warning-border bg-warning/25" : "border-border",
+            )}
+          />
+          <span className="pointer-events-none absolute right-2 text-[10px] text-muted-foreground">p.p.</span>
+        </span>
+      </div>
+    </section>
+  );
+}
+
+function isValidTolerance(value: number) {
+  return (
+    Number.isFinite(value) &&
+    value >= 0 &&
+    value <= MAX_REBALANCE_TOLERANCE &&
+    Math.abs(Math.round(value * 100) - value * 100) < 1e-6
   );
 }
 

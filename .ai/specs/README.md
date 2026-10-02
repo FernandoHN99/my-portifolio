@@ -21,7 +21,7 @@ Esta pasta organiza a implementação em fatias pequenas e revisáveis.
 - [015 — Transições sem recarregamento](015-seamless-transitions.md): concluída.
 - [016 — Histórico de uma posição e de um ativo](016-position-history.md): planejada, sem prazo.
 - [017 — Posições: edição](017-positions-editing.md): concluída.
-- [018 — Tolerância ajustável](018-adjustable-tolerance.md): em andamento.
+- [018 — Tolerância ajustável](018-adjustable-tolerance.md): concluída.
 
 As specs 010 a 017 formam a reestruturação da UX pedida pelo usuário. O
 propósito, as restrições e as regras de cálculo comuns a elas estão em

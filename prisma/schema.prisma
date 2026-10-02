@@ -252,6 +252,7 @@ model TargetPlan {
   sourceBatchId String?            @unique @map("source_batch_id") @db.Uuid
   name          String
   isActive      Boolean            @default(true) @map("is_active")
+  tolerance     Decimal            @default(2) @map("rebalance_tolerance") @db.Decimal(5, 2)
   createdAt     DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt     DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
   sourceBatch   ImportBatch?       @relation(fields: [sourceBatchId], references: [id], onDelete: Cascade)

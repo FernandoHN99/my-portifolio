@@ -22,6 +22,7 @@ export type TargetPlanVersion = {
 
 export type TargetEditorData = {
   planName: string;
+  tolerance: number;
   items: TargetEditorItem[];
   versions: TargetPlanVersion[];
   preview: { referenceDate: Date; aggregates: AllocationAggregates } | null;
@@ -41,6 +42,7 @@ export async function getTargetEditor(referenceDate?: Date): Promise<TargetEdito
         orderBy: { createdAt: "desc" },
         select: {
           name: true,
+          tolerance: true,
           targets: {
             orderBy: { key: "asc" },
             select: {
@@ -78,6 +80,7 @@ export async function getTargetEditor(referenceDate?: Date): Promise<TargetEdito
 
     return {
       planName: active.name,
+      tolerance: active.tolerance.toNumber(),
       items: active.targets.map((target) => ({
         key: target.key,
         scope: target.scope as AllocationGroupKey,

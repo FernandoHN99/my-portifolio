@@ -3,7 +3,7 @@ import { getPrismaClient } from "@/lib/prisma";
 import { getAllocationOverview } from "@/modules/portfolio/application/get-allocation-overview";
 import {
   countOffTarget,
-  REBALANCE_TOLERANCE,
+  DEFAULT_REBALANCE_TOLERANCE,
   type AllocationGroup,
 } from "@/modules/portfolio/domain/rebalance";
 import { toMonthParam } from "@/modules/portfolio/presentation/reference-month";
@@ -170,7 +170,7 @@ export async function getOverviewData(referenceDate?: Date): Promise<OverviewDat
         selected.positions.map((position) => position.account.institutionId),
       ).size,
       offTargetCount,
-      offTargetTolerance: REBALANCE_TOLERANCE,
+      offTargetTolerance: allocation?.tolerance ?? DEFAULT_REBALANCE_TOLERANCE,
       history,
       composition,
       rebalanceGroups: allocation?.groups ?? [],

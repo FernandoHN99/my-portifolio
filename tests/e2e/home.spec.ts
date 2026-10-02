@@ -120,6 +120,31 @@ test("a configuração simula metas antes de salvar", async ({ page }) => {
   await expect(caixa).toHaveValue(original);
 });
 
+test("a tolerância muda a prévia antes de salvar", async ({ page }) => {
+  await page.goto("/configuracao?mes=2026-09");
+
+  const tolerance = page.getByRole("textbox", { name: "Tolerância em pontos percentuais" });
+  await expect(tolerance).toHaveValue("2");
+  const offTarget = page
+    .getByRole("complementary", { name: "Prévia do rebalanceamento" })
+    .getByText("Fora da meta")
+    .locator("xpath=following-sibling::p[1]");
+  const before = Number((await offTarget.innerText()).trim());
+
+  await tolerance.fill("20");
+  await expect(page.getByText("1 alteração")).toBeVisible();
+  await expect(offTarget).not.toHaveText(String(before));
+  await expect(page.getByRole("button", { name: "Salvar metas" })).toBeEnabled();
+
+  await tolerance.fill("25");
+  await expect(page.getByText("Use uma tolerância entre 0 e 20")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Salvar metas" })).toBeDisabled();
+
+  await page.getByRole("button", { name: "Descartar" }).click();
+  await expect(tolerance).toHaveValue("2");
+  await expect(offTarget).toHaveText(String(before));
+});
+
 test("o rebalanceamento troca de recorte", async ({ page }) => {
   await page.goto("/?mes=2026-09");
 

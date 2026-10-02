@@ -93,7 +93,7 @@ export function RebalancePanel({
             Comprar e vender
           </h2>
           <p className="mt-1 text-[11px] text-muted-foreground">
-            Diferença entre o valor atual e o ideal. Itens dentro de ±{tolerance}% ficam equilibrados.
+            Diferença entre o valor atual e o ideal. Itens dentro de ±{tolerance.toLocaleString("pt-BR")}% ficam equilibrados.
           </p>
         </div>
       </div>

@@ -2,6 +2,7 @@ import { Prisma, type PortfolioMonthStatus } from "@/generated/prisma/client";
 import { getPrismaClient } from "@/lib/prisma";
 import {
   buildAllocationGroups,
+  DEFAULT_REBALANCE_TOLERANCE,
   FIXED_INCOME_CLASS,
   UNCLASSIFIED_LABEL,
   VARIABLE_INCOME_CLASS,
@@ -20,6 +21,7 @@ export type AllocationOverview = {
   unclassifiedShare: number;
   aggregates: AllocationAggregates;
   targets: TargetValue[];
+  tolerance: number;
   groups: AllocationGroup[];
 };
 
@@ -40,7 +42,7 @@ export async function getAllocationOverview(
   }
 
   try {
-    const [month, targets] = await Promise.all([
+    const [month, { targets, tolerance }] = await Promise.all([
       prisma.portfolioMonth.findFirst({
         where: referenceDate ? { referenceDate } : undefined,
         orderBy: { referenceDate: "desc" },
@@ -59,7 +61,7 @@ export async function getAllocationOverview(
           },
         },
       }),
-      getActiveTargets(),
+      getActivePlan(),
     ]);
 
     if (!month || month.positions.length === 0) {
@@ -78,36 +80,41 @@ export async function getAllocationOverview(
         aggregates.totalBrl === 0 ? 0 : (aggregates.unclassifiedBrl / aggregates.totalBrl) * 100,
       aggregates,
       targets,
-      groups: buildAllocationGroups(aggregates, targets),
+      tolerance,
+      groups: buildAllocationGroups(aggregates, targets, tolerance),
     };
   } catch {
     return null;
   }
 }
 
-export async function getActiveTargets(): Promise<TargetValue[]> {
+export async function getActivePlan(): Promise<{ targets: TargetValue[]; tolerance: number }> {
   const prisma = getPrismaClient();
 
   if (!prisma) {
-    return [];
+    return { targets: [], tolerance: DEFAULT_REBALANCE_TOLERANCE };
   }
 
   const plan = await prisma.targetPlan.findFirst({
     where: { isActive: true },
     orderBy: { createdAt: "desc" },
     select: {
+      tolerance: true,
       targets: {
         select: { scope: true, primaryLabel: true, secondaryLabel: true, percentage: true },
       },
     },
   });
 
-  return (plan?.targets ?? []).map((target) => ({
-    scope: target.scope as AllocationGroupKey,
-    primaryLabel: target.primaryLabel,
-    secondaryLabel: target.secondaryLabel,
-    fraction: target.percentage.toNumber(),
-  }));
+  return {
+    targets: (plan?.targets ?? []).map((target) => ({
+      scope: target.scope as AllocationGroupKey,
+      primaryLabel: target.primaryLabel,
+      secondaryLabel: target.secondaryLabel,
+      fraction: target.percentage.toNumber(),
+    })),
+    tolerance: plan?.tolerance.toNumber() ?? DEFAULT_REBALANCE_TOLERANCE,
+  };
 }
 
 function aggregatePositions(positions: PositionForAllocation[]): AllocationAggregates {

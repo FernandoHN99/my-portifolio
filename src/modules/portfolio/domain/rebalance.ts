@@ -1,6 +1,7 @@
 export type RebalanceDirection = "SELL" | "BUY" | "BALANCED";
 
-export const REBALANCE_TOLERANCE = 2;
+export const DEFAULT_REBALANCE_TOLERANCE = 2;
+export const MAX_REBALANCE_TOLERANCE = 20;
 
 export const UNCLASSIFIED_LABEL = "Sem classificação";
 export const FIXED_INCOME_CLASS = "Renda Fixa";
@@ -57,6 +58,7 @@ export type TargetValue = {
 export function buildAllocationGroups(
   aggregates: AllocationAggregates,
   targets: TargetValue[],
+  tolerance: number,
 ): AllocationGroup[] {
   const { totalBrl } = aggregates;
   const classTotals = new Map(aggregates.assetClass.map((entry) => [entry.label, entry.value]));
@@ -73,25 +75,25 @@ export function buildAllocationGroups(
       key: "ASSET_CLASS",
       title: "Classe de ativos",
       description: "Percentual sobre o patrimônio total da competência.",
-      rows: buildFlatRows(aggregates.assetClass, totalBrl, targets, "ASSET_CLASS", aggregates.unclassifiedBrl),
+      rows: buildFlatRows(aggregates.assetClass, totalBrl, targets, "ASSET_CLASS", tolerance, aggregates.unclassifiedBrl),
     },
     {
       key: "CURRENCY",
       title: "Moeda geral",
       description: "Percentual sobre o patrimônio total da competência.",
-      rows: buildFlatRows(aggregates.currency, totalBrl, targets, "CURRENCY"),
+      rows: buildFlatRows(aggregates.currency, totalBrl, targets, "CURRENCY", tolerance),
     },
     {
       key: "STRATEGY",
       title: "Estratégia",
       description: "Percentual sobre o patrimônio total da competência.",
-      rows: buildFlatRows(aggregates.strategy, totalBrl, targets, "STRATEGY"),
+      rows: buildFlatRows(aggregates.strategy, totalBrl, targets, "STRATEGY", tolerance),
     },
     {
       key: "CLASS_CURRENCY",
       title: "Moeda por classe",
       description: "Percentual sobre o total atual de cada classe.",
-      rows: buildNestedRows(aggregates.classCurrency, targets, "CLASS_CURRENCY", (primary) => ({
+      rows: buildNestedRows(aggregates.classCurrency, targets, "CLASS_CURRENCY", tolerance, (primary) => ({
         denominator: parentTotal(primary),
         targetBase: parentTargetBrl(primary),
       })),
@@ -100,7 +102,7 @@ export function buildAllocationGroups(
       key: "FIXED_INCOME",
       title: "Renda fixa — subclasse e prazo",
       description: `Percentual sobre o total atual de ${FIXED_INCOME_CLASS}.`,
-      rows: buildNestedRows(aggregates.fixedIncome, targets, "FIXED_INCOME", () => ({
+      rows: buildNestedRows(aggregates.fixedIncome, targets, "FIXED_INCOME", tolerance, () => ({
         denominator: parentTotal(FIXED_INCOME_CLASS),
         targetBase: parentTargetBrl(FIXED_INCOME_CLASS),
       })),
@@ -109,7 +111,7 @@ export function buildAllocationGroups(
       key: "VARIABLE_INCOME",
       title: "Renda variável — subclasse",
       description: `Percentual sobre o total atual de ${VARIABLE_INCOME_CLASS}.`,
-      rows: buildNestedRows(aggregates.variableIncome, targets, "VARIABLE_INCOME", () => ({
+      rows: buildNestedRows(aggregates.variableIncome, targets, "VARIABLE_INCOME", tolerance, () => ({
         denominator: parentTotal(VARIABLE_INCOME_CLASS),
         targetBase: parentTargetBrl(VARIABLE_INCOME_CLASS),
       })),
@@ -129,17 +131,18 @@ function buildFlatRows(
   totalBrl: number,
   targets: TargetValue[],
   scope: AllocationGroupKey,
+  tolerance: number,
   unclassifiedBrl?: number,
 ): AllocationRow[] {
   const targetByLabel = new Map(
     targets.filter((target) => target.scope === scope).map((target) => [target.primaryLabel, target.fraction]),
   );
   const rows = totals.map(({ label, value }) =>
-    toRow(label, label, value, totalBrl, totalBrl, targetByLabel.get(label) ?? null),
+    toRow(label, label, value, totalBrl, totalBrl, targetByLabel.get(label) ?? null, tolerance),
   );
 
   if (unclassifiedBrl !== undefined && unclassifiedBrl > 0) {
-    rows.push(toRow(UNCLASSIFIED_LABEL, UNCLASSIFIED_LABEL, unclassifiedBrl, totalBrl, totalBrl, null));
+    rows.push(toRow(UNCLASSIFIED_LABEL, UNCLASSIFIED_LABEL, unclassifiedBrl, totalBrl, totalBrl, null, tolerance));
   }
 
   return rows.sort((left, right) => right.currentBrl - left.currentBrl);
@@ -149,6 +152,7 @@ function buildNestedRows(
   totals: NestedTotal[],
   targets: TargetValue[],
   scope: AllocationGroupKey,
+  tolerance: number,
   bases: (primary: string) => { denominator: number; targetBase: number },
 ): AllocationRow[] {
   const scoped = targets.filter((target) => target.scope === scope);
@@ -167,6 +171,7 @@ function buildNestedRows(
         denominator,
         targetBase,
         target?.fraction ?? null,
+        tolerance,
       );
     })
     .sort((left, right) => right.currentBrl - left.currentBrl);
@@ -179,6 +184,7 @@ function toRow(
   denominatorBrl: number,
   targetBaseBrl: number,
   targetFraction: number | null,
+  tolerance: number,
 ): AllocationRow {
   const currentShare = denominatorBrl === 0 ? 0 : (currentBrl / denominatorBrl) * 100;
   const targetShare = targetFraction === null ? null : targetFraction * 100;
@@ -198,7 +204,7 @@ function toRow(
     direction:
       differenceShare === null || differenceBrl === null
         ? null
-        : Math.abs(differenceShare) <= REBALANCE_TOLERANCE
+        : Math.abs(differenceShare) <= tolerance
           ? "BALANCED"
           : differenceBrl > 0
             ? "SELL"
