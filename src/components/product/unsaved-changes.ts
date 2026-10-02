@@ -4,6 +4,10 @@ export function setPendingChanges(count: number) {
   pendingChanges = count;
 }
 
+export function hasPendingChanges() {
+  return pendingChanges > 0;
+}
+
 export function confirmDiscardChanges() {
   if (pendingChanges === 0) {
     return true;

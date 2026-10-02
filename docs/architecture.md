@@ -3,7 +3,7 @@
 Estado: base aprovada; implementação incremental autorizada.
 Origem: decisões explícitas do usuário na conversa de descoberta.
 Registrado em: 2026-09-21.
-Última atualização: 2026-10-01.
+Última atualização: 2026-10-02.
 
 Este documento é a fonte principal das decisões consolidadas abaixo.
 O diagnóstico do sistema existente permanece em
@@ -29,10 +29,13 @@ Guardar preços diários e posições mensais revisadas, evoluindo o
 modelo da planilha. Uma atualização de preço não representa uma
 mudança de quantidade.
 
-Ao clicar em atualizar, o sistema cria o mês a partir do mês anterior,
-busca as cotações e deixa as posições disponíveis para edição manual.
-Não haverá agendamento nem tentativa de atualizar com o aplicativo
-desligado.
+Atualizado em 2026-10-02: a atualização de cotações e a criação do mês
+são processos distintos. As cotações ficam em histórico diário por
+símbolo e são atualizadas ao abrir o aplicativo, quando a última tentativa
+tem mais de uma hora, ou pela seta do topo; a competência do mês corrente
+é reprecificada a cada atualização
+([spec 020](../.ai/specs/020-daily-quotes.md)). Não haverá agendamento
+nem tentativa de atualizar com o aplicativo desligado.
 
 ### Importação do Excel
 
@@ -116,7 +119,9 @@ as regras financeiras independentes da interface:
 - Next.js com App Router;
 - Server Components para leituras e Server Actions para mutações da
   interface; Route Handlers somente quando houver um consumidor HTTP ou
-  integração externa;
+  integração externa, ou quando uma operação longa não puder ocupar a fila
+  de Server Actions do cliente, como a atualização de cotações
+  ([spec 020](../.ai/specs/020-daily-quotes.md));
 - PostgreSQL no Docker Compose durante o desenvolvimento;
 - ORM tipado com migrações versionadas, com Prisma como primeira opção;
 - valores financeiros e percentuais em tipos decimais exatos no banco;
