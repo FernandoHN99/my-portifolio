@@ -390,19 +390,25 @@ a rede deles e não tem as chaves configuradas.
 
 ## Questões em aberto
 
-- editar o vencimento de um ativo depois de criado, e se os ativos importados
-  devem receber vencimento, ficam para a página da posição da spec 016 ou
-  para uma decisão do usuário;
-- a busca da CoinGecko escolhe a moeda de maior capitalização com o símbolo
-  digitado, e a escolha fica guardada no ativo; o usuário prefere confirmar a
-  moeda numa lista quando houver mais de uma?
-- os 30 dias para "vencendo" e a moeda base USD para criptos que não são o
-  bitcoin são escolhas do agente e aguardam confirmação;
-- o token da checagem dura duas horas e não sobrevive a um reinício do
-  servidor; uma posição pendente por mais tempo precisa ser incluída de novo;
-- um cripto incluído com a CoinGecko indisponível não tem moeda conferida e
-  continua resolvido pela busca a cada atualização; guardar a moeda na
-  primeira atualização bem-sucedida fica para uma decisão do usuário.
+Respondidas pelo usuário em 2026-10-02 (segunda rodada):
+
+- o vencimento é editável na página da posição
+  ([spec 016](016-position-history.md)); os ativos importados não recebem
+  vencimento inferido do nome, e o acerto deles fica para o
+  [passo pré-produção](../context/pre-deploy.md);
+- a moeda da CoinGecko é escolhida numa lista quando há mais de uma com o
+  símbolo ([spec 033](033-coingecko-coin-choice.md));
+- um cripto incluído com a CoinGecko indisponível continua resolvido pela
+  busca a cada atualização;
+- o token da checagem de duas horas, que não sobrevive a um reinício, foi
+  aceito.
+
+Aguardando explicação ao usuário, que tende a aceitar: os 30 dias para
+"vencendo" e o dólar como moeda base das criptos que não são o BTC. "Vencendo"
+é o selo amarelo que aparece quando faltam 30 dias ou menos para o vencimento;
+antes disso o selo é neutro e, depois, vermelho, "vencido". A moeda base é a
+moeda de exposição usada no recorte por moeda da Visão Geral: o BTC conta como
+BTC, e as demais criptos contam como dólar.
 
 ## Referências
 

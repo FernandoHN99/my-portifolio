@@ -49,7 +49,11 @@ import {
   secondaryButtonClass,
 } from "@/modules/portfolio/ui/edit-dialogs";
 import { providerLabel } from "@/modules/quotes/domain/quote-refresh";
-import { tickerCheckAllowsSaving, type TickerCheckResponse } from "@/modules/quotes/domain/ticker-check";
+import {
+  tickerCheckAllowsSaving,
+  type CoinCandidate,
+  type TickerCheckResponse,
+} from "@/modules/quotes/domain/ticker-check";
 
 export type AddPositionMonth = { id: string; label: string; isCurrent: boolean; quotes: MonthQuote[] };
 
@@ -147,6 +151,10 @@ function AddPositionForm({
   const [maturity, setMaturity] = useState("");
   const [allocationDraft, setAllocationDraft] = useState<AllocationSeed | null>(null);
   const [manualPrice, setManualPrice] = useState("");
+  // Moeda da CoinGecko escolhida para um símbolo e as candidatas da última
+  // conferência (spec 033); valem só enquanto o ticker não muda.
+  const [coinChoice, setCoinChoice] = useState<{ symbol: string; id: string } | null>(null);
+  const [coinCandidates, setCoinCandidates] = useState<{ symbol: string; coins: CoinCandidate[] } | null>(null);
   const [value, setValue] = useState("");
   const [strategy, setStrategy] = useState("");
 
@@ -337,7 +345,17 @@ function AddPositionForm({
       : definition?.ticker === "market" && kind
         ? normalizeTicker(kind, tickerText)
         : null;
-  const check = useTickerCheck(month.id, definition?.ticker === "market" ? kind : null, symbol);
+  const chosenCoinId = kind === "crypto" && symbol && coinChoice?.symbol === symbol ? coinChoice.id : null;
+  const check = useTickerCheck(month.id, definition?.ticker === "market" ? kind : null, symbol, chosenCoinId);
+  const checkedCoins = check.state === "done" && check.response.status === "found" ? check.response.coins : undefined;
+
+  if (symbol && checkedCoins && coinCandidates?.symbol !== symbol) {
+    setCoinCandidates({ symbol, coins: checkedCoins });
+  }
+
+  const coins = kind === "crypto" && symbol && coinCandidates?.symbol === symbol ? coinCandidates.coins : null;
+  const checkedCoinId =
+    check.state === "done" && check.response.status === "found" ? (check.response.coinId ?? null) : null;
   const allocation = allocationDraft ?? (kind ? defaultAllocation(kind, symbol) : null);
   const maturityDate = definition?.allowsMaturity && maturity ? maturity : null;
 
@@ -561,6 +579,17 @@ function AddPositionForm({
               />
             ) : null}
 
+            {coins && coins.length > 1 && symbol ? (
+              <Field label={`Moeda · ${coins.length} com o símbolo ${symbol}`}>
+                <Picker
+                  aria-label="Moeda na CoinGecko"
+                  options={coins.map((coin) => ({ value: coin.id, label: coin.name, hint: coin.id }))}
+                  value={chosenCoinId ?? checkedCoinId ?? coins[0].id}
+                  onValueChange={(id) => setCoinChoice({ symbol, id })}
+                />
+              </Field>
+            ) : null}
+
             {needsManualPrice ? (
               <Field label="Cotação em R$">
                 <input
@@ -692,8 +721,13 @@ type TickerCheckState =
  * tecla. Um texto que mudou cancela a consulta anterior, e só o resultado do
  * texto atual é mostrado.
  */
-function useTickerCheck(monthId: string, kind: AssetKind | null, symbol: string | null): TickerCheckState {
-  const key = kind && symbol ? `${kind}:${symbol}` : null;
+function useTickerCheck(
+  monthId: string,
+  kind: AssetKind | null,
+  symbol: string | null,
+  coinId: string | null,
+): TickerCheckState {
+  const key = kind && symbol ? `${kind}:${symbol}:${coinId ?? ""}` : null;
   const [result, setResult] = useState<{ key: string; response: TickerCheckResponse | null } | null>(null);
   const [attempt, setAttempt] = useState(0);
 
@@ -708,7 +742,7 @@ function useTickerCheck(monthId: string, kind: AssetKind | null, symbol: string 
         const response = await fetch("/api/quotes/ticker-check", {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ monthId, kind, ticker: symbol }),
+          body: JSON.stringify({ monthId, kind, ticker: symbol, ...(coinId ? { coinId } : {}) }),
           cache: "no-store",
           signal: controller.signal,
         });
@@ -725,7 +759,7 @@ function useTickerCheck(monthId: string, kind: AssetKind | null, symbol: string 
       window.clearTimeout(timer);
       controller.abort();
     };
-  }, [key, kind, symbol, monthId, attempt]);
+  }, [key, kind, symbol, coinId, monthId, attempt]);
 
   if (!key) {
     return { state: "idle" };

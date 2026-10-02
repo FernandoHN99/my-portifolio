@@ -11,6 +11,7 @@ const requestSchema: z.ZodType<TickerCheckRequest> = z.object({
   monthId: z.string().uuid(),
   kind: z.enum(ASSET_KINDS),
   ticker: z.string().trim().min(1).max(20),
+  coinId: z.string().trim().min(1).max(120).optional(),
 });
 
 // Checagem do ticker de um ativo novo (spec 026). Rota em vez de Server Action

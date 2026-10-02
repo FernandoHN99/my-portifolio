@@ -429,3 +429,34 @@ test("renda fixa de nome existente pede vencimento e fica na instituição dela"
   await expect(page.getByRole("row").filter({ hasText: "vence em Mar/99" })).toHaveCount(0);
   await expect(page.locator("[data-edit-cell]")).toHaveCount(0);
 });
+
+test("um cripto com várias moedas no mesmo símbolo pede a escolha da moeda", async ({ page }) => {
+  const coins = [
+    { id: "uniswap", name: "Uniswap" },
+    { id: "unicorn-token", name: "Unicorn Token" },
+  ];
+  const requests = await stubTickerCheck(page, ({ ticker, coinId }) => {
+    const coin = coins.find((candidate) => candidate.id === coinId) ?? coins[0];
+    return { ...found(ticker, "coingecko", coin.id === "uniswap" ? 40 : 0.5, coin.name), coinId: coin.id, coins };
+  });
+  await page.goto("/posicoes");
+  const dialog = await openAddDialog(page);
+  await pick(page, dialog.getByRole("combobox", { name: "Instituição" }), "inter", /^Inter$/);
+  await pick(page, dialog.getByRole("combobox", { name: "Ativo" }), "Uni", "Criar “Uni”");
+  await chooseKind(page, dialog, /Cripto/);
+  await dialog.getByRole("textbox", { name: "Ticker" }).fill("UNI");
+
+  const status = dialog.locator("[data-ticker-status]");
+  await expect(status).toContainText("UNI encontrado (Uniswap)");
+  const coin = dialog.getByRole("combobox", { name: "Moeda na CoinGecko" });
+  await expect(coin).toHaveValue("Uniswap");
+
+  await coin.click();
+  await page.getByRole("option", { name: /Unicorn Token/ }).click();
+  await expect(status).toContainText("UNI encontrado (Unicorn Token)");
+  expect(requests.at(-1)).toEqual(expect.objectContaining({ ticker: "UNI", coinId: "unicorn-token" }));
+  await expect(coin).toHaveValue("Unicorn Token");
+
+  await dialog.getByRole("button", { name: "Cancelar" }).click();
+  await leaveEditMode(page);
+});

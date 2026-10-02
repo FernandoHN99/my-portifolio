@@ -29,13 +29,14 @@ Esta pasta organiza a implementação em fatias pequenas e revisáveis.
 - [023 — Linha do tempo compacta](023-compact-month-timeline.md): concluída.
 - [024 — Visão Geral: duração, variação no período e hover](024-overview-adjustments.md): concluída.
 - [025 — Listas de seleção estilizadas](025-styled-pickers.md): concluída.
-- [026 — Inclusão de posição com conta, instituição, ativo e vencimento novos](026-new-position-entities.md): concluída; questões em aberto aguardam o usuário.
+- [026 — Inclusão de posição com conta, instituição, ativo e vencimento novos](026-new-position-entities.md): concluída.
 - [027 — Ajustes na configuração de metas](027-target-settings-adjustments.md): concluída.
 - [028 — Regras de cotação: fechamento, edição restrita e histórico global](028-quote-rules.md): concluída.
 - [029 — Histórico de 3 anos ao incluir um ativo](029-asset-price-history.md): concluída.
 - [030 — Visão Geral: meses do calendário, início do período e metas sem posição](030-overview-calendar-comparisons.md): concluída.
 - [031 — Posições: vencimento, filtros em cascata e campos de 16 px](031-positions-cascading-filters.md): concluída.
 - [032 — Finalizar o mês corrente](032-finalize-current-month.md): concluída.
+- [033 — Escolha da moeda da CoinGecko na inclusão de cripto](033-coingecko-coin-choice.md): concluída.
 
 As specs 010 a 017 formam a reestruturação da UX pedida pelo usuário. O
 propósito, as restrições e as regras de cálculo comuns a elas estão em

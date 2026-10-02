@@ -13,10 +13,14 @@ import { getQuoteProviderConfiguration } from "@/modules/quotes/application/fetc
 import { calendarDay, toDateKey } from "@/modules/quotes/domain/calendar";
 import { providerLabel } from "@/modules/quotes/domain/quote-refresh";
 import type { QuoteProviderConfiguration } from "@/modules/quotes/domain/quote-types";
-import type { TickerCheckResponse } from "@/modules/quotes/domain/ticker-check";
+import type { CoinCandidate, TickerCheckResponse } from "@/modules/quotes/domain/ticker-check";
 import { lookupAlphaVantageSymbol } from "@/modules/quotes/infrastructure/alpha-vantage";
 import { fetchUsdBrl } from "@/modules/quotes/infrastructure/awesome-api";
-import { fetchCoinGeckoPrices, resolveCoinGeckoCoin } from "@/modules/quotes/infrastructure/coingecko";
+import {
+  fetchCoinGeckoPrices,
+  resolveCoinGeckoCoin,
+  searchCoinGeckoCoins,
+} from "@/modules/quotes/infrastructure/coingecko";
 import { lookupFinnhubSymbol } from "@/modules/quotes/infrastructure/finnhub";
 import { describeProviderError } from "@/modules/quotes/infrastructure/http";
 
@@ -41,7 +45,7 @@ export type VerifiedTicker = {
 const TOKEN_TTL_MS = 2 * 60 * 60 * 1000;
 
 type Lookup =
-  | { state: "found"; priceBrl: number; coinId: string | null; name: string | null }
+  | { state: "found"; priceBrl: number; coinId: string | null; name: string | null; coins?: CoinCandidate[] }
   | { state: "not-found" }
   | { state: "unavailable"; code: string; message: string };
 
@@ -86,7 +90,7 @@ function remember(entry: Omit<VerifiedTicker, "expiresAt">) {
 }
 
 export async function checkTicker(
-  input: { monthId: string; kind: AssetKind; ticker: string },
+  input: { monthId: string; kind: AssetKind; ticker: string; coinId?: string },
   options: { configuration?: QuoteProviderConfiguration; now?: Date } = {},
 ): Promise<TickerCheckResponse> {
   const definition = ASSET_KIND_DEFINITIONS[input.kind];
@@ -152,7 +156,9 @@ export async function checkTicker(
   }
 
   const now = options.now ?? new Date();
-  const { lookup, fetchedAt } = await cachedLookup(provider, symbol, now, async () => {
+  // Cada moeda escolhida é uma consulta própria no cache (spec 033).
+  const cacheSymbol = provider === "coingecko" && input.coinId ? `${symbol}:${input.coinId}` : symbol;
+  const { lookup, fetchedAt } = await cachedLookup(provider, cacheSymbol, now, async () => {
     // Um cripto cuja moeda já está guardada num ativo é conferido por ela, sem
     // nova busca: a cotação é do símbolo, e o símbolo tem uma moeda só.
     const stored =
@@ -169,6 +175,7 @@ export async function checkTicker(
       symbol,
       options.configuration ?? getQuoteProviderConfiguration(),
       stored?.quoteProviderId ?? null,
+      input.coinId ?? null,
     );
   });
   const quoteDate = calendarDay(fetchedAt);
@@ -215,6 +222,8 @@ export async function checkTicker(
     name: lookup.name,
     quoteDate: toDateKey(quoteDate),
     token,
+    coinId: lookup.coinId,
+    ...(lookup.coins && lookup.coins.length > 1 ? { coins: lookup.coins } : {}),
   };
 }
 
@@ -257,6 +266,7 @@ async function lookupSymbol(
   symbol: string,
   configuration: QuoteProviderConfiguration,
   storedCoinId: string | null,
+  chosenCoinId: string | null,
 ): Promise<Lookup> {
   try {
     switch (provider) {
@@ -296,10 +306,21 @@ async function lookupSymbol(
           : { state: "not-found" };
       }
       case "coingecko": {
-        // A moeda guardada não tem o nome à mão; a checagem mostra só o ticker.
-        const coin = storedCoinId
-          ? { id: storedCoinId, name: null }
-          : await resolveCoinGeckoCoin(symbol, configuration.coinGeckoApiKey);
+        // A moeda guardada num ativo vale para o símbolo inteiro, sem escolha;
+        // ela não tem o nome à mão, e a checagem mostra só o ticker. Sem moeda
+        // guardada, a busca lista as candidatas e o usuário pode escolher outra
+        // além da de maior capitalização (spec 033). BTC e SOL têm moeda fixa.
+        let coin: { id: string; name: string | null } | null;
+        let coins: CoinCandidate[] | undefined;
+
+        if (storedCoinId) {
+          coin = { id: storedCoinId, name: null };
+        } else if (symbol === "BTC" || symbol === "SOL") {
+          coin = await resolveCoinGeckoCoin(symbol, configuration.coinGeckoApiKey);
+        } else {
+          coins = await searchCoinGeckoCoins(symbol, configuration.coinGeckoApiKey);
+          coin = (chosenCoinId ? coins.find((candidate) => candidate.id === chosenCoinId) : null) ?? coins[0] ?? null;
+        }
 
         if (!coin) {
           return { state: "not-found" };
@@ -307,7 +328,7 @@ async function lookupSymbol(
 
         const price = (await fetchCoinGeckoPrices([coin.id], configuration.coinGeckoApiKey)).get(coin.id);
         return price
-          ? { state: "found", priceBrl: price, coinId: coin.id, name: coin.name }
+          ? { state: "found", priceBrl: price, coinId: coin.id, name: coin.name, coins }
           : { state: "unavailable", code: "MISSING_QUOTE", message: `A CoinGecko não retornou o preço de ${symbol}.` };
       }
       default:

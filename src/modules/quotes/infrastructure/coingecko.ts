@@ -28,12 +28,28 @@ const coinGeckoSearchSchema = z.object({
 });
 
 /**
+ * Moedas da CoinGecko com exatamente o símbolo digitado, da maior para a menor
+ * capitalização (spec 033). Quando há mais de uma, o usuário escolhe a moeda
+ * na inclusão; a escolha fica guardada no ativo (`assets.quote_provider_id`).
+ */
+export async function searchCoinGeckoCoins(symbol: string, apiKey?: string): Promise<CoinGeckoCoin[]> {
+  const url = new URL("https://api.coingecko.com/api/v3/search");
+  url.searchParams.set("query", symbol);
+  const payload = coinGeckoSearchSchema.parse(await fetchJson(url, { headers: headersFor(apiKey) }));
+
+  return payload.coins
+    .filter((coin) => coin.symbol.toUpperCase() === symbol)
+    .sort((left, right) => (left.market_cap_rank ?? Infinity) - (right.market_cap_rank ?? Infinity))
+    .map((coin) => ({ id: coin.id, name: coin.name }));
+}
+
+/**
  * Identificador CoinGecko de um ticker. Os já usados na carteira têm o
  * identificador fixo; os demais vêm da busca da CoinGecko: entre as moedas com
- * exatamente esse símbolo, a de maior capitalização. O nome encontrado aparece
- * na checagem de um ativo novo para o usuário conferir a moeda, e a moeda
- * conferida fica guardada no ativo ao salvar (`assets.quote_provider_id`, spec
- * 026); a busca só volta a decidir para um símbolo sem moeda guardada.
+ * exatamente esse símbolo, a de maior capitalização. Na inclusão de um ativo
+ * novo o usuário pode escolher outra (spec 033), e a moeda conferida fica
+ * guardada no ativo; a busca só volta a decidir para um símbolo sem moeda
+ * guardada.
  */
 export async function resolveCoinGeckoCoin(symbol: string, apiKey?: string): Promise<CoinGeckoCoin | null> {
   const known = KNOWN_COINS[symbol];
@@ -42,14 +58,7 @@ export async function resolveCoinGeckoCoin(symbol: string, apiKey?: string): Pro
     return known;
   }
 
-  const url = new URL("https://api.coingecko.com/api/v3/search");
-  url.searchParams.set("query", symbol);
-  const payload = coinGeckoSearchSchema.parse(await fetchJson(url, { headers: headersFor(apiKey) }));
-  const [best] = payload.coins
-    .filter((coin) => coin.symbol.toUpperCase() === symbol)
-    .sort((left, right) => (left.market_cap_rank ?? Infinity) - (right.market_cap_rank ?? Infinity));
-
-  return best ? { id: best.id, name: best.name } : null;
+  return (await searchCoinGeckoCoins(symbol, apiKey))[0] ?? null;
 }
 
 export async function fetchCoinGeckoPrices(ids: string[], apiKey?: string) {

@@ -3,7 +3,16 @@
 
 import type { AssetKind } from "@/modules/portfolio/domain/asset-kinds";
 
-export type TickerCheckRequest = { monthId: string; kind: AssetKind; ticker: string };
+export type TickerCheckRequest = {
+  monthId: string;
+  kind: AssetKind;
+  ticker: string;
+  /** Moeda da CoinGecko escolhida entre as candidatas (spec 033). */
+  coinId?: string;
+};
+
+/** Moeda candidata da CoinGecko para um símbolo de cripto. */
+export type CoinCandidate = { id: string; name: string };
 
 export type TickerCheckResponse =
   /** O provedor conhece o ticker e devolveu a cotação de hoje, em reais. */
@@ -15,6 +24,10 @@ export type TickerCheckResponse =
       name: string | null;
       quoteDate: string;
       token: string;
+      /** Moeda conferida, quando o provedor é a CoinGecko. */
+      coinId?: string | null;
+      /** Moedas com o mesmo símbolo, quando há mais de uma para escolher. */
+      coins?: CoinCandidate[];
     }
   /** A competência já tem cotação deste símbolo; o provedor não é consultado. */
   | { status: "known"; symbol: string; priceBrl: number }
