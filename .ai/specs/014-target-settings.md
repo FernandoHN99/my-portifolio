@@ -56,7 +56,9 @@ histórico de versões das metas é desejável para saber qual meta valia em cad
 
 - cada salvamento cria uma nova versão do plano e a torna a única vigente; as
   anteriores, inclusive a importada do Excel, ficam guardadas e listadas com a
-  data, o que responde qual meta valia em cada época;
+  data como registro de mudanças. As metas são globais, por esclarecimento do
+  usuário em 2026-10-02: toda competência, inclusive as passadas, é calculada
+  com a versão vigente;
 - o plano importado continua ligado ao lote; os planos do usuário não têm
   lote, e por isso a dependência passou a ser opcional na migração
   `editable_target_plans`;

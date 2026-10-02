@@ -131,25 +131,93 @@ percentual atual, percentual ideal, valor atual, valor ideal e diferença.
 
 Cada fatia termina com `pnpm check`, `pnpm build` e os testes do Playwright.
 
+## Respostas do usuário em 2026-10-02
+
+Registradas antes de qualquer implementação, a pedido do usuário.
+
+### Atualização: são dois processos distintos
+
+A planilha misturava duas coisas no mesmo botão, e a spec 003 herdou essa
+confusão. O usuário separou:
+
+1. **Atualização de cotações**: busca somente o valor das cotações, nunca as
+   quantidades. Deve rodar automaticamente uma vez por hora, com um botão de
+   atualização manual.
+2. **Virada de mês das posições**: checagem automática ao abrir o
+   aplicativo. Se o mês virou e a competência do mês corrente ainda não
+   existe, gera as posições copiando o mês anterior. Se passou mais de um mês,
+   gera todas as competências faltantes, considerando a data do último dia de
+   cada mês.
+
+A forma de interpretar "considerando a data do último dia do mês" ainda
+precisa ser confirmada: provavelmente a cotação de cada competência gerada
+deve ser a do último dia daquele mês.
+
+Pergunta do usuário: "temos uma tabela de cotação?". Sim: `market_quotes`,
+com uma cotação em reais por símbolo e competência (data no primeiro dia do
+mês), tipo de instrumento e moeda base. Hoje a granularidade é mensal.
+
+Decisão do usuário em 2026-10-02: as cotações guardam **histórico diário**
+por ativo, como já previa o documento de arquitetura. A atualização horária
+acumula o histórico do dia em vez de sobrescrever a cotação do mês, e a
+cotação de uma competência passa a ser derivada desse histórico.
+
+### Edição: lápis em vez de duplo clique
+
+O usuário não gostou do duplo clique. Quer um botão de lápis que coloque as
+posições em modo de edição, com todos os campos editáveis ao mesmo tempo; ao
+confirmar, a mensagem de confirmação continua aparecendo. Essa forma também
+resolve a edição no celular.
+
+### Cotações: padronização futura
+
+O ativo "Solana" com ticker USD fica como está na planilha original por
+enquanto. Fica mapeado para o futuro gerar todas as cotações corretamente,
+padronizando símbolos e fontes.
+
+### Próximas fatias decorrentes
+
+- separar a atualização de cotações (automática a cada hora e manual) da
+  virada de mês das posições (automática, preenchendo meses faltantes);
+- substituir o duplo clique por modo de edição com lápis, válido também no
+  celular;
+- padronizar as cotações de todos os ativos, sem prazo;
+- tornar ajustável a faixa de tolerância dentro da configuração existente,
+  hoje fixa em dois pontos percentuais.
+
+A spec 014 foi commitada em 2026-10-02 com aprovação do usuário.
+
+### Metas são globais
+
+O usuário esclareceu que as metas são globais: mudar uma meta hoje muda os
+cálculos de qualquer competência, inclusive as passadas. É o comportamento
+já implementado, porque toda análise usa a versão vigente. As versões
+guardadas pela spec 014 servem apenas como registro de quando as metas
+mudaram, não como metas aplicadas por período.
+
+O item aberto "criar e remover categorias de metas" referia-se a incluir uma
+nova classe, moeda ou estratégia no plano, e não a metas por período. Fica
+mantido como possibilidade, sem pedido do usuário.
+
+### Histórico de posição e de ativo
+
+O usuário observou que o histórico de uma posição já existe nas competências
+mensais. O histórico do ativo deve vir das cotações guardadas diariamente por
+ativo, o que liga a spec 016 à decisão de histórico diário acima.
+
 ## Decisões abertas após as fatias acordadas
 
 Registradas em 2026-10-02, aguardando o usuário:
 
-- executar "Atualizar carteira" sobre um rascunho sobrescreve cotações
-  editadas manualmente; decidir entre avisar, preservar ou sobrescrever
-  ([spec 017](../specs/017-positions-editing.md));
-- oferecer edição de posições no celular, onde a coluna de quantidade fica
-  oculta (spec 017);
+- respondidas em 2026-10-02 e registradas acima: sobrescrita de cotações
+  pela atualização, edição no celular e o ativo "Solana" com ticker USD;
 - criar ativos e contas novos pela interface, o que exige definir símbolo e
-  tipo de cotação (spec 017);
-- confirmar o ativo "Solana" com ticker USD, que convive com o "Solana" de
-  ticker SOL (spec 017);
-- tornar configurável a faixa de tolerância, hoje fixa em dois pontos
-  percentuais ([spec 012](../specs/012-rebalancing-in-overview.md));
-- permitir criar e remover categorias de metas
+  tipo de cotação ([spec 017](../specs/017-positions-editing.md));
+- tolerância ajustável: decidida em 2026-10-02, vai para a configuração;
+- criar e remover categorias de metas: mantido sem pedido do usuário
   ([spec 014](../specs/014-target-settings.md));
-- agendar a [spec 016](../specs/016-position-history.md), histórico de uma
-  posição e de um ativo.
+- agendar a [spec 016](../specs/016-position-history.md), que depende do
+  histórico diário de cotações.
 
 ## Critérios de aceite da iniciativa
 
