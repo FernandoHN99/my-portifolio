@@ -33,19 +33,52 @@ test("a variação em todo o período substitui o card fora da meta", async ({ p
   await expect(periodCard).toBeVisible();
   await expect(kpis.getByText("Fora da meta")).toHaveCount(0);
 
-  // Setembro de 2026 está acima de junho de 2023, a primeira competência do histórico.
-  // O NumberFlow guarda o valor formatado num span fora da animação dos dígitos.
-  const periodValue = () =>
-    page
-      .getByTestId("period-change")
-      .evaluate((element) => element.querySelector("number-flow-react > span")?.textContent);
-  await expect.poll(periodValue).toMatch(/^\+[\d.]+(,\d{1,2})?%$/);
+  // O período começa em outubro de 2023, a primeira competência minimamente
+  // completa (spec 030).
+  await expect(page.getByTestId("period-change")).toHaveAttribute("data-value", /^\+[\d.]+(,\d{1,2})?%$/);
   await expect(page.getByTestId("period-change")).toHaveClass(/text-primary/);
-  await expect(periodCard.locator("p").last()).toHaveText(/^R\$\s[\d.]+,\d{2} desde Jun\/23$/);
+  await expect(periodCard.locator("p").last()).toHaveText(/^R\$\s[\d.]+,\d{2} desde Out\/23$/);
+
+  await page.goto("/?mes=2023-10");
+  await expect(page.getByTestId("period-change")).toHaveText("—");
+  await expect(periodCard.locator("p").last()).toHaveText("Início do período");
 
   await page.goto("/?mes=2023-06");
   await expect(page.getByTestId("period-change")).toHaveText("—");
-  await expect(periodCard.locator("p").last()).toHaveText("Primeira competência do histórico");
+  await expect(periodCard.locator("p").last()).toHaveText("O período começa em Out/23");
+});
+
+test("as variações comparam com meses do calendário", async ({ page }) => {
+  const kpis = page.getByRole("region", { name: "Indicadores da competência" });
+  const detail = (title: string) => kpis.locator("article").filter({ hasText: title }).locator("p").last();
+
+  await page.goto("/?mes=2026-09");
+  await expect(detail("Variação no mês")).toHaveText(/^R\$\s[\d.]+,\d{2}$/);
+  await expect(detail("Variação em 12 meses")).toHaveText(/ desde Set\/25$/);
+
+  // Agosto de 2024: julho de 2024 e agosto de 2023 não existem no histórico.
+  await page.goto("/?mes=2024-08");
+  await expect(page.getByTestId("month-change")).toHaveText("—");
+  await expect(detail("Variação no mês")).toHaveText("Histórico insuficiente: sem Jul/24");
+  await expect(page.getByTestId("year-change")).toHaveText("—");
+  await expect(detail("Variação em 12 meses")).toHaveText("Histórico insuficiente: sem Ago/23");
+
+  // Junho de 2024 compara com junho de 2023, exatamente doze meses antes.
+  await page.goto("/?mes=2024-06");
+  await expect(detail("Variação em 12 meses")).toHaveText(/ desde Jun\/23$/);
+
+  await page.goto("/?mes=2023-06");
+  await expect(detail("Variação no mês")).toHaveText("Primeira competência do histórico");
+});
+
+test("uma meta sem posição aparece para comprar", async ({ page }) => {
+  await page.goto("/?mes=2024-03&corte=renda-fixa");
+  const panel = page.getByRole("region", { name: "Comprar e vender" });
+  const row = panel.getByRole("row").filter({ hasText: "IPCA · Curto" });
+  await expect(row).toContainText("0,0%");
+  await expect(row).toContainText("10,0%");
+  await expect(row).toContainText("-R$");
+  await expect(panel.getByText(/Comprar · \d+/)).toBeVisible();
 });
 
 test("a Visão Geral cabe na largura da tela", async ({ page }) => {

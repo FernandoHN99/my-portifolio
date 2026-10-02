@@ -31,16 +31,27 @@ export function OverviewKpis({ overview }: { overview: OverviewData }) {
 
       <ChangeKpiCard
         label="Variação no mês"
+        testId="month-change"
         changeBrl={overview.changeBrl}
         changePercent={overview.changePercent}
-        emptyDetail="Sem mês anterior"
+        emptyDetail={
+          overview.previousMonth === null
+            ? "Primeira competência do histórico"
+            : `Histórico insuficiente: sem ${formatMonthCompact(overview.previousMonth)}`
+        }
       />
 
       <ChangeKpiCard
         label="Variação em 12 meses"
+        testId="year-change"
         changeBrl={overview.change12mBrl}
         changePercent={overview.change12mPercent}
-        emptyDetail="Histórico insuficiente"
+        detailSuffix={`desde ${formatMonthCompact(overview.yearAgoMonth)}`}
+        emptyDetail={
+          overview.yearAgoMissing
+            ? `Histórico insuficiente: sem ${formatMonthCompact(overview.yearAgoMonth)}`
+            : "Histórico insuficiente"
+        }
       />
 
       <ChangeKpiCard
@@ -49,7 +60,11 @@ export function OverviewKpis({ overview }: { overview: OverviewData }) {
         changeBrl={overview.changeSinceStartBrl}
         changePercent={overview.changeSinceStartPercent}
         detailSuffix={`desde ${formatMonthCompact(overview.periodStart)}`}
-        emptyDetail="Primeira competência do histórico"
+        emptyDetail={
+          overview.beforePeriodStart
+            ? `O período começa em ${formatMonthCompact(overview.periodStart)}`
+            : "Início do período"
+        }
       />
 
       <div className="metric-card rounded-2xl p-4 sm:col-span-2 sm:p-5 xl:col-span-4">

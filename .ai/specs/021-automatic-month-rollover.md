@@ -1,7 +1,6 @@
 # 021 — Virada de mês automática
 
-Estado: concluída em 2026-10-02; as propostas em "Questões em aberto"
-aguardam o usuário
+Estado: concluída em 2026-10-02; questões respondidas pelo usuário no mesmo dia
 Definida em: 2026-10-02
 
 ## Problema
@@ -100,19 +99,18 @@ anterior.
 
 ## Questões em aberto
 
-Escolhas feitas pelo agente durante a implementação, em vigor no código, que
-aguardam confirmação do usuário:
+Respondidas pelo usuário em 2026-10-02 (segunda rodada):
 
-- sem cotação diária dentro de um mês gerado, a competência repete a cotação
-  do mês anterior, marcada e avisada. A alternativa seria buscar nos
-  provedores a cotação histórica do último dia, fora do alcance deste
-  ambiente. O usuário aceita a repetição?
-- as competências geradas ficam como rascunho, como no clone;
-- a tela passa sozinha para a competência nova quando nenhuma está fixada na
-  URL e não há edição pendente;
-- o aviso de cotação repetida só aparece para competências passadas: a do
-  mês corrente recebe as cotações do dia na atualização que roda logo depois,
-  ou na próxima, se a última tentativa tiver menos de uma hora.
+- todos os meses guardam a cotação do último dia disponível; a repetição da
+  cotação anterior vale quando o mês não tem nenhuma, e o acerto dos meses
+  passados fica para o [passo pré-produção](../context/pre-deploy.md);
+- os meses gerados ficam como rascunho, e o mês corrente pode ser finalizado
+  ([spec 032](032-finalize-current-month.md));
+- a tela passa sozinha para a competência nova: mantido. O usuário pediu uma
+  explicação: quando o mês vira e o aplicativo cria a competência nova, quem
+  está vendo a tela sem um mês fixado no endereço passa a ver o mês novo; com
+  um mês fixado, ou com edição pendente, nada muda;
+- o aviso de cotação repetida só aparece para competências passadas.
 
 ## Fora do escopo
 

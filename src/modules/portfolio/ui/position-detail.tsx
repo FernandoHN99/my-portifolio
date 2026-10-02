@@ -249,7 +249,7 @@ export function PositionDetail({ history }: { history: PositionHistoryView | nul
         </div>
       </section>
 
-      <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.6fr)_minmax(320px,0.9fr)]">
+      <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.6fr)_minmax(320px,0.9fr)] [&>*]:min-w-0">
         <PositionAttribution
           summary={summary}
           quoted={quoted}
@@ -267,7 +267,7 @@ export function PositionDetail({ history }: { history: PositionHistoryView | nul
         />
       </div>
 
-      <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.6fr)_minmax(320px,0.9fr)]">
+      <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.6fr)_minmax(320px,0.9fr)] [&>*]:min-w-0">
         <section className="premium-panel rounded-[24px] p-5 sm:p-7" aria-labelledby="asset-price-title">
           <h2 id="asset-price-title" className="text-base font-semibold tracking-[-0.025em]">
             {history.quoteSymbol === "USD"

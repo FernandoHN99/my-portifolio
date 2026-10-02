@@ -140,6 +140,15 @@ function buildFlatRows(
   const rows = totals.map(({ label, value }) =>
     toRow(label, label, value, totalBrl, totalBrl, targetByLabel.get(label) ?? null, tolerance),
   );
+  const present = new Set(totals.map((entry) => entry.label));
+
+  // Meta sem posição na competência (spec 030): entra com valor atual zero e
+  // vira "Comprar" quando o ideal passa da tolerância.
+  for (const [label, fraction] of targetByLabel) {
+    if (fraction > 0 && !present.has(label)) {
+      rows.push(toRow(label, label, 0, totalBrl, totalBrl, fraction, tolerance));
+    }
+  }
 
   if (unclassifiedBrl !== undefined && unclassifiedBrl > 0) {
     rows.push(toRow(UNCLASSIFIED_LABEL, UNCLASSIFIED_LABEL, unclassifiedBrl, totalBrl, totalBrl, null, tolerance));
@@ -156,8 +165,19 @@ function buildNestedRows(
   bases: (primary: string) => { denominator: number; targetBase: number },
 ): AllocationRow[] {
   const scoped = targets.filter((target) => target.scope === scope);
+  const withTargets: NestedTotal[] = [
+    ...totals,
+    // Meta sem posição na competência (spec 030), com valor atual zero.
+    ...scoped
+      .filter(
+        (target) =>
+          target.fraction > 0 &&
+          !totals.some((total) => total.primary === target.primaryLabel && total.secondary === target.secondaryLabel),
+      )
+      .map((target) => ({ primary: target.primaryLabel, secondary: target.secondaryLabel, value: 0 })),
+  ];
 
-  return totals
+  return withTargets
     .map(({ primary, secondary, value }) => {
       const target = scoped.find(
         (candidate) => candidate.primaryLabel === primary && candidate.secondaryLabel === secondary,

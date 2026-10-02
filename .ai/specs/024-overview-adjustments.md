@@ -162,29 +162,12 @@ histórico e dar a todos os cards a mesma resposta ao ponteiro.
 
 ## Questões em aberto
 
-- "Variação em 12 meses" usa a competência doze posições antes na lista,
-  não doze meses antes. Faltam no banco agosto, setembro e novembro de 2023,
-  julho de 2024 e fevereiro a junho de 2025. Com isso:
-  - de outubro de 2024 a junho de 2026, o card compara com uma competência
-    de 13 a 18 meses antes; por exemplo, outubro de 2024 contra junho de
-    2023 e junho de 2026 contra janeiro de 2025;
-  - em junho de 2024 o card mostra "Histórico insuficiente", embora junho
-    de 2023 exista exatamente doze meses antes;
-  - com meses de calendário, mostrariam "Histórico insuficiente" agosto,
-    setembro e novembro de 2024, julho de 2025 e fevereiro a junho de 2026,
-    e junho de 2024 passaria a comparar com junho de 2023;
-  - "Variação no mês" também compara com a competência anterior da lista:
-    outubro de 2023 contra julho, dezembro de 2023 contra outubro, agosto de
-    2024 contra junho e julho de 2025 contra janeiro.
-  O usuário deve decidir se os dois cards passam a usar meses de calendário
-  e mostrar o aviso quando o mês de comparação não existir;
-- a tabela de comprar e vender só lista combinações com posição atual; uma
-  meta sem posição, como IPCA Curto em março de 2024, não aparece como
-  "Comprar". Falta decidir se deve aparecer;
-- a primeira competência do histórico é junho de 2023, com cinco posições;
-  se "todo o período" deve começar em outra data, o usuário precisa indicar;
-- os prazos D+0 e D+1 dentro de renda fixa e o BTC classificado como renda
-  fixa no fim de 2025 parecem resíduos da planilha; não foram alterados.
+Respondidas pelo usuário em 2026-10-02 e implementadas na
+[spec 030](030-overview-calendar-comparisons.md): variações por meses do
+calendário, início de "todo o período" em Out/23 e meta sem posição como
+"Comprar". Os prazos D+0 e D+1 e o BTC em renda fixa ficam para o
+[passo pré-produção](../context/pre-deploy.md): o usuário não quer alterar
+dados antigos agora.
 
 ## Critérios de aceite
 

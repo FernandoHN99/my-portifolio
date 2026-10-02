@@ -117,13 +117,14 @@ aberto mostra os seus meses, que entram e saem de dentro do ano com animação.
 
 ## Questões em aberto
 
-- confirmar com o usuário se abrir outro ano deve continuar sem trocar a
-  competência ou se deve já selecionar um mês daquele ano;
-- no celular, a seção "Comprar e vender" da Visão Geral fica com 682 px de
-  largura numa tela de 412 px: a tabela tem largura mínima de 640 px e a
-  grade em volta não limita a largura do item. A página inteira fica mais
-  larga que a tela. Isso está em `overview-dashboard.tsx` e
-  `rebalance-panel.tsx`, fora desta fatia.
+- abrir outro ano continua sem trocar a competência. O usuário não entendeu a
+  pergunta em 2026-10-02: não se trata de várias linhas do tempo, que não
+  existem, mas do clique na cápsula de um ano diferente do mês selecionado.
+  Hoje o clique só mostra os meses daquele ano; a alternativa seria já abrir
+  um mês daquele ano. Aguarda explicação ao usuário;
+- resolvido na [spec 030](030-overview-calendar-comparisons.md): a tabela de
+  comprar e vender não alarga mais a página no celular, e a linha do tempo
+  fica centralizada na tela larga.
 
 ## Critérios de aceite
 

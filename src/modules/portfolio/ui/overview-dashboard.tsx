@@ -79,7 +79,9 @@ export function OverviewDashboard({ overview }: { overview: OverviewData | null 
         <CompositionDonuts groups={overview.composition} />
       </div>
 
-      <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.6fr)_minmax(320px,0.9fr)]">
+      {/* min-w-0 nos itens: a tabela de comprar e vender tem largura mínima e
+          rola dentro do painel, sem alargar a página no celular. */}
+      <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.6fr)_minmax(320px,0.9fr)] [&>*]:min-w-0">
         <RebalancePanel
           groups={overview.rebalanceGroups}
           tolerance={overview.offTargetTolerance}

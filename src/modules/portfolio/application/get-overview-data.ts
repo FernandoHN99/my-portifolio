@@ -10,6 +10,17 @@ import {
   type AllocationGroup,
 } from "@/modules/portfolio/domain/rebalance";
 import { toMonthParam } from "@/modules/portfolio/presentation/reference-month";
+import { addMonths } from "@/modules/quotes/domain/calendar";
+
+/**
+ * Início de "Variação em todo o período" (decisão do usuário em 2026-10-02,
+ * spec 030): a primeira competência minimamente completa. Junho e julho de
+ * 2023 têm 5 e 6 posições, a linha inconsistente de Bitcoin pendente e dois
+ * meses sem competência logo depois; outubro de 2023 é o primeiro mês com as
+ * 10 posições da carteira de então e abre uma sequência quase contínua. Pode
+ * voltar para a primeira competência depois do passo pré-produção.
+ */
+export const PERIOD_START = new Date(Date.UTC(2023, 9, 1));
 
 export type OverviewHistoryPoint = {
   month: string;
@@ -40,9 +51,16 @@ export type OverviewData = {
   btcRate: number | null;
   changeBrl: number | null;
   changePercent: number | null;
+  /** Mês do calendário comparado na variação no mês; nulo antes do histórico. */
+  previousMonth: Date | null;
+  previousMissing: boolean;
   change12mBrl: number | null;
   change12mPercent: number | null;
+  yearAgoMonth: Date;
+  yearAgoMissing: boolean;
   periodStart: Date;
+  /** A competência selecionada é anterior ao início do período. */
+  beforePeriodStart: boolean;
   changeSinceStartBrl: number | null;
   changeSinceStartPercent: number | null;
   positionCount: number;
@@ -127,14 +145,23 @@ export async function getOverviewData(referenceDate?: Date): Promise<OverviewDat
       };
     });
 
+    // Comparações por meses do calendário (spec 030): sem a competência do mês
+    // de comparação, o card mostra "Histórico insuficiente" em vez de comparar
+    // com outra mais antiga.
     const selectedHistory = history[selectedIndex];
-    const previousHistory = history[selectedIndex - 1] ?? null;
-    const yearAgoHistory = history[selectedIndex - 12] ?? null;
-    const firstHistory = history[0];
+    const byTime = new Map(history.map((point) => [point.date.getTime(), point]));
+    const previousMonth = addMonths(selected.referenceDate, -1);
+    const yearAgoMonth = addMonths(selected.referenceDate, -12);
+    const previousHistory = byTime.get(previousMonth.getTime()) ?? null;
+    const yearAgoHistory = byTime.get(yearAgoMonth.getTime()) ?? null;
+    const firstHistory = history.find((point) => point.date.getTime() >= PERIOD_START.getTime()) ?? history[0];
+    const beforePeriodStart = selected.referenceDate.getTime() < firstHistory.date.getTime();
     const changeBrl = previousHistory ? selectedHistory.totalBrl - previousHistory.totalBrl : null;
     const change12mBrl = yearAgoHistory ? selectedHistory.totalBrl - yearAgoHistory.totalBrl : null;
     const changeSinceStartBrl =
-      selectedIndex > 0 ? selectedHistory.totalBrl - firstHistory.totalBrl : null;
+      selected.referenceDate.getTime() > firstHistory.date.getTime()
+        ? selectedHistory.totalBrl - firstHistory.totalBrl
+        : null;
 
     const quotes = await prisma.marketQuote.findMany({
       where: { referenceDate: selected.referenceDate, symbol: { in: ["USD", "BTC"] } },
@@ -168,12 +195,17 @@ export async function getOverviewData(referenceDate?: Date): Promise<OverviewDat
         changeBrl === null || !previousHistory || previousHistory.totalBrl === 0
           ? null
           : (changeBrl / previousHistory.totalBrl) * 100,
+      previousMonth: selectedIndex > 0 ? previousMonth : null,
+      previousMissing: selectedIndex > 0 && !previousHistory,
       change12mBrl,
       change12mPercent:
         change12mBrl === null || !yearAgoHistory || yearAgoHistory.totalBrl === 0
           ? null
           : (change12mBrl / yearAgoHistory.totalBrl) * 100,
+      yearAgoMonth,
+      yearAgoMissing: !yearAgoHistory && yearAgoMonth.getTime() >= history[0].date.getTime(),
       periodStart: firstHistory.date,
+      beforePeriodStart,
       changeSinceStartBrl,
       changeSinceStartPercent:
         changeSinceStartBrl === null || firstHistory.totalBrl === 0

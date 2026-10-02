@@ -220,7 +220,10 @@ export function MonthTimeline({ months, selectedMonth }: MonthTimelineProps) {
   const fade = `linear-gradient(to right, ${edges.start ? "transparent" : "black"}, black 20px, black calc(100% - 20px), ${edges.end ? "transparent" : "black"})`;
 
   return (
-    <div className="relative flex items-center gap-2 border-b border-border/70 bg-background/80 px-4 py-2 backdrop-blur-xl sm:px-6">
+    // Na tela larga a faixa fica centralizada (pedido do usuário em 2026-10-02,
+    // spec 030): a coluna do meio encolhe e rola quando falta espaço, e
+    // "Mais recente" fica na coluna da direita.
+    <div className="relative flex items-center gap-2 border-b border-border/70 bg-background/80 px-4 py-2 backdrop-blur-xl sm:grid sm:grid-cols-[minmax(0,1fr)_minmax(0,auto)_minmax(0,1fr)] sm:px-6">
       <span
         aria-hidden="true"
         className={cn(
@@ -234,55 +237,57 @@ export function MonthTimeline({ months, selectedMonth }: MonthTimelineProps) {
         {isPending ? "Carregando competência" : ""}
       </span>
 
-      <div className="flex shrink-0 items-center gap-0.5 rounded-xl border border-border bg-card/70 p-[3px]">
-        <StepButton
-          label="Mês anterior"
-          disabled={activeIndex <= 0}
-          onClick={() => select(activeIndex - 1)}
-        >
-          <CaretLeftIcon aria-hidden="true" size={14} weight="bold" />
-        </StepButton>
-        <StepButton
-          label="Próximo mês"
-          disabled={activeIndex >= months.length - 1}
-          onClick={() => select(activeIndex + 1)}
-        >
-          <CaretRightIcon aria-hidden="true" size={14} weight="bold" />
-        </StepButton>
-      </div>
-
-      {/* Invertida para que, sem rolagem, a faixa mostre o fim, onde fica a
-          competência mais recente; assim o celular já abre no lugar certo antes
-          de o JavaScript carregar. A ordem dos anos dentro dela não muda. */}
-      <nav
-        ref={stripRef}
-        aria-label="Competências"
-        data-hydrated={hydrated || undefined}
-        onScroll={updateEdges}
-        className="flex min-w-0 flex-row-reverse overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-        style={{ maskImage: fade, WebkitMaskImage: fade }}
-      >
-        <div className="flex w-max shrink-0 items-center gap-1.5">
-          {years.map((group) => (
-            <YearCapsule
-              key={group.year}
-              group={group}
-              expanded={group.year === expandedYear}
-              activeMonth={activeMonth}
-              panelMotion={panelMotion}
-              onExpand={() => expandYear(group.year)}
-              onSelect={goTo}
-              onOpened={handleYearOpened}
-            />
-          ))}
+      <div className="flex min-w-0 items-center gap-2 sm:col-start-2">
+        <div className="flex shrink-0 items-center gap-0.5 rounded-xl border border-border bg-card/70 p-[3px]">
+          <StepButton
+            label="Mês anterior"
+            disabled={activeIndex <= 0}
+            onClick={() => select(activeIndex - 1)}
+          >
+            <CaretLeftIcon aria-hidden="true" size={14} weight="bold" />
+          </StepButton>
+          <StepButton
+            label="Próximo mês"
+            disabled={activeIndex >= months.length - 1}
+            onClick={() => select(activeIndex + 1)}
+          >
+            <CaretRightIcon aria-hidden="true" size={14} weight="bold" />
+          </StepButton>
         </div>
-      </nav>
+
+        {/* Invertida para que, sem rolagem, a faixa mostre o fim, onde fica a
+            competência mais recente; assim o celular já abre no lugar certo antes
+            de o JavaScript carregar. A ordem dos anos dentro dela não muda. */}
+        <nav
+          ref={stripRef}
+          aria-label="Competências"
+          data-hydrated={hydrated || undefined}
+          onScroll={updateEdges}
+          className="flex min-w-0 flex-row-reverse overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          style={{ maskImage: fade, WebkitMaskImage: fade }}
+        >
+          <div className="flex w-max shrink-0 items-center gap-1.5">
+            {years.map((group) => (
+              <YearCapsule
+                key={group.year}
+                group={group}
+                expanded={group.year === expandedYear}
+                activeMonth={activeMonth}
+                panelMotion={panelMotion}
+                onExpand={() => expandYear(group.year)}
+                onSelect={goTo}
+                onOpened={handleYearOpened}
+              />
+            ))}
+          </div>
+        </nav>
+      </div>
 
       {latestMonth && latestMonth.month !== activeMonth ? (
         <button
           type="button"
           onClick={() => goTo(latestMonth.month)}
-          className="ml-auto hidden h-10 shrink-0 items-center rounded-xl border border-border bg-card/70 px-3 text-[11px] font-medium text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50 sm:flex"
+          className="ml-auto hidden h-10 shrink-0 items-center justify-self-end rounded-xl border border-border bg-card/70 px-3 text-[11px] font-medium text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50 sm:col-start-3 sm:flex"
         >
           Mais recente
         </button>
