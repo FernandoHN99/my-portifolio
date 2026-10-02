@@ -12,10 +12,9 @@ import {
 } from "recharts";
 
 import { cn } from "@/lib/utils";
-import {
-  STANDARD_DURATIONS,
-  type FixedIncomeDuration,
-  type FixedIncomeDurationRow,
+import type {
+  FixedIncomeDuration,
+  FixedIncomeDurationRow,
 } from "@/modules/portfolio/domain/fixed-income-duration";
 import { categoryColor } from "@/modules/portfolio/presentation/category-colors";
 import { formatSharePercent } from "@/modules/portfolio/presentation/portfolio-format";
@@ -25,8 +24,10 @@ type Mode = "current" | "target";
 type ChartDatum = { subclass: string; row: FixedIncomeDurationRow } & Record<string, unknown>;
 
 const BAR_GAP = 4;
-const BAR_LABEL_CHAR_WIDTH = 6.2;
+// Na Geist Mono todo caractere avança 0,6 em.
+const BAR_LABEL_CHAR_EM = 0.6;
 const BAR_LABEL_MIN_DROP = 14;
+const BAR_LABEL_SEPARATION = 2;
 
 export function FixedIncomeDurationChart({ duration }: { duration: FixedIncomeDuration }) {
   const { durations, rows, hasCurrent, hasTarget } = duration;
@@ -126,16 +127,12 @@ function DurationBars({
   scale: { top: number; ticks: number[] };
 }) {
   const sharesOf = (row: FixedIncomeDurationRow) => (mode === "current" ? row.current : row.target);
-  // Os três prazos padrão sempre têm lugar; prazos fora do padrão só entram no gráfico em que aparecem.
-  const series = durations.filter(
-    (entry) =>
-      (STANDARD_DURATIONS as readonly string[]).includes(entry) ||
-      rows.some((row) => (sharesOf(row)[entry] ?? 0) > 0),
-  );
+  // Os dois gráficos usam as mesmas séries, inclusive prazos fora do padrão que só ocorrem num
+  // deles, para que cada subclasse e prazo fique na mesma posição e largura no atual e no ideal.
   const data: ChartDatum[] = rows.map((row) => ({
     subclass: row.subclass,
     row,
-    ...Object.fromEntries(series.map((entry, index) => [seriesKey(index), sharesOf(row)[entry] ?? 0])),
+    ...Object.fromEntries(durations.map((entry, index) => [seriesKey(index), sharesOf(row)[entry] ?? 0])),
   }));
 
   return (
@@ -153,7 +150,7 @@ function DurationBars({
           <ResponsiveContainer height="100%" width="100%">
             <BarChart
               data={data}
-              barCategoryGap="16%"
+              barCategoryGap="6%"
               barGap={BAR_GAP}
               margin={{ top: 18, right: 4, bottom: 0, left: 0 }}
             >
@@ -184,7 +181,7 @@ function DurationBars({
                   return <DurationTooltip mode={mode} durations={durations} row={datum.row} />;
                 }}
               />
-              {series.map((entry, index) => (
+              {durations.map((entry, index) => (
                 <Bar
                   key={entry}
                   dataKey={seriesKey(index)}
@@ -276,18 +273,27 @@ function BarValueLabel({
   const y = Number(viewBox.y ?? 0);
   const width = Number(viewBox.width ?? 0);
   const pixelsPerPoint = Number(viewBox.height ?? 0) / share;
-  const text = formatBarShare(share);
+  const { precise, fontSize } = barLabelStyle(width);
+  const text = precise ? formatSharePercent(share) : formatRoundedShare(share);
+  const halfText = (text.length * BAR_LABEL_CHAR_EM * fontSize) / 2;
+  const ownRoom = (width + BAR_GAP - BAR_LABEL_SEPARATION) / 2;
 
-  // O rótulo pode avançar sobre o vizinho vazio, de fora do grupo ou bem mais baixo;
-  // vizinho mais alto ou de altura parecida limita o rótulo à própria faixa da barra.
-  const room = (neighbor: number | null) =>
-    (width + BAR_GAP) / 2 -
-    1 +
-    (neighbor === null || neighbor <= 0 || (share - neighbor) * pixelsPerPoint >= BAR_LABEL_MIN_DROP
-      ? width
-      : 0);
+  // O rótulo pode avançar sobre o vizinho vazio, de fora do grupo ou bem mais baixo; ao lado de
+  // um vizinho bem mais alto, cujo rótulo fica acima, ocupa o vão até a barra dele; ao lado de um
+  // vizinho de altura parecida, divide o vão com o rótulo dele.
+  const room = (neighbor: number | null) => {
+    const drop = neighbor === null || neighbor <= 0 ? Infinity : (share - neighbor) * pixelsPerPoint;
 
-  const halfText = (text.length * BAR_LABEL_CHAR_WIDTH) / 2;
+    if (drop >= BAR_LABEL_MIN_DROP) {
+      return ownRoom + width;
+    }
+
+    if (drop <= -BAR_LABEL_MIN_DROP) {
+      return width / 2 + BAR_GAP - BAR_LABEL_SEPARATION;
+    }
+
+    return ownRoom;
+  };
 
   // Sem espaço, o valor fica só no tooltip e na tabela acessível.
   if (halfText > Math.min(room(shareAt(seriesIndex - 1)), room(shareAt(seriesIndex + 1)))) {
@@ -301,12 +307,28 @@ function BarValueLabel({
       className="font-mono"
       fill="var(--foreground)"
       fillOpacity={0.8}
-      fontSize={10}
+      fontSize={fontSize}
       textAnchor="middle"
     >
       {text}
     </text>
   );
+}
+
+/**
+ * Todas as barras dos dois gráficos têm a mesma largura, então todos os rótulos usam o mesmo
+ * estilo: a precisão do tooltip e da tabela quando "25,6%" cabe na faixa da barra; senão o
+ * percentual inteiro em 10 px e, em barras muito estreitas, em 9 px.
+ */
+function barLabelStyle(width: number) {
+  const fits = (chars: number, fontSize: number) =>
+    chars * BAR_LABEL_CHAR_EM * fontSize <= width + BAR_GAP - BAR_LABEL_SEPARATION;
+
+  if (fits(5, 10)) {
+    return { precise: true, fontSize: 10 };
+  }
+
+  return { precise: false, fontSize: fits(3, 10) ? 10 : 9 };
 }
 
 function shareScale(max: number) {
@@ -328,9 +350,9 @@ function durationLabel(duration: string) {
   return duration === "-" ? "Sem prazo" : duration;
 }
 
-function formatBarShare(value: number) {
+function formatRoundedShare(value: number) {
   return new Intl.NumberFormat("pt-BR", {
     style: "percent",
-    maximumFractionDigits: 1,
+    maximumFractionDigits: 0,
   }).format(value / 100);
 }

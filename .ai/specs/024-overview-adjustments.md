@@ -48,14 +48,19 @@ histórico e dar a todos os cards a mesma resposta ao ponteiro.
   embaixo, separados por uma linha;
 - no eixo horizontal ficam as subclasses; em cada subclasse, as barras
   agrupadas Curto, Médio e Longo, nas cores da planilha;
-- cada barra mostra o seu percentual quando o rótulo cabe sem invadir a
-  barra vizinha; o tooltip de cada subclasse traz atual e ideal de cada
-  prazo;
+- cada barra mostra o seu percentual no mesmo formato do tooltip e da
+  tabela, com uma casa decimal; quando a barra é estreita demais para esse
+  formato, todos os rótulos dos dois gráficos passam a percentual inteiro,
+  em 10 px ou, em barras muito estreitas, em 9 px; só um rótulo que ainda
+  não cabe sem invadir o vizinho é omitido, e o valor continua no tooltip e
+  na tabela acessível;
+- o tooltip de cada subclasse traz atual e ideal de cada prazo;
 - os percentuais são sobre o total de renda fixa: no atual, as células somam
   100% do total atual da classe; no ideal, são as metas do grupo de renda
   fixa, que somam 100% do ideal da classe;
-- os dois gráficos usam a mesma escala vertical e as mesmas subclasses, para
-  que a comparação seja direta;
+- os dois gráficos usam a mesma escala vertical, as mesmas subclasses e as
+  mesmas séries de prazo, de modo que cada subclasse e prazo ocupa a mesma
+  posição e a mesma largura no atual e no ideal;
 - uma legenda única acima dos gráficos e uma tabela acessível, oculta na
   tela, com subclasse, prazo, atual e ideal;
 - sem renda fixa na competência, o gráfico atual mostra "Sem renda fixa
@@ -94,10 +99,26 @@ histórico e dar a todos os cards a mesma resposta ao ponteiro.
 - as subclasses do plano aparecem primeiro, em ordem alfabética, e depois as
   que só existem no atual;
 - prazos fora de Curto, Médio e Longo que existem nos dados não foram
-  reclassificados: aparecem como série própria apenas no gráfico em que
-  ocorrem, e "-" aparece como "Sem prazo". Nos dados importados há
-  Pós-fixado D+0 em meses de 2023 e 2024, Pós-fixado D+1 em julho de 2025 e
-  BTC sem prazo classificado como renda fixa de outubro a dezembro de 2025;
+  reclassificados: aparecem como série própria nos dois gráficos, mesmo
+  vazia num deles, e "-" aparece como "Sem prazo". Nos dados importados há
+  Pós-fixado D+0 em oito competências entre junho de 2023 e novembro de
+  2024, Pós-fixado D+1 em julho de 2025 e BTC sem prazo classificado como
+  renda fixa de outubro a dezembro de 2025;
+- correção feita na revisão: na primeira versão, a série fora do padrão só
+  entrava no gráfico em que ocorria, e em 12 das 31 competências o atual
+  tinha quatro posições por subclasse e o ideal três, com a mesma subclasse
+  e prazo em posição e largura diferentes. Agora as duas séries são a união
+  dos prazos. Juntar os prazos fora do padrão numa série "Outros" foi
+  descartado, porque também ocuparia uma quarta posição e esconderia a
+  diferença entre D+0, D+1 e sem prazo. Pelo mesmo motivo, uma subclasse que
+  só existe no atual, como o BTC, deixa uma categoria vazia no ideal;
+- rótulos das barras, decididos na revisão: a precisão e o tamanho dependem
+  só da largura das barras, que é a mesma nos dois gráficos, para que todos
+  os rótulos tenham o mesmo formato; a medida usa o avanço de 0,6 em da
+  Geist Mono e exige 2 px entre rótulos vizinhos de altura parecida. Ao lado
+  de um vizinho bem mais alto, o rótulo pode ocupar o vão até a barra dele.
+  O espaço entre subclasses caiu de 16% para 6% da categoria, o que só muda
+  telas estreitas, porque nas largas as barras já estão no limite de 32 px;
 - as cores de Curto (#6ea8ff), Médio (#f2a65a) e Longo (#9aa4b2) ficam no
   mapa de cores por categoria, de modo que os pontos das linhas de renda fixa
   na tabela de comprar e vender usam as mesmas cores do gráfico; prazos fora
@@ -119,8 +140,11 @@ histórico e dar a todos os cards a mesma resposta ao ponteiro.
   outras fatias; avisos, barras de edição, diálogos, toasts, menus e
   etiquetas não são cards e ficaram sem hover;
 - os painéis não sobem porque deslocar uma seção inteira, como a tabela de
-  posições, parece a página tremendo, e porque um `transform` em painel muda
-  a referência de elementos fixos ou fixados dentro dele;
+  posições, parece a página tremendo. Fato técnico, corrigido na revisão:
+  `.premium-panel` já mantém `transform: translateY(0)` pelo preenchimento
+  `both` da animação de entrada `surface-enter`, então um `transform` no
+  hover do painel seria sobreposto pela animação e não teria efeito. Fazer
+  os painéis subirem exigiria antes remover ou trocar esse preenchimento;
 - correção encontrada durante a verificação: no celular, a tabela de comprar
   e vender, com largura mínima de 640 px, alargava a grade da Visão Geral e
   a página inteira passava a ter 702 px num aparelho de 412 px. A grade
@@ -138,12 +162,22 @@ histórico e dar a todos os cards a mesma resposta ao ponteiro.
 
 ## Questões em aberto
 
-- "Variação em 12 meses" usa a competência doze posições antes, não doze
-  meses antes. Como faltam competências (julho de 2024 e de fevereiro a junho
-  de 2025), em junho de 2026 o card compara com janeiro de 2025, dezessete
-  meses antes; "Variação no mês" em julho de 2025 compara com janeiro de
-  2025. O usuário deve decidir se o card passa a usar meses de calendário e
-  mostrar "Histórico insuficiente" quando o mês não existir;
+- "Variação em 12 meses" usa a competência doze posições antes na lista,
+  não doze meses antes. Faltam no banco agosto, setembro e novembro de 2023,
+  julho de 2024 e fevereiro a junho de 2025. Com isso:
+  - de outubro de 2024 a junho de 2026, o card compara com uma competência
+    de 13 a 18 meses antes; por exemplo, outubro de 2024 contra junho de
+    2023 e junho de 2026 contra janeiro de 2025;
+  - em junho de 2024 o card mostra "Histórico insuficiente", embora junho
+    de 2023 exista exatamente doze meses antes;
+  - com meses de calendário, mostrariam "Histórico insuficiente" agosto,
+    setembro e novembro de 2024, julho de 2025 e fevereiro a junho de 2026,
+    e junho de 2024 passaria a comparar com junho de 2023;
+  - "Variação no mês" também compara com a competência anterior da lista:
+    outubro de 2023 contra julho, dezembro de 2023 contra outubro, agosto de
+    2024 contra junho e julho de 2025 contra janeiro.
+  O usuário deve decidir se os dois cards passam a usar meses de calendário
+  e mostrar o aviso quando o mês de comparação não existir;
 - a tabela de comprar e vender só lista combinações com posição atual; uma
   meta sem posição, como IPCA Curto em março de 2024, não aparece como
   "Comprar". Falta decidir se deve aparecer;
@@ -157,8 +191,9 @@ histórico e dar a todos os cards a mesma resposta ao ponteiro.
 - o card de renda fixa por duração mostra o atual em cima e o ideal
   embaixo, com subclasses no eixo horizontal e barras Curto, Médio e Longo
   rotuladas;
-- os dois gráficos têm a mesma escala e as mesmas subclasses; cada lado soma
-  100%;
+- os dois gráficos têm a mesma escala, as mesmas subclasses e os mesmos
+  prazos, com cada barra na mesma posição horizontal; cada lado soma 100%;
+- num celular de 360 px, toda barra de setembro de 2026 tem rótulo;
 - não existe card "Fora da meta" na Visão Geral; "Variação em todo o
   período" mostra percentual e valor em reais;
 - painéis e cards de indicador respondem ao ponteiro da mesma forma; não há
@@ -172,25 +207,57 @@ Num banco local criado pelas migrações e carregado com a importação do
 Excel, setembro de 2026 mostrou renda fixa de R$ 48.529,09 dividida em IPCA
 6,3% curto, 10,5% médio e 25,5% longo e Pós-fixado 21,3% curto, 25,6% médio e
 10,7% longo, contra o ideal de 10%, 15%, 15%, 30%, 25% e 5%, ambos na escala
-de 0 a 40%. Outubro de 2025 mostrou a série "Sem prazo" do BTC só no
-atual, julho de 2025 a série D+1 e maio de 2024 o aviso de competência sem
-renda fixa. "Variação em todo o período" mostrou +502,11% e
-"R$ 210.311,72 desde Jun/23", conferidos contra os totais de junho de 2023
-(R$ 41.885,20) e setembro de 2026 no banco; junho de 2023 mostrou "—".
+de 0 a 40%. Maio de 2024 mostrou o aviso de competência sem renda fixa.
+"Variação em todo o período" mostrou +502,11% e "R$ 210.311,72 desde
+Jun/23", conferidos contra os totais de junho de 2023 (R$ 41.885,20) e
+setembro de 2026 no banco; junho de 2023 mostrou "—".
 
-As capturas de tela foram revisadas no desktop e no Pixel 7 para Visão
-Geral, Posições e Configuração. No desktop, os estilos calculados confirmaram
-borda e fundo no hover dos painéis, sem `transform`, e a subida de 1 px nos
-cards de indicador; no perfil de celular, `(hover: hover)` é falso e nada
-muda. Antes da correção da grade, a Visão Geral no celular tinha 702 px de
-largura; depois, 412 px.
+Na revisão, as séries e os rótulos foram medidos no navegador, no desktop e
+nas larguras de 320, 360, 375, 390 e 412 px, em setembro de 2026, julho de
+2025 (D+1), outubro a dezembro de 2025 (BTC sem prazo), junho de 2023 (D+0)
+e março de 2024:
 
-O novo arquivo `tests/e2e/overview-adjustments.spec.ts` não grava nada:
-confere o card de variação no período e a primeira competência, a ordem dos
-dois gráficos, a mesma escala e as mesmas subclasses, a soma de 100% de cada
-lado pela tabela acessível, e o hover dos cards com e sem ponteiro e com
-movimento reduzido. `pnpm lint`, `pnpm typecheck`, `pnpm build` e a suíte do
-Playwright, com 26 cenários entre desktop e celular, passaram.
+- os dois gráficos têm sempre o mesmo número de séries, e a mesma
+  subclasse e prazo tem a mesma posição horizontal no atual e no ideal;
+- setembro de 2026 mostra os 12 rótulos em todas as larguras: com uma casa
+  decimal no desktop e de 360 px para cima, inteiros em 320 px;
+- julho de 2025, junho de 2023 e março de 2024 mostram todos os rótulos
+  nas larguras medidas;
+- de outubro a dezembro de 2025, com três subclasses e quatro prazos, todos
+  os rótulos aparecem do desktop até 375 px; em 360 e 320 px o ideal mostra
+  só "5%", e os demais valores ficam no tooltip e na tabela acessível. Essa
+  limitação vem do BTC registrado como renda fixa, listado nas questões em
+  aberto.
+
+As capturas de tela do card foram revisadas no desktop, no Pixel 7 e em 360
+e 320 px. Na primeira versão também foram revisadas Visão Geral, Posições e
+Configuração no desktop e no Pixel 7. No desktop, os estilos calculados
+confirmaram borda e fundo no hover dos painéis, com o painel na mesma
+posição, e a subida de 1 px nos cards de indicador; o `transform` calculado
+dos painéis é a identidade, mantida pela animação de entrada, com ou sem
+hover. No perfil de celular, `(hover: hover)` é falso e nada muda. Antes da
+correção da grade, a Visão Geral no celular tinha 702 px de largura; depois,
+412 px.
+
+O arquivo `tests/e2e/overview-adjustments.spec.ts` não grava nada. Confere:
+
+- o card de variação no período, com sinal, cor e o texto
+  "R$ … desde Jun/23", e a primeira competência;
+- que a Visão Geral não passa da largura da tela;
+- a ordem dos dois gráficos, a mesma escala e as mesmas subclasses e a soma
+  de 100% de cada lado pela tabela acessível;
+- em outubro de 2025, o mesmo número de séries nos dois gráficos e a mesma
+  posição das barras de prazo longo;
+- em 360 px, um rótulo para cada barra de setembro de 2026;
+- o hover dos cards com e sem ponteiro e com movimento reduzido, inclusive
+  que o painel não sobe.
+
+Os testes de largura e de hover foram conferidos contra mutações: sem
+`grid-cols-1`, o teste de largura falhou no celular com 702 px; com o painel
+subindo 1 px no hover, depois de desligar a animação nesse estado, o teste
+de hover falhou. `pnpm lint`,
+`pnpm typecheck`, `pnpm build` e a suíte do Playwright, com 32 cenários
+entre desktop e celular, passaram.
 
 ## Referências
 

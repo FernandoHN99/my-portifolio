@@ -150,7 +150,9 @@
   /*
    * Todo card reage ao ponteiro do mesmo jeito: borda na cor primária e fundo um passo
    * mais claro. Só os cards pequenos sobem 1px; painéis grandes não se movem, porque o
-   * deslocamento de uma seção inteira parece a página tremendo. Em telas de toque não há hover.
+   * deslocamento de uma seção inteira parece a página tremendo. Um transform no hover do painel
+   * nem teria efeito: o preenchimento da animação surface-enter mantém o transform do painel.
+   * Em telas de toque não há hover.
    */
   @media (hover: hover) {
     .premium-panel:hover {
