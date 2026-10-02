@@ -11,6 +11,7 @@ import {
   undoChange,
   updateMonthQuotes,
 } from "@/modules/portfolio/application/month-editing";
+import { ASSET_KINDS } from "@/modules/portfolio/domain/asset-kinds";
 import { toMonthParam } from "@/modules/portfolio/presentation/reference-month";
 
 export type EditActionResult =
@@ -20,6 +21,39 @@ export type EditActionResult =
 const value = z.string().trim().min(1).max(40);
 const strategy = z.string().trim().max(60).nullable();
 const monthScope = { monthId: z.string().uuid(), confirmHistory: z.boolean() };
+const label = (max: number) => z.string().trim().min(1).max(max);
+
+// Conta e ativo novos da inclusão de posição (spec 026). O servidor ainda
+// confere duplicados, o ticker pelo token da checagem e o vencimento.
+const newAccountSchema = z
+  .object({
+    institutionId: z.string().uuid().nullable(),
+    institutionName: label(60).nullable(),
+    name: label(60),
+  })
+  .refine((account) => (account.institutionId === null) !== (account.institutionName === null));
+
+const newAssetSchema = z.object({
+  name: label(80),
+  kind: z.enum(ASSET_KINDS),
+  ticker: z.string().trim().max(20).nullable(),
+  maturityDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(),
+  allocation: z.object({ assetClass: label(80), subclass: label(80), duration: label(80) }),
+  quoteCheckToken: z.string().uuid().nullable(),
+  manualPriceBrl: value.nullable(),
+});
+
+const additionSchema = z
+  .object({
+    accountId: z.string().uuid().optional(),
+    newAccount: newAccountSchema.optional(),
+    assetId: z.string().uuid().optional(),
+    newAsset: newAssetSchema.optional(),
+    value,
+    strategy,
+  })
+  .refine((addition) => (addition.accountId === undefined) !== (addition.newAccount === undefined))
+  .refine((addition) => (addition.assetId === undefined) !== (addition.newAsset === undefined));
 
 const positionChangesSchema = z
   .object({
@@ -32,9 +66,7 @@ const positionChangesSchema = z
       )
       .max(500),
     removals: z.array(z.string().uuid()).max(500),
-    additions: z
-      .array(z.object({ accountId: z.string().uuid(), assetId: z.string().uuid(), value, strategy }))
-      .max(100),
+    additions: z.array(additionSchema).max(100),
   });
 
 const allocationsSchema = z.object({

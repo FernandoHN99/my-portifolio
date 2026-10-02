@@ -37,6 +37,7 @@ import { RefreshRunHistory } from "@/modules/quotes/ui/refresh-run-history";
 const MAX_DECIMALS = 8;
 
 const INSTRUMENT_LABELS: Record<string, string> = {
+  ACAO: "Ação",
   CRIPTO: "Cripto",
   ETF: "ETF",
   FIAT: "Moeda",

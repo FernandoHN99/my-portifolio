@@ -1,5 +1,6 @@
 import { Prisma, type PortfolioMonthStatus } from "@/generated/prisma/client";
 import { getPrismaClient } from "@/lib/prisma";
+import { calendarDay, currentReferenceMonth, lastDayOf, toDateKey } from "@/modules/quotes/domain/calendar";
 
 export type MonthPositionAllocation = {
   assetClass: string;
@@ -19,6 +20,8 @@ export type MonthPosition = {
   accountName: string;
   strategy: string | null;
   baseCurrency: string;
+  /** Vencimento do ativo (AAAA-MM-DD), quando informado na inclusão (spec 026). */
+  maturityDate: string | null;
   quantity: number;
   quantityText: string;
   unitPriceBrl: number | null;
@@ -40,6 +43,14 @@ export type MonthPositions = {
   referenceDate: Date;
   status: PortfolioMonthStatus;
   isLatest: boolean;
+  /** Competência do mês corrente, a única em que a cotação de hoje vale para o mês. */
+  isCurrent: boolean;
+  /**
+   * Dia de referência para os avisos de vencimento: hoje na competência
+   * corrente e o último dia do mês nas demais, para o histórico não mostrar
+   * como vencido o que venceu depois.
+   */
+  referenceDay: string;
   totalBrl: number;
   usdRate: number | null;
   quotes: MonthQuote[];
@@ -74,7 +85,7 @@ export async function getMonthPositions(
               totalBrl: true,
               strategy: true,
               asset: {
-                select: { name: true, ticker: true, quoteSymbol: true, baseCurrency: true },
+                select: { name: true, ticker: true, quoteSymbol: true, baseCurrency: true, maturityDate: true },
               },
               account: {
                 select: { name: true, institution: { select: { name: true } } },
@@ -117,11 +128,16 @@ export async function getMonthPositions(
       left === "USD" ? -1 : right === "USD" ? 1 : left.localeCompare(right),
     );
 
+    const today = calendarDay(new Date());
+    const lastDay = lastDayOf(month.referenceDate);
+
     return {
       id: month.id,
       referenceDate: month.referenceDate,
       status: month.status,
       isLatest: latest?.id === month.id,
+      isCurrent: month.referenceDate.getTime() === currentReferenceMonth().getTime(),
+      referenceDay: toDateKey(today.getTime() < lastDay.getTime() ? today : lastDay),
       totalBrl,
       usdRate,
       quotes: symbols.map((symbol) => {
@@ -149,6 +165,7 @@ export async function getMonthPositions(
             accountName: position.account.name,
             strategy: position.strategy,
             baseCurrency: position.asset.baseCurrency,
+            maturityDate: position.asset.maturityDate ? toDateKey(position.asset.maturityDate) : null,
             quantity: position.quantity.toNumber(),
             quantityText: position.quantity.toString(),
             unitPriceBrl: position.unitPriceBrl ? position.unitPriceBrl.toNumber() : null,

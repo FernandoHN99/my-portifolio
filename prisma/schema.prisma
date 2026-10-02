@@ -111,6 +111,9 @@ model Asset {
   ticker        String?
   quoteSymbol   String?    @map("quote_symbol")
   baseCurrency  String     @map("base_currency")
+  // Vencimento informativo de ativos sem ticker, como renda fixa (spec 026).
+  // Só ativos criados pela interface o recebem; os importados ficam nulos.
+  maturityDate  DateTime?  @map("maturity_date") @db.Date
   createdAt     DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
   positions     Position[]
 

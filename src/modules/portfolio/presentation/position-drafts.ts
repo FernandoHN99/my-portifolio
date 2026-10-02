@@ -1,16 +1,56 @@
 import type { EditingCatalog } from "@/modules/portfolio/application/get-editing-catalog";
 import type { MonthPosition, MonthPositions } from "@/modules/portfolio/application/get-month-positions";
+import type { AllocationSeed, AssetKind } from "@/modules/portfolio/domain/asset-kinds";
 import { parseLocaleNumber } from "@/modules/portfolio/presentation/portfolio-format";
 
 export type PendingEdit = { value?: string; strategy?: string | null };
 
-export type AddedDraft = {
-  tempId: string;
-  accountId: string;
-  assetId: string;
+/**
+ * Conta nova digitada na inclusão (spec 026), numa instituição existente
+ * (`institutionId`) ou também nova. `key` identifica o cadastro pendente para
+ * que outra posição nova possa escolhê-lo antes de salvar.
+ */
+export type NewAccountDraft = {
+  key: string;
+  institutionId: string | null;
+  institutionName: string;
+  name: string;
+};
+
+export type NewAssetDraft = {
+  key: string;
+  name: string;
+  kind: AssetKind;
+  /** Símbolo de cotação já normalizado, como GPCA11.SAO; nulo sem ticker. */
+  ticker: string | null;
+  baseCurrency: string;
+  maturityDate: string | null;
+  allocation: AllocationSeed;
+  quoteCheckToken: string | null;
+  manualPriceBrl: string | null;
+  /** Cotação mostrada na prévia: a conferida, a digitada ou a do mês. */
+  priceBrl: number | null;
+};
+
+export type NewPositionDraft = {
+  accountId: string | null;
+  newAccount: NewAccountDraft | null;
+  assetId: string | null;
+  newAsset: NewAssetDraft | null;
   value: string;
   strategy: string | null;
 };
+
+export type AddedDraft = NewPositionDraft & { tempId: string };
+
+/** Identidade de conta e ativo de uma posição nova, para recusar repetidas. */
+export function draftAccountId(draft: Pick<NewPositionDraft, "accountId" | "newAccount">) {
+  return draft.accountId ?? `nova:${draft.newAccount?.key ?? ""}`;
+}
+
+export function draftAssetId(draft: Pick<NewPositionDraft, "assetId" | "newAsset">) {
+  return draft.assetId ?? `novo:${draft.newAsset?.key ?? ""}`;
+}
 
 export type DisplayPosition = MonthPosition & {
   isAdded: boolean;
@@ -90,37 +130,56 @@ export function buildDisplayPositions({
   });
 
   const drafts = added.flatMap((draft): DisplayPosition[] => {
-    const asset = catalog.assets.find((entry) => entry.id === draft.assetId);
-    const account = catalog.accounts.find((entry) => entry.id === draft.accountId);
+    const catalogAccount = draft.accountId ? catalog.accounts.find((entry) => entry.id === draft.accountId) : null;
+    const account = catalogAccount
+      ? { institutionName: catalogAccount.label.split(" · ")[0], name: catalogAccount.name }
+      : draft.newAccount
+        ? { institutionName: draft.newAccount.institutionName, name: draft.newAccount.name }
+        : null;
+    const catalogAsset = draft.assetId ? catalog.assets.find((entry) => entry.id === draft.assetId) : null;
+    const asset = catalogAsset
+      ? { ...catalogAsset, ownPrice: null, allocation: null }
+      : draft.newAsset
+        ? {
+            name: draft.newAsset.name,
+            ticker: draft.newAsset.ticker,
+            quoteSymbol: draft.newAsset.ticker,
+            baseCurrency: draft.newAsset.baseCurrency,
+            maturityDate: draft.newAsset.maturityDate,
+            ownPrice: draft.newAsset.priceBrl,
+            allocation: draft.newAsset.allocation,
+          }
+        : null;
     const value = parseLocaleNumber(draft.value) ?? 0;
 
     if (!asset || !account) {
       return [];
     }
 
-    const price = asset.quoteSymbol ? (quoteBySymbol.get(asset.quoteSymbol) ?? null) : null;
-    const [institutionName, accountName] = account.label.split(" · ");
+    const price = asset.quoteSymbol ? (quoteBySymbol.get(asset.quoteSymbol) ?? asset.ownPrice) : null;
     const totalBrl = asset.quoteSymbol ? round2(value * (price ?? 0)) : round2(value);
 
     return [
       {
         id: draft.tempId,
-        accountId: draft.accountId,
-        assetId: draft.assetId,
+        accountId: draftAccountId(draft),
+        assetId: draftAssetId(draft),
         assetName: asset.name,
         ticker: asset.ticker,
         quoteSymbol: asset.quoteSymbol,
-        institutionName,
-        accountName: accountName ?? "",
+        institutionName: account.institutionName,
+        accountName: account.name,
         strategy: draft.strategy,
         baseCurrency: asset.baseCurrency,
+        maturityDate: asset.maturityDate,
         quantity: asset.quoteSymbol ? value : totalBrl,
         quantityText: draft.value,
         unitPriceBrl: price,
         totalBrl,
         totalUsd: null,
         share: 0,
-        allocations: [],
+        // O ativo novo já tem o rateio escolhido; o existente herda ao salvar.
+        allocations: asset.allocation ? [{ ...asset.allocation, weight: 100 }] : [],
         isAdded: true,
         isRemoved: false,
         valueChanged: true,

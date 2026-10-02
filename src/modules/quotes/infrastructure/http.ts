@@ -24,7 +24,23 @@ export class QuoteHttpError extends Error {
   }
 }
 
+// Resposta válida em que o provedor recusa a consulta, como o aviso de limite de
+// uso do Alpha Vantage, que vem com HTTP 200.
+export class ProviderRefusalError extends Error {
+  constructor(
+    public readonly code: string,
+    message: string,
+  ) {
+    super(message);
+    this.name = "ProviderRefusalError";
+  }
+}
+
 export function describeProviderError(error: unknown) {
+  if (error instanceof ProviderRefusalError) {
+    return { code: error.code, message: error.message };
+  }
+
   if (error instanceof QuoteHttpError) {
     return {
       code: error.statusCode === 429 ? "RATE_LIMITED" : "HTTP_ERROR",

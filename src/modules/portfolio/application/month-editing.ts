@@ -2,6 +2,18 @@ import { createHash, randomUUID } from "node:crypto";
 
 import { PortfolioMonthStatus, Prisma } from "@/generated/prisma/client";
 import { getPrismaClient } from "@/lib/prisma";
+import {
+  ASSET_KIND_DEFINITIONS,
+  baseCurrencyOf,
+  buildAssetKey,
+  cleanName,
+  normalizeKey,
+  normalizeTicker,
+  providerForQuote,
+  USD_SYMBOL,
+  type AssetKind,
+} from "@/modules/portfolio/domain/asset-kinds";
+import { readVerifiedTicker } from "@/modules/quotes/application/check-ticker";
 import { currentReferenceMonth } from "@/modules/quotes/domain/calendar";
 
 type Transaction = Prisma.TransactionClient;
@@ -14,9 +26,27 @@ export class MonthEditError extends Error {
 }
 
 export type PositionUpdate = { positionId: string; value?: string; strategy?: string | null };
+/** Conta nova, numa instituição existente ou também nova (spec 026). */
+export type NewAccountInput = {
+  institutionId: string | null;
+  institutionName: string | null;
+  name: string;
+};
+/** Ativo novo com o rateio inicial e a conferência do ticker (spec 026). */
+export type NewAssetInput = {
+  name: string;
+  kind: AssetKind;
+  ticker: string | null;
+  maturityDate: string | null;
+  allocation: { assetClass: string; subclass: string; duration: string };
+  quoteCheckToken: string | null;
+  manualPriceBrl: string | null;
+};
 export type PositionAddition = {
-  accountId: string;
-  assetId: string;
+  accountId?: string;
+  newAccount?: NewAccountInput;
+  assetId?: string;
+  newAsset?: NewAssetInput;
   value: string;
   strategy: string | null;
 };
@@ -61,13 +91,34 @@ type SnapshotQuote = {
 
 type MonthSnapshot = { positions: SnapshotPosition[]; quotes: SnapshotQuote[] };
 
+/**
+ * Cadastros criados junto com uma inclusão. Ficam fora da fotografia da
+ * competência, que só guarda posições e cotações do mês; o desfazer os remove
+ * depois de restaurar o mês, desde que nada mais os use.
+ */
+type CreatedEntities = {
+  institutionIds: string[];
+  accountIds: string[];
+  assetIds: string[];
+  dailyQuoteIds: string[];
+};
+
 type UndoEntry =
-  | { kind: "restore"; monthId: string; snapshot: MonthSnapshot; fingerprint: string; expiresAt: number }
+  | {
+      kind: "restore";
+      monthId: string;
+      snapshot: MonthSnapshot;
+      fingerprint: string;
+      expiresAt: number;
+      created?: CreatedEntities;
+    }
   | { kind: "delete-month"; monthId: string; fingerprint: string; expiresAt: number };
 
 const UNDO_TTL_MS = 10 * 60 * 1000;
 const MAX_STRATEGY_LENGTH = 60;
 const MAX_LABEL_LENGTH = 80;
+const MAX_ENTITY_NAME_LENGTH = 60;
+const MAX_ASSET_NAME_LENGTH = 80;
 
 const globalForUndo = globalThis as unknown as { monthUndoStore?: Map<string, UndoEntry> };
 const undoStore = (globalForUndo.monthUndoStore ??= new Map<string, UndoEntry>());
@@ -151,27 +202,26 @@ export async function applyPositionChanges(input: {
       select: { symbol: true, valueBrl: true },
     });
     const quoteBySymbol = new Map(quotes.map((quote) => [quote.symbol, quote.valueBrl]));
-    const usdRate = quoteBySymbol.get("USD") ?? null;
+    const usdRate = quoteBySymbol.get(USD_SYMBOL) ?? null;
+    const batch: AdditionBatch = {
+      month,
+      isCurrentMonth: month.referenceDate.getTime() === currentReferenceMonth().getTime(),
+      quoteBySymbol,
+      institutions: new Map(),
+      accounts: new Map(),
+      assets: new Map(),
+      created: { institutionIds: [], accountIds: [], assetIds: [], dailyQuoteIds: [] },
+    };
 
     for (const addition of input.additions) {
-      const identity = `${addition.accountId}:${addition.assetId}`;
+      const account = await resolveAdditionAccount(transaction, addition, batch);
+      const asset = await resolveAdditionAsset(transaction, addition, account, batch);
+      const identity = `${account.id}:${asset.id}`;
 
       if (occupied.has(identity)) {
         throw new MonthEditError("Este ativo já possui posição nesta conta e competência.");
       }
       occupied.add(identity);
-
-      const [account, asset] = await Promise.all([
-        transaction.account.findUnique({ where: { id: addition.accountId }, select: { id: true } }),
-        transaction.asset.findUnique({
-          where: { id: addition.assetId },
-          select: { id: true, name: true, quoteSymbol: true },
-        }),
-      ]);
-
-      if (!account || !asset) {
-        throw new MonthEditError("A conta ou o ativo escolhido não existe.");
-      }
 
       const value = parseNonNegative(addition.value);
       let unitPriceBrl: Prisma.Decimal | null = null;
@@ -183,7 +233,7 @@ export async function applyPositionChanges(input: {
 
         if (!price) {
           throw new MonthEditError(
-            `Não há cotação de ${asset.quoteSymbol} nesta competência. Informe-a no painel de cotações.`,
+            `Não há cotação de ${asset.quoteSymbol} nesta competência. Informe-a na página de cotações.`,
           );
         }
         unitPriceBrl = price;
@@ -205,6 +255,15 @@ export async function applyPositionChanges(input: {
         select: { id: true },
       });
 
+      // Um ativo novo recebe o rateio escolhido no diálogo; um existente herda o
+      // da posição mais recente do mesmo ativo, como antes.
+      if (asset.allocation) {
+        await transaction.positionAllocation.create({
+          data: { ...asset.allocation, weight: new Prisma.Decimal(1), positionId: created.id },
+        });
+        continue;
+      }
+
       const template = await transaction.position.findFirst({
         where: { assetId: asset.id, id: { not: created.id }, allocations: { some: {} } },
         orderBy: { portfolioMonth: { referenceDate: "desc" } },
@@ -217,7 +276,358 @@ export async function applyPositionChanges(input: {
         });
       }
     }
+
+    return hasCreated(batch.created) ? { created: batch.created } : undefined;
   });
+}
+
+type AdditionBatch = {
+  month: { id: string; referenceDate: Date };
+  isCurrentMonth: boolean;
+  quoteBySymbol: Map<string, Prisma.Decimal>;
+  // Cadastros criados neste salvamento, pela chave normalizada: duas posições
+  // novas na mesma instituição nova criam a instituição uma vez só.
+  institutions: Map<string, { id: string; name: string }>;
+  accounts: Map<string, string>;
+  assets: Map<string, { id: string; signature: string; quoteSymbol: string | null; allocation: AllocationSeed }>;
+  created: CreatedEntities;
+};
+
+type AllocationSeed = { assetClass: string; subclass: string; duration: string };
+
+async function resolveAdditionAccount(
+  transaction: Transaction,
+  addition: PositionAddition,
+  batch: AdditionBatch,
+): Promise<{ id: string; institutionName: string }> {
+  if (addition.accountId) {
+    const account = await transaction.account.findUnique({
+      where: { id: addition.accountId },
+      select: { id: true, institution: { select: { name: true } } },
+    });
+
+    if (!account) {
+      throw new MonthEditError("A conta escolhida não existe.");
+    }
+
+    return { id: account.id, institutionName: account.institution.name };
+  }
+
+  const input = addition.newAccount;
+
+  if (!input) {
+    throw new MonthEditError("Escolha a conta da posição.");
+  }
+
+  const institution = await resolveInstitution(transaction, input, batch);
+  const name = requireName(input.name, MAX_ENTITY_NAME_LENGTH, "o nome da conta");
+  const key = `${institution.id}:${normalizeKey(name)}`;
+  const reused = batch.accounts.get(key);
+
+  if (reused) {
+    return { id: reused, institutionName: institution.name };
+  }
+
+  const siblings = await transaction.account.findMany({
+    where: { institutionId: institution.id },
+    select: { name: true },
+  });
+  const duplicate = siblings.find((account) => normalizeKey(account.name) === normalizeKey(name));
+
+  if (duplicate) {
+    throw new MonthEditError(`A conta "${duplicate.name}" já existe em ${institution.name}. Escolha-a na lista.`);
+  }
+
+  const account = await transaction.account.create({
+    data: { institutionId: institution.id, name },
+    select: { id: true },
+  });
+  batch.accounts.set(key, account.id);
+  batch.created.accountIds.push(account.id);
+
+  return { id: account.id, institutionName: institution.name };
+}
+
+async function resolveInstitution(transaction: Transaction, input: NewAccountInput, batch: AdditionBatch) {
+  if (input.institutionId) {
+    const institution = await transaction.institution.findUnique({
+      where: { id: input.institutionId },
+      select: { id: true, name: true },
+    });
+
+    if (!institution) {
+      throw new MonthEditError("A instituição escolhida não existe.");
+    }
+
+    return institution;
+  }
+
+  const name = requireName(input.institutionName ?? "", MAX_ENTITY_NAME_LENGTH, "o nome da instituição");
+  const normalizedName = normalizeKey(name);
+  const reused = batch.institutions.get(normalizedName);
+
+  if (reused) {
+    return reused;
+  }
+
+  const existing = await transaction.institution.findUnique({
+    where: { normalizedName },
+    select: { name: true },
+  });
+
+  if (existing) {
+    throw new MonthEditError(`A instituição "${existing.name}" já existe. Escolha-a na lista.`);
+  }
+
+  const institution = await transaction.institution.create({
+    data: { name, normalizedName },
+    select: { id: true, name: true },
+  });
+  batch.institutions.set(normalizedName, institution);
+  batch.created.institutionIds.push(institution.id);
+
+  return institution;
+}
+
+async function resolveAdditionAsset(
+  transaction: Transaction,
+  addition: PositionAddition,
+  account: { institutionName: string },
+  batch: AdditionBatch,
+): Promise<{ id: string; quoteSymbol: string | null; allocation: AllocationSeed | null }> {
+  if (addition.assetId) {
+    const asset = await transaction.asset.findUnique({
+      where: { id: addition.assetId },
+      select: { id: true, quoteSymbol: true },
+    });
+
+    if (!asset) {
+      throw new MonthEditError("O ativo escolhido não existe.");
+    }
+
+    return { ...asset, allocation: null };
+  }
+
+  const input = addition.newAsset;
+
+  if (!input) {
+    throw new MonthEditError("Escolha o ativo da posição.");
+  }
+
+  const definition = ASSET_KIND_DEFINITIONS[input.kind];
+  const name = requireName(input.name, MAX_ASSET_NAME_LENGTH, "o nome do ativo");
+  const symbol = definition.ticker === null ? null : normalizeTicker(input.kind, input.ticker ?? "");
+
+  if (definition.ticker !== null && !symbol) {
+    throw new MonthEditError(`Informe um ticker válido para ${name}.`);
+  }
+
+  const maturityDate = parseMaturityDate(input.maturityDate);
+
+  if (maturityDate && !definition.allowsMaturity) {
+    throw new MonthEditError("Só ativos sem ticker de mercado têm vencimento.");
+  }
+
+  const allocation: AllocationSeed = {
+    assetClass: normalizeLabel(input.allocation.assetClass, "classe"),
+    subclass: normalizeLabel(input.allocation.subclass, "subclasse"),
+    duration: normalizeLabel(input.allocation.duration, "duração"),
+  };
+  const maturityKey = maturityDate ? maturityDate.toISOString().slice(0, 10) : null;
+  const normalizedKey = buildAssetKey({
+    name,
+    ticker: symbol,
+    institutionName: account.institutionName,
+    maturityDate: maturityKey,
+  });
+  const signature = JSON.stringify([input.kind, symbol, maturityKey, allocation]);
+  const reused = batch.assets.get(normalizedKey);
+
+  if (reused) {
+    if (reused.signature !== signature) {
+      throw new MonthEditError(`Duas posições novas criam o ativo ${name} com dados diferentes.`);
+    }
+
+    return { id: reused.id, quoteSymbol: reused.quoteSymbol, allocation: reused.allocation };
+  }
+
+  const existing = await transaction.asset.findUnique({ where: { normalizedKey }, select: { name: true } });
+
+  if (existing) {
+    throw new MonthEditError(
+      symbol
+        ? `O ativo "${existing.name}" com o ticker ${symbol} já existe. Escolha-o na lista.`
+        : `O ativo "${existing.name}" já existe nesta instituição${maturityKey ? " com este vencimento" : ""}. Escolha-o na lista.`,
+    );
+  }
+
+  if (symbol) {
+    await ensureMonthQuote(transaction, input, symbol, batch);
+  }
+
+  const asset = await transaction.asset.create({
+    data: {
+      normalizedKey,
+      name,
+      ticker: symbol,
+      quoteSymbol: symbol,
+      baseCurrency: baseCurrencyOf(input.kind, symbol),
+      maturityDate,
+    },
+    select: { id: true },
+  });
+  batch.assets.set(normalizedKey, { id: asset.id, signature, quoteSymbol: symbol, allocation });
+  batch.created.assetIds.push(asset.id);
+
+  return { id: asset.id, quoteSymbol: symbol, allocation };
+}
+
+/**
+ * Garante a cotação do mês para o símbolo de um ativo novo. Um símbolo já
+ * cotado na competência usa a cotação existente. Os demais exigem a conferência
+ * do ticker: com o ticker encontrado e a competência do mês corrente, vale a
+ * cotação de hoje, também gravada no histórico diário; com o provedor
+ * indisponível ou numa competência passada, vale a cotação digitada.
+ */
+async function ensureMonthQuote(
+  transaction: Transaction,
+  input: NewAssetInput,
+  symbol: string,
+  batch: AdditionBatch,
+) {
+  const definition = ASSET_KIND_DEFINITIONS[input.kind];
+  const instrumentType = definition.instrumentType ?? "FIAT";
+  const baseCurrency = baseCurrencyOf(input.kind, symbol);
+  const provider = providerForQuote(instrumentType, baseCurrency);
+  const stored =
+    (await transaction.marketQuote.findFirst({
+      where: { symbol },
+      orderBy: { referenceDate: "desc" },
+      select: { instrumentType: true, baseCurrency: true },
+    })) ??
+    (await transaction.dailyQuote.findFirst({
+      where: { symbol },
+      orderBy: { quoteDate: "desc" },
+      select: { instrumentType: true, baseCurrency: true },
+    }));
+
+  if (definition.ticker === "market" && stored && providerForQuote(stored.instrumentType, stored.baseCurrency) !== provider) {
+    throw new MonthEditError(`${symbol} já é cotado na carteira por outro provedor. Escolha o tipo correspondente.`);
+  }
+
+  if (batch.quoteBySymbol.has(symbol)) {
+    return;
+  }
+
+  if (definition.ticker !== "market") {
+    throw new MonthEditError(`Não há cotação de ${symbol} nesta competência. Informe-a na página de cotações.`);
+  }
+
+  const verified = input.quoteCheckToken ? readVerifiedTicker(input.quoteCheckToken) : null;
+
+  if (!verified || verified.symbol !== symbol || verified.kind !== input.kind) {
+    throw new MonthEditError(`A conferência do ticker ${symbol} expirou. Inclua a posição de novo para conferir.`);
+  }
+
+  const useFetched = verified.status === "found" && verified.priceBrl !== null && batch.isCurrentMonth;
+  let valueBrl: Prisma.Decimal;
+
+  if (useFetched) {
+    valueBrl = new Prisma.Decimal(verified.priceBrl!).toDecimalPlaces(8);
+  } else {
+    if (!input.manualPriceBrl) {
+      throw new MonthEditError(`Informe a cotação de ${symbol} em reais.`);
+    }
+    valueBrl = parsePositive(input.manualPriceBrl, 8);
+  }
+
+  await transaction.marketQuote.create({
+    data: {
+      referenceDate: batch.month.referenceDate,
+      symbol,
+      instrumentType,
+      baseCurrency,
+      valueBrl,
+      // A cotação de hoje carrega o dia; a digitada é um fato do mês, como na
+      // edição à mão da página de cotações.
+      quoteDate: useFetched ? verified.quoteDate : null,
+    },
+  });
+  batch.quoteBySymbol.set(symbol, valueBrl);
+
+  if (verified.status === "found" && verified.priceBrl !== null) {
+    const daily = await transaction.dailyQuote.findUnique({
+      where: { symbol_quoteDate: { symbol, quoteDate: verified.quoteDate } },
+      select: { id: true },
+    });
+
+    if (!daily) {
+      const created = await transaction.dailyQuote.create({
+        data: {
+          symbol,
+          quoteDate: verified.quoteDate,
+          instrumentType,
+          baseCurrency,
+          valueBrl: new Prisma.Decimal(verified.priceBrl).toDecimalPlaces(8),
+          provider: verified.provider,
+          fetchedAt: verified.fetchedAt,
+        },
+        select: { id: true },
+      });
+      batch.created.dailyQuoteIds.push(created.id);
+    }
+  }
+}
+
+function hasCreated(created: CreatedEntities) {
+  return (
+    created.institutionIds.length +
+      created.accountIds.length +
+      created.assetIds.length +
+      created.dailyQuoteIds.length >
+    0
+  );
+}
+
+/**
+ * Remove, no desfazer, os cadastros criados por uma inclusão que ficaram sem
+ * uso depois de restaurar a competência. Um cadastro usado em outro lugar
+ * nesse meio-tempo é mantido.
+ */
+async function removeUnusedCreated(transaction: Transaction, created: CreatedEntities) {
+  if (created.assetIds.length > 0) {
+    await transaction.asset.deleteMany({ where: { id: { in: created.assetIds }, positions: { none: {} } } });
+  }
+
+  if (created.dailyQuoteIds.length > 0) {
+    const daily = await transaction.dailyQuote.findMany({
+      where: { id: { in: created.dailyQuoteIds } },
+      select: { id: true, symbol: true },
+    });
+    const inUse = new Set(
+      (
+        await transaction.asset.findMany({
+          where: { quoteSymbol: { in: daily.map((entry) => entry.symbol) } },
+          select: { quoteSymbol: true },
+        })
+      ).map((asset) => asset.quoteSymbol),
+    );
+    const removable = daily.filter((entry) => !inUse.has(entry.symbol)).map((entry) => entry.id);
+
+    if (removable.length > 0) {
+      await transaction.dailyQuote.deleteMany({ where: { id: { in: removable } } });
+    }
+  }
+
+  if (created.accountIds.length > 0) {
+    await transaction.account.deleteMany({ where: { id: { in: created.accountIds }, positions: { none: {} } } });
+  }
+
+  if (created.institutionIds.length > 0) {
+    await transaction.institution.deleteMany({
+      where: { id: { in: created.institutionIds }, accounts: { none: {} } },
+    });
+  }
 }
 
 export async function replaceAllocations(input: {
@@ -481,6 +891,11 @@ export async function undoChange(token: string) {
       }
 
       await restoreSnapshot(transaction, month, entry.snapshot);
+
+      if (entry.created) {
+        await removeUnusedCreated(transaction, entry.created);
+      }
+
       return { referenceDate: month.referenceDate, deleted: false };
     },
     { maxWait: 10_000, timeout: 60_000 },
@@ -490,7 +905,10 @@ export async function undoChange(token: string) {
 async function withUndo(
   monthId: string,
   confirmHistory: boolean,
-  mutate: (transaction: Transaction, month: { id: string; referenceDate: Date }) => Promise<void>,
+  mutate: (
+    transaction: Transaction,
+    month: { id: string; referenceDate: Date },
+  ) => Promise<{ created?: CreatedEntities } | void>,
 ) {
   const prisma = requirePrisma();
 
@@ -499,7 +917,7 @@ async function withUndo(
       async (transaction) => {
         const month = await assertEditable(transaction, monthId, confirmHistory);
         const before = await readSnapshot(transaction, month);
-        await mutate(transaction, month);
+        const extras = await mutate(transaction, month);
         const after = await readSnapshot(transaction, month);
         const undoToken = storeUndo({
           kind: "restore",
@@ -507,6 +925,7 @@ async function withUndo(
           snapshot: before,
           fingerprint: fingerprint(after),
           expiresAt: Date.now() + UNDO_TTL_MS,
+          created: extras?.created,
         });
 
         return { referenceDate: month.referenceDate, undoToken };
@@ -685,6 +1104,31 @@ function normalizeStrategy(value: string | null) {
   }
 
   return trimmed === "" ? null : trimmed;
+}
+
+function requireName(value: string, maxLength: number, field: string) {
+  const name = cleanName(value);
+
+  if (!name || name.length > maxLength || !normalizeKey(name)) {
+    throw new MonthEditError(`Informe ${field} com até ${maxLength} caracteres.`);
+  }
+
+  return name;
+}
+
+function parseMaturityDate(value: string | null) {
+  if (!value) {
+    return null;
+  }
+
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  const date = match ? new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]))) : null;
+
+  if (!date || date.toISOString().slice(0, 10) !== value || date.getUTCFullYear() < 2000 || date.getUTCFullYear() > 2100) {
+    throw new MonthEditError("Informe um vencimento válido.");
+  }
+
+  return date;
 }
 
 function normalizeLabel(value: string, field: string) {

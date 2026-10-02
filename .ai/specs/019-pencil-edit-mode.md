@@ -19,7 +19,10 @@ todos os campos editáveis ao mesmo tempo, inclusive no celular.
 ## Comportamento
 
 - fora do modo de edição a tabela é somente leitura: sem campos, sem coluna
-  de ações, sem "Adicionar posição" e com as cotações do mês bloqueadas;
+  de ações, sem "Adicionar posição" e com as cotações do mês bloqueadas. A
+  [spec 026](026-new-position-entities.md) pôs "Adicionar posição" no topo
+  também fora do modo de edição: o botão entra em edição antes de abrir o
+  diálogo;
 - "Editar posições", com o ícone de lápis, fica no cabeçalho da aba;
 - na competência mais recente o lápis entra direto no modo de edição; em
   competência passada abre a confirmação de que o histórico será alterado,
@@ -56,7 +59,8 @@ todos os campos editáveis ao mesmo tempo, inclusive no celular.
 
 ## Fora do escopo
 
-- criar ativos e contas novos;
+- criar ativos e contas novos, feito na
+  [spec 026](026-new-position-entities.md);
 - folha de edição própria para celular.
 
 ## Critérios de aceite

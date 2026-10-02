@@ -137,8 +137,10 @@ percentual atual, percentual ideal, valor atual, valor ideal e diferença.
 15. [025 — Listas de seleção estilizadas](../specs/025-styled-pickers.md): concluída.
 16. [027 — Ajustes na configuração de metas](../specs/027-target-settings-adjustments.md): concluída.
 17. [022 — Página de cotações em Posições](../specs/022-quotes-page.md): concluída.
-18. 026 — inclusão de posição com conta, ativo e vencimento novos, e a 016:
-    em andamento, nesta ordem.
+18. [026 — Inclusão de posição com conta, instituição, ativo e vencimento novos](../specs/026-new-position-entities.md):
+    concluída.
+19. [016 — Histórico de uma posição e de um ativo](../specs/016-position-history.md):
+    a próxima.
 
 As fatias 020, 021 e 023 a 027 foram implementadas em paralelo, cada uma num
 worktree com banco próprio, revisadas por um revisor independente e
@@ -284,7 +286,8 @@ Registradas em 2026-10-02, aguardando o usuário:
 - respondidas em 2026-10-02 e registradas acima: sobrescrita de cotações
   pela atualização, edição no celular e o ativo "Solana" com ticker USD;
 - criar ativos e contas novos pela interface, o que exige definir símbolo e
-  tipo de cotação ([spec 017](../specs/017-positions-editing.md));
+  tipo de cotação ([spec 017](../specs/017-positions-editing.md)): pedido pelo
+  usuário e concluído na [spec 026](../specs/026-new-position-entities.md);
 - tolerância ajustável: decidida e concluída em 2026-10-02, na
   [spec 018](../specs/018-adjustable-tolerance.md);
 - criar e remover categorias de metas: mantido sem pedido do usuário

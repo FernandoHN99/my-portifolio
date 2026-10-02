@@ -68,7 +68,10 @@ A virada de mês é o outro processo e fica na
 2. O tipo de instrumento e a moeda base saem da cotação mensal mais recente
    do símbolo ou, na falta dela, do histórico diário; sem nenhum dos dois, o
    símbolo falha com `MISSING_QUOTE_METADATA`.
-3. Os provedores são os mesmos da spec 003, pelo `fetchCurrentQuotes`.
+3. Os provedores são os mesmos da spec 003, pelo `fetchCurrentQuotes`. Desde
+   a [spec 026](026-new-position-entities.md), um cripto sem identificador
+   fixo na CoinGecko é resolvido pela busca dela, para ativos novos
+   continuarem sendo atualizados.
 4. Cada sucesso grava a cotação do dia em `daily_quotes`. Uma nova atualização
    no mesmo dia sobrescreve o valor daquele dia; dias anteriores nunca mudam.
 5. Na competência do mês corrente, cada sucesso atualiza a cotação do mês em

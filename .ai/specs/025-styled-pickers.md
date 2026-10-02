@@ -80,7 +80,10 @@ escolhida fica marcada.
   o teclado virtual, e `onCreate` com `createLabel`: quando informados, o texto
   digitado sem opção correspondente vira um item extra, por padrão
   "Criar “texto”", e escolhê-lo chama `onCreate(texto)`. O rateio usa esse
-  recurso com o rótulo "Usar".
+  recurso com o rótulo "Usar". A [spec 026](026-new-position-entities.md)
+  acrescentou `createOnMatch`, que oferece criar mesmo quando o texto coincide
+  com uma opção, usado no ativo, e trocou o campo "Conta" do diálogo por
+  "Instituição" e "Conta"; com criação, a lista de ativos não fica mais vazia.
 
 ## Decisões tomadas
 

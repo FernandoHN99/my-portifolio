@@ -45,3 +45,21 @@ export async function fetchFinnhubQuotes(
 
   return results;
 }
+
+const finnhubLookupSchema = z.object({ c: z.number().nullable().optional() });
+
+/**
+ * Confere se o Finnhub conhece o símbolo (spec 026). Para um símbolo
+ * desconhecido o Finnhub responde HTTP 200 com o preço zerado, e não um erro.
+ * Falhas de rede, de chave ou de acesso são lançadas para quem chama.
+ */
+export async function lookupFinnhubSymbol(
+  symbol: string,
+  apiKey: string,
+): Promise<{ found: true; priceUsd: number } | { found: false }> {
+  const url = new URL("https://finnhub.io/api/v1/quote");
+  url.searchParams.set("symbol", symbol);
+  const payload = finnhubLookupSchema.parse(await fetchJson(url, { headers: { "X-Finnhub-Token": apiKey } }));
+
+  return payload.c && payload.c > 0 ? { found: true, priceUsd: payload.c } : { found: false };
+}

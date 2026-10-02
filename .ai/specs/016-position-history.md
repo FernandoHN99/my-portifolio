@@ -25,7 +25,11 @@ posição ao longo do tempo e também a evolução do ativo correspondente.
 - a tela mostra também a evolução do ativo em si, consolidando as posições do
   mesmo ativo em contas diferentes;
 - distinguir visualmente a variação de quantidade da variação de preço, já
-  que a planilha não registra compras e vendas separadamente.
+  que a planilha não registra compras e vendas separadamente;
+- mostrar o vencimento do ativo, quando houver, com o mesmo aviso de vencido
+  ou vencendo da tabela, conforme decisão do usuário registrada na
+  [spec 026](026-new-position-entities.md), que guarda o vencimento em
+  `assets.maturity_date` e deixou para cá a edição dele.
 
 ## Questões em aberto
 

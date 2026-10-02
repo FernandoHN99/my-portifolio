@@ -38,34 +38,39 @@ test("as listas da nova posição abrem ao clicar e filtram ao digitar", async (
   await page.goto("/posicoes");
   await enterEditMode(page);
   await page.getByRole("button", { name: "Adicionar posição" }).click();
-  const dialog = page.getByRole("dialog");
+  const dialog = page.getByRole("dialog", { name: "Adicionar posição" });
 
+  // Desde a spec 026, a conta é escolhida pela instituição e depois pela conta.
+  const institution = dialog.getByRole("combobox", { name: "Instituição" });
   const account = dialog.getByRole("combobox", { name: "Conta" });
-  await account.click();
-  await expect(account).toHaveAttribute("aria-expanded", "true");
+  await institution.click();
+  await expect(institution).toHaveAttribute("aria-expanded", "true");
   expect(await page.getByRole("option").count()).toBeGreaterThan(5);
   await page.keyboard.type("c6");
   await expect(page.getByRole("option")).toHaveCount(1);
   await page.keyboard.press("Enter");
-  await expect(account).toHaveValue("C6 · Principal");
-  await expect(account).toHaveAttribute("aria-expanded", "false");
+  await expect(institution).toHaveValue("C6");
+  await expect(institution).toHaveAttribute("aria-expanded", "false");
+  await expect(account).toHaveValue("Principal");
 
   // Apagar o texto abre a lista sem trocar o valor; sair do campo volta a mostrá-lo.
   await page.keyboard.press("ControlOrMeta+a");
   await page.keyboard.press("Backspace");
-  await expect(account).toHaveValue("");
-  await expect(account).toHaveAttribute("aria-expanded", "true");
+  await expect(institution).toHaveValue("");
+  await expect(institution).toHaveAttribute("aria-expanded", "true");
   await page.keyboard.press("Tab");
   await page.keyboard.press("Escape");
   await expect(dialog).toBeVisible();
-  await expect(account).toHaveValue("C6 · Principal");
+  await expect(institution).toHaveValue("C6");
 
   const asset = dialog.getByRole("combobox", { name: "Ativo" });
   await asset.click();
   await page.keyboard.type("btc");
   await expect(page.getByRole("option", { name: /Bitcoin 01/ })).toBeVisible();
+  // Sem ativo correspondente, a lista só oferece criar o ativo digitado.
   await page.keyboard.type("zzz");
-  await expect(page.getByText("Nenhum ativo encontrado")).toBeVisible();
+  await expect(page.getByRole("option")).toHaveCount(1);
+  await expect(page.getByRole("option", { name: "Criar “btczzz”" })).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(asset).toHaveAttribute("aria-expanded", "false");
   await expect(dialog).toBeVisible();

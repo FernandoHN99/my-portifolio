@@ -12,6 +12,7 @@ import {
   LockKeyIcon,
   MagnifyingGlassIcon,
   PencilSimpleIcon,
+  PlusIcon,
   TableIcon,
   TrashIcon,
   XIcon,
@@ -62,6 +63,7 @@ import {
   strategyOf,
   type PositionFilters,
 } from "@/modules/portfolio/presentation/position-filters";
+import { maturityStatus } from "@/modules/portfolio/presentation/maturity";
 import {
   buildDisplayPositions,
   countChanges,
@@ -70,6 +72,7 @@ import {
   sameValue,
   type AddedDraft,
   type DisplayPosition,
+  type NewPositionDraft,
   type PendingEdit,
 } from "@/modules/portfolio/presentation/position-drafts";
 import {
@@ -80,12 +83,8 @@ import {
   parseLocaleNumber,
 } from "@/modules/portfolio/presentation/portfolio-format";
 import { parseMonthParam } from "@/modules/portfolio/presentation/reference-month";
-import {
-  AddPositionDialog,
-  AllocationDrawer,
-  HistoryUnlockDialog,
-  type NewPositionDraft,
-} from "@/modules/portfolio/ui/edit-dialogs";
+import { AddPositionDialog } from "@/modules/portfolio/ui/add-position-dialog";
+import { AllocationDrawer, headerPrimaryButtonClass, HistoryUnlockDialog } from "@/modules/portfolio/ui/edit-dialogs";
 import { EditToast, type EditToastState } from "@/modules/portfolio/ui/edit-toast";
 import { MultiSelectFilter } from "@/modules/portfolio/ui/multi-select-filter";
 
@@ -156,6 +155,7 @@ export function PositionsWorkspace({
   const [added, setAdded] = useState<AddedDraft[]>([]);
   const [editMode, setEditMode] = useState(false);
   const [drawerId, setDrawerId] = useState<string | null>(null);
+  const [addOpen, setAddOpen] = useState(false);
   const [toast, setToast] = useState<EditToastState | null>(null);
   const [isSaving, startSaving] = useTransition();
   const [isUndoing, startUndo] = useTransition();
@@ -168,6 +168,7 @@ export function PositionsWorkspace({
     setAdded([]);
     setEditMode(false);
     setDrawerId(null);
+    setAddOpen(false);
   }
 
   const changeCount = countChanges(pending, removed, added);
@@ -365,8 +366,28 @@ export function PositionsWorkspace({
           .map(([positionId, edit]) => ({ positionId, ...edit })),
         removals: removed,
         additions: added.map((draft) => ({
-          accountId: draft.accountId,
-          assetId: draft.assetId,
+          ...(draft.accountId
+            ? { accountId: draft.accountId }
+            : {
+                newAccount: draft.newAccount && {
+                  institutionId: draft.newAccount.institutionId,
+                  institutionName: draft.newAccount.institutionId ? null : draft.newAccount.institutionName,
+                  name: draft.newAccount.name,
+                },
+              }),
+          ...(draft.assetId
+            ? { assetId: draft.assetId }
+            : {
+                newAsset: draft.newAsset && {
+                  name: draft.newAsset.name,
+                  kind: draft.newAsset.kind,
+                  ticker: draft.newAsset.ticker,
+                  maturityDate: draft.newAsset.maturityDate,
+                  allocation: draft.newAsset.allocation,
+                  quoteCheckToken: draft.newAsset.quoteCheckToken,
+                  manualPriceBrl: draft.newAsset.manualPriceBrl,
+                },
+              }),
           value: draft.value,
           strategy: draft.strategy,
         })),
@@ -442,6 +463,7 @@ export function PositionsWorkspace({
         key={rowKey}
         position={position}
         rowIndex={index}
+        referenceDay={month.referenceDay}
         valueBrl={valueBrl}
         canEdit={canEdit}
         valueText={valueTextOf(position)}
@@ -504,12 +526,38 @@ export function PositionsWorkspace({
             ) : (
               <HistoryUnlockDialog monthLabel={monthLabel} onConfirm={() => setEditMode(true)} />
             )}
+            {/* Adicionar posição fica em evidência dentro e fora do modo de
+                edição; fora dele, entra em edição antes de abrir o diálogo, com
+                a confirmação de histórico numa competência passada. */}
+            {editMode || month.isLatest ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setEditMode(true);
+                  setAddOpen(true);
+                }}
+                className={headerPrimaryButtonClass}
+              >
+                <PlusIcon aria-hidden="true" size={14} weight="bold" />
+                Adicionar posição
+              </button>
+            ) : (
+              <HistoryUnlockDialog
+                monthLabel={monthLabel}
+                label="Adicionar posição"
+                variant="add"
+                onConfirm={() => {
+                  setEditMode(true);
+                  setAddOpen(true);
+                }}
+              />
+            )}
             {month.isLatest && !editMode && catalog.clone.allowed && cloneTarget ? (
               <button
                 type="button"
                 disabled={isSaving || changeCount > 0}
                 onClick={cloneMonth}
-                className="inline-flex h-9 items-center gap-2 rounded-xl bg-primary px-3.5 text-xs font-semibold text-primary-foreground outline-none transition-[background-color,transform] duration-150 hover:bg-primary/90 focus-visible:ring-3 focus-visible:ring-ring/40 active:scale-[0.98] disabled:opacity-40"
+                className={headerPrimaryButtonClass}
               >
                 <CopyIcon aria-hidden="true" size={14} weight="bold" />
                 Criar {formatMonthCompact(cloneTarget)} a partir de {monthLabel}
@@ -595,9 +643,6 @@ export function PositionsWorkspace({
           ) : null}
 
           <div className="ml-auto flex flex-wrap items-center gap-2">
-            {canEdit ? (
-              <AddPositionDialog catalog={catalog} quotes={month.quotes} occupied={occupied} onAdd={addDraft} />
-            ) : null}
             <div className="flex items-center gap-0.5 rounded-lg border border-border bg-card/60 p-0.5">
               <span className="px-2 text-[10px] tracking-[0.08em] text-muted-foreground uppercase">Agrupar</span>
               {([null, ...GROUP_OPTIONS] as const).map((option) => (
@@ -770,6 +815,16 @@ export function PositionsWorkspace({
         </div>
       ) : null}
 
+      <AddPositionDialog
+        open={addOpen && editMode}
+        onOpenChange={setAddOpen}
+        catalog={catalog}
+        month={{ id: month.id, label: monthLabel, isCurrent: month.isCurrent, quotes: month.quotes }}
+        drafts={added}
+        occupied={occupied}
+        onAdd={addDraft}
+      />
+
       <AllocationDrawer
         position={drawerPosition}
         catalog={catalog}
@@ -791,6 +846,7 @@ export function PositionsWorkspace({
 function PositionRow({
   position,
   rowIndex,
+  referenceDay,
   valueBrl,
   canEdit,
   valueText,
@@ -802,6 +858,7 @@ function PositionRow({
 }: {
   position: DisplayPosition;
   rowIndex: number;
+  referenceDay: string;
   valueBrl: number;
   canEdit: boolean;
   valueText: string;
@@ -828,6 +885,9 @@ function PositionRow({
           {position.ticker ?? "SALDO"}
           {position.isAdded ? <span className="ml-1.5 text-primary no-underline">· nova</span> : null}
         </p>
+        {position.maturityDate ? (
+          <MaturityBadge maturityDate={position.maturityDate} referenceDay={referenceDay} />
+        ) : null}
         <p className="mt-1 text-[10px] text-muted-foreground sm:hidden">{position.institutionName}</p>
       </Cell>
       <Cell id="institutionName">
@@ -935,6 +995,27 @@ function PositionRow({
         </td>
       ) : null}
     </tr>
+  );
+}
+
+function MaturityBadge({ maturityDate, referenceDay }: { maturityDate: string; referenceDay: string }) {
+  const status = maturityStatus(maturityDate, referenceDay);
+
+  return (
+    <span
+      title={status.title}
+      className={cn(
+        "mt-1.5 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] whitespace-nowrap",
+        status.tone === "expired"
+          ? "bg-destructive/12 font-semibold text-destructive"
+          : status.tone === "soon"
+            ? "bg-warning/50 font-semibold text-warning-foreground"
+            : "bg-white/[0.04] text-muted-foreground",
+      )}
+    >
+      {status.label}
+      <span className="sr-only">, {status.title.toLocaleLowerCase("pt-BR")}</span>
+    </span>
   );
 }
 

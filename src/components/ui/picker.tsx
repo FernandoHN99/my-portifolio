@@ -51,6 +51,12 @@ export type PickerProps = FieldProps & {
    */
   onCreate?: (text: string) => void;
   createLabel?: (text: string) => string;
+  /**
+   * Oferece criar mesmo quando o texto coincide com uma opção, para cadastros
+   * que admitem nomes repetidos, como dois títulos de mesmo nome e vencimentos
+   * diferentes. A opção existente continua primeiro na lista.
+   */
+  createOnMatch?: boolean;
   size?: "default" | "sm";
   invalid?: boolean;
   changed?: boolean;
@@ -72,6 +78,7 @@ export function Picker({
   searchable,
   onCreate,
   createLabel = (text) => `Criar “${text}”`,
+  createOnMatch = false,
   size = "default",
   invalid = false,
   changed = false,
@@ -96,7 +103,7 @@ export function Picker({
   const canCreate =
     Boolean(onCreate) &&
     typed !== "" &&
-    !options.some((option) => sameText(option.label, typed));
+    (createOnMatch || !options.some((option) => sameText(option.label, typed)));
   const items: PickerItem[] = canCreate
     ? [...options, { value: `\u0000criar:${typed}`, label: createLabel(typed), create: typed }]
     : options;

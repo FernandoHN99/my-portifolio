@@ -1,16 +1,25 @@
 import { getPrismaClient } from "@/lib/prisma";
 import { toMonthParam } from "@/modules/portfolio/presentation/reference-month";
-import { currentReferenceMonth } from "@/modules/quotes/domain/calendar";
+import { currentReferenceMonth, toDateKey } from "@/modules/quotes/domain/calendar";
 
 export type EditingCatalog = {
-  accounts: { id: string; label: string }[];
-  assets: { id: string; name: string; ticker: string | null; quoteSymbol: string | null; baseCurrency: string }[];
+  institutions: { id: string; name: string }[];
+  accounts: { id: string; label: string; institutionId: string; name: string }[];
+  assets: {
+    id: string;
+    name: string;
+    ticker: string | null;
+    quoteSymbol: string | null;
+    baseCurrency: string;
+    maturityDate: string | null;
+  }[];
   strategies: string[];
   allocation: { classes: string[]; subclasses: string[]; durations: string[] };
   clone: { allowed: boolean; sourceMonth: string | null; targetMonth: string | null };
 };
 
 const EMPTY_CATALOG: EditingCatalog = {
+  institutions: [],
   accounts: [],
   assets: [],
   strategies: [],
@@ -26,13 +35,14 @@ export async function getEditingCatalog(): Promise<EditingCatalog> {
   }
 
   try {
-    const [accounts, assets, strategies, allocations, targets, latest] = await Promise.all([
+    const [institutions, accounts, assets, strategies, allocations, targets, latest] = await Promise.all([
+      prisma.institution.findMany({ select: { id: true, name: true } }),
       prisma.account.findMany({
-        select: { id: true, name: true, institution: { select: { name: true } } },
+        select: { id: true, name: true, institutionId: true, institution: { select: { name: true } } },
       }),
       prisma.asset.findMany({
         orderBy: { name: "asc" },
-        select: { id: true, name: true, ticker: true, quoteSymbol: true, baseCurrency: true },
+        select: { id: true, name: true, ticker: true, quoteSymbol: true, baseCurrency: true, maturityDate: true },
       }),
       prisma.position.findMany({
         where: { strategy: { not: null } },
@@ -60,13 +70,19 @@ export async function getEditingCatalog(): Promise<EditingCatalog> {
       : null;
 
     return {
+      institutions: institutions.sort((left, right) => left.name.localeCompare(right.name, "pt-BR")),
       accounts: accounts
         .map((account) => ({
           id: account.id,
           label: `${account.institution.name} · ${account.name}`,
+          institutionId: account.institutionId,
+          name: account.name,
         }))
         .sort((left, right) => left.label.localeCompare(right.label, "pt-BR")),
-      assets,
+      assets: assets.map((asset) => ({
+        ...asset,
+        maturityDate: asset.maturityDate ? toDateKey(asset.maturityDate) : null,
+      })),
       strategies: sorted([
         ...strategies.flatMap((entry) => (entry.strategy ? [entry.strategy] : [])),
         ...targets.filter((entry) => entry.scope === "STRATEGY").map((entry) => entry.primaryLabel),

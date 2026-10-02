@@ -86,6 +86,8 @@ A rota `/carteira/editar` deixa de ser necessária quando esta fatia existir.
 
 - incluir posição aceita apenas ativos e contas já existentes; criar um ativo
   novo exige definir símbolo e tipo de cotação, e fica para uma fatia própria;
+  resolvido pela [spec 026](026-new-position-entities.md), que também cria
+  instituições e contas;
 - na largura de celular a coluna de quantidade fica oculta e a edição direta
   não é oferecida; resolvido pela [spec 019](019-pencil-edit-mode.md), que
   também trocou o duplo clique pelo modo de edição com lápis;
