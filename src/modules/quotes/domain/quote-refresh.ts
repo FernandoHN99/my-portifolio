@@ -39,11 +39,6 @@ export type QuoteRefreshOutcome =
   | { state: "done"; run: QuoteRefreshRunView }
   | { state: "unavailable"; message: string };
 
-export type OpenCheckResponse = {
-  refresh: QuoteRefreshOutcome;
-  summary: QuoteRefreshSummary | null;
-};
-
 export type ManualRefreshResponse = {
   refresh: QuoteRefreshOutcome;
   summary: QuoteRefreshSummary | null;

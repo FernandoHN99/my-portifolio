@@ -5,12 +5,13 @@ import {
   CheckCircleIcon,
   InfoIcon,
   WarningCircleIcon,
+  WarningIcon,
   XIcon,
 } from "@phosphor-icons/react/dist/ssr";
 
 import { cn } from "@/lib/utils";
 
-export type AppToastTone = "success" | "error" | "info";
+export type AppToastTone = "success" | "error" | "warning" | "info";
 
 export type AppToastItem = {
   label: string;
@@ -30,6 +31,7 @@ export const appToasts = Toast.createToastManager<AppToastData>();
 const TIMEOUTS: Record<AppToastTone, number> = {
   success: 6000,
   info: 9000,
+  warning: 0,
   error: 0,
 };
 
@@ -97,7 +99,11 @@ function ToastList() {
           "data-ending-style:data-[swipe-direction=right]:[transform:translateX(calc(var(--toast-swipe-movement-x)+150%))_translateY(var(--offset-y))]",
           "after:absolute after:bottom-full after:left-0 after:h-[calc(var(--gap)+1px)] after:w-full after:content-['']",
           "[transition:transform_0.35s_cubic-bezier(0.23,1,0.32,1),opacity_0.25s,height_0.15s] motion-reduce:[transition:opacity_0.2s]",
-          tone === "error" ? "border-destructive/40" : "border-border",
+          tone === "error"
+            ? "border-destructive/40"
+            : tone === "warning"
+              ? "border-warning-border"
+              : "border-border",
         )}
       >
         <Toast.Content className="flex items-start gap-3 px-4 py-3 transition-opacity duration-200 data-behind:opacity-0 data-expanded:opacity-100">
@@ -138,6 +144,10 @@ function ToastList() {
 function ToneIcon({ tone }: { tone: AppToastTone }) {
   if (tone === "error") {
     return <WarningCircleIcon aria-hidden="true" className="mt-px shrink-0 text-destructive" size={18} weight="fill" />;
+  }
+
+  if (tone === "warning") {
+    return <WarningIcon aria-hidden="true" className="mt-px shrink-0 text-warning-foreground" size={18} weight="fill" />;
   }
 
   if (tone === "success") {

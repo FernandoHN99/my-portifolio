@@ -24,6 +24,14 @@ cotações e deixe o novo mês disponível para edição.
 6. Mostra sucesso ou falha de cada item.
 7. O usuário altera quantidades, saldos e classificações manualmente.
 
+Atualização em 2026-10-02: o usuário separou a atualização de cotações da
+criação do mês. As cotações passaram a ser atualizadas ao abrir o aplicativo e
+pela seta do topo, aplicando cada símbolo de forma independente
+([spec 020](020-daily-quotes.md)), e as competências faltantes passaram a ser
+criadas automaticamente, inclusive as intermediárias
+([spec 021](021-automatic-month-rollover.md)). O fluxo desta spec continua
+disponível em `/atualizacao`, com as regras abaixo.
+
 ## Regras confirmadas
 
 - não existe agendamento em segundo plano;

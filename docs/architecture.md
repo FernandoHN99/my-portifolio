@@ -34,8 +34,12 @@ são processos distintos. As cotações ficam em histórico diário por
 símbolo e são atualizadas ao abrir o aplicativo, quando a última tentativa
 tem mais de uma hora, ou pela seta do topo; a competência do mês corrente
 é reprecificada a cada atualização
-([spec 020](../.ai/specs/020-daily-quotes.md)). Não haverá agendamento
-nem tentativa de atualizar com o aplicativo desligado.
+([spec 020](../.ai/specs/020-daily-quotes.md)). Também ao abrir, antes
+das cotações, o aplicativo cria a competência do mês corrente e todas as
+que faltarem, copiando a anterior, com a cotação do último dia de cada mês
+disponível no histórico
+([spec 021](../.ai/specs/021-automatic-month-rollover.md)). Não haverá
+agendamento nem tentativa de atualizar com o aplicativo desligado.
 
 ### Importação do Excel
 

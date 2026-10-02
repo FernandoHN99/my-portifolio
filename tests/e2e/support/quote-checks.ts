@@ -1,12 +1,13 @@
 import type { Page, Route } from "@playwright/test";
 
 // Os testes de interface rodam sobre os dados reais. A checagem de abertura e a
-// atualização manual gravam no banco e consultam provedores, então os cenários
-// substituem essas rotas por respostas fixas.
+// atualização manual gravam no banco, criam competências e consultam
+// provedores, então os cenários substituem essas rotas por respostas fixas.
 
 type Json = Record<string, unknown>;
 
 export const IDLE_OPEN_CHECK: Json = {
+  rollover: { state: "up-to-date", latestMonth: null },
   refresh: { state: "fresh", lastStartedAt: "2026-10-02T12:00:00.000Z" },
   summary: null,
 };

@@ -1,12 +1,12 @@
 import { showAppToast } from "@/components/product/app-toaster";
 import { hasPendingChanges } from "@/components/product/unsaved-changes";
-import { formatMonthCompact } from "@/modules/portfolio/presentation/portfolio-format";
+import type { MonthRolloverOutcome, OpenCheckResponse } from "@/modules/portfolio/domain/month-rollover";
+import { formatMonth, formatMonthCompact } from "@/modules/portfolio/presentation/portfolio-format";
 import { parseMonthParam } from "@/modules/portfolio/presentation/reference-month";
 import {
   providerLabel,
   QUOTE_REFRESH_INTERVAL_MS,
   type ManualRefreshResponse,
-  type OpenCheckResponse,
   type QuoteRefreshOutcome,
   type QuoteRefreshSummary,
   type QuoteRefreshTriggerKind,
@@ -24,6 +24,7 @@ export type QuoteRefreshClientState = {
 
 const SERVER_STATE: QuoteRefreshClientState = { running: false, spinning: false, summary: null };
 const SPIN_DELAY_MS = 300;
+const REQUEST_TIMEOUT_MS = 5 * 60 * 1000;
 
 let state: QuoteRefreshClientState = SERVER_STATE;
 let lastOpenCheckAt: number | null = null;
@@ -92,21 +93,28 @@ async function execute(url: string, trigger: QuoteRefreshTriggerKind, onDataChan
       headers: { "content-type": "application/json" },
       body: "{}",
       cache: "no-store",
+      // Os provedores têm 12 segundos cada; o limite só evita a seta presa se o
+      // servidor parar de responder.
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
 
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}`);
     }
 
-    const payload = (await response.json()) as OpenCheckResponse | ManualRefreshResponse;
+    const payload = (await response.json()) as Partial<OpenCheckResponse> & ManualRefreshResponse;
 
     if (payload.summary) {
       setState({ summary: payload.summary });
     }
 
+    if (payload.rollover) {
+      announceRollover(payload.rollover);
+    }
+
     announceRefresh(payload.refresh, trigger);
 
-    if (refreshChangedData(payload.refresh)) {
+    if (payload.rollover?.state === "created" || refreshChangedData(payload.refresh)) {
       onDataChanged();
     }
   } catch {
@@ -123,6 +131,54 @@ async function execute(url: string, trigger: QuoteRefreshTriggerKind, onDataChan
     }
     setState({ running: false, spinning: false });
   }
+}
+
+const listFormat = new Intl.ListFormat("pt-BR", { style: "long", type: "conjunction" });
+
+function monthCompact(month: string) {
+  const date = parseMonthParam(month);
+  return date ? formatMonthCompact(date) : month;
+}
+
+function announceRollover(outcome: MonthRolloverOutcome) {
+  if (outcome.state === "unavailable") {
+    showAppToast({ tone: "error", title: "Não foi possível criar a competência do mês", description: outcome.message });
+    return;
+  }
+
+  if (outcome.state !== "created" || outcome.months.length === 0) {
+    return;
+  }
+
+  const [first] = outcome.months;
+  const firstDate = parseMonthParam(first.month);
+  // Só os meses passados precisam de atenção: a competência corrente recebe as
+  // cotações do dia na atualização seguinte.
+  const carried = outcome.months.filter((month) => !month.isCurrent && month.carriedQuotes.length > 0);
+
+  showAppToast({
+    id: `rollover-${outcome.months.map((month) => month.month).join("-")}`,
+    tone: carried.length > 0 ? "warning" : "info",
+    title:
+      outcome.months.length === 1 && firstDate
+        ? `Competência de ${formatMonth(firstDate).toLocaleLowerCase("pt-BR")} criada`
+        : `${outcome.months.length} competências criadas: ${listFormat.format(outcome.months.map((month) => monthCompact(month.month)))}`,
+    description:
+      outcome.months.length === 1
+        ? `Posições e rateios copiados de ${monthCompact(first.sourceMonth)}.`
+        : `Cada mês copiou as posições e os rateios do anterior, a partir de ${monthCompact(first.sourceMonth)}.`,
+    data:
+      carried.length > 0
+        ? {
+            items: carried.map((month) => ({
+              label: monthCompact(month.month),
+              detail: "sem cotação diária no mês",
+              reason: `Repete a cotação de ${monthCompact(month.sourceMonth)} em ${month.carriedQuotes.join(", ")}.`,
+            })),
+            footnote: "Se precisar, ajuste essas cotações nas cotações do mês, na aba Posições.",
+          }
+        : undefined,
+  });
 }
 
 function refreshChangedData(outcome: QuoteRefreshOutcome) {

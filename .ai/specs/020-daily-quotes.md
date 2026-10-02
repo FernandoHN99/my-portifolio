@@ -213,6 +213,11 @@ simuladas e sem gravar: o rótulo do topo no computador e no celular, o aviso
 com dois ativos e o fechamento, a atualização manual com a seta girando e o
 aviso de sucesso, e o aviso de execução em andamento. As capturas do topo, do
 aviso e da seta girando foram conferidas no computador e no Pixel 7.
+`pnpm lint`, `pnpm typecheck` e `pnpm build` passaram, e a suíte completa do
+Playwright passou com 28 cenários nos dois perfis.
+
+Ao atualizar o ambiente local: aplicar as migrações, rodar `pnpm db:generate`
+e reiniciar o `pnpm dev`, conforme o achado registrado na spec 014.
 
 ## Referências
 
