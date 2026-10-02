@@ -212,6 +212,52 @@ O usuário observou que o histórico de uma posição já existe nas competênci
 mensais. O histórico do ativo deve vir das cotações guardadas diariamente por
 ativo, o que liga a spec 016 à decisão de histórico diário acima.
 
+## Ajustes pedidos em 2026-10-02, antes da previdência
+
+Pedidos do usuário depois da spec 019, com captura dos gráficos de renda fixa
+por duração da planilha. O usuário pediu para executar tudo direto,
+commitando cada fatia validada, e para perguntar em caso de dúvida.
+
+- linha do tempo dos meses menos esticada: os meses entram e saem de dentro
+  do ano, com animação ([spec 023](../specs/023-compact-month-timeline.md));
+- renda fixa por duração como na planilha: um gráfico do atual em cima e um
+  do ideal embaixo, barras agrupadas por subclasse com séries Curto, Médio e
+  Longo; o card "Fora da meta" sai e entra a variação em todo o período;
+  todos os cards ganham o hover dos cards de patrimônio e variação
+  ([spec 024](../specs/024-overview-adjustments.md));
+- todas as listas de seleção estilizadas, abrindo as opções ao clicar no
+  campo ([spec 025](../specs/025-styled-pickers.md));
+- "Adicionar posição" mais em evidência, permitindo digitar conta e
+  instituição novas e cadastrar ativo novo; a estratégia continua como está;
+  ao escolher a classe de um ativo com ticker, o provedor correspondente
+  confere se o ticker existe; renda fixa ganha data de vencimento opcional
+  ([spec 026](../specs/026-new-position-entities.md));
+- na configuração, o deslizante anda de 1 em 1 ponto, mas o campo aceita
+  valor quebrado; a prévia não volta sozinha para a aba Classe; "Restaurar
+  padrão do Excel" continua ([spec 027](../specs/027-target-settings-adjustments.md));
+- a página "Revisão de dados" e o bloco "Dados da carteira" da configuração
+  saem; a atualização e as cotações do mês ficam numa página única aberta
+  por um botão em Posições; a última atualização aparece no topo, com o botão
+  de atualizar ao lado, e cada falha de cotação vira um aviso com o ativo
+  ([spec 020](../specs/020-daily-quotes.md) e
+  [spec 022](../specs/022-quotes-page.md));
+- clicar numa posição abre a página da posição, com a evolução dela, o
+  gráfico do ativo e indicadores de valorização
+  ([spec 016](../specs/016-position-history.md)).
+
+Respostas às perguntas feitas no mesmo dia:
+
+- as specs 020 (cotações diárias e atualização ao abrir) e 021 (virada de
+  mês automática) entram neste pacote;
+- a data de vencimento da renda fixa é informativa: aparece na tabela e na
+  página da posição, com aviso de vencido ou vencendo; a duração Curto,
+  Médio e Longo continua manual no rateio;
+- o vencimento vale só para ativos novos; os nomes atuais, como
+  "LCI BRB - Set/26", ficam como estão;
+- a página de cotações é única: um botão em Posições abre as cotações do mês,
+  editáveis, a última atualização, o botão de atualizar e o histórico de
+  execuções, e o painel recolhível sai da tabela.
+
 ## Decisões abertas após as fatias acordadas
 
 Registradas em 2026-10-02, aguardando o usuário:
