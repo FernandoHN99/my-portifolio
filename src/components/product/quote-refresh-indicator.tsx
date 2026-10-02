@@ -59,20 +59,23 @@ export function QuoteRefreshIndicator({ summary: serverSummary }: { summary: Quo
     <div
       data-testid="quote-refresh"
       title={title || undefined}
-      className="flex h-9 shrink-0 items-center gap-1 rounded-xl border border-border bg-card/70 p-1 sm:pl-3"
+      className="flex h-9 min-w-9 shrink-0 items-center rounded-xl border border-border bg-card/70 md:gap-1 md:p-1 md:pl-3"
     >
       <span
         className={cn(
-          "hidden text-[11px] whitespace-nowrap text-muted-foreground tabular-nums sm:inline",
+          "hidden text-[11px] whitespace-nowrap text-muted-foreground tabular-nums md:inline",
           longLabel === null && "invisible",
         )}
       >
         {longLabel ?? "Atualizado há 10 min"}
       </span>
+      {/* Sem o atributo disabled: o botão continua focado enquanto a
+          atualização roda, e runManualRefresh ignora o clique repetido. */}
       <button
         type="button"
         onClick={() => runManualRefresh(onDataChanged)}
-        disabled={client.running}
+        aria-disabled={client.running || undefined}
+        aria-busy={client.running || undefined}
         aria-label={[
           "Atualizar cotações",
           longLabel && !client.spinning ? longLabel.toLocaleLowerCase("pt-BR") : null,
@@ -80,22 +83,26 @@ export function QuoteRefreshIndicator({ summary: serverSummary }: { summary: Quo
         ]
           .filter(Boolean)
           .join(". ")}
-        className="group relative inline-flex h-7 items-center gap-1.5 rounded-lg px-2 text-muted-foreground outline-none transition-colors duration-150 hover:bg-white/[0.045] hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50 disabled:cursor-wait disabled:hover:bg-transparent"
+        className="group relative flex h-[34px] min-w-[34px] flex-col items-center justify-center gap-[3px] rounded-[11px] px-1 text-muted-foreground outline-none transition-colors duration-150 hover:bg-white/[0.045] hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50 aria-disabled:cursor-wait aria-disabled:hover:bg-transparent md:h-7 md:rounded-lg md:px-2"
       >
         <ArrowClockwiseIcon
           aria-hidden="true"
           size={14}
           weight="bold"
           className={cn(
+            "shrink-0",
             client.spinning
               ? "animate-spin"
               : "transition-transform duration-200 ease-out group-hover:rotate-45 motion-reduce:transition-none",
           )}
         />
+        {/* No celular e em telas médias o tempo curto fica embaixo da seta,
+            num bloco do tamanho do botão de configuração, para não tirar
+            espaço das abas. */}
         <span
           aria-hidden="true"
           className={cn(
-            "text-[11px] whitespace-nowrap tabular-nums sm:hidden",
+            "text-[9px] leading-none font-medium whitespace-nowrap tabular-nums md:hidden",
             shortLabel === null && "invisible",
           )}
         >

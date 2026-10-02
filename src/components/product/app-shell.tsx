@@ -22,10 +22,13 @@ export async function AppShell({ active, months, selectedMonth, children }: AppS
   return (
     <main className="app-canvas min-h-[100dvh] bg-background text-foreground">
       <header className="sticky top-0 z-30 border-b border-border/70 bg-background/88 backdrop-blur-xl">
-        <div className="flex h-16 items-center justify-between gap-3 px-4 sm:px-6">
+        {/* Abaixo de 360 px a marca sai para as abas, a hora das cotações e a
+            configuração caberem sem cortar "Posições"; a aba Visão Geral
+            leva ao mesmo endereço. */}
+        <div className="flex h-16 items-center justify-between gap-2 px-4 sm:gap-3 sm:px-6">
           <Link
             href="/"
-            className="inline-flex shrink-0 items-center gap-3 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+            className="inline-flex shrink-0 items-center gap-3 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring/50 max-[359px]:hidden"
           >
             <span className="brand-mark grid size-9 place-items-center rounded-xl text-primary-foreground">
               <ChartDonutIcon aria-hidden="true" size={18} weight="bold" />

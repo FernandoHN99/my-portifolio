@@ -1,6 +1,7 @@
 # 020 — Cotações diárias e atualização ao abrir
 
-Estado: concluída em 2026-10-02
+Estado: concluída em 2026-10-02; as propostas em "Questões em aberto"
+aguardam o usuário
 Definida em: 2026-10-02
 
 ## Problema
@@ -33,21 +34,29 @@ A virada de mês é o outro processo e fica na
   começou há uma hora ou mais e responde sem atualizar caso contrário;
 - a checagem também roda quando a aba volta a ficar visível e a última
   checagem daquela aba tem mais de uma hora;
-- o topo mostra "Atualizado há 5 min", "Atualizado às 14:05", "Atualizado
-  ontem às 14:05" ou "Atualizado em 30/09 às 14:05", atualizado a cada 15
-  segundos, com a seta de atualizar ao lado; no celular aparecem só a seta e
-  o tempo curto, como "5 min" ou "14:05";
+- a partir de 768 px de largura o topo mostra "Atualizado há 5 min",
+  "Atualizado às 14:05", "Atualizado ontem às 14:05" ou "Atualizado em 30/09
+  às 14:05", atualizado a cada 15 segundos, com a seta de atualizar ao lado;
+- abaixo de 768 px, no celular e em telas médias, a seta e o tempo curto,
+  como "5 min", "14:05", "ontem" ou "30/09", ficam empilhados num bloco do
+  tamanho do botão de configuração, para não cortar as abas principais;
+  abaixo de 360 px a marca "Meu portfólio" sai do topo pelo mesmo motivo;
 - a seta gira enquanto a atualização roda e o texto vira "Atualizando
-  cotações…"; a seta manual atualiza sempre, exceto se já houver uma
+  cotações…"; o botão continua focado e marcado como ocupado, sem perder o
+  foco do teclado; a seta manual atualiza sempre, exceto se já houver uma
   atualização em andamento, caso em que um aviso informa isso;
 - o horário exibido é o fim da última execução com pelo menos uma cotação
-  atualizada; se a última tentativa teve falhas, um ponto vermelho aparece na
+  gravada; se a última tentativa teve falhas, um ponto vermelho aparece na
   seta e a dica do botão lista os símbolos com falha;
 - cada execução com falha gera um aviso que nomeia cada ativo: o símbolo, os
   ativos da carteira que o usam, o provedor e o motivo; os demais valores
   continuam atualizados;
-- a atualização manual bem-sucedida mostra "Cotações atualizadas"; a
-  automática bem-sucedida não mostra aviso, só o horário novo;
+- se a checagem, automática ou manual, não obtiver resposta do aplicativo ou
+  o servidor não conseguir atualizar, um aviso de erro aparece; uma nova
+  falha do mesmo tipo substitui o aviso anterior em vez de empilhar;
+- a atualização manual bem-sucedida mostra "Cotações atualizadas"; sem
+  posições com ticker, mostra "Nenhuma cotação para atualizar"; a automática
+  bem-sucedida não mostra aviso, só o horário novo;
 - quando algo mudou, a tela recarrega os dados sem bloquear a navegação;
 - nenhuma falha de provedor, de rede ou do próprio servidor quebra a página.
 
@@ -63,14 +72,23 @@ A virada de mês é o outro processo e fica na
 4. Cada sucesso grava a cotação do dia em `daily_quotes`. Uma nova atualização
    no mesmo dia sobrescreve o valor daquele dia; dias anteriores nunca mudam.
 5. Na competência do mês corrente, cada sucesso atualiza a cotação do mês em
-   `market_quotes`, com `quote_date` igual ao dia, e reprecifica as posições
-   daquele símbolo: preço unitário igual à cotação e total igual à quantidade
-   vezes a cotação, arredondado em centavos. O dólar também atualiza o câmbio
-   gravado nas posições da competência, como a edição de cotações da
+   `market_quotes`, com `quote_date` igual ao dia e sem a marca de repetida
+   (`carried_from` nulo), e reprecifica as posições daquele símbolo: preço
+   unitário igual à cotação e total igual à quantidade vezes a cotação,
+   arredondado em centavos. O dólar também atualiza o câmbio gravado nas
+   posições da competência, como a edição de cotações da
    [spec 017](017-positions-editing.md).
 6. Quantidades nunca mudam, e competências passadas nunca são tocadas.
 7. Resultados, histórico diário, cotações do mês, posições e o fechamento da
-   execução são gravados em uma única transação.
+   execução são gravados em uma única transação. Se essa gravação falhar,
+   nada muda, a execução termina como falha com a mensagem "As cotações foram
+   consultadas, mas não puderam ser gravadas." e cada símbolo consultado é
+   registrado como falha, com o motivo do provedor ou "A cotação foi obtida,
+   mas não pôde ser gravada." (`NOT_SAVED`), para o aviso nomear cada ativo.
+   O erro técnico vai só para o log do servidor.
+8. Uma execução sem símbolos a consultar termina concluída e sem resultados;
+   ela conta como tentativa para a regra de uma hora, mas não muda o horário
+   do topo.
 
 ## Modelo de dados
 
@@ -85,7 +103,10 @@ Migração aditiva `daily_quotes`:
 - `quote_refresh_results`: um resultado por símbolo e execução, com provedor,
   estado, valor ou código e mensagem de erro;
 - `market_quotes.quote_date`: dia do preço que a cotação do mês carrega,
-  quando conhecido.
+  quando conhecido;
+- `market_quotes.carried_from`: competência cuja cotação foi repetida, quando
+  o mês não tem valor próprio; as regras estão na
+  [spec 021](021-automatic-month-rollover.md).
 
 ## Decisões tomadas
 
@@ -96,23 +117,13 @@ Migração aditiva `daily_quotes`:
   materializada da competência, lida por todas as telas;
 - o histórico diário não foi preenchido a partir das cotações mensais
   importadas: elas são fatos do mês, sem dia conhecido, e criar pontos diários
-  inventaria dados. Por isso `quote_date` fica nulo nas cotações importadas,
-  clonadas pela spec 017 ou editadas à mão;
-- cada símbolo é independente: os sucessos são aplicados e os que falharam
-  mantêm o valor anterior. A spec 003 aplicava tudo ou nada; com atualização
-  automática, um provedor que falha sempre, como o Alpha Vantage sem chave,
-  congelaria todas as cotações. A regra de tudo ou nada continua no fluxo
-  "Atualizar carteira" de `/atualizacao`, que não foi alterado e não grava
-  histórico diário, até a [spec 022](022-quotes-page.md) unir as páginas;
-- a regra de uma hora conta qualquer tentativa, com sucesso ou falha, de
-  qualquer gatilho. Assim um provedor fora do ar não é consultado a cada
-  abertura; a seta manual ignora essa regra;
-- consequência conhecida: uma cotação da competência corrente editada à mão no
-  painel de cotações é sobrescrita pela próxima atualização, automática ou
-  manual. Cotações de competências passadas editadas à mão são preservadas;
-- não há agendador. A interpretação de "ao abrir" inclui voltar a uma aba que
-  ficou aberta por mais de uma hora, porque para o usuário isso equivale a
-  abrir o aplicativo de novo;
+  inventaria dados. Por isso `quote_date` fica nulo nas cotações importadas do
+  Excel; a edição à mão também o anula, porque o valor digitado não é o de um
+  dia do histórico. Clones e cotações repetidas conservam o dia de origem;
+- o fluxo "Atualizar carteira" de `/atualizacao` continua aplicando tudo ou
+  nada e sem gravar histórico diário, até a [spec 022](022-quotes-page.md)
+  unir as páginas; ele só passou a gravar o dia da consulta em `quote_date` e
+  a limpar `carried_from` nas cotações que atualiza;
 - o dia das cotações é o dia do calendário no relógio local do servidor, o
   mesmo critério de `currentReferenceMonth`; o horário exibido usa o fuso do
   navegador, por isso o texto do topo aparece depois da hidratação;
@@ -133,17 +144,16 @@ Migração aditiva `daily_quotes`:
 - depois de uma execução com algum sucesso, a tela recarrega os dados; se
   houver edições pendentes na aba Posições, o recarregamento é pulado para não
   descartá-las, e os dados novos aparecem ao salvar ou navegar;
-- avisos: uma execução gera um aviso que lista todos os ativos com falha, em
-  vez de um aviso por ativo. É a interpretação de "exibir toast indicando o
-  ativo": cada ativo aparece nomeado, e uma queda de rede não empilha dez
-  avisos. Avisos de erro ficam até serem fechados; os de sucesso somem em
-  seis segundos;
 - os avisos usam o Toast do Base UI com um gerenciador global no layout raiz,
   para sobreviverem à troca de abas, e o visual do `EditToast`. Ficam no topo,
   à direita no computador e na largura toda no celular, para não cobrirem a
   barra de edição nem o aviso de alterações salvas, que ficam embaixo. A
   prioridade é sempre a educada: a prioridade alta do Base UI esconde o aviso
-  visível dos leitores de tela;
+  visível dos leitores de tela. Avisos de erro ficam até serem fechados; os
+  de sucesso somem em seis segundos;
+- a seta usa `aria-disabled` e `aria-busy` em vez do atributo `disabled`
+  enquanto roda, porque `disabled` tira o foco do botão e o leitor de tela
+  perde o lugar;
 - as mensagens dos provedores ficaram legíveis: falha de conexão vira
   `NETWORK_ERROR`, "Não foi possível conectar ao provedor.", e resposta fora
   do formato vira "O provedor respondeu em um formato inesperado.", em vez do
@@ -151,8 +161,36 @@ Migração aditiva `daily_quotes`:
 - todas as execuções ficam guardadas, sem limpeza automática;
 - nos testes de interface, as duas rotas são substituídas por respostas fixas
   (`tests/e2e/support/quote-checks.ts`), porque a checagem real grava no
-  banco e consulta provedores. `home.spec.ts` ganhou só essa substituição em
-  `beforeEach`; não foi preciso variável de ambiente.
+  banco e consulta provedores. As respostas usam os tipos `OpenCheckResponse`
+  e `ManualRefreshResponse`, para o typecheck acusar mudanças no contrato.
+  `home.spec.ts` ganhou só essa substituição em `beforeEach`; não foi preciso
+  variável de ambiente.
+
+## Questões em aberto
+
+Escolhas feitas pelo agente durante a implementação, em vigor no código, que
+aguardam confirmação do usuário:
+
+- cada símbolo é independente: os sucessos são aplicados e os que falharam
+  mantêm o valor anterior. A spec 003 tinha a regra confirmada de aplicar
+  tudo ou nada; com atualização automática, um provedor que falha sempre, como
+  o Alpha Vantage sem chave, congelaria todas as cotações. O usuário confirma
+  essa troca para a atualização do topo?
+- voltar a uma aba que ficou aberta por mais de uma hora conta como abrir o
+  aplicativo e dispara a checagem. É essa a leitura de "quando abrir"?
+- um aviso por execução lista todos os ativos com falha, em vez de um aviso
+  por ativo; cada ativo aparece nomeado com o motivo, e uma queda de rede não
+  empilha dez avisos. Atende a "exibir toast indicando o ativo"?
+- a regra de uma hora conta qualquer tentativa, com sucesso ou falha, de
+  qualquer gatilho, para que um provedor fora do ar não seja consultado a cada
+  abertura; a seta manual ignora essa regra;
+- consequência conhecida: uma cotação da competência corrente editada à mão
+  no painel de cotações é sobrescrita pela próxima atualização, automática ou
+  manual. Cotações de competências passadas editadas à mão são preservadas. O
+  usuário aceita esse comportamento ou prefere proteger a cotação editada?
+- `/atualizacao` continua com tudo ou nada e sem histórico diário até a spec
+  022; a unificação deve decidir se ele passa a seguir esta spec;
+- abaixo de 360 px de largura a marca do topo some para as abas caberem.
 
 ## Fora do escopo
 
@@ -168,14 +206,18 @@ Migração aditiva `daily_quotes`:
 
 - abrir o aplicativo com a última tentativa há mais de uma hora atualiza as
   cotações; dentro da hora, não consulta provedores;
-- a seta do topo atualiza manualmente e gira enquanto roda;
+- a seta do topo atualiza manualmente, gira enquanto roda e mantém o foco do
+  teclado;
 - duas execuções simultâneas não rodam juntas;
 - o histórico diário guarda um valor por símbolo e dia, sobrescrevendo só o
   próprio dia;
 - a competência do mês corrente é reprecificada, e as passadas não mudam;
 - falha parcial aplica os sucessos e avisa cada ativo com falha, pelo nome;
-- falha total não altera nada e mantém o horário da última atualização boa;
-- o topo mostra o horário relativo em pt-BR no computador e no celular;
+- falha total, inclusive na gravação, não altera nada, avisa cada ativo
+  consultado e mantém o horário da última atualização boa;
+- falha de rede ou do servidor na checagem automática gera aviso;
+- o topo mostra o horário relativo em pt-BR no computador e no celular, sem
+  cortar as abas principais em telas de 320 px ou mais;
 - lint, tipos, build e testes de interface passam.
 
 ## Verificação
@@ -204,17 +246,36 @@ roteiro descartável com buscador injetado passou nos oito casos:
 Pela rota real, sem rede para os provedores neste ambiente, a checagem de
 abertura terminou em menos de um segundo com as 10 cotações em falha (HTTP
 403 dos provedores e chave do Alpha Vantage ausente), sem alterar valores.
-Pedidos sem JSON receberam 415 e com origem de outro site, 403. Pela
-interface, o aviso listou os 10 símbolos com os ativos e o topo manteve
-"Atualizado há 10 min" com o ponto vermelho.
+Pedidos sem JSON receberam 415 e com origem de outro site, 403.
 
-O novo arquivo `tests/e2e/quote-refresh.spec.ts` cobre, com as rotas
-simuladas e sem gravar: o rótulo do topo no computador e no celular, o aviso
-com dois ativos e o fechamento, a atualização manual com a seta girando e o
-aviso de sucesso, e o aviso de execução em andamento. As capturas do topo, do
-aviso e da seta girando foram conferidas no computador e no Pixel 7.
-`pnpm lint`, `pnpm typecheck` e `pnpm build` passaram, e a suíte completa do
-Playwright passou com 28 cenários nos dois perfis.
+Correções da revisão, em 2026-10-02, com o banco recriado pela migração
+corrigida, `prisma migrate diff` sem diferenças e um roteiro descartável com
+buscador injetado:
+
+- valor fora do limite do `DECIMAL(24,8)` derruba a transação: execução
+  `FAILED`, nenhuma cotação muda, as 10 falhas são gravadas com `NOT_SAVED` ou
+  o motivo do provedor e com os nomes dos ativos, e o horário do topo continua
+  o da última execução boa;
+- competência sem posições com ticker: execução concluída sem resultados e o
+  horário do topo inalterado;
+- atualização bem-sucedida limpa `carried_from` e grava `quote_date`; o
+  símbolo que falhou continua marcado como repetido;
+- três chamadas simultâneas: uma roda e duas recebem "em andamento".
+
+Abrindo Posições sem simulação, a virada criou outubro e o aviso listou as 10
+cotações com falha, cada uma com os ativos, o provedor e o motivo.
+
+O arquivo `tests/e2e/quote-refresh.spec.ts` cobre, com as rotas simuladas e
+sem gravar: o rótulo do topo no computador e no celular, o aviso com dois
+ativos e o fechamento, a atualização manual pelo teclado com a seta girando,
+o foco mantido e o aviso de sucesso, o aviso de execução em andamento, a
+falha na gravação nomeando cada ativo, o aviso quando a checagem automática
+recebe HTTP 500 e as abas inteiras em 320, 360, 375, 640, 768 e 1024 px com
+os rótulos mais longos. Esse último cenário falha com o indicador anterior,
+que cortava "Posições" de 320 a 375 px e em 640 px. As capturas do topo, dos
+avisos e da seta girando foram conferidas no computador, no Pixel 7 e em 320,
+360, 640 e 768 px. `pnpm lint`, `pnpm typecheck` e `pnpm build` passaram, e a
+suíte completa do Playwright passou com 40 cenários nos dois perfis.
 
 Ao atualizar o ambiente local: aplicar as migrações, rodar `pnpm db:generate`
 e reiniciar o `pnpm dev`, conforme o achado registrado na spec 014.

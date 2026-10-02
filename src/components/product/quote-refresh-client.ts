@@ -118,13 +118,17 @@ async function execute(url: string, trigger: QuoteRefreshTriggerKind, onDataChan
       onDataChanged();
     }
   } catch {
-    if (trigger === "MANUAL") {
-      showAppToast({
-        tone: "error",
-        title: "Não foi possível atualizar as cotações",
-        description: "O aplicativo não respondeu. Tente de novo em instantes.",
-      });
-    }
+    // Também na checagem automática: um erro nunca passa em silêncio. O id fixo
+    // faz uma nova falha substituir o aviso anterior em vez de empilhar.
+    showAppToast({
+      id: "quotes-unreachable",
+      tone: "error",
+      title: trigger === "MANUAL" ? "Não foi possível atualizar as cotações" : "Não foi possível verificar as cotações",
+      description:
+        trigger === "MANUAL"
+          ? "O aplicativo não respondeu. Tente de novo em instantes."
+          : "O aplicativo não respondeu ao abrir. A seta do topo tenta de novo.",
+    });
   } finally {
     if (spinTimer !== null) {
       window.clearTimeout(spinTimer);
@@ -194,9 +198,12 @@ function announceRefresh(outcome: QuoteRefreshOutcome, trigger: QuoteRefreshTrig
   }
 
   if (outcome.state === "unavailable") {
-    if (trigger === "MANUAL") {
-      showAppToast({ tone: "error", title: "Não foi possível atualizar as cotações", description: outcome.message });
-    }
+    showAppToast({
+      id: "quotes-unavailable",
+      tone: "error",
+      title: "Não foi possível atualizar as cotações",
+      description: outcome.message,
+    });
     return;
   }
 
@@ -236,6 +243,16 @@ function announceRefresh(outcome: QuoteRefreshOutcome, trigger: QuoteRefreshTrig
       tone: "error",
       title: "Não foi possível atualizar as cotações",
       description: run.errorMessage ?? "A atualização falhou antes de consultar os provedores.",
+    });
+    return;
+  }
+
+  if (trigger === "MANUAL" && run.succeeded === 0) {
+    showAppToast({
+      id: `quotes-${run.id}`,
+      tone: "info",
+      title: "Nenhuma cotação para atualizar",
+      description: "A competência não tem posições com ticker.",
     });
     return;
   }

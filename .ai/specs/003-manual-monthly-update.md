@@ -26,11 +26,13 @@ cotações e deixe o novo mês disponível para edição.
 
 Atualização em 2026-10-02: o usuário separou a atualização de cotações da
 criação do mês. As cotações passaram a ser atualizadas ao abrir o aplicativo e
-pela seta do topo, aplicando cada símbolo de forma independente
-([spec 020](020-daily-quotes.md)), e as competências faltantes passaram a ser
-criadas automaticamente, inclusive as intermediárias
+pela seta do topo ([spec 020](020-daily-quotes.md)), e as competências
+faltantes passaram a ser criadas automaticamente, inclusive as intermediárias
 ([spec 021](021-automatic-month-rollover.md)). O fluxo desta spec continua
-disponível em `/atualizacao`, com as regras abaixo.
+disponível em `/atualizacao`, com as regras abaixo. A atualização do topo
+aplica cada símbolo de forma independente, em vez de tudo ou nada; é uma
+proposta do agente que aguarda o usuário, registrada em "Questões em aberto"
+da spec 020.
 
 ## Regras confirmadas
 

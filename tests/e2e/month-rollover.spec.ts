@@ -1,11 +1,13 @@
 import { expect, test } from "@playwright/test";
 
+import type { QuoteRefreshOutcome } from "@/modules/quotes/domain/quote-refresh";
+
 import { stubQuoteChecks } from "./support/quote-checks";
 
 // A virada real cria competências no banco; aqui a checagem de abertura devolve
 // um resultado fixo e só a apresentação é conferida.
 
-const FRESH = { state: "fresh", lastStartedAt: "2026-10-02T12:00:00.000Z" };
+const FRESH: QuoteRefreshOutcome = { state: "fresh", lastStartedAt: "2026-10-02T12:00:00.000Z" };
 
 test("abrir o app avisa a competência do mês criada", async ({ page }) => {
   await stubQuoteChecks(page, {

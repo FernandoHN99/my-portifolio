@@ -57,6 +57,10 @@ export async function refreshQuotes({
     return claim;
   }
 
+  // Fica fora do try para que, se a gravação falhar, cada ativo consultado
+  // ainda apareça como falha no aviso.
+  let results: QuoteResult[] | null = null;
+
   try {
     const currentMonth = await prisma.portfolioMonth.findUnique({
       where: { referenceDate: monthOf(today) },
@@ -71,16 +75,17 @@ export async function refreshQuotes({
     const requests = scopeMonth ? await buildQuoteRequests(prisma, scopeMonth.id) : { valid: [], failures: [] };
     const fetched = await fetchSafely(fetchQuotes, requests.valid);
     const fetchedAt = clock();
-    const results = completeResults(requests.valid, fetched).concat(requests.failures);
+    const completed = completeResults(requests.valid, fetched).concat(requests.failures);
+    results = completed;
     const metadata = new Map(requests.valid.map((request) => [request.symbol, request]));
-    const successes = results.filter((result) => result.status === "SUCCESS");
-    const failures = results.filter((result) => result.status === "FAILED");
+    const successes = completed.filter((result) => result.status === "SUCCESS");
+    const failures = completed.filter((result) => result.status === "FAILED");
 
     await prisma.$transaction(
       async (transaction) => {
-        if (results.length > 0) {
+        if (completed.length > 0) {
           await transaction.quoteRefreshResult.createMany({
-            data: results.map((result) => ({
+            data: completed.map((result) => ({
               runId: claim.runId,
               symbol: result.symbol,
               provider: result.provider,
@@ -148,26 +153,15 @@ export async function refreshQuotes({
             errorMessage:
               failures.length === 0
                 ? null
-                : `${failures.length} de ${results.length} cotações não foram atualizadas.`,
+                : `${failures.length} de ${completed.length} cotações não foram atualizadas.`,
           },
         });
       },
       { maxWait: 10_000, timeout: 60_000 },
     );
   } catch (error) {
-    await prisma.quoteRefreshRun
-      .update({
-        where: { id: claim.runId },
-        data: {
-          status: QuoteRefreshStatus.FAILED,
-          finishedAt: clock(),
-          errorMessage:
-            error instanceof Error && error.message
-              ? `A atualização falhou: ${error.message.slice(0, 300)}`
-              : "A atualização falhou por um erro desconhecido.",
-        },
-      })
-      .catch(() => undefined);
+    console.error("A atualização de cotações falhou.", error);
+    await recordFailedRun(prisma, claim.runId, results, clock()).catch(() => undefined);
   }
 
   const run = await readRunView(prisma, claim.runId);
@@ -187,9 +181,12 @@ export async function getQuoteRefreshSummary(now = new Date()): Promise<QuoteRef
   try {
     const [lastRun, lastUpdated] = await Promise.all([
       prisma.quoteRefreshRun.findFirst({ orderBy: { startedAt: "desc" }, select: { id: true } }),
+      // Só conta como atualização a execução que gravou alguma cotação; uma
+      // competência sem ativos com ticker termina sem resultados.
       prisma.quoteRefreshRun.findFirst({
         where: {
           status: { in: [QuoteRefreshStatus.COMPLETED, QuoteRefreshStatus.COMPLETED_WITH_ISSUES] },
+          results: { some: { status: QuoteUpdateStatus.SUCCESS } },
         },
         orderBy: { startedAt: "desc" },
         select: { finishedAt: true, startedAt: true },
@@ -274,6 +271,47 @@ async function claimRun(
     });
 
     return { state: "claimed" as const, runId: run.id };
+  });
+}
+
+// Encerra como falha uma execução cuja gravação não terminou. A transação
+// principal foi desfeita, então os resultados são regravados aqui: cada ativo
+// consultado vira uma falha com o motivo, para o aviso indicar cada um.
+async function recordFailedRun(
+  prisma: PrismaClient,
+  runId: string,
+  results: QuoteResult[] | null,
+  finishedAt: Date,
+) {
+  await prisma.$transaction(async (transaction) => {
+    if (results && results.length > 0) {
+      await transaction.quoteRefreshResult.createMany({
+        skipDuplicates: true,
+        data: results.map((result) => ({
+          runId,
+          symbol: result.symbol,
+          provider: result.provider,
+          status: QuoteUpdateStatus.FAILED,
+          // Sem o valor: ele pode ter sido a causa da falha na gravação.
+          valueBrl: null,
+          errorCode: result.status === "FAILED" ? result.errorCode : "NOT_SAVED",
+          errorMessage:
+            result.status === "FAILED" ? result.errorMessage : "A cotação foi obtida, mas não pôde ser gravada.",
+          fetchedAt: finishedAt,
+        })),
+      });
+    }
+
+    await transaction.quoteRefreshRun.update({
+      where: { id: runId },
+      data: {
+        status: QuoteRefreshStatus.FAILED,
+        finishedAt,
+        errorMessage: results
+          ? "As cotações foram consultadas, mas não puderam ser gravadas."
+          : "Não foi possível ler os ativos da carteira para atualizar as cotações.",
+      },
+    });
   });
 }
 
@@ -414,7 +452,7 @@ async function applyToCurrentMonth(
         valueBrl: price,
         quoteDate: today,
       },
-      update: { valueBrl: price, quoteDate: today },
+      update: { valueBrl: price, quoteDate: today, carriedFrom: null },
     });
   }
 

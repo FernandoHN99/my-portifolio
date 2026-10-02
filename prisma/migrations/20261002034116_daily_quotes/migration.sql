@@ -5,7 +5,8 @@ CREATE TYPE "QuoteRefreshTrigger" AS ENUM ('AUTO', 'MANUAL');
 CREATE TYPE "QuoteRefreshStatus" AS ENUM ('RUNNING', 'COMPLETED', 'COMPLETED_WITH_ISSUES', 'FAILED');
 
 -- AlterTable
-ALTER TABLE "market_quotes" ADD COLUMN     "quote_date" DATE;
+ALTER TABLE "market_quotes" ADD COLUMN     "carried_from" DATE,
+ADD COLUMN     "quote_date" DATE;
 
 -- CreateTable
 CREATE TABLE "daily_quotes" (

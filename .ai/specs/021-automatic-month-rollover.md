@@ -1,6 +1,7 @@
 # 021 — Virada de mês automática
 
-Estado: concluída em 2026-10-02
+Estado: concluída em 2026-10-02; as propostas em "Questões em aberto"
+aguardam o usuário
 Definida em: 2026-10-02
 
 ## Problema
@@ -61,14 +62,20 @@ anterior.
   histórico diário gravado pela spec 020. Na prática, um mês em que o
   aplicativo não foi aberto não tem histórico e repete a cotação do anterior;
   isso é informado no aviso e fica marcado no banco;
-- marca no banco: a cotação do mês guarda em `market_quotes.quote_date` o dia
-  do preço. Uma cotação repetida conserva o dia de origem, ou nulo para as
-  importadas do Excel, então qualquer cotação com dia nulo ou anterior ao mês
-  da competência é repetida. Não foi criada uma tabela de execuções da
-  virada;
-- o aviso de cotação repetida só aparece para competências passadas: a do
-  mês corrente recebe as cotações do dia na atualização que roda logo depois,
-  ou na próxima, se a última tentativa tiver menos de uma hora;
+- marca no banco: `market_quotes.carried_from` guarda a competência cuja
+  cotação foi repetida. Numa sequência de meses repetidos, aponta para a
+  competência que tem o valor próprio, não para o mês imediatamente
+  anterior. É nulo quando o valor é do próprio mês: importado do Excel, vindo
+  do histórico diário, atualizado pela [spec 020](020-daily-quotes.md) ou por
+  "Atualizar carteira", ou editado à mão. `quote_date` continua sendo só o
+  dia do preço, conservado na cotação repetida, e não serve de marca, porque é
+  nulo em todas as cotações importadas. Desfazer uma edição de cotações
+  restaura as duas colunas. É essa marca que a [spec 022](022-quotes-page.md)
+  deve usar para revisar as repetidas. Não foi criada uma tabela de execuções
+  da virada;
+- o clone manual da [spec 017](017-positions-editing.md) também marca as
+  cotações copiadas como repetidas, para que a marca não dependa de qual
+  caminho criou o mês;
 - os meses que eram correntes não são reprocessados na virada: como cada
   atualização copiava o valor do dia para a cotação do mês corrente, ela já
   guarda a última atualização feita naquele mês. Uma cotação desse mês editada
@@ -84,10 +91,27 @@ anterior.
   a encontrar o rascunho criado pela virada e registra a execução nele, como
   já fazia com rascunhos clonados;
 - a criação reaproveita a lógica de cópia do clone em um módulo próprio,
-  `month-rollover.ts`, sem alterar `month-editing.ts`;
+  `month-rollover.ts`; `month-editing.ts` só mudou para manter a marca de
+  repetida no clone, na edição de cotações e no desfazer;
 - nos testes de interface a checagem de abertura é simulada, como na spec 020,
   porque a virada real criaria competências no banco do usuário e mudaria a
   competência mais recente no meio dos cenários.
+
+## Questões em aberto
+
+Escolhas feitas pelo agente durante a implementação, em vigor no código, que
+aguardam confirmação do usuário:
+
+- sem cotação diária dentro de um mês gerado, a competência repete a cotação
+  do mês anterior, marcada e avisada. A alternativa seria buscar nos
+  provedores a cotação histórica do último dia, fora do alcance deste
+  ambiente. O usuário aceita a repetição?
+- as competências geradas ficam como rascunho, como no clone;
+- a tela passa sozinha para a competência nova quando nenhuma está fixada na
+  URL e não há edição pendente;
+- o aviso de cotação repetida só aparece para competências passadas: a do
+  mês corrente recebe as cotações do dia na atualização que roda logo depois,
+  ou na próxima, se a última tentativa tiver menos de uma hora.
 
 ## Fora do escopo
 
@@ -106,6 +130,8 @@ anterior.
 - cada competência gerada usa a cotação do último dia do mês disponível no
   histórico diário e, na falta dele, repete a do mês anterior e avisa;
 - aberturas simultâneas criam cada competência uma única vez;
+- toda cotação repetida fica marcada em `carried_from`, e a marca sai quando
+  a cotação recebe valor próprio;
 - competências existentes não são alteradas pela virada;
 - lint, tipos, build e testes de interface passam.
 
@@ -136,17 +162,36 @@ Com outubro criado pela virada, `refreshPortfolioMonth`, o fluxo "Atualizar
 carteira", com buscador injetado, reaproveitou esse rascunho, registrou a
 execução nele e concluiu as 10 cotações.
 
+Correções da revisão, em 2026-10-02, com o banco recriado pela migração
+corrigida e um roteiro descartável:
+
+- as cotações importadas de setembro ficam com `carried_from` e
+  `quote_date` nulos;
+- o clone manual de outubro marcou as 12 cotações com `carried_from` igual a
+  setembro, e desfazer o clone removeu a competência;
+- a virada para outubro marcou as 12 cotações como repetidas de setembro;
+- editar à mão BTC e VOO em outubro anulou `carried_from` e `quote_date`, e
+  desfazer a edição restaurou os dois;
+- hoje igual a 2026-12-15, com BTC no histórico em 30/11: novembro com BTC de
+  30/11 sem marca, VOO repetido de outubro e ARGT e BRL repetidos desde
+  setembro; dezembro com BTC repetido de novembro e VOO ainda repetido de
+  outubro;
+- "Atualizar carteira" sobre o rascunho de dezembro limpou a marca e gravou
+  o dia da consulta.
+
 Pela interface, sem simulação e sem rede para os provedores, abrir Posições
 mostrou setembro, criou outubro, passou para "Outubro de 2026" e exibiu os
 avisos de competência criada e das 10 cotações com falha, no computador e no
-Pixel 7.
+Pixel 7. Repetido depois das correções, outubro ficou com as 12 cotações
+marcadas como repetidas de setembro.
 
 O novo arquivo `tests/e2e/month-rollover.spec.ts` cobre, com a checagem
 simulada e sem gravar: o aviso da competência do mês, o alerta de meses
 passados com cotações repetidas e a falha da virada sem quebrar a página.
 `pnpm lint`, `pnpm typecheck` e `pnpm build` passaram, e a suíte completa do
 Playwright passou com 34 cenários nos perfis de computador e Pixel 7, e de
-novo com cada cenário repetido duas vezes, 68 de 68.
+novo com cada cenário repetido duas vezes, 68 de 68. Depois das correções da
+revisão, a suíte passou com 40 cenários.
 
 ## Referências
 

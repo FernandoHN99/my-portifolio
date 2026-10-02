@@ -1,43 +1,15 @@
 import { expect, test } from "@playwright/test";
 
-import { stubQuoteChecks } from "./support/quote-checks";
+import { stubQuoteChecks, stubRun as run, stubSummary as summary } from "./support/quote-checks";
 
 const MINUTE = 60 * 1000;
-
-function run(overrides: Record<string, unknown> = {}) {
-  const now = Date.now();
-
-  return {
-    id: "00000000-0000-4000-8000-000000000001",
-    trigger: "AUTO",
-    status: "COMPLETED",
-    quoteDate: "2026-10-02",
-    startedAt: new Date(now - 5.5 * MINUTE).toISOString(),
-    finishedAt: new Date(now - 5.5 * MINUTE).toISOString(),
-    succeeded: 10,
-    failures: [],
-    errorMessage: null,
-    repricedMonth: "2026-10",
-    ...overrides,
-  };
-}
-
-// O resumo das rotas simuladas é mais novo que o lido pelo servidor ao montar
-// a página, para que o cabeçalho passe a usar o resumo simulado.
-function summary(lastRun: Record<string, unknown>, lastUpdatedAt: string | null) {
-  return {
-    generatedAt: new Date(Date.now() + 24 * 60 * MINUTE).toISOString(),
-    lastUpdatedAt,
-    lastRun,
-  };
-}
 
 test("o topo mostra a última atualização das cotações", async ({ page }, testInfo) => {
   const lastRun = run();
   await stubQuoteChecks(page, {
     openCheck: {
       refresh: { state: "fresh", lastStartedAt: lastRun.startedAt },
-      summary: summary(lastRun, lastRun.finishedAt as string),
+      summary: summary(lastRun, lastRun.finishedAt),
     },
   });
   await page.goto("/");
@@ -77,7 +49,7 @@ test("cada cotação com falha vira um aviso que indica o ativo", async ({ page 
     ],
   });
   await stubQuoteChecks(page, {
-    openCheck: { refresh: { state: "done", run: failed }, summary: summary(failed, failed.finishedAt as string) },
+    openCheck: { refresh: { state: "done", run: failed }, summary: summary(failed, failed.finishedAt) },
   });
   await page.goto("/posicoes");
 
@@ -109,16 +81,20 @@ test("o botão do topo atualiza as cotações manualmente", async ({ page }, tes
     finishedAt: new Date().toISOString(),
   });
   await stubQuoteChecks(page, {
-    refresh: { refresh: { state: "done", run: manual }, summary: summary(manual, manual.finishedAt as string) },
+    refresh: { refresh: { state: "done", run: manual }, summary: summary(manual, manual.finishedAt) },
     refreshDelayMs: 1200,
   });
   const hydrated = page.waitForRequest("**/api/quotes/open-check");
   await page.goto("/?mes=2026-09");
   await hydrated;
 
+  // Pelo teclado: o botão continua focado enquanto a atualização roda.
   const button = page.getByRole("button", { name: /^Atualizar cotações/ });
-  await button.click();
-  await expect(button).toBeDisabled();
+  await button.focus();
+  await page.keyboard.press("Enter");
+  await expect(button).toHaveAttribute("aria-disabled", "true");
+  await expect(button).toHaveAttribute("aria-busy", "true");
+  await expect(button).toBeFocused();
   await expect(button.locator("svg")).toHaveClass(/animate-spin/);
   if (!testInfo.project.name.startsWith("mobile")) {
     await expect(page.getByTestId("quote-refresh").getByText("Atualizando cotações…")).toBeVisible();
@@ -127,7 +103,8 @@ test("o botão do topo atualiza as cotações manualmente", async ({ page }, tes
   const toast = page.getByTestId("app-toast");
   await expect(toast).toContainText("Cotações atualizadas");
   await expect(toast).toContainText("10 cotações gravadas no histórico de hoje e posições de Out/26 recalculadas.");
-  await expect(button).toBeEnabled();
+  await expect(button).not.toHaveAttribute("aria-disabled");
+  await expect(button).toBeFocused();
   await expect(button).toHaveAccessibleName("Atualizar cotações. atualizado agora");
 });
 
@@ -139,4 +116,70 @@ test("uma atualização já em andamento é avisada", async ({ page }) => {
 
   await page.getByRole("button", { name: /^Atualizar cotações/ }).click();
   await expect(page.getByTestId("app-toast")).toContainText("Já existe uma atualização de cotações em andamento.");
+});
+
+test("uma falha ao gravar a atualização indica cada ativo", async ({ page }) => {
+  const failed = run({
+    status: "FAILED",
+    succeeded: 0,
+    errorMessage: "As cotações foram consultadas, mas não puderam ser gravadas.",
+    failures: ["BTC", "VOO"].map((symbol) => ({
+      symbol,
+      assets: [symbol === "BTC" ? "Bitcoin 01" : "ETF - VOO"],
+      provider: symbol === "BTC" ? "coingecko" : "finnhub",
+      errorCode: "NOT_SAVED",
+      errorMessage: "A cotação foi obtida, mas não pôde ser gravada.",
+    })),
+  });
+  await stubQuoteChecks(page, {
+    openCheck: { refresh: { state: "done", run: failed }, summary: summary(failed, null) },
+  });
+  await page.goto("/");
+
+  const toast = page.getByTestId("app-toast");
+  await expect(toast).toContainText("2 cotações não atualizadas");
+  await expect(toast).toContainText("Os ativos mantêm o valor anterior.");
+  await expect(toast).toContainText("Bitcoin 01");
+  await expect(toast).toContainText("Finnhub: A cotação foi obtida, mas não pôde ser gravada.");
+  await expect(page.getByRole("heading", { level: 1, name: "Patrimônio consolidado" })).toBeVisible();
+});
+
+test("a checagem automática avisa quando o aplicativo não responde", async ({ page }) => {
+  await stubQuoteChecks(page);
+  await page.route("**/api/quotes/open-check", (route) => route.fulfill({ status: 500, body: "erro" }));
+  await page.goto("/posicoes");
+
+  await expect(page.getByTestId("app-toast")).toContainText("Não foi possível verificar as cotações");
+  await expect(page.getByRole("heading", { level: 1, name: "Carteira do mês" })).toBeVisible();
+});
+
+// As abas principais não podem ser cortadas pelo indicador do topo. O rótulo
+// de data é o mais longo no computador, e "59 min" o mais largo no celular.
+test("o indicador do topo não corta as abas em telas estreitas", async ({ page }) => {
+  const labels = [
+    { lastUpdatedAt: "2026-09-30T07:39:00.000Z", widths: [320, 360, 375, 640, 768, 1024] },
+    { lastUpdatedAt: new Date(Date.now() - 59 * MINUTE).toISOString(), widths: [320, 360] },
+  ];
+
+  for (const { lastUpdatedAt, widths } of labels) {
+    const lastRun = run({ startedAt: lastUpdatedAt, finishedAt: lastUpdatedAt });
+    await page.unrouteAll();
+    await stubQuoteChecks(page, {
+      openCheck: { refresh: { state: "fresh", lastStartedAt: lastUpdatedAt }, summary: summary(lastRun, lastUpdatedAt) },
+    });
+
+    for (const width of widths) {
+      await page.setViewportSize({ width, height: 760 });
+      await page.goto("/posicoes?mes=2026-09");
+      const nav = page.getByRole("navigation", { name: "Navegação principal" });
+      await expect(page.getByTestId("quote-refresh")).toContainText(/\d/);
+      await expect(page.getByRole("link", { name: "Posições" })).toBeVisible();
+
+      const scroller = await nav.evaluate((element) => {
+        const parent = element.parentElement as HTMLElement;
+        return { clientWidth: parent.clientWidth, scrollWidth: parent.scrollWidth };
+      });
+      expect(scroller.scrollWidth, `abas cortadas em ${width} px`).toBeLessThanOrEqual(scroller.clientWidth);
+    }
+  }
 });

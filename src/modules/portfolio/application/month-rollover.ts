@@ -91,7 +91,14 @@ async function copyMonth(
     transaction.marketQuote.findMany({
       where: { referenceDate: source.referenceDate },
       orderBy: { symbol: "asc" },
-      select: { symbol: true, instrumentType: true, baseCurrency: true, valueBrl: true, quoteDate: true },
+      select: {
+        symbol: true,
+        instrumentType: true,
+        baseCurrency: true,
+        valueBrl: true,
+        quoteDate: true,
+        carriedFrom: true,
+      },
     }),
   ]);
 
@@ -117,7 +124,14 @@ async function copyMonth(
 
   const quotes = new Map<
     string,
-    { instrumentType: string; baseCurrency: string; valueBrl: Prisma.Decimal; quoteDate: Date | null; fromHistory: boolean }
+    {
+      instrumentType: string;
+      baseCurrency: string;
+      valueBrl: Prisma.Decimal;
+      quoteDate: Date | null;
+      carriedFrom: Date | null;
+      fromHistory: boolean;
+    }
   >();
 
   for (const quote of sourceQuotes) {
@@ -125,8 +139,10 @@ async function copyMonth(
     quotes.set(
       quote.symbol,
       daily
-        ? { ...quote, valueBrl: daily.valueBrl, quoteDate: daily.quoteDate, fromHistory: true }
-        : { ...quote, fromHistory: false },
+        ? { ...quote, valueBrl: daily.valueBrl, quoteDate: daily.quoteDate, carriedFrom: null, fromHistory: true }
+        : // A repetida aponta para a competência que tem o valor próprio, mesmo
+          // depois de vários meses repetidos.
+          { ...quote, carriedFrom: quote.carriedFrom ?? source.referenceDate, fromHistory: false },
     );
   }
 
@@ -137,6 +153,7 @@ async function copyMonth(
         baseCurrency: daily.baseCurrency,
         valueBrl: daily.valueBrl,
         quoteDate: daily.quoteDate,
+        carriedFrom: null,
         fromHistory: true,
       });
     }
@@ -156,6 +173,7 @@ async function copyMonth(
         baseCurrency: quote.baseCurrency,
         valueBrl: quote.valueBrl,
         quoteDate: quote.quoteDate,
+        carriedFrom: quote.carriedFrom,
       })),
     });
   }
