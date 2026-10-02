@@ -6,14 +6,13 @@ import {
   ArrowUpRightIcon,
   CurrencyBtcIcon,
   CurrencyDollarIcon,
-  ScalesIcon,
   TrendUpIcon,
 } from "@phosphor-icons/react/dist/ssr";
 import type { ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
 import type { OverviewData } from "@/modules/portfolio/application/get-overview-data";
-import { formatBrl } from "@/modules/portfolio/presentation/portfolio-format";
+import { formatBrl, formatMonthCompact } from "@/modules/portfolio/presentation/portfolio-format";
 
 export function OverviewKpis({ overview }: { overview: OverviewData }) {
   return (
@@ -36,75 +35,28 @@ export function OverviewKpis({ overview }: { overview: OverviewData }) {
         }
       />
 
-      <KpiCard
+      <ChangeKpiCard
         label="Variação no mês"
-        icon={
-          (overview.changeBrl ?? 0) >= 0 ? (
-            <ArrowUpRightIcon aria-hidden="true" size={18} weight="bold" />
-          ) : (
-            <ArrowDownRightIcon aria-hidden="true" size={18} weight="bold" />
-          )
-        }
-        tone={overview.changeBrl === null ? "neutral" : overview.changeBrl >= 0 ? "up" : "down"}
-        value={
-          overview.changePercent === null ? (
-            <span className="text-muted-foreground">—</span>
-          ) : (
-            <NumberFlow
-              value={overview.changePercent / 100}
-              format={{ style: "percent", maximumFractionDigits: 2, signDisplay: "exceptZero" }}
-              locales="pt-BR"
-            />
-          )
-        }
-        detail={overview.changeBrl === null ? "Sem mês anterior" : formatBrl(overview.changeBrl)}
+        changeBrl={overview.changeBrl}
+        changePercent={overview.changePercent}
+        emptyDetail="Sem mês anterior"
       />
 
-      <KpiCard
+      <ChangeKpiCard
         label="Variação em 12 meses"
-        icon={
-          (overview.change12mBrl ?? 0) >= 0 ? (
-            <ArrowUpRightIcon aria-hidden="true" size={18} weight="bold" />
-          ) : (
-            <ArrowDownRightIcon aria-hidden="true" size={18} weight="bold" />
-          )
-        }
-        tone={overview.change12mBrl === null ? "neutral" : overview.change12mBrl >= 0 ? "up" : "down"}
-        value={
-          overview.change12mPercent === null ? (
-            <span className="text-muted-foreground">—</span>
-          ) : (
-            <NumberFlow
-              value={overview.change12mPercent / 100}
-              format={{ style: "percent", maximumFractionDigits: 2, signDisplay: "exceptZero" }}
-              locales="pt-BR"
-            />
-          )
-        }
-        detail={
-          overview.change12mBrl === null ? "Histórico insuficiente" : formatBrl(overview.change12mBrl)
-        }
+        changeBrl={overview.change12mBrl}
+        changePercent={overview.change12mPercent}
+        emptyDetail="Histórico insuficiente"
       />
 
-      <a
-        href="#rebalanceamento"
-        className="metric-card rounded-2xl p-4 outline-none focus-visible:ring-2 focus-visible:ring-ring/50 sm:p-5"
-      >
-        <div className="flex items-start justify-between gap-4">
-          <p className="text-[10px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
-            Fora da meta
-          </p>
-          <span className="grid size-8 place-items-center rounded-lg bg-primary/8 text-primary ring-1 ring-primary/10">
-            <ScalesIcon aria-hidden="true" size={18} weight="duotone" />
-          </span>
-        </div>
-        <p className="mt-5 font-mono text-2xl font-medium tracking-[-0.04em]">
-          <NumberFlow value={overview.offTargetCount} locales="pt-BR" />
-        </p>
-        <p className="mt-1.5 text-xs text-muted-foreground">
-          Itens além de ±{overview.offTargetTolerance}%
-        </p>
-      </a>
+      <ChangeKpiCard
+        label="Variação em todo o período"
+        testId="period-change"
+        changeBrl={overview.changeSinceStartBrl}
+        changePercent={overview.changeSinceStartPercent}
+        detailSuffix={`desde ${formatMonthCompact(overview.periodStart)}`}
+        emptyDetail="Primeira competência do histórico"
+      />
 
       <div className="metric-card rounded-2xl p-4 sm:col-span-2 sm:p-5 xl:col-span-4">
         <div className="flex flex-wrap items-center gap-x-8 gap-y-4">
@@ -123,6 +75,55 @@ export function OverviewKpis({ overview }: { overview: OverviewData }) {
         </div>
       </div>
     </section>
+  );
+}
+
+function ChangeKpiCard({
+  label,
+  changeBrl,
+  changePercent,
+  emptyDetail,
+  detailSuffix,
+  testId,
+}: {
+  label: string;
+  changeBrl: number | null;
+  changePercent: number | null;
+  emptyDetail: string;
+  detailSuffix?: string;
+  testId?: string;
+}) {
+  return (
+    <KpiCard
+      label={label}
+      testId={testId}
+      icon={
+        (changeBrl ?? 0) >= 0 ? (
+          <ArrowUpRightIcon aria-hidden="true" size={18} weight="bold" />
+        ) : (
+          <ArrowDownRightIcon aria-hidden="true" size={18} weight="bold" />
+        )
+      }
+      tone={changeBrl === null ? "neutral" : changeBrl >= 0 ? "up" : "down"}
+      value={
+        changePercent === null ? (
+          <span className="text-muted-foreground">—</span>
+        ) : (
+          <NumberFlow
+            value={changePercent / 100}
+            format={{ style: "percent", maximumFractionDigits: 2, signDisplay: "exceptZero" }}
+            locales="pt-BR"
+          />
+        )
+      }
+      detail={
+        changeBrl === null
+          ? emptyDetail
+          : detailSuffix
+            ? `${formatBrl(changeBrl)} ${detailSuffix}`
+            : formatBrl(changeBrl)
+      }
+    />
   );
 }
 

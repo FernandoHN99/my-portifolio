@@ -11,6 +11,10 @@ const CATEGORY_COLORS: Record<string, string> = {
   "Core-Satellite": "#f2a65a",
   Hedge: "#9aa4b2",
   Satellite: "#f2d06b",
+  // Prazos da renda fixa, nas cores do gráfico da planilha: curto azul, médio laranja, longo cinza.
+  Curto: "#6ea8ff",
+  Médio: "#f2a65a",
+  Longo: "#9aa4b2",
 };
 
 const FALLBACK_COLORS = ["#b394ff", "#e2799c", "#5ce4a4", "#f2d06b", "#7fd1e8"];

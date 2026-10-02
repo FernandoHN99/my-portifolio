@@ -93,14 +93,12 @@ export function OverviewDashboard({
         <CompositionDonuts groups={overview.composition} />
       </div>
 
-      <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1.6fr)_minmax(320px,0.9fr)]">
+      <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.6fr)_minmax(320px,0.9fr)]">
         <RebalancePanel
           groups={overview.rebalanceGroups}
           tolerance={overview.offTargetTolerance}
         />
-        <FixedIncomeDurationChart
-          group={overview.rebalanceGroups.find((group) => group.key === "FIXED_INCOME")}
-        />
+        <FixedIncomeDurationChart duration={overview.fixedIncomeDuration} />
       </div>
     </div>
   );

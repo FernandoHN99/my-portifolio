@@ -2,7 +2,10 @@ import { Prisma, type PortfolioMonthStatus } from "@/generated/prisma/client";
 import { getPrismaClient } from "@/lib/prisma";
 import { getAllocationOverview } from "@/modules/portfolio/application/get-allocation-overview";
 import {
-  countOffTarget,
+  buildFixedIncomeDuration,
+  type FixedIncomeDuration,
+} from "@/modules/portfolio/domain/fixed-income-duration";
+import {
   DEFAULT_REBALANCE_TOLERANCE,
   type AllocationGroup,
 } from "@/modules/portfolio/domain/rebalance";
@@ -39,13 +42,16 @@ export type OverviewData = {
   changePercent: number | null;
   change12mBrl: number | null;
   change12mPercent: number | null;
+  periodStart: Date;
+  changeSinceStartBrl: number | null;
+  changeSinceStartPercent: number | null;
   positionCount: number;
   institutionCount: number;
-  offTargetCount: number;
   offTargetTolerance: number;
   history: OverviewHistoryPoint[];
   composition: CompositionGroup[];
   rebalanceGroups: AllocationGroup[];
+  fixedIncomeDuration: FixedIncomeDuration;
   classLabels: string[];
   currencyLabels: string[];
 };
@@ -124,8 +130,11 @@ export async function getOverviewData(referenceDate?: Date): Promise<OverviewDat
     const selectedHistory = history[selectedIndex];
     const previousHistory = history[selectedIndex - 1] ?? null;
     const yearAgoHistory = history[selectedIndex - 12] ?? null;
+    const firstHistory = history[0];
     const changeBrl = previousHistory ? selectedHistory.totalBrl - previousHistory.totalBrl : null;
     const change12mBrl = yearAgoHistory ? selectedHistory.totalBrl - yearAgoHistory.totalBrl : null;
+    const changeSinceStartBrl =
+      selectedIndex > 0 ? selectedHistory.totalBrl - firstHistory.totalBrl : null;
 
     const quotes = await prisma.marketQuote.findMany({
       where: { referenceDate: selected.referenceDate, symbol: { in: ["USD", "BTC"] } },
@@ -146,7 +155,6 @@ export async function getOverviewData(referenceDate?: Date): Promise<OverviewDat
           targetShare: row.targetShare,
         })),
       }));
-    const offTargetCount = countOffTarget(allocation?.groups ?? []);
 
     return {
       referenceDate: selected.referenceDate,
@@ -165,15 +173,24 @@ export async function getOverviewData(referenceDate?: Date): Promise<OverviewDat
         change12mBrl === null || !yearAgoHistory || yearAgoHistory.totalBrl === 0
           ? null
           : (change12mBrl / yearAgoHistory.totalBrl) * 100,
+      periodStart: firstHistory.date,
+      changeSinceStartBrl,
+      changeSinceStartPercent:
+        changeSinceStartBrl === null || firstHistory.totalBrl === 0
+          ? null
+          : (changeSinceStartBrl / firstHistory.totalBrl) * 100,
       positionCount: selected.positions.length,
       institutionCount: new Set(
         selected.positions.map((position) => position.account.institutionId),
       ).size,
-      offTargetCount,
       offTargetTolerance: allocation?.tolerance ?? DEFAULT_REBALANCE_TOLERANCE,
       history,
       composition,
       rebalanceGroups: allocation?.groups ?? [],
+      fixedIncomeDuration: buildFixedIncomeDuration(
+        allocation?.aggregates.fixedIncome ?? [],
+        allocation?.targets ?? [],
+      ),
       classLabels: collectLabels(history, "byClass"),
       currencyLabels: collectLabels(history, "byCurrency"),
     };
