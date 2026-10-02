@@ -41,8 +41,14 @@ escolhida fica marcada.
   automático ao abrir um diálogo não abre;
 - digitar filtra sem diferenciar maiúsculas nem acentos; nos ativos o filtro
   também considera o ticker, mostrado à direita da opção;
-- seta para baixo abre ou percorre a lista, Enter escolhe, Escape fecha só a
-  lista, sem fechar o diálogo ou o painel lateral;
+- seta para baixo abre ou percorre a lista, Enter escolhe; com a lista
+  aberta, Escape fecha só a lista, sem fechar o diálogo ou o painel lateral;
+  com a lista fechada, Escape segue para o diálogo ou o painel e o fecha, como
+  num select nativo, sem limpar o campo;
+- fora da lista aberta, o campo sempre mostra a opção escolhida. Apagar todo o
+  texto abre a lista com todas as opções e deixa o valor atual esmaecido no
+  campo; o valor só muda quando outra opção é escolhida, e sair do campo ou
+  Escape voltam a mostrá-lo;
 - a opção atual tem marca de seleção; sem resultado, a lista mostra "Nenhuma
   opção encontrada", "Nenhuma conta encontrada" ou "Nenhum ativo encontrado";
 - a lista abre acima de diálogos, do painel do rateio e da barra do modo de
@@ -52,7 +58,8 @@ escolhida fica marcada.
   listas longas, como conta e ativo, abrem para permitir filtrar;
 - filtros de Posições: o botão continua com o nome e a contagem; a lista tem
   busca, caixas de marcação e "Limpar seleção" no rodapé; marcar várias
-  opções mantém o texto da busca;
+  opções mantém o texto da busca; "Limpar seleção" fecha a lista e devolve o
+  foco ao botão do filtro, como o menu anterior;
 - estratégia na tabela: com a lista fechada, Enter e as setas para cima e para
   baixo trocam de linha, como no campo de quantidade; Alt+seta para baixo,
   clicar ou digitar abrem a lista; com ela aberta, as setas percorrem as
@@ -107,6 +114,24 @@ escolhida fica marcada.
   `tests/e2e/home.spec.ts` foram ajustados para os novos papéis;
 - Enter na estratégia com a lista fechada passou a descer de linha; antes não
   fazia nada no `<select>`;
+- na revisão de 2026-10-02, o `Picker` passou a controlar o texto do campo
+  (`inputValue`): fora da lista aberta ele é sempre o rótulo da opção
+  escolhida, e com ela aberta é o que se digitou. Antes, o Base UI esvaziava
+  o campo com Escape na lista fechada ou ao apagar o texto e sair, enquanto o
+  valor guardado continuava o anterior, e salvar usava um valor que a tela não
+  mostrava. A lista não tem opção vazia, então pedidos de limpar o valor são
+  cancelados;
+- Escape com a lista fechada deixa de passar pelo Base UI, que limpava o
+  campo e interrompia a tecla quando havia valor escolhido; assim o diálogo de
+  nova posição e o painel do rateio voltam a fechar com Escape, como com os
+  campos nativos;
+- interpretação: apagar todo o texto com a lista fechada abre a lista em vez
+  de não fazer nada, para que selecionar e apagar sirva para recomeçar a
+  busca; o valor atual aparece esmaecido no lugar do placeholder enquanto o
+  campo está vazio;
+- "Limpar seleção" fecha a lista porque o botão some ao limpar e o foco caía
+  na página; fechar devolve o foco ao filtro, como no menu anterior, e evita
+  abrir o teclado virtual no celular, o que focar a busca faria;
 - sem novas dependências e sem mudança em `globals.css`; as cores vêm dos
   tokens existentes.
 
@@ -141,27 +166,46 @@ escolhida fica marcada.
 
 ## Verificação
 
-Num banco local criado pelas migrações e carregado com a importação do Excel,
-pela interface: a estratégia do Bitcoin 01 trocada para Hedge na lista da
-tabela; uma posição incluída escolhendo a conta "C6 · Principal" ao digitar
-"c6", o ativo "Bitcoin 03 - Viagem" ao digitar parte do nome e a estratégia
+Em bancos locais descartáveis criados pelas migrações e carregados com a
+importação do Excel (`my_portifolio_s025` e `my_portifolio_s025b`), pela
+interface: a estratégia do Bitcoin 01 trocada para Hedge na lista da tabela;
+uma posição incluída escolhendo a conta "C6 · Principal" ao digitar "c6", o
+ativo "Bitcoin 03 - Viagem" ao digitar parte do nome e a estratégia
 Satellite; e o rateio do Bitcoin 01 com a classe nova "Classe teste" por
 "Usar" e a duração Longo. Depois de salvar, o banco tinha a estratégia, a
-nova posição com 0,01 e o rateio gravados. Esse banco foi descartado e a suíte
-rodou num banco recém-importado.
+nova posição com 0,01 e o rateio gravados. Esses dois bancos ainda guardam
+essas gravações e não foram apagados; a suíte rodou em `my_portifolio_s025c`,
+recém-importado e sem gravações. Os três podem ser apagados ao integrar a
+fatia.
+
+Na correção da revisão, também em `my_portifolio_s025b`: Escape com a lista
+fechada e texto apagado na estratégia da ETF - SIVR, sem gravação; a
+Flexible Account trocada para Satellite; e uma posição incluída com a conta
+"Chainless · Principal", que continuou na tela depois de apagar o texto e sair
+pelo Tab, o ativo Porquinho, 123,45 e a estratégia Hedge, mantida depois de
+apagar o texto e usar Escape. Depois de salvar, o banco tinha exatamente o
+que a tela mostrava, e a SIVR seguia sem alteração.
 
 Os cenários novos do Playwright, em `tests/e2e/styled-pickers.spec.ts`, não
-gravam nada: filtro de instituição com busca, marcação e "Limpar seleção";
-listas do diálogo de nova posição abrindo no clique, filtrando, mostrando o
-estado vazio e fechando com Escape sem fechar o diálogo; estratégia da tabela
-com as setas entre linhas, Alt+seta, filtro e Enter, descartando no fim, só no
-computador, porque a coluna fica oculta no celular; e rateio mostrando todas
-as classes e aceitando "Usar", cancelado no fim. Também foram conferidas
-capturas no computador e no Pixel 7 de cada lista aberta.
+gravam nada: filtro de instituição com busca, marcação e "Limpar seleção",
+que fecha a lista e devolve o foco ao filtro; listas do diálogo de nova
+posição abrindo no clique, filtrando, mostrando o estado vazio, mantendo a
+conta depois de apagar o texto e sair pelo Tab, fechando só a lista com
+Escape e, com a lista fechada, fechando o diálogo com Escape; estratégia da
+tabela mantendo o valor com Escape na lista fechada e depois de apagar o
+texto, sem alteração pendente, com as setas entre linhas, Alt+seta, filtro e
+Enter, descartando no fim, só no computador, porque a coluna fica oculta no
+celular; e rateio mostrando todas as classes, voltando ao valor anterior ao
+sair sem escolher, aceitando "Usar", fechando só a lista com Escape e, com
+ela fechada, fechando o painel. Também foram conferidas capturas no
+computador e no Pixel 7 de cada lista aberta e, na revisão, do campo apagado
+com a lista aberta, do valor restaurado e do filtro depois de limpar.
 
-`pnpm lint`, `pnpm typecheck` e `pnpm build` passaram. A suíte do Playwright,
-no computador e no Pixel 7, passou com 27 cenários; o da estratégia na tabela
-é pulado no celular, onde a coluna fica oculta.
+`pnpm lint`, `pnpm typecheck` e `pnpm build` passaram, também depois da
+correção da revisão. A suíte do Playwright, no computador e no Pixel 7,
+passou com 27 cenários; o da estratégia na tabela é pulado no celular, onde a
+coluna fica oculta. As novas verificações de Escape, texto apagado e foco do
+filtro falham com a versão anterior do `Picker` e do filtro.
 
 ## Referências
 

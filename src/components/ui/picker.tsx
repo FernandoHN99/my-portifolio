@@ -79,15 +79,20 @@ export function Picker({
   className,
   inputClassName,
   onFocus,
+  onKeyDown,
   onKeyUp,
   ...fieldProps
 }: PickerProps) {
   const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState("");
+  // Texto digitado com a lista aberta. Fora dela, o campo sempre mostra a
+  // opção escolhida: o Base UI esvazia o campo com Escape ou ao apagar o
+  // texto, mas o valor só muda quando outra opção é escolhida.
+  const [draft, setDraft] = useState<string | null>(null);
   const { contains } = ComboboxPrimitive.useFilter();
 
   const selected = value === null ? null : (options.find((option) => option.value === value) ?? null);
-  const typed = query.trim();
+  const inputValue = draft ?? selected?.label ?? "";
+  const typed = (draft ?? "").trim();
   const canCreate =
     Boolean(onCreate) &&
     typed !== "" &&
@@ -107,6 +112,7 @@ export function Picker({
     <Combobox<PickerItem>
       items={items}
       value={selected}
+      inputValue={inputValue}
       open={open}
       disabled={disabled}
       filter={filter}
@@ -117,12 +123,26 @@ export function Picker({
       onOpenChange={(next) => {
         setOpen(next);
         if (!next) {
-          setQuery("");
+          setDraft(null);
         }
       }}
-      onInputValueChange={(text, details) => setQuery(details.reason === "input-change" ? text : "")}
-      onValueChange={(item) => {
+      onInputValueChange={(text, details) => {
+        // Só o que se digita muda o texto; seleção, fechamento e limpezas do
+        // Base UI são refletidos pelo rótulo da opção escolhida.
+        if (details.reason !== "input-change") {
+          return;
+        }
+        setDraft(text);
+        // Apagar todo o texto com a lista fechada abre as opções, sem trocar o
+        // valor; digitar já abre pelo próprio Base UI.
+        if (!open && text.trim() === "") {
+          setOpen(true);
+        }
+      }}
+      onValueChange={(item, details) => {
         if (!item) {
+          // A lista não tem opção vazia: limpar o campo não limpa o valor.
+          details.cancel();
           return;
         }
         if ("create" in item) {
@@ -136,7 +156,9 @@ export function Picker({
         size={size}
         invalid={invalid}
         changed={changed}
-        placeholder={placeholder}
+        // Com o texto apagado, o valor atual aparece esmaecido: ele continua
+        // valendo até outra opção ser escolhida.
+        placeholder={selected?.label ?? placeholder}
         inputMode={allowTyping ? undefined : "none"}
         groupClassName={className}
         className={cn(!allowTyping && "cursor-pointer caret-transparent selection:bg-transparent", inputClassName)}
@@ -147,6 +169,14 @@ export function Picker({
             event.currentTarget.select();
           }
           onFocus?.(event);
+        }}
+        onKeyDown={(event) => {
+          // Com a lista fechada, Escape segue para o diálogo ou o painel, como
+          // num select nativo, em vez de limpar o campo.
+          if (event.key === "Escape" && !open) {
+            event.preventBaseUIHandler();
+          }
+          onKeyDown?.(event);
         }}
         onKeyUp={(event) => {
           // Ao chegar pelo Tab, as opções já aparecem, como no clique.

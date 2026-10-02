@@ -17,10 +17,11 @@ test("os filtros abrem com busca e marcam as opções", async ({ page }) => {
   await expect(page).toHaveURL(/inst=Inter/);
   await expect(page.getByRole("combobox", { name: /Instituição 1 selecionado/ })).toBeVisible();
 
+  // Limpar fecha a lista e devolve o foco ao filtro, sem perdê-lo na página.
   await page.getByRole("button", { name: "Limpar seleção" }).click();
   await expect(page).not.toHaveURL(/inst=/);
-  await page.keyboard.press("Escape");
   await expect(page.getByRole("option")).toHaveCount(0);
+  await expect(filter).toBeFocused();
   await expect(page.getByText("21 de 21 posições")).toBeVisible();
 });
 
@@ -40,6 +41,16 @@ test("as listas da nova posição abrem ao clicar e filtram ao digitar", async (
   await expect(account).toHaveValue("C6 · Principal");
   await expect(account).toHaveAttribute("aria-expanded", "false");
 
+  // Apagar o texto abre a lista sem trocar o valor; sair do campo volta a mostrá-lo.
+  await page.keyboard.press("ControlOrMeta+a");
+  await page.keyboard.press("Backspace");
+  await expect(account).toHaveValue("");
+  await expect(account).toHaveAttribute("aria-expanded", "true");
+  await page.keyboard.press("Tab");
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeVisible();
+  await expect(account).toHaveValue("C6 · Principal");
+
   const asset = dialog.getByRole("combobox", { name: "Ativo" });
   await asset.click();
   await page.keyboard.type("btc");
@@ -56,8 +67,10 @@ test("as listas da nova posição abrem ao clicar e filtram ao digitar", async (
   await expect(page.getByRole("option", { name: "Sem estratégia" })).toHaveAttribute("aria-selected", "true");
   await page.getByRole("option", { name: "Core", exact: true }).click();
   await expect(strategy).toHaveValue("Core");
+  await expect(strategy).toBeFocused();
 
-  await dialog.getByRole("button", { name: "Cancelar" }).click();
+  // Com a lista fechada, Escape fecha o diálogo, como num select nativo.
+  await page.keyboard.press("Escape");
   await expect(dialog).toHaveCount(0);
   await page.getByRole("button", { name: "Sair da edição" }).click();
 });
@@ -74,6 +87,18 @@ test("a estratégia da tabela abre a lista e mantém as setas entre linhas", asy
   await expect(page.getByRole("option")).toHaveCount(5);
   await expect(page.getByRole("option", { name: "Core-Satellite" })).toHaveAttribute("aria-selected", "true");
   await page.keyboard.press("Escape");
+  await expect(first).toHaveAttribute("aria-expanded", "false");
+
+  // Escape com a lista fechada e apagar o texto não trocam nem escondem a estratégia.
+  await page.keyboard.press("Escape");
+  await expect(first).toHaveValue("Core-Satellite");
+  await page.keyboard.press("ControlOrMeta+a");
+  await page.keyboard.press("Backspace");
+  await expect(first).toHaveValue("");
+  await expect(first).toHaveAttribute("aria-expanded", "true");
+  await page.keyboard.press("Escape");
+  await expect(first).toHaveValue("Core-Satellite");
+  await expect(page.getByText(/alteraç(ão|ões) pendente/)).toHaveCount(0);
 
   await rows.nth(0).focus();
   await page.keyboard.press("ArrowDown");
@@ -109,11 +134,25 @@ test("o rateio mostra todas as opções e aceita um valor novo", async ({ page }
   await expect(page.getByRole("option", { name: "Renda Fixa" })).toBeVisible();
   await expect(page.getByRole("option", { name: "Cripto" })).toHaveAttribute("aria-selected", "true");
 
+  // Sair do campo sem escolher volta ao valor anterior.
+  await page.keyboard.type("Classe nova");
+  await page.keyboard.press("Tab");
+  await page.keyboard.press("Escape");
+  await expect(drawer).toBeVisible();
+  await expect(assetClass).toHaveValue("Cripto");
+
+  await assetClass.click();
   await page.keyboard.type("Classe nova");
   await page.getByRole("option", { name: "Usar “Classe nova”" }).click();
   await expect(assetClass).toHaveValue("Classe nova");
 
-  await drawer.getByRole("button", { name: "Cancelar" }).click();
+  // Com a lista aberta, Escape fecha só a lista; com ela fechada, fecha o painel.
+  await page.keyboard.type("x");
+  await expect(assetClass).toHaveAttribute("aria-expanded", "true");
+  await page.keyboard.press("Escape");
+  await expect(drawer).toBeVisible();
+  await expect(assetClass).toHaveValue("Classe nova");
+  await page.keyboard.press("Escape");
   await expect(drawer).toHaveCount(0);
   await page.getByRole("button", { name: "Sair da edição" }).click();
 });

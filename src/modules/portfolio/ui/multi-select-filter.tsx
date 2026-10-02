@@ -1,6 +1,7 @@
 "use client";
 
 import { CaretDownIcon } from "@phosphor-icons/react/dist/ssr";
+import { useState } from "react";
 
 import {
   Combobox,
@@ -25,11 +26,15 @@ export function MultiSelectFilter({
   selected: string[];
   onChange: (next: string[]) => void;
 }) {
+  const [open, setOpen] = useState(false);
+
   return (
     <Combobox<string, true>
       multiple
       items={options}
       value={selected}
+      open={open}
+      onOpenChange={setOpen}
       onValueChange={(next) => onChange([...next])}
       onInputValueChange={(_, details) => {
         // Mantém o texto da busca ao marcar várias opções seguidas.
@@ -79,7 +84,12 @@ export function MultiSelectFilter({
           <ComboboxFooter>
             <button
               type="button"
-              onClick={() => onChange([])}
+              onClick={() => {
+                // Fecha a lista, como o menu anterior: o botão some ao limpar e o
+                // foco volta para o filtro em vez de se perder na página.
+                setOpen(false);
+                onChange([]);
+              }}
               className="flex w-full items-center rounded-lg px-2.5 py-2 text-[11px] text-muted-foreground outline-none transition-colors select-none hover:bg-white/[0.06] hover:text-foreground focus-visible:bg-white/[0.06] focus-visible:text-foreground"
             >
               Limpar seleção
