@@ -296,6 +296,109 @@ Registradas em 2026-10-02, aguardando o usuário:
 - agendar a [spec 016](../specs/016-position-history.md), que depende do
   histórico diário de cotações.
 
+## Respostas do usuário às questões em aberto, 2026-10-02 (segunda rodada)
+
+Respostas dadas de uma vez às perguntas consolidadas das specs 016 e 020 a
+026, com autorização para implementar tudo em sequência, commitar e dar push
+sem pedir aprovação a cada commit, apagar os branches extras e seguir até
+travar. Previdência continua fora.
+
+### Decisões
+
+- **Cotações independentes**: cada ativo é atualizado sozinho; uma falha não
+  impede as outras (spec 020).
+- **Edição manual de cotação**: o usuário não pretende editar cotações à mão.
+  A edição fica disponível só para a cotação que não foi encontrada ou cuja
+  última busca deu erro (spec 020 e 022).
+- **Voltar a uma aba aberta há mais de uma hora** conta como abrir o
+  aplicativo (spec 020).
+- **Um aviso por atualização** listando os ativos com falha atende (spec 020).
+- **Botão "Cotações"** no cabeçalho de Posições está correto (spec 022).
+- **Histórico de execuções**: sempre todas as execuções, independentemente
+  do mês selecionado, cobrindo os últimos 36 meses (spec 022).
+- **Última atualização de posição incluída**: em vez de "–", mostrar a data
+  da inclusão, indicando que veio da inclusão.
+- **Endereços antigos** (`/atualizacao`, `/revisao` e afins) devem ser
+  removidos.
+- **Botão de atualizar cotações** só aparece quando a competência
+  selecionada é o mês corrente.
+- **Cotação de fechamento do mês**: todos os meses guardam, para todos os
+  ativos, a cotação do último dia disponível daquele mês. Gráficos e
+  valorização usam sempre essa cotação de fechamento. As cotações diárias
+  continuam guardadas, sem apagar as antigas; vale sempre a mais recente do
+  mês. Meses passados que não tiveram esse cuidado ficam para o passo
+  pré-produção abaixo.
+- **Histórico de 3 anos ao incluir ativo novo**: ao incluir um ativo no mês
+  corrente, buscar a cotação de fechamento mensal dos últimos 3 anos (ou o
+  que existir, se o ativo for mais novo), desde que isso caiba numa única
+  chamada por ativo ou dentro dos limites dos provedores. O agente avalia
+  cada provedor e informa.
+- **Meses gerados ficam em rascunho**; o mês corrente pode ser marcado como
+  finalizado, e a partir daí editá-lo exige a mesma confirmação dos meses
+  passados. Rotina do usuário: ajusta aportes no começo do mês e depois só
+  acompanha.
+- **A tela passa sozinha para o mês novo** quando nenhum mês está fixado
+  (mantido; o usuário pediu uma explicação).
+- **Linha do tempo centralizada** na tela larga, em vez de alinhada à
+  esquerda.
+- **Variação no mês e em 12 meses** por meses do calendário, com
+  "Histórico insuficiente" quando o mês de comparação não existir. Depois
+  do passo pré-produção, o histórico ficará completo.
+- **"Todo o período"** começa na primeira competência minimamente completa,
+  escolhida pelo agente pelos dados.
+- **Meta sem posição aparece como "Comprar"** na tabela de comprar e vender
+  (o usuário pediu uma explicação).
+- **Não mexer em dados antigos agora**: qualquer correção do histórico
+  importado fica para o passo pré-produção.
+- **Duração da renda fixa** (D+0, D+1, Curto, Médio, Longo) é, na planilha, o
+  prazo de resgate para liquidez, não o tempo até o vencimento. O vencimento
+  é o campo opcional novo. Pedido: coluna de vencimento na tabela de
+  posições, com filtro.
+- **Filtros em cascata**: as opções de cada filtro passam a considerar os
+  filtros escolhidos antes dele, na ordem em que foram aplicados; por
+  exemplo, escolher a classe Caixa limita a subclasse às que existem em
+  Caixa.
+- **Campos com 16 px no celular**, para o Safari não ampliar a página.
+- **CoinGecko**: quando houver várias moedas com o mesmo símbolo, o usuário
+  escolhe numa lista.
+- **Cripto sem moeda conferida** continua buscando a moeda a cada
+  atualização.
+- **Posição pendente da inclusão** expira em 2 h, como está.
+- **Página da posição** é rota própria.
+- **Vencimento** é editável na página da posição; nada é inferido para os
+  ativos importados.
+
+### Passo pré-produção
+
+Antes de subir para produção, o usuário e o agente vão preparar um arquivo
+com o histórico completo e correto: todas as colunas e valores, posições e
+ativos duplicados para os meses que faltam, a cotação de fechamento do último
+dia de cada mês e a revisão das classificações herdadas, como D+0 e D+1 em
+renda fixa e o BTC classificado como renda fixa de outubro a dezembro de
+2025. Preencher meses faltantes por um botão ou automaticamente **não** é
+funcionalidade do aplicativo; é uma preparação única. Detalhes em
+[Passo pré-produção](pre-deploy.md).
+
+### Backlog
+
+- Previdência, que o usuário indicou como próximo assunto.
+- Livro de movimentações (compras e vendas), que permitiria separar aporte de
+  variação de preço com exatidão.
+
+### Ainda sem resposta, aguardando explicação
+
+O usuário não entendeu estas perguntas; o comportamento atual fica valendo
+até ele responder:
+
+- a execução antiga de "Atualizar carteira" no histórico de cotações
+  (spec 022);
+- abrir outro ano na linha do tempo seleciona ou não um mês daquele ano
+  (spec 023): não se trata de várias linhas do tempo, apenas do clique num
+  ano diferente do atual;
+- recusar classes fora da lista no rateio (spec 025);
+- os 30 dias para "vencendo" e o USD como moeda base das criptos que não são
+  o BTC (spec 026), que o usuário tende a aceitar.
+
 ## Critérios de aceite da iniciativa
 
 - não existe barra lateral nem aba de alocação; a análise fica na Visão
