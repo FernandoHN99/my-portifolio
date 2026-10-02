@@ -76,6 +76,32 @@ test("os filtros de posições combinam e somam o recorte", async ({ page }) => 
   await expect(page.getByRole("button", { name: /Classe\s*1/ })).toBeVisible();
 });
 
+test("a edição de posições fica pendente até salvar ou descartar", async ({ page, isMobile }) => {
+  test.skip(isMobile, "A edição direta na célula é oferecida a partir de telas médias.");
+
+  await page.goto("/posicoes");
+  await page.locator('[data-edit-cell="value"]').first().dblclick();
+  const input = page.getByRole("textbox", { name: /^(Quantidade|Saldo) de / });
+  await input.fill("1");
+  await input.press("Enter");
+
+  await expect(page.getByText("1 alteração pendente")).toBeVisible();
+  await page.getByRole("button", { name: "Descartar" }).click();
+  await expect(page.getByText(/alteraç(ão|ões) pendente/)).toHaveCount(0);
+});
+
+test("competência passada exige confirmação para editar", async ({ page }) => {
+  await page.goto("/posicoes?mes=2026-08");
+
+  await expect(page.getByText(/travada para edição/)).toBeVisible();
+  await expect(page.locator("[data-edit-cell]")).toHaveCount(0);
+
+  await page.getByRole("button", { name: "Editar este mês" }).click();
+  await expect(page.getByRole("dialog")).toContainText("Isso altera o histórico");
+  await page.getByRole("button", { name: "Cancelar" }).click();
+  await expect(page.locator("[data-edit-cell]")).toHaveCount(0);
+});
+
 test("o rebalanceamento troca de recorte", async ({ page }) => {
   await page.goto("/?mes=2026-09");
 

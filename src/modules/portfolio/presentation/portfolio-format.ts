@@ -7,6 +7,17 @@ export function formatBrl(value: number, options?: { compact?: boolean }) {
   }).format(value);
 }
 
+export function parseLocaleNumber(value: string) {
+  const trimmed = value.trim().replace(/\s/g, "");
+  const normalized = trimmed.includes(",") ? trimmed.replace(/\./g, "").replace(",", ".") : trimmed;
+
+  if (!/^\d+(?:\.\d+)?$/.test(normalized)) {
+    return null;
+  }
+
+  return Number(normalized);
+}
+
 export function formatSharePercent(value: number) {
   return new Intl.NumberFormat("pt-BR", {
     style: "percent",

@@ -13,6 +13,7 @@ import Link from "next/link";
 import { refreshPortfolioMonthAction } from "@/app/actions/refresh-portfolio-month";
 import type { MonthlyUpdateOverview } from "@/modules/portfolio/application/get-monthly-update";
 import { formatBrl, formatMonth } from "@/modules/portfolio/presentation/portfolio-format";
+import { toMonthParam } from "@/modules/portfolio/presentation/reference-month";
 import { RefreshPortfolioButton } from "@/modules/portfolio/ui/refresh-portfolio-button";
 
 export function MonthlyUpdateView({ update }: { update: MonthlyUpdateOverview }) {
@@ -100,7 +101,7 @@ export function MonthlyUpdateView({ update }: { update: MonthlyUpdateOverview })
         </Link>
         {update.status === "COMPLETED" ? (
           <Link
-            href="/carteira/editar"
+            href={`/posicoes?mes=${toMonthParam(update.targetMonth)}`}
             className="inline-flex h-11 items-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground outline-none transition-[background-color,transform] duration-150 ease-out hover:bg-primary/90 focus-visible:ring-3 focus-visible:ring-ring/40 active:scale-[0.98]"
           >
             <PencilSimpleLineIcon aria-hidden="true" size={15} weight="bold" />

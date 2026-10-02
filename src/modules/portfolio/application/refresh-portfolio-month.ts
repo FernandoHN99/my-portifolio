@@ -114,19 +114,43 @@ async function ensureMonthlyDraft(targetMonth: Date) {
     where: { referenceDate: targetMonth },
     select: {
       id: true,
+      status: true,
       targetUpdate: { select: { id: true } },
     },
   });
 
   if (existingTarget) {
-    if (!existingTarget.targetUpdate) {
-      throw new Error("A competência já existe e não foi criada pelo fluxo de atualização.");
+    if (existingTarget.targetUpdate) {
+      return {
+        targetMonthId: existingTarget.id,
+        runId: existingTarget.targetUpdate.id,
+      };
     }
 
-    return {
-      targetMonthId: existingTarget.id,
-      runId: existingTarget.targetUpdate.id,
-    };
+    if (existingTarget.status !== PortfolioMonthStatus.DRAFT) {
+      throw new Error("A competência já existe e não está em rascunho.");
+    }
+
+    const previousMonth = await prisma.portfolioMonth.findFirst({
+      where: { referenceDate: { lt: targetMonth } },
+      orderBy: { referenceDate: "desc" },
+      select: { id: true },
+    });
+
+    if (!previousMonth) {
+      throw new Error("Não existe uma competência anterior para registrar a atualização.");
+    }
+
+    const run = await prisma.monthlyUpdateRun.create({
+      data: {
+        sourceMonthId: previousMonth.id,
+        targetMonthId: existingTarget.id,
+        status: MonthlyUpdateStatus.RUNNING,
+      },
+      select: { id: true },
+    });
+
+    return { targetMonthId: existingTarget.id, runId: run.id };
   }
 
   const sourceMonth = await prisma.portfolioMonth.findFirst({

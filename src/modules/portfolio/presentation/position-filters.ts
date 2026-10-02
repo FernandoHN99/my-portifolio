@@ -14,15 +14,15 @@ export type PositionFilters = {
 
 export type GroupBy = "instituicao" | "classe";
 
-export type GroupedPosition = {
-  position: MonthPosition;
+export type GroupedPosition<T extends MonthPosition = MonthPosition> = {
+  position: T;
   valueBrl: number;
 };
 
-export type PositionGroup = {
+export type PositionGroup<T extends MonthPosition = MonthPosition> = {
   key: string;
   label: string;
-  items: GroupedPosition[];
+  items: GroupedPosition<T>[];
   totalBrl: number;
 };
 
@@ -44,7 +44,7 @@ export function hasClassFilter(filters: PositionFilters) {
   return filters.classes.length > 0 || filters.subclasses.length > 0;
 }
 
-export function filterPositions(positions: MonthPosition[], filters: PositionFilters) {
+export function filterPositions<T extends MonthPosition>(positions: T[], filters: PositionFilters): T[] {
   const search = normalize(filters.search);
 
   return positions.filter((position) => {
@@ -110,14 +110,14 @@ export function matchedValueBrl(position: MonthPosition, filters: PositionFilter
   return (position.totalBrl * weight) / 100;
 }
 
-export function groupPositions(
-  positions: MonthPosition[],
+export function groupPositions<T extends MonthPosition>(
+  positions: T[],
   groupBy: GroupBy,
   filters: PositionFilters,
-): PositionGroup[] {
-  const groups = new Map<string, PositionGroup>();
+): PositionGroup<T>[] {
+  const groups = new Map<string, PositionGroup<T>>();
 
-  const add = (label: string, item: GroupedPosition) => {
+  const add = (label: string, item: GroupedPosition<T>) => {
     const group = groups.get(label) ?? { key: label, label, items: [], totalBrl: 0 };
     group.items.push(item);
     group.totalBrl += item.valueBrl;

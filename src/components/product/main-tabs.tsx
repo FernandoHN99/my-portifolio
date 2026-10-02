@@ -4,6 +4,7 @@ import { motion } from "motion/react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 
+import { confirmDiscardChanges } from "@/components/product/unsaved-changes";
 import { cn } from "@/lib/utils";
 
 export type TabKey = "overview" | "positions";
@@ -30,6 +31,11 @@ export function MainTabs({ active }: { active: TabKey | "none" }) {
             key={tab.key}
             href={month ? `${tab.href}?mes=${month}` : tab.href}
             aria-current={isActive ? "page" : undefined}
+            onClick={(event) => {
+              if (!confirmDiscardChanges()) {
+                event.preventDefault();
+              }
+            }}
             className={cn(
               "relative rounded-lg px-3 py-1.5 text-[13px] font-medium whitespace-nowrap outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring/50",
               isActive ? "text-primary-foreground" : "text-muted-foreground hover:text-foreground",

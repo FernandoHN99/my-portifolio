@@ -5,6 +5,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useRef, type ReactNode, type TouchEvent } from "react";
 
 import { MAIN_TABS, type TabKey } from "@/components/product/main-tabs";
+import { confirmDiscardChanges } from "@/components/product/unsaved-changes";
 
 const SWIPE_THRESHOLD = 64;
 
@@ -25,6 +26,10 @@ export function TabViewport({ active, children }: { active: TabKey | "none"; chi
     const target = MAIN_TABS[currentIndex + direction];
 
     if (!target) {
+      return;
+    }
+
+    if (!confirmDiscardChanges()) {
       return;
     }
 

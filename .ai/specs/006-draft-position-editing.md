@@ -1,7 +1,12 @@
 # 006 — Edição das posições do rascunho
 
-Estado: concluída em 2026-10-01
+Estado: concluída em 2026-10-01; substituída pela spec 017 em 2026-10-01
 Definida em: 2026-10-01
+
+A regra de editar somente o rascunho, o editor em `/carteira/editar` e sua
+ação foram substituídos pela [edição na aba de posições](017-positions-editing.md),
+que permite editar a competência mais recente livremente e as passadas com
+confirmação. O registro abaixo preserva a origem da decisão.
 
 ## Problema
 

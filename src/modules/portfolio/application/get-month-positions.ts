@@ -10,6 +10,8 @@ export type MonthPositionAllocation = {
 
 export type MonthPosition = {
   id: string;
+  accountId: string;
+  assetId: string;
   assetName: string;
   ticker: string | null;
   quoteSymbol: string | null;
@@ -18,6 +20,7 @@ export type MonthPosition = {
   strategy: string | null;
   baseCurrency: string;
   quantity: number;
+  quantityText: string;
   unitPriceBrl: number | null;
   totalBrl: number;
   totalUsd: number | null;
@@ -25,11 +28,21 @@ export type MonthPosition = {
   allocations: MonthPositionAllocation[];
 };
 
+export type MonthQuote = {
+  symbol: string;
+  valueBrl: number | null;
+  valueText: string;
+  positionCount: number;
+};
+
 export type MonthPositions = {
+  id: string;
   referenceDate: Date;
   status: PortfolioMonthStatus;
+  isLatest: boolean;
   totalBrl: number;
   usdRate: number | null;
+  quotes: MonthQuote[];
   positions: MonthPosition[];
 };
 
@@ -43,57 +56,92 @@ export async function getMonthPositions(
   }
 
   try {
-    const month = await prisma.portfolioMonth.findFirst({
-      where: referenceDate ? { referenceDate } : undefined,
-      orderBy: { referenceDate: "desc" },
-      select: {
-        referenceDate: true,
-        status: true,
-        positions: {
-          select: {
-            id: true,
-            quantity: true,
-            unitPriceBrl: true,
-            totalBrl: true,
-            strategy: true,
-            asset: {
-              select: { name: true, ticker: true, quoteSymbol: true, baseCurrency: true },
-            },
-            account: {
-              select: { name: true, institution: { select: { name: true } } },
-            },
-            allocations: {
-              select: { assetClass: true, subclass: true, duration: true, weight: true },
+    const [month, latest] = await Promise.all([
+      prisma.portfolioMonth.findFirst({
+        where: referenceDate ? { referenceDate } : undefined,
+        orderBy: { referenceDate: "desc" },
+        select: {
+          id: true,
+          referenceDate: true,
+          status: true,
+          positions: {
+            select: {
+              id: true,
+              accountId: true,
+              assetId: true,
+              quantity: true,
+              unitPriceBrl: true,
+              totalBrl: true,
+              strategy: true,
+              asset: {
+                select: { name: true, ticker: true, quoteSymbol: true, baseCurrency: true },
+              },
+              account: {
+                select: { name: true, institution: { select: { name: true } } },
+              },
+              allocations: {
+                select: { assetClass: true, subclass: true, duration: true, weight: true },
+              },
             },
           },
         },
-      },
-    });
+      }),
+      prisma.portfolioMonth.findFirst({
+        orderBy: { referenceDate: "desc" },
+        select: { id: true },
+      }),
+    ]);
 
     if (!month) {
       return null;
     }
 
-    const usdQuote = await prisma.marketQuote.findFirst({
-      where: { referenceDate: month.referenceDate, symbol: "USD" },
-      select: { valueBrl: true },
+    const storedQuotes = await prisma.marketQuote.findMany({
+      where: { referenceDate: month.referenceDate },
+      select: { symbol: true, valueBrl: true },
     });
-    const usdRate = usdQuote ? usdQuote.valueBrl.toNumber() : null;
+    const quoteBySymbol = new Map(storedQuotes.map((quote) => [quote.symbol, quote.valueBrl]));
+    const usdRate = quoteBySymbol.get("USD")?.toNumber() ?? null;
     const totalBrl = month.positions
       .reduce((total, position) => total.plus(position.totalBrl), new Prisma.Decimal(0))
       .toNumber();
 
+    const usage = new Map<string, number>();
+    for (const position of month.positions) {
+      const symbol = position.asset.quoteSymbol;
+      if (symbol) {
+        usage.set(symbol, (usage.get(symbol) ?? 0) + 1);
+      }
+    }
+    const symbols = [...new Set([...quoteBySymbol.keys(), ...usage.keys()])].sort((left, right) =>
+      left === "USD" ? -1 : right === "USD" ? 1 : left.localeCompare(right),
+    );
+
     return {
+      id: month.id,
       referenceDate: month.referenceDate,
       status: month.status,
+      isLatest: latest?.id === month.id,
       totalBrl,
       usdRate,
+      quotes: symbols.map((symbol) => {
+        const stored = quoteBySymbol.get(symbol);
+
+        return {
+          symbol,
+          valueBrl: stored?.toNumber() ?? null,
+          valueText: stored?.toString() ?? "",
+          positionCount: usage.get(symbol) ?? 0,
+        };
+      }),
       positions: month.positions
         .map((position) => {
           const positionTotal = position.totalBrl.toNumber();
 
           return {
             id: position.id,
+            accountId: position.accountId,
+            assetId: position.assetId,
             assetName: position.asset.name,
             ticker: position.asset.ticker,
             quoteSymbol: position.asset.quoteSymbol,
@@ -102,6 +150,7 @@ export async function getMonthPositions(
             strategy: position.strategy,
             baseCurrency: position.asset.baseCurrency,
             quantity: position.quantity.toNumber(),
+            quantityText: position.quantity.toString(),
             unitPriceBrl: position.unitPriceBrl ? position.unitPriceBrl.toNumber() : null,
             totalBrl: positionTotal,
             totalUsd: usdRate === null || usdRate === 0 ? null : positionTotal / usdRate,
@@ -110,7 +159,7 @@ export async function getMonthPositions(
               assetClass: allocation.assetClass,
               subclass: allocation.subclass,
               duration: allocation.duration,
-              weight: allocation.weight.toNumber() * 100,
+              weight: allocation.weight.mul(100).toNumber(),
             })),
           };
         })

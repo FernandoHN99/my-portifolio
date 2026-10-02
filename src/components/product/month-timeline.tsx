@@ -5,6 +5,7 @@ import { useQueryState } from "nuqs";
 import { useEffect, useRef, useTransition } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 
+import { confirmDiscardChanges } from "@/components/product/unsaved-changes";
 import { cn } from "@/lib/utils";
 import type { PortfolioMonthSummary } from "@/modules/portfolio/application/get-portfolio-months";
 
@@ -24,11 +25,17 @@ export function MonthTimeline({ months, selectedMonth }: MonthTimelineProps) {
     selectedRef.current?.scrollIntoView({ block: "nearest", inline: "center" });
   }, [selectedMonth]);
 
+  const goTo = (month: string) => {
+    if (confirmDiscardChanges()) {
+      void setMonth(month);
+    }
+  };
+
   const select = (index: number) => {
     const target = months[index];
 
     if (target) {
-      void setMonth(target.month);
+      goTo(target.month);
     }
   };
 
@@ -86,7 +93,7 @@ export function MonthTimeline({ months, selectedMonth }: MonthTimelineProps) {
                     type="button"
                     role="tab"
                     aria-selected={isSelected}
-                    onClick={() => void setMonth(month.month)}
+                    onClick={() => goTo(month.month)}
                     className={cn(
                       "group relative flex h-9 shrink-0 flex-col items-center justify-center rounded-lg px-2.5 text-[11px] font-medium outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring/50",
                       isSelected
@@ -128,7 +135,7 @@ export function MonthTimeline({ months, selectedMonth }: MonthTimelineProps) {
       {latestMonth && latestMonth.month !== selectedMonth ? (
         <button
           type="button"
-          onClick={() => void setMonth(latestMonth.month)}
+          onClick={() => goTo(latestMonth.month)}
           className="hidden h-8 shrink-0 items-center rounded-lg border border-border px-2.5 text-[11px] font-medium text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50 sm:flex"
         >
           Mais recente

@@ -2,7 +2,7 @@
 
 Registrado em: 2026-10-01
 Origem: briefing do usuário, com capturas da planilha anexadas na conversa.
-Estágio: em execução, dividida nas specs 010 a 014.
+Estágio: em execução, dividida nas specs 010 a 017; resta a 014.
 
 Este documento é a fonte principal do propósito, das restrições e das regras
 de cálculo desta iniciativa. As specs descrevem cada fatia e apontam para
@@ -125,7 +125,7 @@ percentual atual, percentual ideal, valor atual, valor ideal e diferença.
 3. [012 — Rebalanceamento na Visão Geral](../specs/012-rebalancing-in-overview.md): concluída.
 4. [015 — Transições sem recarregamento](../specs/015-seamless-transitions.md): concluída.
 5. [013 — Posições: filtros e consulta](../specs/013-positions-filters.md): concluída.
-6. [017 — Posições: edição](../specs/017-positions-editing.md): planejada.
+6. [017 — Posições: edição](../specs/017-positions-editing.md): concluída.
 7. [014 — Configuração da carteira](../specs/014-target-settings.md): planejada.
 8. [016 — Histórico de uma posição e de um ativo](../specs/016-position-history.md): planejada, sem prazo.
 
