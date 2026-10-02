@@ -25,7 +25,7 @@ export async function saveTargetPlan(input: { targets: { key: string; percent: s
       orderBy: { createdAt: "desc" },
       select: {
         id: true,
-        tolerance: true,
+        tolerancePercent: true,
         targets: {
           select: { key: true, scope: true, primaryLabel: true, secondaryLabel: true, percentage: true },
         },
@@ -74,7 +74,7 @@ export async function saveTargetPlan(input: { targets: { key: string; percent: s
 
   const tolerance = parseTolerance(input.tolerance);
 
-  if (parsed.every((target) => target.fraction.equals(target.percentage)) && tolerance.equals(active.tolerance)) {
+  if (parsed.every((target) => target.fraction.equals(target.percentage)) && tolerance.equals(active.tolerancePercent)) {
     throw new TargetPlanError("Nada mudou em relação à versão vigente.");
   }
 
@@ -87,7 +87,7 @@ export async function saveTargetPlan(input: { targets: { key: string; percent: s
   return prisma.$transaction(async (transaction) => {
     await transaction.targetPlan.updateMany({ where: { isActive: true }, data: { isActive: false } });
     const plan = await transaction.targetPlan.create({
-      data: { name, isActive: true, tolerance },
+      data: { name, isActive: true, tolerancePercent: tolerance },
       select: { id: true, name: true },
     });
 

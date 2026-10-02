@@ -42,7 +42,7 @@ export async function getTargetEditor(referenceDate?: Date): Promise<TargetEdito
         orderBy: { createdAt: "desc" },
         select: {
           name: true,
-          tolerance: true,
+          tolerancePercent: true,
           targets: {
             orderBy: { key: "asc" },
             select: {
@@ -80,7 +80,7 @@ export async function getTargetEditor(referenceDate?: Date): Promise<TargetEdito
 
     return {
       planName: active.name,
-      tolerance: active.tolerance.toNumber(),
+      tolerance: active.tolerancePercent.toNumber(),
       items: active.targets.map((target) => ({
         key: target.key,
         scope: target.scope as AllocationGroupKey,

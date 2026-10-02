@@ -56,9 +56,9 @@ apenas para registrar quando elas mudaram.
 
 - cada salvamento cria uma nova versão do plano e a torna a única vigente; as
   anteriores, inclusive a importada do Excel, ficam guardadas e listadas com a
-  data, como registro de quando as metas mudaram. A versão vigente vale para
-  todos os meses, inclusive os passados, conforme o usuário confirmou em
-  2026-10-02;
+  data como registro de mudanças. As metas são globais, por esclarecimento do
+  usuário em 2026-10-02: toda competência, inclusive as passadas, é calculada
+  com a versão vigente;
 - o plano importado continua ligado ao lote; os planos do usuário não têm
   lote, e por isso a dependência passou a ser opcional na migração
   `editable_target_plans`;

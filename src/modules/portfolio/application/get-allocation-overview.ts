@@ -99,7 +99,7 @@ export async function getActivePlan(): Promise<{ targets: TargetValue[]; toleran
     where: { isActive: true },
     orderBy: { createdAt: "desc" },
     select: {
-      tolerance: true,
+      tolerancePercent: true,
       targets: {
         select: { scope: true, primaryLabel: true, secondaryLabel: true, percentage: true },
       },
@@ -113,7 +113,7 @@ export async function getActivePlan(): Promise<{ targets: TargetValue[]; toleran
       secondaryLabel: target.secondaryLabel,
       fraction: target.percentage.toNumber(),
     })),
-    tolerance: plan?.tolerance.toNumber() ?? DEFAULT_REBALANCE_TOLERANCE,
+    tolerance: plan?.tolerancePercent.toNumber() ?? DEFAULT_REBALANCE_TOLERANCE,
   };
 }
 
