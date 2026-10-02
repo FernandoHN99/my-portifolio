@@ -9,10 +9,7 @@ const month = (page: Page, label: string) =>
 // Os botões de ano e as setas só respondem depois da hidratação do React.
 async function openTimeline(page: Page, url: string) {
   await page.goto(url);
-  await page.waitForFunction(() => {
-    const strip = document.querySelector("nav[aria-label='Competências']");
-    return Boolean(strip && Object.keys(strip).some((key) => key.startsWith("__reactFiber")));
-  });
+  await expect(timeline(page)).toHaveAttribute("data-hydrated");
 }
 
 test("a linha do tempo abre só o ano da competência", async ({ page }) => {
@@ -34,6 +31,9 @@ test("abrir outro ano não troca a competência até escolher um mês", async ({
   await expect(year(page, 2026)).toHaveAttribute("aria-expanded", "false");
   await expect(month(page, "Dezembro de 2025")).toBeVisible();
   await expect(timeline(page).getByRole("button", { name: / de 2026/ })).toHaveCount(0);
+  await expect(year(page, 2026)).toHaveAccessibleDescription(
+    "Competência selecionada: Fevereiro de 2026",
+  );
   await expect(page).toHaveURL(/mes=2026-02/);
   await expect(page.getByText("Fevereiro de 2026", { exact: true })).toBeVisible();
 
@@ -59,6 +59,49 @@ test("as setas atravessam o ano e a competência fica na URL", async ({ page }) 
 
   await page.reload();
   await expect(month(page, "Janeiro de 2026")).toHaveAttribute("aria-current", "date");
+});
+
+test("consultar outro ano não o reabre quando a competência volta", async ({ page, isMobile }) => {
+  await openTimeline(page, "/?mes=2026-02");
+
+  await year(page, 2024).click();
+  await expect(year(page, 2024)).toHaveAttribute("aria-expanded", "true");
+  await page.getByRole("button", { name: "Próximo mês" }).click();
+  await expect(page).toHaveURL(/mes=2026-03/);
+  await page.getByRole("button", { name: "Mês anterior" }).click();
+  await expect(page).toHaveURL(/mes=2026-02/);
+  await expect(year(page, 2026)).toHaveAttribute("aria-expanded", "true");
+  await expect(year(page, 2024)).toHaveAttribute("aria-expanded", "false");
+  await expect(month(page, "Fevereiro de 2026")).toHaveAttribute("aria-current", "date");
+
+  // "Mais recente" só aparece a partir de telas pequenas.
+  if (isMobile) {
+    return;
+  }
+
+  await openTimeline(page, "/");
+  await year(page, 2024).click();
+  await month(page, "Maio de 2024").click();
+  await expect(page).toHaveURL(/mes=2024-05/);
+  await page.getByRole("button", { name: "Mais recente" }).click();
+  await expect(page).toHaveURL(/mes=2026-09/);
+  await expect(year(page, 2026)).toHaveAttribute("aria-expanded", "true");
+  await expect(month(page, "Setembro de 2026")).toHaveAttribute("aria-current", "date");
+});
+
+test("o foco segue para o ano que abre mesmo com toques seguidos", async ({ page }) => {
+  await openTimeline(page, "/?mes=2026-01");
+  await month(page, "Janeiro de 2026").focus();
+
+  await page.keyboard.press("ArrowLeft");
+  await expect(month(page, "Dezembro de 2025")).toHaveAttribute("aria-current", "date");
+  await page.keyboard.press("ArrowLeft");
+  await expect(page).toHaveURL(/mes=2025-11/);
+  await expect(month(page, "Novembro de 2025")).toHaveAttribute("aria-current", "date");
+
+  // O painel de 2026 já saiu; o foco não pode ter ido com ele.
+  await expect(timeline(page).getByRole("button", { name: / de 2026/ })).toHaveCount(0);
+  await expect(month(page, "Dezembro de 2025")).toBeFocused();
 });
 
 test("a linha do tempo cabe na tela sem deslocar a página", async ({ page, isMobile }) => {
@@ -130,9 +173,41 @@ test.describe("com movimento reduzido", () => {
   test("trocar de ano mostra os meses sem animar a largura", async ({ page }) => {
     await openTimeline(page, "/?mes=2026-02");
 
+    // Mede, a cada quadro, a fração aberta de cada painel de meses. Sem
+    // animação de largura, nenhum quadro mostra um painel pela metade.
+    const sampling = timeline(page).evaluate(
+      (strip) =>
+        new Promise<{ panel: string; open: number }[]>((resolve) => {
+          const samples: { panel: string; open: number }[] = [];
+          const start = performance.now();
+          const record = () => {
+            for (const panel of strip.querySelectorAll("[role='group']")) {
+              const content = panel.firstElementChild!.getBoundingClientRect().width;
+              samples.push({
+                panel: panel.getAttribute("aria-label")!,
+                open: panel.getBoundingClientRect().width / content,
+              });
+            }
+
+            if (performance.now() - start < 800) {
+              requestAnimationFrame(record);
+            } else {
+              resolve(samples);
+            }
+          };
+          requestAnimationFrame(record);
+        }),
+    );
+
     await year(page, 2024).click();
     await expect(year(page, 2024)).toHaveAttribute("aria-expanded", "true");
     await expect(timeline(page).getByRole("button", { name: / de 2024/ }).first()).toBeVisible();
     await expect(timeline(page).getByRole("button", { name: / de 2026/ })).toHaveCount(0);
+
+    const samples = await sampling;
+    expect(samples.some((sample) => sample.panel === "Meses de 2024" && sample.open > 0.99)).toBe(
+      true,
+    );
+    expect(samples.filter((sample) => sample.open > 0.01 && sample.open < 0.99)).toEqual([]);
   });
 });

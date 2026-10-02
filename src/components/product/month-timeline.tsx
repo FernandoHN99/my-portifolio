@@ -3,7 +3,16 @@
 import { CaretLeftIcon, CaretRightIcon } from "@phosphor-icons/react/dist/ssr";
 import { AnimatePresence, motion, useReducedMotion, type Transition } from "motion/react";
 import { useQueryState } from "nuqs";
-import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  useTransition,
+} from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 
 import { confirmDiscardChanges } from "@/components/product/unsaved-changes";
@@ -58,7 +67,17 @@ export function MonthTimeline({ months, selectedMonth }: MonthTimelineProps) {
   const activeIndex = months.findIndex((month) => month.month === activeMonth);
   const active = months[activeIndex];
   const activeYear = active ? active.referenceDate.getUTCFullYear() : null;
-  const expandedYear = browsing && browsing.from === activeMonth ? browsing.year : activeYear;
+
+  // O ano aberto para consulta só vale para a competência em que foi aberto.
+  // Qualquer troca de competência, pelo mês, pelas setas, pelo teclado, por
+  // "Mais recente" ou pela URL, devolve a faixa ao ano dela; sem limpar aqui, o
+  // ano consultado reabriria sozinho se a competência voltasse à de antes.
+  if (browsing !== null && browsing.from !== activeMonth) {
+    setBrowsing(null);
+  }
+
+  const expandedYear = browsing?.year ?? activeYear;
+  const hydrated = useSyncExternalStore(subscribeNothing, isClient, isServer);
   const latestMonth = months.at(-1);
   const years = useMemo(() => groupByYear(months), [months]);
 
@@ -89,20 +108,37 @@ export function MonthTimeline({ months, selectedMonth }: MonthTimelineProps) {
 
   const lastExpandedYear = useRef(expandedYear);
   const firstReveal = useRef(true);
-  const focusAfterOpen = useRef(false);
 
   const handleYearOpened = () => {
     reveal(reduceMotion ? "auto" : "smooth");
-
-    // As setas podem atravessar o ano com o foco num mês que está saindo; o
-    // foco segue para o mês ativo do ano que abriu, em vez de cair no documento.
-    if (focusAfterOpen.current) {
-      focusAfterOpen.current = false;
-      stripRef.current
-        ?.querySelector<HTMLElement>("[data-expanded] [aria-current='date']")
-        ?.focus({ preventScroll: true });
-    }
   };
+
+  // Se o ano muda com o foco num mês do ano que está fechando, o foco passa ao
+  // mês selecionado do ano que abriu assim que o painel dele entra no DOM, ainda
+  // sem largura. Esperar o fim da animação não basta: um segundo toque nas setas
+  // antes disso já é uma troca dentro do ano novo, e o foco cairia no documento
+  // quando o painel que sai fosse desmontado.
+  useLayoutEffect(() => {
+    const strip = stripRef.current;
+    const focused = document.activeElement;
+
+    if (!strip || !(focused instanceof HTMLElement) || !strip.contains(focused)) {
+      return;
+    }
+
+    const panel = focused.closest("[role='group']");
+
+    if (!panel || panel.closest("[data-expanded]")) {
+      return;
+    }
+
+    const expanded = strip.querySelector<HTMLElement>("[data-expanded]");
+    const target =
+      expanded?.querySelector<HTMLElement>("[aria-current='date']") ??
+      expanded?.querySelector<HTMLElement>("button");
+
+    target?.focus({ preventScroll: true });
+  }, [expandedYear]);
 
   useEffect(() => {
     const yearChanged = lastExpandedYear.current !== expandedYear;
@@ -114,7 +150,6 @@ export function MonthTimeline({ months, selectedMonth }: MonthTimelineProps) {
       return;
     }
 
-    focusAfterOpen.current = false;
     reveal(firstReveal.current || reduceMotion ? "auto" : "smooth");
     firstReveal.current = false;
   }, [activeMonth, expandedYear, reduceMotion, reveal]);
@@ -156,29 +191,21 @@ export function MonthTimeline({ months, selectedMonth }: MonthTimelineProps) {
 
   const goTo = (month: string) => {
     if (month === activeMonth || !confirmDiscardChanges()) {
-      return false;
+      return;
     }
 
     void setMonth(month);
-    return true;
   };
 
   const select = (index: number) => {
     const target = months[index];
 
-    if (!target) {
-      return;
-    }
-
-    const focusInStrip = Boolean(stripRef.current?.contains(document.activeElement));
-
-    if (goTo(target.month)) {
-      focusAfterOpen.current = focusInStrip;
+    if (target) {
+      goTo(target.month);
     }
   };
 
   const expandYear = (year: number) => {
-    focusAfterOpen.current = false;
     setBrowsing(year === activeYear ? null : { year, from: activeMonth });
   };
 
@@ -230,6 +257,7 @@ export function MonthTimeline({ months, selectedMonth }: MonthTimelineProps) {
       <nav
         ref={stripRef}
         aria-label="Competências"
+        data-hydrated={hydrated || undefined}
         onScroll={updateEdges}
         className="flex min-w-0 flex-row-reverse overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         style={{ maskImage: fade, WebkitMaskImage: fade }}
@@ -280,8 +308,14 @@ function YearCapsule({
   onSelect: (month: string) => void;
   onOpened: () => void;
 }) {
-  const holdsActive = group.months.some((month) => month.month === activeMonth);
+  const selected = group.months.find((month) => month.month === activeMonth);
+  const holdsActive = selected !== undefined;
   const panelId = `competencias-${group.year}`;
+  const hintId = `${panelId}-selecionada`;
+  // Com outro ano aberto para consulta, o mês selecionado sai da árvore de
+  // acessibilidade; a cápsula do ano dele avisa qual é, além da cor.
+  const hint =
+    selected && !expanded ? `Competência selecionada: ${formatMonth(selected.referenceDate)}` : null;
 
   return (
     <div
@@ -295,6 +329,7 @@ function YearCapsule({
         type="button"
         aria-expanded={expanded}
         aria-controls={expanded ? panelId : undefined}
+        aria-describedby={hint ? hintId : undefined}
         aria-disabled={expanded || undefined}
         onClick={expanded ? undefined : onExpand}
         className={cn(
@@ -309,6 +344,11 @@ function YearCapsule({
         <span className="leading-none">{group.year}</span>
         <YearTicks group={group} activeMonth={activeMonth} hidden={expanded} />
       </button>
+      {hint ? (
+        <span id={hintId} hidden>
+          {hint}
+        </span>
+      ) : null}
 
       <AnimatePresence initial={false}>
         {expanded ? (
@@ -389,6 +429,8 @@ function YearTicks({
 }) {
   const byMonth = new Map(group.months.map((month) => [month.referenceDate.getUTCMonth(), month]));
 
+  // Marcas de 3 px em cor cheia: com 2 px e a opacidade das barras dos meses,
+  // verde e vermelho mal se distinguiam numa tela de densidade comum.
   return (
     <span
       aria-hidden="true"
@@ -404,14 +446,16 @@ function YearTicks({
           <span
             key={index}
             className={cn(
-              "h-0.5 w-0.5 rounded-full",
+              "size-[3px] rounded-[1px]",
               !month
                 ? "bg-muted-foreground/15"
                 : month.month === activeMonth
                   ? "bg-foreground"
                   : month.changeBrl === null
                     ? "bg-muted-foreground/45"
-                    : markerClass(month, false),
+                    : month.changeBrl >= 0
+                      ? "bg-primary"
+                      : "bg-destructive",
             )}
           />
         );
@@ -442,6 +486,20 @@ function StepButton({
       {children}
     </button>
   );
+}
+
+// Antes da hidratação os botões da faixa não respondem. `data-hydrated` marca
+// o momento em que passam a responder; os testes de interface esperam por ele.
+function subscribeNothing() {
+  return () => {};
+}
+
+function isClient() {
+  return true;
+}
+
+function isServer() {
+  return false;
 }
 
 function groupByYear(months: PortfolioMonthSummary[]): YearGroup[] {
