@@ -149,10 +149,15 @@ escolhida fica marcada.
 
 ## Questões em aberto
 
-- os campos mantêm o texto de 12 px do restante do aplicativo; o Safari do
-  iPhone amplia a página ao focar campos com texto menor que 16 px. Não foi
-  verificado em aparelho, e o mesmo vale para todos os campos atuais;
-- se o rateio deve recusar classes fora da lista em vez de oferecer "Usar".
+- resolvido na [spec 031](031-positions-cascading-filters.md): os campos usam
+  16 px em telas de toque;
+- recusar classes fora da lista no rateio em vez de oferecer "Usar": o usuário
+  não reconheceu o termo "rateio" em 2026-10-02 e pediu uma explicação. Rateio
+  é a divisão de uma posição entre classificações (classe, subclasse e
+  prazo), com pesos que somam 100%, editada pelo botão de gráfico de pizza no
+  modo de edição. Hoje, digitar uma classe que não existe oferece "Usar
+  ‘nome’"; a alternativa seria aceitar só as classes já cadastradas. Segue
+  como está até a resposta.
 
 ## Critérios de aceite
 

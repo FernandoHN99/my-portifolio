@@ -210,3 +210,16 @@
     animation-iteration-count: 1 !important;
   }
 }
+
+/*
+ * O Safari do iPhone amplia a página ao focar um campo com texto menor que
+ * 16 px. Em telas de toque, os campos de texto usam 16 px (spec 031). Fora das
+ * camadas do Tailwind, esta regra vence os utilitários de tamanho de texto.
+ */
+@media (pointer: coarse) {
+  input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"]),
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}

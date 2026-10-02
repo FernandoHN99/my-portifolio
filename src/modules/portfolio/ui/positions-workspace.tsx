@@ -53,9 +53,11 @@ import { cn } from "@/lib/utils";
 import type { EditingCatalog } from "@/modules/portfolio/application/get-editing-catalog";
 import type { MonthPositions } from "@/modules/portfolio/application/get-month-positions";
 import { categoryColor } from "@/modules/portfolio/presentation/category-colors";
+import { formatDay } from "@/modules/portfolio/presentation/maturity";
 import {
   classesOf,
   filterOptions,
+  filterOrder,
   filterPositions,
   groupPositions,
   hasClassFilter,
@@ -108,6 +110,7 @@ const COLUMN_META: Record<string, ColumnMeta> = {
   strategy: { align: "left", calculated: false, hide: "hidden xl:table-cell" },
   classes: { align: "left", calculated: false, hide: "hidden lg:table-cell" },
   baseCurrency: { align: "left", calculated: false, hide: "hidden md:table-cell" },
+  maturityDate: { align: "left", calculated: false, hide: "hidden xl:table-cell" },
   quantity: { align: "right", calculated: false, hide: "hidden md:table-cell" },
   unitPriceBrl: { align: "right", calculated: true, hide: "hidden lg:table-cell" },
   totalBrl: { align: "right", calculated: true, hide: "" },
@@ -121,6 +124,12 @@ const columns = helper.columns([
   helper.accessor((row) => strategyOf(row), { id: "strategy", header: "Estratégia" }),
   helper.accessor((row) => classesOf(row).join(", "), { id: "classes", header: "Classes" }),
   helper.accessor("baseCurrency", { header: "Moeda" }),
+  // Sem vencimento ordena depois de qualquer data, nos dois sentidos de ordem.
+  helper.accessor((row) => row.maturityDate ?? undefined, {
+    id: "maturityDate",
+    header: "Vencimento",
+    sortUndefined: "last",
+  }),
   helper.accessor("quantity", { header: "Quantidade" }),
   helper.accessor((row) => row.unitPriceBrl ?? -1, { id: "unitPriceBrl", header: "Cotação" }),
   helper.accessor("totalBrl", { header: "Total R$" }),
@@ -145,6 +154,7 @@ export function PositionsWorkspace({
       inst: list,
       estrategia: list,
       moeda: list,
+      venc: list,
       q: parseAsString.withDefault(""),
       ordem: parseAsString.withDefault("totalBrl.desc"),
       agrupar: parseAsStringLiteral(GROUP_OPTIONS),
@@ -208,11 +218,15 @@ export function PositionsWorkspace({
     institutions: query.inst,
     strategies: query.estrategia,
     currencies: query.moeda,
+    maturities: query.venc,
     search: query.q,
   };
   const display = month ? buildDisplayPositions({ month, catalog, pending, removed, added }) : [];
   const filtered = filterPositions(display, filters);
-  const options = filterOptions(display);
+  // Filtros em cascata (spec 031): a ordem dos parâmetros na URL é a ordem em
+  // que os filtros foram aplicados; um filtro limpo sai da URL e, aplicado de
+  // novo, volta para o fim.
+  const options = filterOptions(display, filters, filterOrder(searchParams.keys()));
   const sorting = parseSorting(query.ordem);
 
   const table = useTable({
@@ -257,6 +271,7 @@ export function PositionsWorkspace({
     filters.institutions.length +
     filters.strategies.length +
     filters.currencies.length +
+    filters.maturities.length +
     (filters.search ? 1 : 0);
   const occupied = new Set(
     display.filter((position) => !position.isRemoved).map((position) => `${position.accountId}:${position.assetId}`),
@@ -460,7 +475,7 @@ export function PositionsWorkspace({
     });
 
   const clearFilters = () =>
-    void setQuery({ classe: null, subclasse: null, inst: null, estrategia: null, moeda: null, q: null });
+    void setQuery({ classe: null, subclasse: null, inst: null, estrategia: null, moeda: null, venc: null, q: null });
 
   // Fora do modo de edição, a linha abre a página da posição (spec 016), com a
   // query da tabela para a volta reabrir os mesmos filtros.
@@ -651,6 +666,7 @@ export function PositionsWorkspace({
           <MultiSelectFilter label="Instituição" options={options.institutions} selected={filters.institutions} onChange={(next) => void setQuery({ inst: next })} />
           <MultiSelectFilter label="Estratégia" options={options.strategies} selected={filters.strategies} onChange={(next) => void setQuery({ estrategia: next })} />
           <MultiSelectFilter label="Moeda" options={options.currencies} selected={filters.currencies} onChange={(next) => void setQuery({ moeda: next })} />
+          <MultiSelectFilter label="Vencimento" options={options.maturities} selected={filters.maturities} onChange={(next) => void setQuery({ venc: next })} />
 
           {activeFilterCount > 0 ? (
             <button
@@ -960,7 +976,7 @@ function PositionRow({
           {position.isAdded ? <span className="ml-1.5 text-primary no-underline">· nova</span> : null}
         </p>
         {position.maturityDate ? (
-          <MaturityBadge maturityDate={position.maturityDate} referenceDay={referenceDay} className="mt-1.5" />
+          <MaturityBadge maturityDate={position.maturityDate} referenceDay={referenceDay} className="mt-1.5 xl:hidden" />
         ) : null}
         <p className="mt-1 text-[10px] text-muted-foreground sm:hidden">{position.institutionName}</p>
       </Cell>
@@ -1008,6 +1024,16 @@ function PositionRow({
       </Cell>
       <Cell id="baseCurrency">
         <span className="font-mono text-xs text-muted-foreground">{position.baseCurrency}</span>
+      </Cell>
+      <Cell id="maturityDate">
+        {position.maturityDate ? (
+          <>
+            <p className="font-mono text-xs text-foreground/80">{formatDay(parseDay(position.maturityDate))}</p>
+            <MaturityBadge maturityDate={position.maturityDate} referenceDay={referenceDay} className="mt-1" />
+          </>
+        ) : (
+          <span className="text-[10px] text-muted-foreground">—</span>
+        )}
       </Cell>
       <Cell id="quantity" editMode={canEdit} changed={position.valueChanged && !position.isAdded}>
         {editable ? (
@@ -1232,4 +1258,9 @@ function parseSorting(value: string): SortingState {
 
 function formatUsd(value: number) {
   return value.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function parseDay(value: string) {
+  const [year, month, day] = value.split("-").map(Number);
+  return new Date(Date.UTC(year, month - 1, day));
 }

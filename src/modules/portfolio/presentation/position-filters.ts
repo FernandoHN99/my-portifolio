@@ -2,6 +2,7 @@ import type { MonthPosition } from "@/modules/portfolio/application/get-month-po
 
 export const NO_CLASS = "Sem classificação";
 export const NO_STRATEGY = "Sem estratégia";
+export const NO_MATURITY = "Sem vencimento";
 
 export type PositionFilters = {
   classes: string[];
@@ -9,7 +10,30 @@ export type PositionFilters = {
   institutions: string[];
   strategies: string[];
   currencies: string[];
+  /** Ano do vencimento, como "2027", ou "Sem vencimento" (spec 031). */
+  maturities: string[];
   search: string;
+};
+
+export type FilterDimension = "classes" | "subclasses" | "institutions" | "strategies" | "currencies" | "maturities";
+
+export const FILTER_DIMENSIONS: FilterDimension[] = [
+  "classes",
+  "subclasses",
+  "institutions",
+  "strategies",
+  "currencies",
+  "maturities",
+];
+
+/** Parâmetro da URL de cada filtro. */
+export const FILTER_PARAMS: Record<FilterDimension, string> = {
+  classes: "classe",
+  subclasses: "subclasse",
+  institutions: "inst",
+  strategies: "estrategia",
+  currencies: "moeda",
+  maturities: "venc",
 };
 
 export type GroupBy = "instituicao" | "classe";
@@ -40,6 +64,11 @@ export function subclassesOf(position: MonthPosition) {
   return [...new Set(position.allocations.map((allocation) => allocation.subclass))];
 }
 
+/** Ano do vencimento, para o filtro; "Sem vencimento" quando não informado. */
+export function maturityOf(position: MonthPosition) {
+  return position.maturityDate ? position.maturityDate.slice(0, 4) : NO_MATURITY;
+}
+
 export function hasClassFilter(filters: PositionFilters) {
   return filters.classes.length > 0 || filters.subclasses.length > 0;
 }
@@ -57,6 +86,10 @@ export function filterPositions<T extends MonthPosition>(positions: T[], filters
     }
 
     if (filters.currencies.length > 0 && !filters.currencies.includes(position.baseCurrency)) {
+      return false;
+    }
+
+    if (filters.maturities.length > 0 && !filters.maturities.includes(maturityOf(position))) {
       return false;
     }
 
@@ -157,17 +190,93 @@ export function groupPositions<T extends MonthPosition>(
   return [...groups.values()].sort((left, right) => right.totalBrl - left.totalBrl);
 }
 
-export function filterOptions(positions: MonthPosition[]) {
-  const collect = (values: string[]) =>
-    [...new Set(values)].sort((left, right) => left.localeCompare(right, "pt-BR"));
+/**
+ * Opções de cada filtro em cascata (spec 031). A prioridade é a ordem em que os
+ * filtros foram aplicados (`order`): as opções de um filtro aplicado só levam
+ * em conta os aplicados antes dele, e as de um filtro ainda vazio levam em
+ * conta todos os aplicados. Assim, escolher a classe Caixa limita a subclasse
+ * às que existem em Caixa, sem nunca chegar a "nenhuma posição". Os valores
+ * já escolhidos continuam na lista, para poderem ser desmarcados. A busca
+ * vale para todos.
+ */
+export function filterOptions(
+  positions: MonthPosition[],
+  filters: PositionFilters = EMPTY_FILTERS,
+  order: FilterDimension[] = [],
+): Record<FilterDimension, string[]> {
+  const active = order.filter((dimension) => filters[dimension].length > 0);
+  const options = {} as Record<FilterDimension, string[]>;
 
-  return {
-    classes: collect(positions.flatMap(classesOf)),
-    subclasses: collect(positions.flatMap(subclassesOf)),
-    institutions: collect(positions.map((position) => position.institutionName)),
-    strategies: collect(positions.map(strategyOf)),
-    currencies: collect(positions.map((position) => position.baseCurrency)),
-  };
+  for (const dimension of FILTER_DIMENSIONS) {
+    const index = active.indexOf(dimension);
+    const before = index === -1 ? active : active.slice(0, index);
+    const scoped: PositionFilters = { ...EMPTY_FILTERS, search: filters.search };
+
+    for (const other of before) {
+      scoped[other] = filters[other];
+    }
+
+    const values = filterPositions(positions, scoped).flatMap((position) => facetValues(position, dimension, scoped));
+    options[dimension] = [...new Set([...values, ...filters[dimension]])].sort((left, right) =>
+      left.localeCompare(right, "pt-BR"),
+    );
+  }
+
+  return options;
+}
+
+const EMPTY_FILTERS: PositionFilters = {
+  classes: [],
+  subclasses: [],
+  institutions: [],
+  strategies: [],
+  currencies: [],
+  maturities: [],
+  search: "",
+};
+
+/**
+ * Valores de uma posição para um filtro. Classe e subclasse olham o rateio:
+ * com a classe já filtrada, só as subclasses daquela classe contam, e o
+ * contrário também.
+ */
+function facetValues(position: MonthPosition, dimension: FilterDimension, scoped: PositionFilters) {
+  switch (dimension) {
+    case "classes":
+      return position.allocations.length === 0
+        ? [NO_CLASS]
+        : position.allocations
+            .filter((allocation) => scoped.subclasses.length === 0 || scoped.subclasses.includes(allocation.subclass))
+            .map((allocation) => allocation.assetClass);
+    case "subclasses":
+      return position.allocations
+        .filter((allocation) => scoped.classes.length === 0 || scoped.classes.includes(allocation.assetClass))
+        .map((allocation) => allocation.subclass);
+    case "institutions":
+      return [position.institutionName];
+    case "strategies":
+      return [strategyOf(position)];
+    case "currencies":
+      return [position.baseCurrency];
+    case "maturities":
+      return [maturityOf(position)];
+  }
+}
+
+/** Filtros aplicados na ordem em que aparecem na URL, a ordem de aplicação. */
+export function filterOrder(params: Iterable<string>): FilterDimension[] {
+  const byParam = new Map(FILTER_DIMENSIONS.map((dimension) => [FILTER_PARAMS[dimension], dimension]));
+  const order: FilterDimension[] = [];
+
+  for (const key of params) {
+    const dimension = byParam.get(key);
+
+    if (dimension && !order.includes(dimension)) {
+      order.push(dimension);
+    }
+  }
+
+  return order;
 }
 
 function normalize(value: string) {

@@ -188,6 +188,17 @@ test("os cards respondem ao ponteiro como os indicadores", async ({ page }) => {
   const documentTop = (locator: Locator) =>
     locator.evaluate((element) => element.getBoundingClientRect().top + window.scrollY);
 
+  // A entrada da aba e os números animados movem os cards; o cursor parado
+  // sobre um card que ainda se move pode sair dele. Espera as animações
+  // finitas da página antes do hover.
+  await page.evaluate(() =>
+    Promise.all(
+      document
+        .getAnimations()
+        .filter((animation) => animation.effect?.getComputedTiming().iterations !== Infinity)
+        .map((animation) => animation.finished.catch(() => undefined)),
+    ),
+  );
   await settled(panel);
   const panelBorder = await style(panel, "borderTopColor");
   await kpi.hover();
