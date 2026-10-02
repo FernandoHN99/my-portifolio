@@ -8,6 +8,7 @@ import {
   CalendarBlankIcon,
   ChartPieSliceIcon,
   CopyIcon,
+  CurrencyCircleDollarIcon,
   LockKeyIcon,
   MagnifyingGlassIcon,
   PencilSimpleIcon,
@@ -23,7 +24,8 @@ import {
   useTable,
   type SortingState,
 } from "@tanstack/react-table";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { parseAsArrayOf, parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
 import {
   Fragment,
@@ -40,7 +42,6 @@ import {
   cloneLatestMonthAction,
   saveAllocationsAction,
   savePositionChangesAction,
-  saveQuotesAction,
   undoChangeAction,
   type EditActionResult,
 } from "@/app/actions/edit-month";
@@ -86,7 +87,6 @@ import {
   type NewPositionDraft,
 } from "@/modules/portfolio/ui/edit-dialogs";
 import { EditToast, type EditToastState } from "@/modules/portfolio/ui/edit-toast";
-import { MonthQuotesPanel } from "@/modules/portfolio/ui/month-quotes-panel";
 import { MultiSelectFilter } from "@/modules/portfolio/ui/multi-select-filter";
 
 const QUICK_CLASSES = ["Caixa", "Cripto", "Renda Fixa", "Renda Variável", "Reserva"];
@@ -135,6 +135,7 @@ export function PositionsWorkspace({
   catalog: EditingCatalog;
 }) {
   const router = useRouter();
+  const monthParam = useSearchParams().get("mes");
   const [query, setQuery] = useQueryStates(
     {
       classe: list,
@@ -399,15 +400,6 @@ export function PositionsWorkspace({
     });
   };
 
-  const saveQuotes = (quotes: { symbol: string; valueBrl: string }[]) =>
-    new Promise<boolean>((resolve) => {
-      startSaving(async () => {
-        const result = await saveQuotesAction({ monthId: month.id, confirmHistory, quotes });
-        notify(result);
-        resolve(result.ok);
-      });
-    });
-
   const cloneMonth = () =>
     startSaving(async () => {
       const result = await cloneLatestMonthAction();
@@ -491,6 +483,15 @@ export function PositionsWorkspace({
             {month.usdRate ? ` · US$ ${formatUsd(displayTotal / month.usdRate)}` : ""}
           </p>
           <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+            {editMode ? null : (
+              <Link
+                href={monthParam ? `/posicoes/cotacoes?mes=${monthParam}` : "/posicoes/cotacoes"}
+                className="inline-flex h-9 items-center gap-2 rounded-xl border border-border bg-card/70 px-3.5 text-xs font-semibold text-foreground outline-none transition-colors hover:bg-white/[0.05] focus-visible:ring-2 focus-visible:ring-ring/50"
+              >
+                <CurrencyCircleDollarIcon aria-hidden="true" size={14} weight="bold" />
+                Cotações
+              </Link>
+            )}
             {editMode ? null : month.isLatest ? (
               <button
                 type="button"
@@ -619,8 +620,6 @@ export function PositionsWorkspace({
           </div>
         </div>
       </section>
-
-      <MonthQuotesPanel quotes={month.quotes} canEdit={canEdit} saving={isSaving} onSave={saveQuotes} />
 
       <section className="premium-panel mt-5 overflow-hidden rounded-[24px]" aria-label="Posições da competência">
         <div className="overflow-x-auto">

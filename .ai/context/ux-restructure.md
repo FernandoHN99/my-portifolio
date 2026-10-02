@@ -136,8 +136,9 @@ percentual atual, percentual ideal, valor atual, valor ideal e diferença.
 14. [024 — Visão Geral: duração, variação no período e hover](../specs/024-overview-adjustments.md): concluída.
 15. [025 — Listas de seleção estilizadas](../specs/025-styled-pickers.md): concluída.
 16. [027 — Ajustes na configuração de metas](../specs/027-target-settings-adjustments.md): concluída.
-17. 022 — Página de cotações em Posições, 026 — inclusão de posição com conta,
-    ativo e vencimento novos, e a 016: em andamento, nesta ordem.
+17. [022 — Página de cotações em Posições](../specs/022-quotes-page.md): concluída.
+18. 026 — inclusão de posição com conta, ativo e vencimento novos, e a 016:
+    em andamento, nesta ordem.
 
 As fatias 020, 021 e 023 a 027 foram implementadas em paralelo, cada uma num
 worktree com banco próprio, revisadas por um revisor independente e

@@ -16,10 +16,7 @@ export default async function Home({
 
   return (
     <AppShell active="overview" months={months} selectedMonth={selected?.month ?? null}>
-      <OverviewDashboard
-        overview={overview}
-        isLatestMonth={selected?.month === months.at(-1)?.month}
-      />
+      <OverviewDashboard overview={overview} />
     </AppShell>
   );
 }

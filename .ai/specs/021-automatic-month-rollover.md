@@ -70,8 +70,8 @@ anterior.
   "Atualizar carteira", ou editado à mão. `quote_date` continua sendo só o
   dia do preço, conservado na cotação repetida, e não serve de marca, porque é
   nulo em todas as cotações importadas. Desfazer uma edição de cotações
-  restaura as duas colunas. É essa marca que a [spec 022](022-quotes-page.md)
-  deve usar para revisar as repetidas. Não foi criada uma tabela de execuções
+  restaura as duas colunas. A [spec 022](022-quotes-page.md) mostra essa
+  marca como "Repetida de …" na página de cotações. Não foi criada uma tabela de execuções
   da virada;
 - o clone manual da [spec 017](017-positions-editing.md) também marca as
   cotações copiadas como repetidas, para que a marca não dependa de qual
@@ -89,7 +89,8 @@ anterior.
   funcionando. Depois da virada o botão de clonar deixa de aparecer, porque a
   competência mais recente já é a do mês corrente; "Atualizar carteira" passa
   a encontrar o rascunho criado pela virada e registra a execução nele, como
-  já fazia com rascunhos clonados;
+  já fazia com rascunhos clonados. "Atualizar carteira" foi removido depois,
+  pela [spec 022](022-quotes-page.md);
 - a criação reaproveita a lógica de cópia do clone em um módulo próprio,
   `month-rollover.ts`; `month-editing.ts` só mudou para manter a marca de
   repetida no clone, na edição de cotações e no desfazer;

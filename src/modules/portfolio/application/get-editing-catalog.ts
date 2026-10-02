@@ -1,6 +1,6 @@
 import { getPrismaClient } from "@/lib/prisma";
-import { currentReferenceMonth } from "@/modules/portfolio/application/refresh-portfolio-month";
 import { toMonthParam } from "@/modules/portfolio/presentation/reference-month";
+import { currentReferenceMonth } from "@/modules/quotes/domain/calendar";
 
 export type EditingCatalog = {
   accounts: { id: string; label: string }[];

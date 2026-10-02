@@ -1,7 +1,5 @@
 import { CalendarBlankIcon, FileSearchIcon } from "@phosphor-icons/react/dist/ssr";
-import Link from "next/link";
 
-import { refreshPortfolioMonthAction } from "@/app/actions/refresh-portfolio-month";
 import type { OverviewData } from "@/modules/portfolio/application/get-overview-data";
 import { formatMonth } from "@/modules/portfolio/presentation/portfolio-format";
 import { toMonthParam } from "@/modules/portfolio/presentation/reference-month";
@@ -10,15 +8,8 @@ import { FixedIncomeDurationChart } from "@/modules/portfolio/ui/fixed-income-du
 import { OverviewKpis } from "@/modules/portfolio/ui/overview-kpis";
 import { PortfolioEvolutionChart } from "@/modules/portfolio/ui/portfolio-evolution-chart";
 import { RebalancePanel } from "@/modules/portfolio/ui/rebalance-panel";
-import { RefreshPortfolioButton } from "@/modules/portfolio/ui/refresh-portfolio-button";
 
-export function OverviewDashboard({
-  overview,
-  isLatestMonth,
-}: {
-  overview: OverviewData | null;
-  isLatestMonth: boolean;
-}) {
+export function OverviewDashboard({ overview }: { overview: OverviewData | null }) {
   if (!overview) {
     return <EmptyOverview />;
   }
@@ -51,11 +42,6 @@ export function OverviewDashboard({
               </span>
             ) : null}
           </div>
-          {isLatestMonth && overview.monthStatus !== "DRAFT" ? (
-            <form action={refreshPortfolioMonthAction}>
-              <RefreshPortfolioButton />
-            </form>
-          ) : null}
         </div>
       </header>
 
@@ -114,11 +100,8 @@ function EmptyOverview() {
         Sua carteira ainda não tem posições
       </h1>
       <p className="mt-3 text-sm leading-6 text-muted-foreground">
-        Importe e revise os dados de origem para montar a primeira visão consolidada.
+        Importe os dados do Excel para montar a primeira visão consolidada.
       </p>
-      <Link className="mt-6 text-sm font-medium text-primary hover:text-primary/80" href="/importacao">
-        Revisar dados de origem
-      </Link>
     </div>
   );
 }

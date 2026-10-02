@@ -203,23 +203,6 @@ export async function getQuoteRefreshSummary(now = new Date()): Promise<QuoteRef
   }
 }
 
-export async function listQuoteRefreshRuns(limit = 20): Promise<QuoteRefreshRunView[]> {
-  const prisma = getPrismaClient();
-
-  if (!prisma) {
-    return [];
-  }
-
-  const runs = await prisma.quoteRefreshRun.findMany({
-    orderBy: { startedAt: "desc" },
-    take: limit,
-    select: { id: true },
-  });
-  const views = await Promise.all(runs.map((run) => readRunView(prisma, run.id)));
-
-  return views.filter((view): view is QuoteRefreshRunView => view !== null);
-}
-
 async function claimRun(
   prisma: PrismaClient,
   trigger: QuoteRefreshTriggerKind,

@@ -8,6 +8,7 @@ import {
   QUOTE_REFRESH_INTERVAL_MS,
   type ManualRefreshResponse,
   type QuoteRefreshOutcome,
+  type QuoteRefreshRunView,
   type QuoteRefreshSummary,
   type QuoteRefreshTriggerKind,
 } from "@/modules/quotes/domain/quote-refresh";
@@ -28,7 +29,9 @@ const REQUEST_TIMEOUT_MS = 5 * 60 * 1000;
 
 let state: QuoteRefreshClientState = SERVER_STATE;
 let lastOpenCheckAt: number | null = null;
+let refreshQueued = false;
 const listeners = new Set<() => void>();
+const runListeners = new Set<(run: QuoteRefreshRunView) => void>();
 
 export function subscribeQuoteRefresh(listener: () => void) {
   listeners.add(listener);
@@ -43,6 +46,16 @@ export function getQuoteRefreshState() {
 
 export function getQuoteRefreshServerState() {
   return SERVER_STATE;
+}
+
+// Avisa cada execução terminada, com ou sem sucesso. A página de cotações mostra
+// o histórico de execuções e o último resultado por símbolo, que mudam mesmo
+// quando nenhuma cotação foi gravada.
+export function subscribeQuoteRunFinished(listener: (run: QuoteRefreshRunView) => void) {
+  runListeners.add(listener);
+  return () => {
+    runListeners.delete(listener);
+  };
 }
 
 function setState(patch: Partial<QuoteRefreshClientState>) {
@@ -75,11 +88,18 @@ export function runManualRefresh(onDataChanged: () => void) {
 }
 
 // Recarrega os dados da tela, exceto quando há edições pendentes, que seriam
-// descartadas se a competência exibida mudasse.
+// descartadas se a competência exibida mudasse. Pedidos feitos no mesmo ciclo,
+// pelo topo e pela página de cotações, viram um único recarregamento.
 export function refreshUnlessEditing(refresh: () => void) {
-  if (!hasPendingChanges()) {
-    refresh();
+  if (hasPendingChanges() || refreshQueued) {
+    return;
   }
+
+  refreshQueued = true;
+  queueMicrotask(() => {
+    refreshQueued = false;
+    refresh();
+  });
 }
 
 async function execute(url: string, trigger: QuoteRefreshTriggerKind, onDataChanged: () => void) {
@@ -116,6 +136,11 @@ async function execute(url: string, trigger: QuoteRefreshTriggerKind, onDataChan
 
     if (payload.rollover?.state === "created" || refreshChangedData(payload.refresh)) {
       onDataChanged();
+    }
+
+    if (payload.refresh.state === "done") {
+      const { run } = payload.refresh;
+      runListeners.forEach((listener) => listener(run));
     }
   } catch {
     // Também na checagem automática: um erro nunca passa em silêncio. O id fixo
@@ -179,7 +204,7 @@ function announceRollover(outcome: MonthRolloverOutcome) {
               detail: "sem cotação diária no mês",
               reason: `Repete a cotação de ${monthCompact(month.sourceMonth)} em ${month.carriedQuotes.join(", ")}.`,
             })),
-            footnote: "Se precisar, ajuste essas cotações nas cotações do mês, na aba Posições.",
+            footnote: "Se precisar, ajuste essas cotações em Posições, no botão Cotações.",
           }
         : undefined,
   });

@@ -25,7 +25,7 @@ Esta pasta organiza a implementação em fatias pequenas e revisáveis.
 - [019 — Modo de edição com lápis](019-pencil-edit-mode.md): concluída.
 - [020 — Cotações diárias e atualização ao abrir](020-daily-quotes.md): concluída; questões em aberto aguardam o usuário.
 - [021 — Virada de mês automática](021-automatic-month-rollover.md): concluída; questões em aberto aguardam o usuário.
-- 022 — Página de cotações em Posições: em definição.
+- [022 — Página de cotações em Posições](022-quotes-page.md): concluída; questões em aberto aguardam o usuário.
 - [023 — Linha do tempo compacta](023-compact-month-timeline.md): concluída.
 - [024 — Visão Geral: duração, variação no período e hover](024-overview-adjustments.md): concluída.
 - [025 — Listas de seleção estilizadas](025-styled-pickers.md): concluída.

@@ -7,6 +7,16 @@ export function formatBrl(value: number, options?: { compact?: boolean }) {
   }).format(value);
 }
 
+// Preço unitário com a precisão guardada, até oito casas, como a cotação do mês.
+export function formatPriceBrl(value: number) {
+  return new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 8,
+  }).format(value);
+}
+
 export function parseLocaleNumber(value: string) {
   const trimmed = value.trim().replace(/\s/g, "");
   const normalized = trimmed.includes(",") ? trimmed.replace(/\./g, "").replace(",", ".") : trimmed;

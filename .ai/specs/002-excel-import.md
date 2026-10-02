@@ -67,7 +67,12 @@ Spec 001 concluída.
   linhas e retirou as duplicatas dos totais;
 - a tela de revisão apresenta os 16 achados reais do lote.
 
+Atualização em 2026-10-02: a tela de revisão foi removida a pedido do usuário
+([spec 022](022-quotes-page.md)); os achados continuam gravados nas tabelas
+da importação.
+
 ## Pendência preservada
 
 A linha de junho de 2023 continuará visível como pendência até existir
-evidência suficiente ou uma decisão explícita do usuário.
+evidência suficiente ou uma decisão explícita do usuário. Desde a
+[spec 022](022-quotes-page.md), essa pendência fica visível só no banco.

@@ -25,6 +25,10 @@ os dados normalizados da carga inicial.
 - estados vazios e de banco indisponível;
 - movimentos curtos, com suporte a redução de movimento.
 
+A navegação e a tela de revisão da importação foram substituídas depois: a
+navegação pela [spec 010](010-global-shell-month-selector.md) e a revisão
+removida pela [spec 022](022-quotes-page.md), em 2026-10-02.
+
 ## Regras visuais
 
 - superfícies grafite e alto contraste, sem preto puro como única camada;

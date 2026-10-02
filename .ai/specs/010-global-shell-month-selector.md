@@ -53,7 +53,8 @@ As abas apontam para `/` (Visão Geral), `/alocacao` e `/posicoes`. A
 configuração fica em `/configuracao`. As telas de revisão da importação e de
 atualização mensal continuam existindo fora das abas principais, acessíveis
 por link, porque seguem sendo necessárias e não foram descontinuadas pelo
-usuário.
+usuário. Ambas foram removidas em 2026-10-02 pela
+[spec 022](022-quotes-page.md).
 
 ## Critérios de aceite
 

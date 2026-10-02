@@ -49,7 +49,9 @@ todos os campos editáveis ao mesmo tempo, inclusive no celular.
 - o servidor, as ações e a regra de confirmação de histórico da spec 017 não
   mudaram; a mudança é só de interface;
 - rateio, inclusão, remoção e cotações do mês também exigem o modo de
-  edição, para que a tabela fora dele seja apenas consulta;
+  edição, para que a tabela fora dele seja apenas consulta. As cotações
+  saíram da tabela para uma página com modo de edição próprio, na
+  [spec 022](022-quotes-page.md);
 - os campos mostram o valor com vírgula decimal, como o resto da interface.
 
 ## Fora do escopo

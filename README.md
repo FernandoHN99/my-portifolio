@@ -70,6 +70,11 @@ FINNHUB_API_KEY=
 ALPHA_VANTAGE_API_KEY=
 ```
 
-As chaves são lidas somente no servidor. O botão **Atualizar carteira** copia a
-última competência para um rascunho e consulta os provedores naquele momento.
-Se alguma cotação falhar, nenhum novo preço é aplicado parcialmente.
+As chaves são lidas somente no servidor. Ao abrir, o aplicativo cria as
+competências que faltarem até o mês corrente e, se a última tentativa tiver
+mais de uma hora, consulta os provedores; a seta do topo e o botão
+**Atualizar cotações** da página **Cotações**, em Posições, consultam na hora.
+Cada cotação obtida entra no histórico diário e recalcula a competência do mês
+corrente; as que falharem mantêm o valor anterior e são avisadas pelo nome do
+ativo. A página de cotações também permite editar as cotações de qualquer
+competência e mostra o histórico das execuções.

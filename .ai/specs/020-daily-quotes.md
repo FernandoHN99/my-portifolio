@@ -120,10 +120,11 @@ Migração aditiva `daily_quotes`:
   inventaria dados. Por isso `quote_date` fica nulo nas cotações importadas do
   Excel; a edição à mão também o anula, porque o valor digitado não é o de um
   dia do histórico. Clones e cotações repetidas conservam o dia de origem;
-- o fluxo "Atualizar carteira" de `/atualizacao` continua aplicando tudo ou
-  nada e sem gravar histórico diário, até a [spec 022](022-quotes-page.md)
-  unir as páginas; ele só passou a gravar o dia da consulta em `quote_date` e
-  a limpar `carried_from` nas cotações que atualiza;
+- o fluxo "Atualizar carteira" de `/atualizacao` continuou aplicando tudo ou
+  nada e sem gravar histórico diário; ele só passou a gravar o dia da
+  consulta em `quote_date` e a limpar `carried_from` nas cotações que
+  atualiza. A [spec 022](022-quotes-page.md) removeu esse fluxo, e esta
+  atualização passou a ser a única;
 - o dia das cotações é o dia do calendário no relógio local do servidor, o
   mesmo critério de `currentReferenceMonth`; o horário exibido usa o fuso do
   navegador, por isso o texto do topo aparece depois da hidratação;
@@ -185,18 +186,18 @@ aguardam confirmação do usuário:
   qualquer gatilho, para que um provedor fora do ar não seja consultado a cada
   abertura; a seta manual ignora essa regra;
 - consequência conhecida: uma cotação da competência corrente editada à mão
-  no painel de cotações é sobrescrita pela próxima atualização, automática ou
+  na página de cotações ([spec 022](022-quotes-page.md)) é sobrescrita pela próxima atualização, automática ou
   manual. Cotações de competências passadas editadas à mão são preservadas. O
   usuário aceita esse comportamento ou prefere proteger a cotação editada?
-- `/atualizacao` continua com tudo ou nada e sem histórico diário até a spec
-  022; a unificação deve decidir se ele passa a seguir esta spec;
+- respondida pela [spec 022](022-quotes-page.md): `/atualizacao` e o fluxo
+  tudo ou nada foram removidos;
 - abaixo de 360 px de largura a marca do topo some para as abas caberem.
 
 ## Fora do escopo
 
 - virada de mês automática: [spec 021](021-automatic-month-rollover.md);
 - página de cotações com edição, última atualização e histórico de execuções:
-  [spec 022](022-quotes-page.md), que pode usar `listQuoteRefreshRuns`;
+  [spec 022](022-quotes-page.md), concluída;
 - busca de cotações históricas nos provedores;
 - padronização de símbolos e fontes, incluindo o ativo "Solana" com ticker
   USD;

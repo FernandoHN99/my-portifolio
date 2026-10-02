@@ -26,16 +26,18 @@ const secondaryButtonClass =
 
 export function HistoryUnlockDialog({
   monthLabel,
+  label = "Editar posições",
   onConfirm,
 }: {
   monthLabel: string;
+  label?: string;
   onConfirm: () => void;
 }) {
   return (
     <Dialog.Root>
       <Dialog.Trigger className="inline-flex h-9 items-center gap-2 rounded-xl border border-warning-border bg-warning/40 px-3.5 text-xs font-semibold text-warning-foreground outline-none transition-colors hover:bg-warning/60 focus-visible:ring-2 focus-visible:ring-ring/50">
         <PencilSimpleIcon aria-hidden="true" size={14} weight="bold" />
-        Editar posições
+        {label}
       </Dialog.Trigger>
       <Dialog.Portal>
         <Dialog.Backdrop className={backdropClass} />

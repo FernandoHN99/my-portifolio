@@ -7,12 +7,17 @@ const fullFormat = new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeSt
 
 export type RefreshTimeLabel = { long: string; short: string; absolute: string };
 
+// Data e hora completas no fuso do navegador, como "02/10/2026 às 14:05".
+export function formatRefreshDateTime(iso: string) {
+  return fullFormat.format(new Date(iso)).replace(", ", " às ");
+}
+
 // Rótulo da última atualização no fuso do navegador: relativo na primeira hora,
 // depois a hora do dia, "ontem" ou a data.
 export function describeRefreshTime(iso: string, now: number): RefreshTimeLabel {
   const date = new Date(iso);
   const elapsed = now - date.getTime();
-  const absolute = fullFormat.format(date).replace(", ", " às ");
+  const absolute = formatRefreshDateTime(iso);
 
   if (elapsed < MINUTE) {
     return { long: "Atualizado agora", short: "agora", absolute };

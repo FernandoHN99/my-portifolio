@@ -28,11 +28,13 @@ Atualização em 2026-10-02: o usuário separou a atualização de cotações da
 criação do mês. As cotações passaram a ser atualizadas ao abrir o aplicativo e
 pela seta do topo ([spec 020](020-daily-quotes.md)), e as competências
 faltantes passaram a ser criadas automaticamente, inclusive as intermediárias
-([spec 021](021-automatic-month-rollover.md)). O fluxo desta spec continua
-disponível em `/atualizacao`, com as regras abaixo. A atualização do topo
+([spec 021](021-automatic-month-rollover.md)). A atualização do topo
 aplica cada símbolo de forma independente, em vez de tudo ou nada; é uma
 proposta do agente que aguarda o usuário, registrada em "Questões em aberto"
-da spec 020.
+da spec 020. A [spec 022](022-quotes-page.md) removeu `/atualizacao`, o botão
+"Atualizar carteira" e o código deste fluxo; as execuções já registradas
+aparecem em leitura no histórico da página de cotações, e as regras abaixo
+ficam como registro.
 
 ## Regras confirmadas
 

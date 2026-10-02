@@ -1,6 +1,5 @@
-import { ArrowClockwiseIcon, FileSearchIcon, GearSixIcon } from "@phosphor-icons/react/dist/ssr";
+import { GearSixIcon } from "@phosphor-icons/react/dist/ssr";
 import type { Metadata } from "next";
-import Link from "next/link";
 
 import { AppShell } from "@/components/product/app-shell";
 import { getMonthContext } from "@/modules/portfolio/application/get-month-context";
@@ -37,47 +36,6 @@ export default async function SettingsPage({
           </p>
         </div>
       )}
-
-      <div className="mx-auto w-full max-w-[1472px] px-5 pb-12 sm:px-7 xl:px-12">
-        <section className="premium-panel rounded-[24px] p-5 sm:p-6">
-          <h2 className="text-base font-semibold tracking-[-0.025em]">Dados da carteira</h2>
-          <p className="mt-1 text-[11px] text-muted-foreground">
-            Origem da carga inicial e preparação da próxima competência.
-          </p>
-
-          <div className="mt-5 grid gap-3 sm:grid-cols-2">
-            <Link
-              href="/importacao"
-              className="metric-card flex items-center gap-3 rounded-2xl p-4 outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-            >
-              <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
-                <FileSearchIcon aria-hidden="true" size={17} weight="duotone" />
-              </span>
-              <span>
-                <span className="block text-sm font-medium text-foreground">Revisão de dados</span>
-                <span className="mt-0.5 block text-[11px] text-muted-foreground">
-                  Achados da importação do Excel
-                </span>
-              </span>
-            </Link>
-
-            <Link
-              href="/atualizacao"
-              className="metric-card flex items-center gap-3 rounded-2xl p-4 outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-            >
-              <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
-                <ArrowClockwiseIcon aria-hidden="true" size={17} weight="duotone" />
-              </span>
-              <span>
-                <span className="block text-sm font-medium text-foreground">Atualização</span>
-                <span className="mt-0.5 block text-[11px] text-muted-foreground">
-                  Cotações e rascunho da competência
-                </span>
-              </span>
-            </Link>
-          </div>
-        </section>
-      </div>
     </AppShell>
   );
 }

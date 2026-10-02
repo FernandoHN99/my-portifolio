@@ -24,17 +24,6 @@ test("apresenta a carteira normalizada", async ({ page }) => {
 
   await page.getByRole("link", { name: "Configuração da carteira" }).click();
   await expect(page.getByRole("heading", { level: 1, name: "Metas da carteira" })).toBeVisible();
-
-  await page.getByRole("link", { name: "Atualização" }).click();
-  await expect(
-    page.getByRole("heading", {
-      name: /Prepare a próxima competência|Atualização de/,
-    }),
-  ).toBeVisible();
-
-  await page.goto("/configuracao");
-  await page.getByRole("link", { name: "Revisão de dados" }).click();
-  await expect(page.getByRole("heading", { name: /achados, sem correções silenciosas/ })).toBeVisible();
 });
 
 test("o seletor global de mês governa as telas", async ({ page }) => {

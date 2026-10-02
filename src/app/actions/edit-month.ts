@@ -131,6 +131,7 @@ async function run(operation: () => Promise<EditActionResult>): Promise<EditActi
     const result = await operation();
     revalidatePath("/");
     revalidatePath("/posicoes");
+    revalidatePath("/posicoes/cotacoes");
     return result;
   } catch (error) {
     return {

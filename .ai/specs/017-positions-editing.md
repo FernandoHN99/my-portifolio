@@ -29,7 +29,8 @@ facilidade da planilha, e editar deve ser o comportamento natural da aba.
 - criar a competência a partir da anterior, clonando posições e rateios, sem
   depender da busca de cotações;
 - painel recolhível com as cotações da competência, editáveis, com recálculo
-  dos totais das posições cotadas.
+  dos totais das posições cotadas; substituído em 2026-10-02 pela página de
+  cotações da [spec 022](022-quotes-page.md).
 
 ## Mudança de regra
 
@@ -92,7 +93,9 @@ A rota `/carteira/editar` deixa de ser necessária quando esta fatia existir.
   provedores e sobrescreve cotações editadas manualmente nesta tela. Em
   2026-10-01 uma reexecução reprecificou o rascunho de outubro às 20:18 no
   horário local, comportamento previsto pela spec 003, mas que agora precisa
-  de uma decisão do usuário: avisar, preservar ou permitir sobrescrever.
+  de uma decisão do usuário: avisar, preservar ou permitir sobrescrever. O
+  fluxo foi removido pela [spec 022](022-quotes-page.md); a mesma questão
+  vale para a atualização da [spec 020](020-daily-quotes.md) e está lá.
 
 ## Dado observado
 

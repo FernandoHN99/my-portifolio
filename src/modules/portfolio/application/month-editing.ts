@@ -2,7 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 
 import { PortfolioMonthStatus, Prisma } from "@/generated/prisma/client";
 import { getPrismaClient } from "@/lib/prisma";
-import { currentReferenceMonth } from "@/modules/portfolio/application/refresh-portfolio-month";
+import { currentReferenceMonth } from "@/modules/quotes/domain/calendar";
 
 type Transaction = Prisma.TransactionClient;
 

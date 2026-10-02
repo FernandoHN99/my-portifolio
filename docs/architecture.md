@@ -56,6 +56,10 @@ A linha inconsistente de Bitcoin de junho de 2023 permanece pendente. A carga
 inicial deve preservá-la como evidência, mas não deve criar uma posição
 financeira corrigida por suposição.
 
+Atualizado em 2026-10-02: a tela de revisão dos achados foi removida a
+pedido do usuário ([spec 022](../.ai/specs/022-quotes-page.md)). Os dados de
+origem e os achados continuam preservados nas tabelas da importação.
+
 ### Acesso inicial
 
 A primeira versão funciona somente no computador local e não possui
