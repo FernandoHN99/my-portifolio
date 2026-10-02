@@ -54,7 +54,7 @@ atualizar e o histórico das execuções, e retirar as telas e o fluxo antigos.
   `?mes` da URL quando houver;
 - na página, a aba Posições continua ativa, o seletor global troca a
   competência e "← Posições", no lugar do sobretítulo, volta para a tabela no
-  mesmo mês;
+  mesmo mês; com alterações pendentes, pede a mesma confirmação das abas;
 - o botão some durante o modo de edição de posições, como os demais botões do
   cabeçalho.
 
@@ -91,7 +91,8 @@ atualizar e o histórico das execuções, e retirar as telas e o fluxo antigos.
   falharam na última atualização e as alteradas na edição;
 - no celular aparecem a cotação e o valor; a origem e o último resultado
   descem para baixo do símbolo, e o total das posições aparece sob o valor
-  quando uma edição o altera.
+  quando uma edição o altera. A tabela cabe no painel a partir de 320 px, em
+  leitura e em edição.
 
 ### Edição
 
@@ -102,7 +103,8 @@ atualizar e o histórico das execuções, e retirar as telas e o fluxo antigos.
 - todos os valores viram campos de uma vez; Enter e as setas passam para a
   linha seguinte ou anterior;
 - um valor que não é número, é zero ou tem mais de oito casas fica marcado,
-  é contado na barra inferior e bloqueia o salvamento;
+  é contado na barra inferior e bloqueia o salvamento, inclusive numa cotação
+  "Sem valor no mês";
 - enquanto se digita, a linha mostra o valor anterior e o total das posições
   daquele símbolo recalculado, e o cabeçalho mostra o patrimônio do mês e o
   valor em dólar com as cotações digitadas;
@@ -114,8 +116,8 @@ atualizar e o histórico das execuções, e retirar as telas e o fluxo antigos.
   desfazer;
 - na competência do mês corrente, a edição avisa que a próxima atualização de
   cotações substitui o valor editado;
-- trocar de competência sai da edição; trocar de aba ou fechar a página com
-  alterações pendentes pede confirmação.
+- trocar de competência sai da edição; trocar de aba, voltar por "← Posições"
+  ou fechar a página com alterações pendentes pede confirmação.
 
 ### Histórico de execuções
 
@@ -125,9 +127,11 @@ atualizar e o histórico das execuções, e retirar as telas e o fluxo antigos.
   situação (Concluída, Com falhas, Falhou, Em andamento) e um resumo; as que
   têm falhas abrem a lista de ativos com o provedor e o motivo;
 - a execução de "Atualizar carteira" da spec 003 que criou ou atualizou a
-  competência aparece em leitura, marcada como "Fluxo anterior"; quando teve
-  falha, o resumo diz que nenhuma cotação foi aplicada, porque aquele fluxo
-  aplicava tudo ou nada;
+  competência aparece em leitura, marcada como "Fluxo anterior", com a data e
+  a hora em que terminou a última tentativa; quando teve falha, o resumo diz
+  que nenhuma cotação foi aplicada, porque aquele fluxo aplicava tudo ou nada;
+  se ficou parada no meio, aparece como "Interrompida", com "Interrompida
+  antes de terminar; nenhuma cotação foi aplicada.";
 - sem execuções, "Nenhuma atualização de cotações registrada neste mês.".
 
 ### O que saiu
@@ -208,6 +212,31 @@ atualizar e o histórico das execuções, e retirar as telas e o fluxo antigos.
   `tests/e2e/quotes-page.spec.ts`, com a checagem de abertura simulada e
   edições sempre descartadas.
 
+Correções da revisão, em 2026-10-02:
+
+- "← Posições" chama a mesma confirmação das abas, do deslize e da linha do
+  tempo, porque a navegação no cliente não dispara o aviso do navegador. O
+  link continua visível na edição, como as abas, e ganhou o nome acessível
+  "Voltar para Posições", que contém o texto visível;
+- numa cotação "Sem valor no mês", qualquer texto digitado conta como
+  alteração, para que a regra de valor inválido se aplique em vez de o texto
+  ser ignorado ao salvar;
+- a execução antiga é datada e ordenada pelo fim da última tentativa
+  (`completed_at`, ou o início quando não há fim), porque cada nova tentativa
+  daquele fluxo substituía os resultados e mantinha o início da primeira. Uma
+  execução antiga que ficou `RUNNING` aparece como "Interrompida": o código
+  que a encerrava foi apagado, e aquele fluxo gravava cotações e posições
+  numa transação só, no fim, então nada chegou às posições. Uma execução
+  `RUNNING` da spec 020 continua "Em andamento", porque a próxima execução
+  encerra as presas;
+- o resumo da última atualização é lido uma vez por pedido, com o `cache` do
+  React, e compartilhado entre o topo e o bloco da página
+  (`getRequestQuoteRefreshSummary`); as rotas de API continuam lendo direto;
+- em 320 px, o campo de valor tem no mínimo 104 px abaixo de `sm`, a célula
+  do valor usa `px-3`, o tipo do símbolo pode descer de linha, o motivo da
+  falha quebra em qualquer ponto (termos como `ALPHA_VANTAGE_API_KEY`) e as
+  linhas "antes" e "posições" sob o campo podem quebrar no celular.
+
 ## Fora do escopo
 
 - padronizar símbolos e fontes, incluindo o ativo "Solana" com ticker USD;
@@ -287,10 +316,50 @@ computador e Pixel 7, teve 95 cenários aprovados e 3 pulados, os mesmos pulos
 por perfil que as specs 025 e 027 já tinham. Depois da suíte, o banco local
 continuava com a mesma execução de cotações e as mesmas 32 competências.
 
+Correções da revisão, em 2026-10-02, num banco descartável carregado do mesmo
+jeito, com setembro de 2026 como competência mais recente, a checagem de
+abertura simulada, o navegador em UTC e um servidor próprio na porta 3210:
+
+- uma execução antiga de setembro gravada como `RUNNING`, iniciada em
+  01/09/2026 às 10:00 e com uma falha em três cotações, apareceu como
+  "Interrompida", "Interrompida antes de terminar; nenhuma cotação foi
+  aplicada." e "Fluxo anterior", abaixo de uma execução da spec 020 de
+  10/09/2026, e abriu o VOO com o motivo; a mesma execução com
+  `COMPLETED_WITH_ISSUES` e fim em 15/09/2026 às 20:18 passou a mostrar esse
+  horário, "Com falhas" e "1 cotação com falha de 3; nenhuma foi aplicada.",
+  e subiu para o topo da lista;
+- sem a cotação de VOO em setembro, a linha mostrou "Sem valor no mês";
+  "abc" no campo ficou marcado e contado como "1 valor inválido", e "Salvar"
+  ficou bloqueado mesmo com o BTC alterado; depois de descartar, 3.600,50
+  criou a cotação e recalculou a posição para 2,806 × 3.600,50 = R$
+  10.103,00.
+
+O banco descartável foi removido. No banco local, com um registro temporário
+na leitura do resumo, retirado em seguida, um pedido à página de cotações e
+um a Posições leram o resumo uma vez cada. Medida a tabela de outubro e de
+setembro em 320, 360 e 412 px, em leitura e com o BTC editado, a largura da
+tabela ficou igual à do painel; antes, em 320 px, eram 361 px em 278 em
+edição e 333 px em leitura, por causa de `ALPHA_VANTAGE_API_KEY` e da linha
+"posições" sob o campo. As capturas da tabela em leitura e em edição, com um
+valor válido e um inválido, foram conferidas no computador, no Pixel 7 e em
+320 px, e as do histórico com a execução antiga, no computador.
+
+`tests/e2e/quotes-page.spec.ts` passou a clicar no próprio "← Posições" e
+ganhou o cenário em que a volta com uma edição pendente pede confirmação:
+cancelar mantém a página e o valor digitado, e aceitar volta para a tabela
+sem gravar. Sem a confirmação no link, esse cenário falha. `pnpm lint`,
+`pnpm typecheck` e `pnpm build` passaram, e a suíte completa do Playwright,
+nos perfis de computador e Pixel 7, teve 97 cenários aprovados e os mesmos 3
+pulados. Depois da suíte, o banco local continuava com 32 competências, 1
+execução de cotações e o BTC de outubro em 395.046.
+
 ## Questões em aberto
 
 Escolhas feitas pelo agente, em vigor no código, que aguardam o usuário:
 
+- o botão se chama "Cotações" e fica no cabeçalho de Posições, ao lado de
+  "Editar posições". É esse o botão que o usuário imaginou em "acessada
+  direto por um botão existente em posição"?
 - o histórico e o último resultado por cotação seguem a competência
   selecionada; numa competência passada o histórico costuma ficar vazio. O
   usuário prefere ver sempre todas as execuções, independentemente do mês?
@@ -300,6 +369,9 @@ Escolhas feitas pelo agente, em vigor no código, que aguardam o usuário:
   histórico. Pode ficar ou deve sumir?
 - os endereços antigos levam às telas atuais; podem ser retirados quando o
   usuário não precisar mais deles.
+- seguem abertas na [spec 020](020-daily-quotes.md), e ficam visíveis nesta
+  página, a troca do "tudo ou nada" por símbolos independentes e a cotação
+  editada à mão no mês corrente, que a próxima atualização substitui.
 
 ## Referências
 

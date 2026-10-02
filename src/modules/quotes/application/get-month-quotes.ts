@@ -1,4 +1,9 @@
-import { Prisma, QuoteUpdateStatus, type PortfolioMonthStatus } from "@/generated/prisma/client";
+import {
+  MonthlyUpdateStatus,
+  Prisma,
+  QuoteUpdateStatus,
+  type PortfolioMonthStatus,
+} from "@/generated/prisma/client";
 import { getPrismaClient } from "@/lib/prisma";
 import { toMonthParam } from "@/modules/portfolio/presentation/reference-month";
 import { addMonths, currentReferenceMonth, toDateKey } from "@/modules/quotes/domain/calendar";
@@ -42,12 +47,18 @@ export type MonthQuoteRow = {
 
 export type QuoteRunOrigin = QuoteRefreshTriggerKind | "MONTHLY_UPDATE";
 
+// "INTERRUPTED" só vale para a execução antiga: ela ficou RUNNING quando o
+// processo parou no meio, e o código que a encerrava foi removido.
+export type QuoteRunHistoryStatus = QuoteRefreshRunStatus | "INTERRUPTED";
+
 export type QuoteRunHistoryEntry = {
   id: string;
   origin: QuoteRunOrigin;
-  status: QuoteRefreshRunStatus;
-  startedAt: string;
-  finishedAt: string | null;
+  status: QuoteRunHistoryStatus;
+  // Instante mostrado e usado na ordenação: o início da execução, ou, na
+  // execução antiga, o fim da última tentativa, porque cada nova tentativa
+  // substituía os resultados mantendo o início da primeira.
+  at: string;
   succeeded: number;
   failures: QuoteFailureView[];
   errorMessage: string | null;
@@ -216,8 +227,7 @@ export async function getMonthQuotes(referenceDate?: Date): Promise<MonthQuotesV
         id: run.id,
         origin: run.trigger,
         status: run.status,
-        startedAt: run.startedAt.toISOString(),
-        finishedAt: run.finishedAt?.toISOString() ?? null,
+        at: run.startedAt.toISOString(),
         succeeded: run.results.length - failed.length,
         failures: failed.map(failureView),
         errorMessage: run.errorMessage,
@@ -229,14 +239,13 @@ export async function getMonthQuotes(referenceDate?: Date): Promise<MonthQuotesV
       history.push({
         id: legacyRun.id,
         origin: "MONTHLY_UPDATE",
-        status: legacyRun.status,
-        startedAt: legacyRun.startedAt.toISOString(),
-        finishedAt: legacyRun.completedAt?.toISOString() ?? null,
+        status: legacyRun.status === MonthlyUpdateStatus.RUNNING ? "INTERRUPTED" : legacyRun.status,
+        at: (legacyRun.completedAt ?? legacyRun.startedAt).toISOString(),
         succeeded: legacyRun.quoteResults.length - failed.length,
         failures: failed.map(failureView),
         errorMessage: legacyRun.errorMessage,
       });
-      history.sort((left, right) => right.startedAt.localeCompare(left.startedAt));
+      history.sort((left, right) => right.at.localeCompare(left.at));
       history.splice(RUN_HISTORY_LIMIT);
     }
 

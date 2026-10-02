@@ -43,8 +43,33 @@ test("o botão Cotações de Posições abre as cotações do mês", async ({ pa
   await expect(page.getByRole("heading", { name: "Histórico de execuções" })).toBeVisible();
   await expect(page.locator("[data-quote-cell]")).toHaveCount(0);
 
-  await page.getByRole("main").getByRole("link", { name: "Posições", exact: true }).first().click();
+  await page.getByRole("link", { name: "Voltar para Posições" }).click();
   await expect(page).toHaveURL(/\/posicoes\?mes=2026-09$/);
+  await expect(page.getByRole("heading", { level: 1, name: "Carteira do mês" })).toBeVisible();
+});
+
+test("voltar para Posições com edição pendente pede confirmação", async ({ page }) => {
+  await page.goto("/posicoes/cotacoes?mes=2026-09");
+  await enterQuoteEditMode(page);
+  await page.getByRole("textbox", { name: "Cotação de BTC" }).fill("400000,5");
+  await expect(page.getByText("1 alteração pendente")).toBeVisible();
+
+  const back = page.getByRole("link", { name: "Voltar para Posições" });
+  const messages: string[] = [];
+  page.once("dialog", (dialog) => {
+    messages.push(dialog.message());
+    void dialog.dismiss();
+  });
+  await back.click();
+  await expect.poll(() => messages).toEqual(["Há 1 alteração não salva. Sair e descartá-las?"]);
+  await expect(page).toHaveURL(/\/posicoes\/cotacoes\?mes=2026-09$/);
+  await expect(page.getByRole("textbox", { name: "Cotação de BTC" })).toHaveValue("400000,5");
+
+  // Aceitar descarta a edição sem gravar e volta para a tabela no mesmo mês.
+  page.once("dialog", (dialog) => void dialog.accept());
+  await back.click();
+  await expect(page).toHaveURL(/\/posicoes\?mes=2026-09$/);
+  await expect(page.getByRole("heading", { level: 1, name: "Carteira do mês" })).toBeVisible();
 });
 
 test("editar cotações mostra a prévia e bloqueia valor inválido", async ({ page }) => {

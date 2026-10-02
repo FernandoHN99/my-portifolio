@@ -7,7 +7,7 @@ import { MonthTimeline } from "@/components/product/month-timeline";
 import { QuoteRefreshIndicator } from "@/components/product/quote-refresh-indicator";
 import { TabViewport } from "@/components/product/tab-viewport";
 import type { PortfolioMonthSummary } from "@/modules/portfolio/application/get-portfolio-months";
-import { getQuoteRefreshSummary } from "@/modules/quotes/application/refresh-quotes";
+import { getRequestQuoteRefreshSummary } from "@/modules/quotes/application/refresh-quotes";
 
 type AppShellProps = {
   active: TabKey | "none";
@@ -17,7 +17,7 @@ type AppShellProps = {
 };
 
 export async function AppShell({ active, months, selectedMonth, children }: AppShellProps) {
-  const quoteRefresh = await getQuoteRefreshSummary();
+  const quoteRefresh = await getRequestQuoteRefreshSummary();
 
   return (
     <main className="app-canvas min-h-[100dvh] bg-background text-foreground">

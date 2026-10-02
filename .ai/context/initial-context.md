@@ -1,7 +1,7 @@
 # Contexto inicial
 
 Registrado em: 2026-09-21
-Última atualização: 2026-10-01 (spec 007)
+Última atualização: 2026-10-02 (nota da spec 022)
 Origem: conversa de descoberta com o usuário.
 Estágio: implementação incremental autorizada, começando pela fundação
 técnica; nenhuma funcionalidade financeira concluída ainda.
@@ -93,6 +93,11 @@ Em 2026-10-01, a implementação foi iniciada conforme as specs:
   instituições; a revisão dos 16 achados possui rota própria.
 - a atualização mensal manual possui rascunho idempotente, provedores de
   cotações isolados, registro por símbolo e aplicação atômica dos preços;
+- em 2026-10-02 a [spec 022](../specs/022-quotes-page.md) removeu a rota de
+  revisão da importação e o fluxo e a tela da atualização mensal manual; os
+  achados e as execuções continuam nas tabelas de importação e em
+  `monthly_update_runs`, e as cotações passaram a ser editadas e atualizadas
+  na página de cotações de Posições;
 - a atualização real de outubro de 2026 concluiu as 10 cotações previstas;
   as credenciais permanecem somente no `.env` local ignorado pelo Git.
 - a competência em rascunho permite editar quantidades cotadas e saldos

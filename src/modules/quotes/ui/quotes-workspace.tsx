@@ -16,7 +16,7 @@ import { useCallback, useEffect, useRef, useState, useTransition, type KeyboardE
 import { saveQuotesAction, undoChangeAction, type EditActionResult } from "@/app/actions/edit-month";
 import { LocalDateTime } from "@/components/product/local-time";
 import { refreshUnlessEditing, subscribeQuoteRunFinished } from "@/components/product/quote-refresh-client";
-import { setPendingChanges } from "@/components/product/unsaved-changes";
+import { confirmDiscardChanges, setPendingChanges } from "@/components/product/unsaved-changes";
 import { cn } from "@/lib/utils";
 import {
   formatBrl,
@@ -160,8 +160,16 @@ export function QuotesWorkspace({
 
       <header className="flex flex-col gap-6 border-b border-border/70 pb-8 sm:flex-row sm:items-end sm:justify-between">
         <div>
+          {/* Como as abas, a volta pede confirmação com edições pendentes: a
+              navegação no cliente não dispara o aviso do navegador. */}
           <Link
             href={positionsHref}
+            aria-label="Voltar para Posições"
+            onClick={(event) => {
+              if (!confirmDiscardChanges()) {
+                event.preventDefault();
+              }
+            }}
             className="group inline-flex items-center gap-1.5 rounded-md text-[11px] font-semibold tracking-[0.16em] text-primary uppercase outline-none transition-colors hover:text-primary/80 focus-visible:ring-2 focus-visible:ring-ring/50"
           >
             <ArrowLeftIcon
@@ -267,7 +275,7 @@ export function QuotesWorkspace({
             <thead>
               <tr className="border-b border-border/60 text-[9px] font-semibold tracking-[0.13em] text-muted-foreground uppercase">
                 <th className="px-4 py-3 pl-5 sm:pl-6">Cotação</th>
-                <th className="px-4 py-3 text-right">Valor</th>
+                <th className="px-3 py-3 text-right sm:px-4">Valor</th>
                 <th className="hidden px-4 py-3 md:table-cell">Origem</th>
                 <th className="hidden px-4 py-3 text-right whitespace-nowrap sm:table-cell">
                   <span title="Calculado" className="mr-1 font-mono normal-case text-muted-foreground/60">
@@ -365,7 +373,7 @@ function QuoteRow({
   return (
     <tr data-testid="quote-row" className="align-top transition-colors duration-150 hover:bg-white/[0.018]">
       <td className="px-4 py-4 pl-5 sm:pl-6">
-        <p className="flex items-baseline gap-2">
+        <p className="flex flex-wrap items-baseline gap-x-2">
           <span className="font-mono text-sm font-semibold text-foreground">{row.symbol}</span>
           {row.instrumentType ? (
             <span className="text-[10px] text-muted-foreground">
@@ -390,12 +398,12 @@ function QuoteRow({
       </td>
       <td
         className={cn(
-          "px-4 py-4 text-right",
+          "px-3 py-4 text-right sm:px-4",
           row.changed && "bg-warning/25 shadow-[inset_2px_0_0_var(--warning-border)]",
         )}
       >
         {editMode ? (
-          <label className="relative ml-auto flex w-full min-w-[136px] items-center sm:min-w-[164px]">
+          <label className="relative ml-auto flex w-full min-w-[104px] items-center sm:min-w-[164px]">
             <span className="pointer-events-none absolute left-2.5 text-[11px] text-muted-foreground">R$</span>
             <input
               data-quote-cell="value"
@@ -424,12 +432,12 @@ function QuoteRow({
           </span>
         )}
         {row.changed && !row.invalid && row.valueBrl !== null ? (
-          <p className="mt-1 font-mono text-[9px] whitespace-nowrap text-muted-foreground">
+          <p className="mt-1 font-mono text-[9px] text-muted-foreground sm:whitespace-nowrap">
             antes {formatPriceBrl(row.valueBrl)}
           </p>
         ) : null}
         {totalChanged ? (
-          <p className="mt-0.5 font-mono text-[9px] whitespace-nowrap text-muted-foreground sm:hidden">
+          <p className="mt-0.5 font-mono text-[9px] text-muted-foreground sm:hidden">
             posições {formatBrl(row.previewTotal)}
           </p>
         ) : null}
@@ -520,7 +528,9 @@ function LastResult({ row, compact = false }: { row: MonthQuoteRow; compact?: bo
         <p className={ok ? "text-foreground/85" : "text-destructive"}>
           {ok ? "Atualizada" : "Falhou"} em <LocalDateTime iso={result.fetchedAt} />
         </p>
-        <p className={cn("text-muted-foreground", compact && "max-w-[260px]")}>
+        {/* Motivos com termos longos, como ALPHA_VANTAGE_API_KEY, quebram em
+            qualquer ponto para não alargar a coluna no celular. */}
+        <p className={cn("text-muted-foreground wrap-anywhere", compact && "max-w-[260px]")}>
           {providerLabel(result.provider)}
           {ok ? null : `: ${result.errorMessage ?? "falha sem descrição."}`}
         </p>
@@ -533,7 +543,9 @@ function draftRow(quote: MonthQuoteRow, draft: string | undefined): QuoteDraftRo
   const initial = quote.valueText.replace(".", ",");
   const text = draft ?? initial;
   const parsed = parseLocaleNumber(text);
-  const changed = text.trim() !== initial && parsed !== quote.valueBrl;
+  // Sem valor guardado, qualquer texto digitado é uma alteração, para que um
+  // valor que não é número fique marcado em vez de ser ignorado ao salvar.
+  const changed = text.trim() !== initial && (quote.valueBrl === null || parsed !== quote.valueBrl);
   const invalid = changed && (parsed === null || parsed <= 0 || decimalPlaces(text) > MAX_DECIMALS);
   const previewTotal =
     changed && !invalid && parsed !== null

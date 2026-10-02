@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { AppShell } from "@/components/product/app-shell";
 import { getMonthContext } from "@/modules/portfolio/application/get-month-context";
 import { getMonthQuotes } from "@/modules/quotes/application/get-month-quotes";
-import { getQuoteRefreshSummary } from "@/modules/quotes/application/refresh-quotes";
+import { getRequestQuoteRefreshSummary } from "@/modules/quotes/application/refresh-quotes";
 import { QuotesWorkspace } from "@/modules/quotes/ui/quotes-workspace";
 
 export const dynamic = "force-dynamic";
@@ -21,7 +21,7 @@ export default async function QuotesPage({
   const { months, selected } = await getMonthContext(mes);
   const [month, summary] = await Promise.all([
     getMonthQuotes(selected?.referenceDate),
-    getQuoteRefreshSummary(),
+    getRequestQuoteRefreshSummary(),
   ]);
 
   return (

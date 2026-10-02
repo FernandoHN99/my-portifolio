@@ -1,3 +1,5 @@
+import { cache } from "react";
+
 import {
   Prisma,
   QuoteRefreshStatus,
@@ -202,6 +204,11 @@ export async function getQuoteRefreshSummary(now = new Date()): Promise<QuoteRef
     return null;
   }
 }
+
+// O topo e a página de cotações mostram o mesmo resumo no mesmo pedido; o
+// cache do React o lê uma vez por pedido. Fora da renderização, como nas rotas
+// de API, ele não guarda nada e cada chamada lê de novo.
+export const getRequestQuoteRefreshSummary = cache(() => getQuoteRefreshSummary());
 
 async function claimRun(
   prisma: PrismaClient,

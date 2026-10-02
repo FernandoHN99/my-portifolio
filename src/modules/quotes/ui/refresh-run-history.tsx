@@ -11,8 +11,12 @@ import { useState } from "react";
 
 import { LocalDateTime } from "@/components/product/local-time";
 import { cn } from "@/lib/utils";
-import type { QuoteRunHistoryEntry, QuoteRunOrigin } from "@/modules/quotes/application/get-month-quotes";
-import { providerLabel, type QuoteRefreshRunStatus } from "@/modules/quotes/domain/quote-refresh";
+import type {
+  QuoteRunHistoryEntry,
+  QuoteRunHistoryStatus,
+  QuoteRunOrigin,
+} from "@/modules/quotes/application/get-month-quotes";
+import { providerLabel } from "@/modules/quotes/domain/quote-refresh";
 
 const ORIGIN_LABELS: Record<QuoteRunOrigin, string> = {
   AUTO: "Automática",
@@ -20,10 +24,11 @@ const ORIGIN_LABELS: Record<QuoteRunOrigin, string> = {
   MONTHLY_UPDATE: "Atualizar carteira",
 };
 
-const STATUS: Record<QuoteRefreshRunStatus, { label: string; className: string }> = {
+const STATUS: Record<QuoteRunHistoryStatus, { label: string; className: string }> = {
   COMPLETED: { label: "Concluída", className: "bg-primary/10 text-primary" },
   COMPLETED_WITH_ISSUES: { label: "Com falhas", className: "bg-warning/50 text-warning-foreground" },
   FAILED: { label: "Falhou", className: "bg-destructive/12 text-destructive" },
+  INTERRUPTED: { label: "Interrompida", className: "bg-destructive/12 text-destructive" },
   RUNNING: { label: "Em andamento", className: "bg-white/[0.06] text-muted-foreground" },
 };
 
@@ -80,7 +85,7 @@ function RunRow({ run }: { run: QuoteRunHistoryEntry }) {
       <RunIcon status={run.status} />
       <span className="min-w-0 flex-1">
         <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
-          <LocalDateTime iso={run.startedAt} className="font-mono text-xs text-foreground" />
+          <LocalDateTime iso={run.at} className="font-mono text-xs text-foreground" />
           <span className="text-[11px] text-muted-foreground">{ORIGIN_LABELS[run.origin]}</span>
           {run.origin === "MONTHLY_UPDATE" ? (
             <span className="rounded-full bg-white/[0.05] px-2 py-0.5 text-[9px] font-semibold tracking-[0.08em] text-muted-foreground uppercase">
@@ -144,7 +149,7 @@ function RunRow({ run }: { run: QuoteRunHistoryEntry }) {
   );
 }
 
-function RunIcon({ status }: { status: QuoteRefreshRunStatus }) {
+function RunIcon({ status }: { status: QuoteRunHistoryStatus }) {
   if (status === "COMPLETED") {
     return <CheckCircleIcon aria-hidden="true" className="mt-px shrink-0 text-primary" size={16} weight="fill" />;
   }
@@ -156,7 +161,10 @@ function RunIcon({ status }: { status: QuoteRefreshRunStatus }) {
   return (
     <WarningCircleIcon
       aria-hidden="true"
-      className={cn("mt-px shrink-0", status === "FAILED" ? "text-destructive" : "text-warning-foreground")}
+      className={cn(
+        "mt-px shrink-0",
+        status === "COMPLETED_WITH_ISSUES" ? "text-warning-foreground" : "text-destructive",
+      )}
       size={16}
       weight="fill"
     />
@@ -170,6 +178,12 @@ function plural(count: number, singular: string, pluralForm: string) {
 function describeRun(run: QuoteRunHistoryEntry) {
   if (run.status === "RUNNING") {
     return "Consultando os provedores.";
+  }
+
+  // A execução antiga gravava as cotações e as posições numa transação só, no
+  // fim; parada no meio, nada chegou às posições.
+  if (run.status === "INTERRUPTED") {
+    return "Interrompida antes de terminar; nenhuma cotação foi aplicada.";
   }
 
   const total = run.succeeded + run.failures.length;
