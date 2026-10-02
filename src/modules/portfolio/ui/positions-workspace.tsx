@@ -1,5 +1,6 @@
 "use client";
 
+import type { BaseUIEvent } from "@base-ui/react/types";
 import {
   ArrowCounterClockwiseIcon,
   ArrowDownIcon,
@@ -44,6 +45,7 @@ import {
   type EditActionResult,
 } from "@/app/actions/edit-month";
 import { setPendingChanges } from "@/components/product/unsaved-changes";
+import { Picker, type PickerOption } from "@/components/ui/picker";
 import { cn } from "@/lib/utils";
 import type { EditingCatalog } from "@/modules/portfolio/application/get-editing-catalog";
 import type { MonthPositions } from "@/modules/portfolio/application/get-month-positions";
@@ -250,7 +252,10 @@ export function PositionsWorkspace({
     display.filter((position) => !position.isRemoved).map((position) => `${position.accountId}:${position.assetId}`),
   );
   const drawerPosition = display.find((position) => position.id === drawerId) ?? null;
-  const strategyOptions = catalog.strategies;
+  const strategyOptions: PickerOption[] = [
+    { value: "", label: NO_STRATEGY },
+    ...catalog.strategies.map((strategy) => ({ value: strategy, label: strategy })),
+  ];
 
   const notify = (result: EditActionResult) =>
     setToast({
@@ -801,7 +806,7 @@ function PositionRow({
   valueBrl: number;
   canEdit: boolean;
   valueText: string;
-  strategyOptions: string[];
+  strategyOptions: PickerOption[];
   onCommitValue: (position: DisplayPosition, text: string) => void;
   onCommitStrategy: (position: DisplayPosition, strategy: string | null) => void;
   onToggleRemoval: (position: DisplayPosition) => void;
@@ -832,22 +837,18 @@ function PositionRow({
       </Cell>
       <Cell id="strategy" editMode={canEdit} changed={position.strategyChanged && !position.isAdded}>
         {editable ? (
-          <select
+          <Picker
             data-edit-cell="strategy"
             data-row={rowIndex}
             aria-label={`Estratégia de ${position.assetName}`}
+            size="sm"
+            changed={position.strategyChanged && !position.isAdded}
+            options={strategyOptions}
             value={position.strategy ?? ""}
-            onChange={(event) => onCommitStrategy(position, event.target.value || null)}
-            onKeyDown={(event) => moveFocus(event, "strategy", rowIndex)}
-            className="h-8 w-full min-w-[140px] rounded-md border border-border bg-background/60 px-2 text-xs text-foreground outline-none focus-visible:border-primary/60 focus-visible:ring-2 focus-visible:ring-ring/50"
-          >
-            <option value="">{NO_STRATEGY}</option>
-            {strategyOptions.map((option) => (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ))}
-          </select>
+            onValueChange={(strategy) => onCommitStrategy(position, strategy || null)}
+            onKeyDown={(event) => moveStrategyFocus(event, rowIndex)}
+            className="min-w-[140px]"
+          />
         ) : (
           <span className="text-xs text-foreground/80">{strategyOf(position)}</span>
         )}
@@ -1057,28 +1058,37 @@ function columnHide(id: string, editMode: boolean) {
   return editMode && id in EDIT_MODE_HIDE ? EDIT_MODE_HIDE[id] : COLUMN_META[id].hide;
 }
 
-function moveFocus(
-  event: KeyboardEvent<HTMLInputElement | HTMLSelectElement>,
-  field: "value" | "strategy",
-  rowIndex: number,
-) {
-  const step =
-    event.key === "ArrowDown" || (field === "value" && event.key === "Enter")
-      ? 1
-      : event.key === "ArrowUp"
-        ? -1
-        : 0;
-
-  if (step === 0 || (field === "strategy" && event.altKey)) {
+/**
+ * Com a lista fechada, Enter e as setas trocam de linha como no campo de valor;
+ * com a lista aberta, as setas percorrem as opções e Enter escolhe. Alt+seta
+ * para baixo abre a lista.
+ */
+function moveStrategyFocus(event: BaseUIEvent<KeyboardEvent<HTMLInputElement>>, rowIndex: number) {
+  if (event.altKey || event.currentTarget.getAttribute("aria-expanded") === "true") {
     return;
+  }
+
+  if (moveFocus(event, "strategy", rowIndex)) {
+    event.preventBaseUIHandler();
+  }
+}
+
+function moveFocus(event: KeyboardEvent<HTMLInputElement>, field: "value" | "strategy", rowIndex: number) {
+  const step = event.key === "ArrowDown" || event.key === "Enter" ? 1 : event.key === "ArrowUp" ? -1 : 0;
+
+  if (step === 0) {
+    return false;
   }
 
   const target = document.querySelector<HTMLElement>(`[data-edit-cell="${field}"][data-row="${rowIndex + step}"]`);
 
-  if (target) {
-    event.preventDefault();
-    target.focus();
+  if (!target) {
+    return false;
   }
+
+  event.preventDefault();
+  target.focus();
+  return true;
 }
 
 function parseSorting(value: string): SortingState {
