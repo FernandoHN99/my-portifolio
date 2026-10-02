@@ -128,6 +128,7 @@ percentual atual, percentual ideal, valor atual, valor ideal e diferença.
 6. [017 — Posições: edição](../specs/017-positions-editing.md): concluída.
 7. [014 — Configuração da carteira](../specs/014-target-settings.md): concluída.
 8. [016 — Histórico de uma posição e de um ativo](../specs/016-position-history.md): planejada, sem prazo.
+9. [018 — Tolerância ajustável](../specs/018-adjustable-tolerance.md): em andamento.
 
 Cada fatia termina com `pnpm check`, `pnpm build` e os testes do Playwright.
 
@@ -144,12 +145,30 @@ Registradas em 2026-10-02, aguardando o usuário:
   tipo de cotação (spec 017);
 - confirmar o ativo "Solana" com ticker USD, que convive com o "Solana" de
   ticker SOL (spec 017);
-- tornar configurável a faixa de tolerância, hoje fixa em dois pontos
-  percentuais ([spec 012](../specs/012-rebalancing-in-overview.md));
 - permitir criar e remover categorias de metas
   ([spec 014](../specs/014-target-settings.md));
 - agendar a [spec 016](../specs/016-position-history.md), histórico de uma
   posição e de um ativo.
+
+## Respostas do usuário em 2026-10-02
+
+Registradas após a conclusão da fatia 014:
+
+- as cotações devem guardar histórico diário, não só o valor do mês;
+- as metas são globais: alterar hoje recalcula todos os meses, inclusive os
+  passados. É o comportamento atual; as versões salvas do plano servem apenas
+  como registro de quando as metas mudaram, não como meta por época;
+- a faixa de tolerância do rebalanceamento passa a ser configurável na tela
+  de Configuração ([spec 018](../specs/018-adjustable-tolerance.md));
+- o histórico de cada ativo, previsto na
+  [spec 016](../specs/016-position-history.md), virá das cotações diárias.
+
+Próximas fatias registradas, ainda sem spec, na ordem informada:
+
+1. separar a atualização de cotações, executada a cada hora e guardando o
+   histórico diário, da criação automática dos meses que faltam;
+2. trocar o duplo clique da edição de posições por um ícone de lápis;
+3. padronizar as cotações.
 
 ## Critérios de aceite da iniciativa
 
