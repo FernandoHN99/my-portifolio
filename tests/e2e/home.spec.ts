@@ -1,5 +1,13 @@
 import { expect, test } from "@playwright/test";
 
+import { stubQuoteChecks } from "./support/quote-checks";
+
+// A checagem de abertura grava no banco; aqui ela é substituída por uma
+// resposta fixa para que os cenários não alterem os dados nem mudem de mês.
+test.beforeEach(async ({ page }) => {
+  await stubQuoteChecks(page);
+});
+
 test("apresenta a carteira normalizada", async ({ page }) => {
   await page.goto("/");
 

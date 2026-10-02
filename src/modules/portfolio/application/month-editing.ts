@@ -55,6 +55,8 @@ type SnapshotQuote = {
   instrumentType: string;
   baseCurrency: string;
   valueBrl: Prisma.Decimal;
+  quoteDate: Date | null;
+  carriedFrom: Date | null;
 };
 
 type MonthSnapshot = { positions: SnapshotPosition[]; quotes: SnapshotQuote[] };
@@ -292,9 +294,11 @@ export async function updateMonthQuotes(input: {
       });
 
       if (existing) {
+        // O valor digitado é do próprio mês: deixa de ser repetido e perde o
+        // dia da cotação diária que carregava.
         await transaction.marketQuote.update({
           where: { id: existing.id },
-          data: { valueBrl: quote.valueBrl },
+          data: { valueBrl: quote.valueBrl, quoteDate: null, carriedFrom: null },
         });
       } else {
         const reference = await transaction.marketQuote.findFirst({
@@ -401,12 +405,25 @@ export async function cloneLatestMonth() {
 
       const quotes = await transaction.marketQuote.findMany({
         where: { referenceDate: latest.referenceDate },
-        select: { symbol: true, instrumentType: true, baseCurrency: true, valueBrl: true },
+        select: {
+          symbol: true,
+          instrumentType: true,
+          baseCurrency: true,
+          valueBrl: true,
+          quoteDate: true,
+          carriedFrom: true,
+        },
       });
 
+      // As cotações copiadas ficam marcadas como repetidas, como na virada
+      // automática de mês (spec 021).
       if (quotes.length > 0) {
         await transaction.marketQuote.createMany({
-          data: quotes.map((quote) => ({ ...quote, referenceDate: target })),
+          data: quotes.map((quote) => ({
+            ...quote,
+            referenceDate: target,
+            carriedFrom: quote.carriedFrom ?? latest.referenceDate,
+          })),
         });
       }
 
@@ -568,6 +585,8 @@ async function readSnapshot(
         instrumentType: true,
         baseCurrency: true,
         valueBrl: true,
+        quoteDate: true,
+        carriedFrom: true,
       },
     }),
   ]);
@@ -615,7 +634,7 @@ async function restoreSnapshot(
     await transaction.marketQuote.upsert({
       where: { id: quote.id },
       create: { ...quote, referenceDate: month.referenceDate },
-      update: { valueBrl: quote.valueBrl },
+      update: { valueBrl: quote.valueBrl, quoteDate: quote.quoteDate, carriedFrom: quote.carriedFrom },
     });
   }
 }

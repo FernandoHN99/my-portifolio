@@ -6,6 +6,7 @@ import {
 } from "@/generated/prisma/client";
 import { getPrismaClient } from "@/lib/prisma";
 import { fetchCurrentQuotes } from "@/modules/quotes/application/fetch-current-quotes";
+import { calendarDay } from "@/modules/quotes/domain/calendar";
 import type { QuoteRequest, QuoteResult } from "@/modules/quotes/domain/quote-types";
 
 export type MonthlyUpdateOutcome = {
@@ -331,6 +332,7 @@ async function applyQuotesToDraft({
     },
   });
   const usdBrl = successful.get("USD");
+  const quoteDate = calendarDay(new Date());
 
   await prisma.$transaction(
     async (transaction) => {
@@ -348,8 +350,10 @@ async function applyQuotesToDraft({
             instrumentType: request.instrumentType,
             baseCurrency: request.baseCurrency,
             valueBrl: new Prisma.Decimal(valueBrl),
+            quoteDate,
           },
-          update: { valueBrl: new Prisma.Decimal(valueBrl) },
+          // Valor consultado hoje: deixa de ser uma cotação repetida.
+          update: { valueBrl: new Prisma.Decimal(valueBrl), quoteDate, carriedFrom: null },
         });
       }
 

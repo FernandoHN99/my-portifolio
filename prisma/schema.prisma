@@ -119,15 +119,16 @@ model Asset {
 }
 
 model PortfolioMonth {
-  id            String               @id @default(uuid()) @db.Uuid
-  sourceBatchId String?              @map("source_batch_id") @db.Uuid
-  referenceDate DateTime             @unique @map("reference_date") @db.Date
-  status        PortfolioMonthStatus @default(IMPORTED)
-  createdAt     DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
-  sourceBatch   ImportBatch?         @relation(fields: [sourceBatchId], references: [id], onDelete: SetNull)
-  positions     Position[]
-  sourceUpdates MonthlyUpdateRun[]   @relation("MonthlyUpdateSource")
-  targetUpdate  MonthlyUpdateRun?    @relation("MonthlyUpdateTarget")
+  id             String               @id @default(uuid()) @db.Uuid
+  sourceBatchId  String?              @map("source_batch_id") @db.Uuid
+  referenceDate  DateTime             @unique @map("reference_date") @db.Date
+  status         PortfolioMonthStatus @default(IMPORTED)
+  createdAt      DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
+  sourceBatch    ImportBatch?         @relation(fields: [sourceBatchId], references: [id], onDelete: SetNull)
+  positions      Position[]
+  sourceUpdates  MonthlyUpdateRun[]   @relation("MonthlyUpdateSource")
+  targetUpdate   MonthlyUpdateRun?    @relation("MonthlyUpdateTarget")
+  quoteRefreshes QuoteRefreshRun[]
 
   @@map("portfolio_months")
 }
@@ -166,12 +167,86 @@ model MarketQuote {
   instrumentType String           @map("instrument_type")
   baseCurrency   String           @map("base_currency")
   valueBrl       Decimal          @map("value_brl") @db.Decimal(24, 8)
+  // Dia do preço que a cotação do mês carrega, quando conhecido. Nulo nas
+  // cotações importadas do Excel e nas editadas à mão, que são fatos mensais.
+  quoteDate      DateTime?        @map("quote_date") @db.Date
+  // Competência cuja cotação foi repetida, quando o mês não tem valor próprio:
+  // virada de mês sem histórico diário no mês ou clone do mês anterior. Nulo
+  // quando o valor é do próprio mês: importado, atualizado ou editado à mão.
+  carriedFrom    DateTime?        @map("carried_from") @db.Date
   createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
   sourceRow      ImportSourceRow? @relation(fields: [sourceRowId], references: [id], onDelete: SetNull)
 
   @@unique([referenceDate, symbol])
   @@index([symbol])
   @@map("market_quotes")
+}
+
+enum QuoteRefreshTrigger {
+  AUTO
+  MANUAL
+}
+
+enum QuoteRefreshStatus {
+  RUNNING
+  COMPLETED
+  COMPLETED_WITH_ISSUES
+  FAILED
+}
+
+// Histórico diário: uma cotação por símbolo e dia. Cada atualização do dia
+// sobrescreve o valor daquele dia, nunca o de outro.
+model DailyQuote {
+  id             String           @id @default(uuid()) @db.Uuid
+  symbol         String
+  quoteDate      DateTime         @map("quote_date") @db.Date
+  instrumentType String           @map("instrument_type")
+  baseCurrency   String           @map("base_currency")
+  valueBrl       Decimal          @map("value_brl") @db.Decimal(24, 8)
+  provider       String
+  fetchedAt      DateTime         @map("fetched_at") @db.Timestamptz(3)
+  runId          String?          @map("run_id") @db.Uuid
+  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  run            QuoteRefreshRun? @relation(fields: [runId], references: [id], onDelete: SetNull)
+
+  @@unique([symbol, quoteDate])
+  @@index([quoteDate])
+  @@map("daily_quotes")
+}
+
+model QuoteRefreshRun {
+  id               String               @id @default(uuid()) @db.Uuid
+  trigger          QuoteRefreshTrigger
+  status           QuoteRefreshStatus   @default(RUNNING)
+  quoteDate        DateTime             @map("quote_date") @db.Date
+  portfolioMonthId String?              @map("portfolio_month_id") @db.Uuid
+  startedAt        DateTime             @default(now()) @map("started_at") @db.Timestamptz(3)
+  finishedAt       DateTime?            @map("finished_at") @db.Timestamptz(3)
+  errorMessage     String?              @map("error_message")
+  portfolioMonth   PortfolioMonth?      @relation(fields: [portfolioMonthId], references: [id], onDelete: SetNull)
+  results          QuoteRefreshResult[]
+  dailyQuotes      DailyQuote[]
+
+  @@index([startedAt])
+  @@index([status])
+  @@map("quote_refresh_runs")
+}
+
+model QuoteRefreshResult {
+  id           BigInt            @id @default(autoincrement())
+  runId        String            @map("run_id") @db.Uuid
+  symbol       String
+  provider     String
+  status       QuoteUpdateStatus
+  valueBrl     Decimal?          @map("value_brl") @db.Decimal(24, 8)
+  errorCode    String?           @map("error_code")
+  errorMessage String?           @map("error_message")
+  fetchedAt    DateTime          @default(now()) @map("fetched_at") @db.Timestamptz(3)
+  run          QuoteRefreshRun   @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@unique([runId, symbol])
+  @@index([runId, status])
+  @@map("quote_refresh_results")
 }
 
 enum MonthlyUpdateStatus {

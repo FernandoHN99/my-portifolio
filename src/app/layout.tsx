@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
 import type { ReactNode } from "react";
+
+import { AppToaster } from "@/components/product/app-toaster";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -31,6 +33,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     >
       <body className="min-h-full">
         <NuqsAdapter>{children}</NuqsAdapter>
+        <AppToaster />
       </body>
     </html>
   );

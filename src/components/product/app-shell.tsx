@@ -4,8 +4,10 @@ import type { ReactNode } from "react";
 
 import { MainTabs, type TabKey } from "@/components/product/main-tabs";
 import { MonthTimeline } from "@/components/product/month-timeline";
+import { QuoteRefreshIndicator } from "@/components/product/quote-refresh-indicator";
 import { TabViewport } from "@/components/product/tab-viewport";
 import type { PortfolioMonthSummary } from "@/modules/portfolio/application/get-portfolio-months";
+import { getQuoteRefreshSummary } from "@/modules/quotes/application/refresh-quotes";
 
 type AppShellProps = {
   active: TabKey | "none";
@@ -14,14 +16,19 @@ type AppShellProps = {
   children: ReactNode;
 };
 
-export function AppShell({ active, months, selectedMonth, children }: AppShellProps) {
+export async function AppShell({ active, months, selectedMonth, children }: AppShellProps) {
+  const quoteRefresh = await getQuoteRefreshSummary();
+
   return (
     <main className="app-canvas min-h-[100dvh] bg-background text-foreground">
       <header className="sticky top-0 z-30 border-b border-border/70 bg-background/88 backdrop-blur-xl">
-        <div className="flex h-16 items-center justify-between gap-3 px-4 sm:px-6">
+        {/* Abaixo de 360 px a marca sai para as abas, a hora das cotações e a
+            configuração caberem sem cortar "Posições"; a aba Visão Geral
+            leva ao mesmo endereço. */}
+        <div className="flex h-16 items-center justify-between gap-2 px-4 sm:gap-3 sm:px-6">
           <Link
             href="/"
-            className="inline-flex shrink-0 items-center gap-3 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+            className="inline-flex shrink-0 items-center gap-3 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring/50 max-[359px]:hidden"
           >
             <span className="brand-mark grid size-9 place-items-center rounded-xl text-primary-foreground">
               <ChartDonutIcon aria-hidden="true" size={18} weight="bold" />
@@ -40,13 +47,16 @@ export function AppShell({ active, months, selectedMonth, children }: AppShellPr
             <MainTabs active={active} />
           </div>
 
-          <Link
-            href="/configuracao"
-            aria-label="Configuração da carteira"
-            className="grid size-9 shrink-0 place-items-center rounded-xl border border-border text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50"
-          >
-            <GearSixIcon aria-hidden="true" size={17} weight="duotone" />
-          </Link>
+          <div className="flex shrink-0 items-center gap-2">
+            <QuoteRefreshIndicator summary={quoteRefresh} />
+            <Link
+              href="/configuracao"
+              aria-label="Configuração da carteira"
+              className="grid size-9 shrink-0 place-items-center rounded-xl border border-border text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50"
+            >
+              <GearSixIcon aria-hidden="true" size={17} weight="duotone" />
+            </Link>
+          </div>
         </div>
 
         {selectedMonth ? (
