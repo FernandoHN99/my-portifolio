@@ -32,6 +32,7 @@ Esta pasta organiza a implementação em fatias pequenas e revisáveis.
 - [026 — Inclusão de posição com conta, instituição, ativo e vencimento novos](026-new-position-entities.md): concluída; questões em aberto aguardam o usuário.
 - [027 — Ajustes na configuração de metas](027-target-settings-adjustments.md): concluída.
 - [028 — Regras de cotação: fechamento, edição restrita e histórico global](028-quote-rules.md): concluída.
+- [029 — Histórico de 3 anos ao incluir um ativo](029-asset-price-history.md): concluída.
 
 As specs 010 a 017 formam a reestruturação da UX pedida pelo usuário. O
 propósito, as restrições e as regras de cálculo comuns a elas estão em

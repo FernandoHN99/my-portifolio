@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { z } from "zod";
 
 import { updateAssetMaturity } from "@/modules/portfolio/application/asset-maturity";
@@ -13,6 +14,7 @@ import {
   updateMonthQuotes,
 } from "@/modules/portfolio/application/month-editing";
 import { ASSET_KINDS } from "@/modules/portfolio/domain/asset-kinds";
+import { backfillNewAssetHistories } from "@/modules/quotes/application/backfill-asset-history";
 import { toMonthParam } from "@/modules/portfolio/presentation/reference-month";
 
 export type EditActionResult =
@@ -100,6 +102,13 @@ export async function savePositionChangesAction(input: unknown): Promise<EditAct
 
   return run(async () => {
     const result = await applyPositionChanges(parsed.data);
+
+    // Ativo novo com ticker: o histórico de fechamento mensal é buscado depois
+    // da resposta, sem atrasar o salvamento (spec 029).
+    if (parsed.data.additions.some((addition) => addition.newAsset?.ticker)) {
+      after(() => backfillNewAssetHistories().catch((error) => console.error("Histórico de cotações não buscado.", error)));
+    }
+
     return { ok: true, message: "Alterações salvas.", undoToken: result.undoToken };
   });
 }

@@ -132,3 +132,24 @@ export async function fetchCryptoQuotes(
 function headersFor(apiKey?: string) {
   return apiKey ? { "x-cg-demo-api-key": apiKey } : undefined;
 }
+
+const coinGeckoChartSchema = z.object({ prices: z.array(z.tuple([z.number(), z.number()])) });
+
+/** Dias de histórico que o plano gratuito da CoinGecko permite consultar. */
+export const COINGECKO_HISTORY_DAYS = 365;
+
+/**
+ * Preço diário em reais de uma moeda no último ano, numa única consulta (spec
+ * 029). O plano gratuito recusa períodos maiores que 365 dias.
+ */
+export async function fetchCoinGeckoDailyHistory(coinId: string, apiKey?: string) {
+  const url = new URL(`https://api.coingecko.com/api/v3/coins/${encodeURIComponent(coinId)}/market_chart`);
+  url.searchParams.set("vs_currency", "brl");
+  url.searchParams.set("days", String(COINGECKO_HISTORY_DAYS));
+  url.searchParams.set("interval", "daily");
+  const payload = coinGeckoChartSchema.parse(await fetchJson(url, { headers: headersFor(apiKey) }));
+
+  return payload.prices
+    .filter(([, price]) => price > 0)
+    .map(([time, price]) => ({ day: new Date(time).toISOString().slice(0, 10), value: price }));
+}

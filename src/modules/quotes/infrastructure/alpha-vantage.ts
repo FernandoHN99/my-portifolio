@@ -88,3 +88,36 @@ export async function lookupAlphaVantageSymbol(
 
   return Number.isFinite(price) && price > 0 ? { found: true, priceBrl: price } : { found: false };
 }
+
+const alphaVantageMonthlySchema = z.object({
+  "Monthly Time Series": z.record(z.string(), z.object({ "4. close": z.coerce.number().positive() })).optional(),
+  Note: z.string().optional(),
+  Information: z.string().optional(),
+  "Error Message": z.string().optional(),
+});
+
+/**
+ * Fechamento mensal de um símbolo numa única consulta (spec 029): o Alpha
+ * Vantage devolve todo o histórico, um ponto no último pregão de cada mês, na
+ * moeda do ativo. Consome uma das 25 consultas diárias do plano gratuito.
+ */
+export async function fetchAlphaVantageMonthlyCloses(symbol: string, apiKey: string) {
+  const url = new URL("https://www.alphavantage.co/query");
+  url.searchParams.set("function", "TIME_SERIES_MONTHLY");
+  url.searchParams.set("symbol", symbol);
+  url.searchParams.set("apikey", apiKey);
+  const payload = alphaVantageMonthlySchema.parse(await fetchJson(url));
+
+  if (payload.Note || payload.Information) {
+    throw new ProviderRefusalError(
+      "RATE_LIMITED",
+      "O Alpha Vantage recusou a consulta: limite de uso atingido ou chave sem acesso.",
+    );
+  }
+
+  if (payload["Error Message"] || !payload["Monthly Time Series"]) {
+    throw new ProviderRefusalError("NOT_FOUND", `O Alpha Vantage não tem o histórico de ${symbol}.`);
+  }
+
+  return Object.entries(payload["Monthly Time Series"]).map(([day, values]) => ({ day, value: values["4. close"] }));
+}
