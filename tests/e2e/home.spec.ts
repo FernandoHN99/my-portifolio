@@ -71,8 +71,8 @@ test("os filtros de posições combinam e somam o recorte", async ({ page }) => 
 
   await expect(page.getByText("21 de 21 posições")).toBeVisible();
 
-  await page.getByRole("button", { name: "Instituição", exact: true }).first().click();
-  await page.getByRole("menuitemcheckbox", { name: "Inter" }).click();
+  await page.getByRole("combobox", { name: "Instituição", exact: true }).click();
+  await page.getByRole("option", { name: "Inter" }).click();
   await page.keyboard.press("Escape");
   await expect(page).toHaveURL(/inst=Inter/);
   await expect(page.getByText(/^\d+ de 21 posições$/)).not.toHaveText("21 de 21 posições");
@@ -81,7 +81,7 @@ test("os filtros de posições combinam e somam o recorte", async ({ page }) => 
   await expect(page.getByText("Parcela nas classes selecionadas")).toBeVisible();
 
   await page.reload();
-  await expect(page.getByRole("button", { name: /Classe\s*1/ })).toBeVisible();
+  await expect(page.getByRole("combobox", { name: /Classe\s*1/ })).toBeVisible();
 });
 
 test("o lápis coloca as posições em edição até salvar ou descartar", async ({ page }) => {

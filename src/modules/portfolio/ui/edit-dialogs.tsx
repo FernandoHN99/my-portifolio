@@ -4,6 +4,7 @@ import { Dialog } from "@base-ui/react/dialog";
 import { PencilSimpleIcon, PlusIcon, TrashIcon, XIcon } from "@phosphor-icons/react/dist/ssr";
 import { useState, type ReactNode } from "react";
 
+import { Picker, type PickerOption } from "@/components/ui/picker";
 import { cn } from "@/lib/utils";
 import type { EditingCatalog } from "@/modules/portfolio/application/get-editing-catalog";
 import type { MonthPosition, MonthQuote } from "@/modules/portfolio/application/get-month-positions";
@@ -146,22 +147,6 @@ function AllocationEditor({
       </div>
 
       <div className="flex-1 space-y-3 overflow-y-auto p-6">
-        <datalist id="allocation-classes">
-          {catalog.allocation.classes.map((value) => (
-            <option key={value} value={value} />
-          ))}
-        </datalist>
-        <datalist id="allocation-subclasses">
-          {catalog.allocation.subclasses.map((value) => (
-            <option key={value} value={value} />
-          ))}
-        </datalist>
-        <datalist id="allocation-durations">
-          {catalog.allocation.durations.map((value) => (
-            <option key={value} value={value} />
-          ))}
-        </datalist>
-
         {rows.map((row, index) => (
           <div key={row.key} className="rounded-xl border border-border/70 bg-background/30 p-3">
             <div className="flex items-center gap-2">
@@ -182,27 +167,27 @@ function AllocationEditor({
             </div>
             <div className="mt-3 grid grid-cols-2 gap-2">
               <Field label="Classe">
-                <input
-                  list="allocation-classes"
+                <AllocationPicker
+                  label={`Classe da classificação ${index + 1}`}
+                  values={catalog.allocation.classes}
                   value={row.assetClass}
-                  onChange={(event) => update(row.key, "assetClass", event.target.value)}
-                  className={inputClass}
+                  onChange={(value) => update(row.key, "assetClass", value)}
                 />
               </Field>
               <Field label="Subclasse">
-                <input
-                  list="allocation-subclasses"
+                <AllocationPicker
+                  label={`Subclasse da classificação ${index + 1}`}
+                  values={catalog.allocation.subclasses}
                   value={row.subclass}
-                  onChange={(event) => update(row.key, "subclass", event.target.value)}
-                  className={inputClass}
+                  onChange={(value) => update(row.key, "subclass", value)}
                 />
               </Field>
               <Field label="Duração">
-                <input
-                  list="allocation-durations"
+                <AllocationPicker
+                  label={`Duração da classificação ${index + 1}`}
+                  values={catalog.allocation.durations}
                   value={row.duration}
-                  onChange={(event) => update(row.key, "duration", event.target.value)}
-                  className={inputClass}
+                  onChange={(value) => update(row.key, "duration", value)}
                 />
               </Field>
               <Field label="Peso (%)">
@@ -298,6 +283,16 @@ export function AddPositionDialog({
   const [value, setValue] = useState("");
   const [strategy, setStrategy] = useState("");
 
+  const accountOptions: PickerOption[] = catalog.accounts.map((account) => ({ value: account.id, label: account.label }));
+  const assetOptions: PickerOption[] = catalog.assets.map((entry) => ({
+    value: entry.id,
+    label: entry.name,
+    hint: entry.ticker ?? undefined,
+  }));
+  const strategyOptions: PickerOption[] = [
+    { value: "", label: "Sem estratégia" },
+    ...catalog.strategies.map((entry) => ({ value: entry, label: entry })),
+  ];
   const asset = catalog.assets.find((entry) => entry.id === assetId);
   const quote = asset?.quoteSymbol ? quotes.find((entry) => entry.symbol === asset.quoteSymbol) : undefined;
   const missingQuote = Boolean(asset?.quoteSymbol) && !quote?.valueBrl;
@@ -337,25 +332,24 @@ export function AddPositionDialog({
 
           <div className="mt-5 space-y-3">
             <Field label="Conta">
-              <select value={accountId} onChange={(event) => setAccountId(event.target.value)} className={inputClass}>
-                <option value="">Selecione</option>
-                {catalog.accounts.map((account) => (
-                  <option key={account.id} value={account.id}>
-                    {account.label}
-                  </option>
-                ))}
-              </select>
+              <Picker
+                aria-label="Conta"
+                options={accountOptions}
+                value={accountId || null}
+                onValueChange={setAccountId}
+                placeholder="Selecione a conta"
+                emptyMessage="Nenhuma conta encontrada"
+              />
             </Field>
             <Field label="Ativo">
-              <select value={assetId} onChange={(event) => setAssetId(event.target.value)} className={inputClass}>
-                <option value="">Selecione</option>
-                {catalog.assets.map((entry) => (
-                  <option key={entry.id} value={entry.id}>
-                    {entry.name}
-                    {entry.ticker ? ` · ${entry.ticker}` : ""}
-                  </option>
-                ))}
-              </select>
+              <Picker
+                aria-label="Ativo"
+                options={assetOptions}
+                value={assetId || null}
+                onValueChange={setAssetId}
+                placeholder="Selecione o ativo"
+                emptyMessage="Nenhum ativo encontrado"
+              />
             </Field>
             <div className="grid grid-cols-2 gap-3">
               <Field label={asset?.quoteSymbol ? "Quantidade" : "Saldo (R$)"}>
@@ -367,14 +361,7 @@ export function AddPositionDialog({
                 />
               </Field>
               <Field label="Estratégia">
-                <select value={strategy} onChange={(event) => setStrategy(event.target.value)} className={inputClass}>
-                  <option value="">Sem estratégia</option>
-                  {catalog.strategies.map((entry) => (
-                    <option key={entry} value={entry}>
-                      {entry}
-                    </option>
-                  ))}
-                </select>
+                <Picker aria-label="Estratégia" options={strategyOptions} value={strategy} onValueChange={setStrategy} />
               </Field>
             </div>
 
@@ -411,6 +398,39 @@ export function AddPositionDialog({
         </Dialog.Popup>
       </Dialog.Portal>
     </Dialog.Root>
+  );
+}
+
+/**
+ * Classificação do rateio: escolhe entre os valores já usados e, como a lista
+ * de sugestões anterior, aceita um valor novo digitado, confirmado em "Usar".
+ */
+function AllocationPicker({
+  label,
+  values,
+  value,
+  onChange,
+}: {
+  label: string;
+  values: string[];
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const options = (value && !values.includes(value) ? [...values, value] : values).map((entry) => ({
+    value: entry,
+    label: entry,
+  }));
+
+  return (
+    <Picker
+      aria-label={label}
+      options={options}
+      value={value || null}
+      onValueChange={onChange}
+      onCreate={(text) => onChange(text)}
+      createLabel={(text) => `Usar “${text}”`}
+      emptyMessage="Digite para usar um valor novo"
+    />
   );
 }
 
