@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
+import { updateAssetMaturity } from "@/modules/portfolio/application/asset-maturity";
 import {
   applyPositionChanges,
   cloneLatestMonth,
@@ -129,6 +130,28 @@ export async function saveQuotesAction(input: unknown): Promise<EditActionResult
   });
 }
 
+const maturitySchema = z.object({
+  assetId: z.string().uuid(),
+  maturityDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .refine((day) => day >= "2000-01-01" && day <= "2100-12-31" && !Number.isNaN(Date.parse(`${day}T00:00:00Z`)))
+    .nullable(),
+});
+
+export async function saveAssetMaturityAction(input: unknown): Promise<EditActionResult> {
+  const parsed = maturitySchema.safeParse(input);
+
+  if (!parsed.success) {
+    return { ok: false, message: "Informe uma data de vencimento válida." };
+  }
+
+  return run(async () => {
+    await updateAssetMaturity(parsed.data);
+    return { ok: true, message: parsed.data.maturityDate ? "Vencimento salvo." : "Vencimento removido." };
+  });
+}
+
 export async function cloneLatestMonthAction(): Promise<EditActionResult> {
   return run(async () => {
     const result = await cloneLatestMonth();
@@ -164,6 +187,7 @@ async function run(operation: () => Promise<EditActionResult>): Promise<EditActi
     revalidatePath("/");
     revalidatePath("/posicoes");
     revalidatePath("/posicoes/cotacoes");
+    revalidatePath("/posicoes/[accountId]/[assetId]", "page");
     return result;
   } catch (error) {
     return {

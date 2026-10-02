@@ -1,8 +1,6 @@
 # 016 — Histórico de uma posição e de um ativo
 
-Estado: em andamento, interrompida em 2026-10-02 a pedido do usuário. O
-trabalho parcial (domínio, consulta, rota e componentes da página), sem lint,
-build, testes nem revisão, está no branch `wip/016-pagina-da-posicao`.
+Estado: concluída em 2026-10-02.
 Definida em: 2026-10-01
 
 Ideia registrada pelo usuário durante a reestruturação da UX. Em 2026-10-02
@@ -38,12 +36,52 @@ posição ao longo do tempo e também a evolução do ativo correspondente.
   [spec 026](026-new-position-entities.md), que guarda o vencimento em
   `assets.maturity_date` e deixou para cá a edição dele.
 
-## Questões em aberto
+## Decisões
 
-- a ausência de um livro de movimentações limita a atribuição entre aporte e
-  variação de preço; é preciso decidir o que é possível afirmar com os dados
-  existentes antes de desenhar a tela;
-- se a tela é uma rota própria ou um painel lateral.
+Respostas do usuário em 2026-10-02, registradas em
+[Reestruturação da UX](../context/ux-restructure.md):
+
+- a página é uma rota própria, `/posicoes/[conta]/[ativo]`, e o seletor
+  global de mês continua valendo nela;
+- não haverá livro de movimentações por enquanto; ele fica no backlog, junto
+  da previdência. A separação entre preço e aportes é uma **estimativa** pelas
+  competências e a página diz isso: o efeito de preço é a quantidade do mês
+  anterior vezes a variação da cotação, e aportes e resgates são o restante;
+- o vencimento é editável na página, pelo lápis, e só nos ativos sem cotação
+  de mercado. Nada é inferido dos nomes dos ativos importados;
+- o gráfico de cotação do ativo mostra um ponto por mês, a cotação de
+  fechamento: a da competência e, nos meses sem ela, a diária mais recente do
+  mês. No mês corrente, o ponto é a última cotação (decisão de fechamento
+  mensal da [spec 028](028-quote-rules.md)).
+
+## O que foi entregue
+
+- clicar no nome do ativo, ou em qualquer ponto da linha fora do modo de
+  edição, abre a página; a volta mantém mês, filtros, ordem e agrupamento;
+- cabeçalho com ativo, ticker ou "SALDO", conta, classes, estratégia e
+  vencimento;
+- recorte "Nesta conta" ou "Todas as contas" quando o ativo esteve em outras
+  contas, com links para elas;
+- indicadores: valor, variação no mês, valorização desde a entrada (pela
+  cotação nos ativos cotados, pelo saldo nos demais) e participação na
+  carteira;
+- gráfico da evolução da posição com valor aplicado estimado, lacunas de
+  meses sem competência e clique para trocar de mês;
+- "De onde veio a variação": entrada, ganho de preço, aportes e resgates e
+  valor final, desde a entrada ou no mês;
+- destaques: preço médio estimado, melhor e pior mês, presença e vencimento
+  editável;
+- gráfico da cotação de fechamento mensal, em reais ou dólares, com o preço
+  médio estimado; nos saldos sem cotação, a variação mensal do saldo;
+- rateio da posição no mês e tabela mês a mês com as lacunas e as saídas e
+  voltas entre contas.
+
+## Verificação
+
+- `pnpm check`, `pnpm build` e `tests/e2e/position-history.spec.ts` no
+  desktop e no celular;
+- edição do vencimento conferida no navegador numa LCI: salvar mostrou
+  "vencido" e remover devolveu o ativo ao estado original, chave incluída.
 
 ## Referências
 

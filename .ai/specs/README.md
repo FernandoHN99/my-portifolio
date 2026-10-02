@@ -19,7 +19,7 @@ Esta pasta organiza a implementação em fatias pequenas e revisáveis.
 - [013 — Posições: filtros e consulta](013-positions-filters.md): concluída.
 - [014 — Configuração da carteira](014-target-settings.md): concluída.
 - [015 — Transições sem recarregamento](015-seamless-transitions.md): concluída.
-- [016 — Histórico de uma posição e de um ativo](016-position-history.md): em andamento, interrompida em 2026-10-02; trabalho parcial, não verificado, no branch `wip/016-pagina-da-posicao`.
+- [016 — Histórico de uma posição e de um ativo](016-position-history.md): concluída.
 - [017 — Posições: edição](017-positions-editing.md): concluída.
 - [018 — Faixa de tolerância ajustável](018-adjustable-tolerance.md): concluída.
 - [019 — Modo de edição com lápis](019-pencil-edit-mode.md): concluída.

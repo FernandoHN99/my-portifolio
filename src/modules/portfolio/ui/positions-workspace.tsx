@@ -36,6 +36,7 @@ import {
   useState,
   useTransition,
   type KeyboardEvent,
+  type MouseEvent,
   type ReactNode,
 } from "react";
 
@@ -63,7 +64,6 @@ import {
   strategyOf,
   type PositionFilters,
 } from "@/modules/portfolio/presentation/position-filters";
-import { maturityStatus } from "@/modules/portfolio/presentation/maturity";
 import {
   buildDisplayPositions,
   countChanges,
@@ -82,10 +82,12 @@ import {
   formatSharePercent,
   parseLocaleNumber,
 } from "@/modules/portfolio/presentation/portfolio-format";
+import { positionHref } from "@/modules/portfolio/presentation/position-page";
 import { parseMonthParam } from "@/modules/portfolio/presentation/reference-month";
 import { AddPositionDialog } from "@/modules/portfolio/ui/add-position-dialog";
 import { AllocationDrawer, headerPrimaryButtonClass, HistoryUnlockDialog } from "@/modules/portfolio/ui/edit-dialogs";
 import { EditToast, type EditToastState } from "@/modules/portfolio/ui/edit-toast";
+import { MaturityBadge } from "@/modules/portfolio/ui/maturity-badge";
 import { MultiSelectFilter } from "@/modules/portfolio/ui/multi-select-filter";
 
 const QUICK_CLASSES = ["Caixa", "Cripto", "Renda Fixa", "Renda Variável", "Reserva"];
@@ -134,7 +136,8 @@ export function PositionsWorkspace({
   catalog: EditingCatalog;
 }) {
   const router = useRouter();
-  const monthParam = useSearchParams().get("mes");
+  const searchParams = useSearchParams();
+  const monthParam = searchParams.get("mes");
   const [query, setQuery] = useQueryStates(
     {
       classe: list,
@@ -159,6 +162,8 @@ export function PositionsWorkspace({
   const [toast, setToast] = useState<EditToastState | null>(null);
   const [isSaving, startSaving] = useTransition();
   const [isUndoing, startUndo] = useTransition();
+  const [isOpening, startOpening] = useTransition();
+  const [openingId, setOpeningId] = useState<string | null>(null);
   const sequence = useRef(0);
   // Botão "Adicionar posição" do modo de edição, que recebe o foco quando o
   // diálogo fecha mesmo se ele abriu pela confirmação de histórico.
@@ -457,6 +462,13 @@ export function PositionsWorkspace({
   const clearFilters = () =>
     void setQuery({ classe: null, subclasse: null, inst: null, estrategia: null, moeda: null, q: null });
 
+  // Fora do modo de edição, a linha abre a página da posição (spec 016), com a
+  // query da tabela para a volta reabrir os mesmos filtros.
+  const openPosition = (position: DisplayPosition, href: string) => {
+    setOpeningId(position.id);
+    startOpening(() => router.push(href));
+  };
+
   let rowIndex = 0;
   const renderRow = (position: DisplayPosition, rowKey: string, valueBrl: number) => {
     const index = rowIndex++;
@@ -469,6 +481,11 @@ export function PositionsWorkspace({
         referenceDay={month.referenceDay}
         valueBrl={valueBrl}
         canEdit={canEdit}
+        href={
+          canEdit || position.isAdded ? null : positionHref(position.accountId, position.assetId, searchParams)
+        }
+        opening={isOpening && openingId === position.id}
+        onOpen={openPosition}
         valueText={valueTextOf(position)}
         strategyOptions={strategyOptions}
         onCommitValue={commitValue}
@@ -854,6 +871,9 @@ function PositionRow({
   referenceDay,
   valueBrl,
   canEdit,
+  href,
+  opening,
+  onOpen,
   valueText,
   strategyOptions,
   onCommitValue,
@@ -866,6 +886,10 @@ function PositionRow({
   referenceDay: string;
   valueBrl: number;
   canEdit: boolean;
+  /** Página da posição; nula no modo de edição e em posições ainda não salvas. */
+  href: string | null;
+  opening: boolean;
+  onOpen: (position: DisplayPosition, href: string) => void;
   valueText: string;
   strategyOptions: PickerOption[];
   onCommitValue: (position: DisplayPosition, text: string) => void;
@@ -876,22 +900,67 @@ function PositionRow({
   const isPartial = Math.abs(valueBrl - position.totalBrl) > 0.005;
   const editable = canEdit && !position.isRemoved;
 
+  // A linha inteira abre a posição; o nome do ativo é o link real, para o
+  // teclado, o leitor de tela e o clique com Ctrl ou Cmd.
+  const openFromRow = (event: MouseEvent<HTMLTableRowElement>) => {
+    if (!href || event.defaultPrevented || event.button !== 0) {
+      return;
+    }
+
+    if ((event.target as HTMLElement).closest("a, button, input, select, textarea, [role='combobox']")) {
+      return;
+    }
+
+    if (window.getSelection()?.toString()) {
+      return;
+    }
+
+    if (event.metaKey || event.ctrlKey) {
+      window.open(href, "_blank", "noopener");
+      return;
+    }
+
+    onOpen(position, href);
+  };
+
   return (
     <tr
+      data-testid="position-row"
+      onClick={href ? openFromRow : undefined}
+      aria-busy={opening || undefined}
       className={cn(
-        "transition-colors duration-150 hover:bg-white/[0.018]",
+        "transition-[background-color,opacity] duration-150 hover:bg-white/[0.018]",
+        href && "cursor-pointer",
+        opening && "bg-primary/[0.04] opacity-70",
         position.isRemoved && "opacity-45 [&_td]:line-through",
         position.isAdded && "bg-primary/[0.04]",
       )}
     >
       <Cell id="assetName">
-        <p className="text-sm font-medium text-foreground/90">{position.assetName}</p>
+        {href ? (
+          <Link
+            href={href}
+            onClick={(event) => {
+              if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) {
+                return;
+              }
+
+              event.preventDefault();
+              onOpen(position, href);
+            }}
+            className="rounded-sm text-sm font-medium text-foreground/90 underline-offset-4 outline-none transition-colors hover:text-foreground hover:underline focus-visible:ring-2 focus-visible:ring-ring/50"
+          >
+            {position.assetName}
+          </Link>
+        ) : (
+          <p className="text-sm font-medium text-foreground/90">{position.assetName}</p>
+        )}
         <p className="mt-1 font-mono text-[9px] text-muted-foreground">
           {position.ticker ?? "SALDO"}
           {position.isAdded ? <span className="ml-1.5 text-primary no-underline">· nova</span> : null}
         </p>
         {position.maturityDate ? (
-          <MaturityBadge maturityDate={position.maturityDate} referenceDay={referenceDay} />
+          <MaturityBadge maturityDate={position.maturityDate} referenceDay={referenceDay} className="mt-1.5" />
         ) : null}
         <p className="mt-1 text-[10px] text-muted-foreground sm:hidden">{position.institutionName}</p>
       </Cell>
@@ -1000,27 +1069,6 @@ function PositionRow({
         </td>
       ) : null}
     </tr>
-  );
-}
-
-function MaturityBadge({ maturityDate, referenceDay }: { maturityDate: string; referenceDay: string }) {
-  const status = maturityStatus(maturityDate, referenceDay);
-
-  return (
-    <span
-      title={status.title}
-      className={cn(
-        "mt-1.5 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] whitespace-nowrap",
-        status.tone === "expired"
-          ? "bg-destructive/12 font-semibold text-destructive"
-          : status.tone === "soon"
-            ? "bg-warning/50 font-semibold text-warning-foreground"
-            : "bg-white/[0.04] text-muted-foreground",
-      )}
-    >
-      {status.label}
-      <span className="sr-only">, {status.title.toLocaleLowerCase("pt-BR")}</span>
-    </span>
   );
 }
 
