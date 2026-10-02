@@ -76,18 +76,25 @@ test("os filtros de posições combinam e somam o recorte", async ({ page }) => 
   await expect(page.getByRole("button", { name: /Classe\s*1/ })).toBeVisible();
 });
 
-test("a edição de posições fica pendente até salvar ou descartar", async ({ page, isMobile }) => {
-  test.skip(isMobile, "A edição direta na célula é oferecida a partir de telas médias.");
-
+test("o lápis coloca as posições em edição até salvar ou descartar", async ({ page }) => {
   await page.goto("/posicoes");
-  await page.locator('[data-edit-cell="value"]').first().dblclick();
-  const input = page.getByRole("textbox", { name: /^(Quantidade|Saldo) de / });
-  await input.fill("1");
-  await input.press("Enter");
+  await expect(page.locator("[data-edit-cell]")).toHaveCount(0);
 
+  await page.getByRole("button", { name: "Editar posições" }).click();
+  await expect(page.getByText("Modo de edição")).toBeVisible();
+  const inputs = page.getByRole("textbox", { name: /^(Quantidade|Saldo) de / });
+  expect(await inputs.count()).toBeGreaterThan(1);
+  await expect(inputs.first()).toBeVisible();
+
+  await inputs.first().fill("1");
   await expect(page.getByText("1 alteração pendente")).toBeVisible();
+  await inputs.nth(1).fill("abc");
+  await expect(page.getByText("1 valor inválido")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Salvar", exact: true })).toBeDisabled();
+
   await page.getByRole("button", { name: "Descartar" }).click();
   await expect(page.getByText(/alteraç(ão|ões) pendente/)).toHaveCount(0);
+  await expect(page.locator("[data-edit-cell]")).toHaveCount(0);
 });
 
 test("competência passada exige confirmação para editar", async ({ page }) => {
@@ -96,9 +103,16 @@ test("competência passada exige confirmação para editar", async ({ page }) =>
   await expect(page.getByText(/travada para edição/)).toBeVisible();
   await expect(page.locator("[data-edit-cell]")).toHaveCount(0);
 
-  await page.getByRole("button", { name: "Editar este mês" }).click();
+  await page.getByRole("button", { name: "Editar posições" }).click();
   await expect(page.getByRole("dialog")).toContainText("Isso altera o histórico");
   await page.getByRole("button", { name: "Cancelar" }).click();
+  await expect(page.locator("[data-edit-cell]")).toHaveCount(0);
+
+  await page.getByRole("button", { name: "Editar posições" }).click();
+  await page.getByRole("button", { name: "Editar mesmo assim" }).click();
+  await expect(page.getByText(/Editando o histórico/)).toBeVisible();
+  await expect(page.locator('[data-edit-cell="value"]').first()).toBeVisible();
+  await page.getByRole("button", { name: "Sair da edição" }).click();
   await expect(page.locator("[data-edit-cell]")).toHaveCount(0);
 });
 

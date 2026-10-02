@@ -92,9 +92,9 @@ export function buildDisplayPositions({
   const drafts = added.flatMap((draft): DisplayPosition[] => {
     const asset = catalog.assets.find((entry) => entry.id === draft.assetId);
     const account = catalog.accounts.find((entry) => entry.id === draft.accountId);
-    const value = parseLocaleNumber(draft.value);
+    const value = parseLocaleNumber(draft.value) ?? 0;
 
-    if (!asset || !account || value === null) {
+    if (!asset || !account) {
       return [];
     }
 

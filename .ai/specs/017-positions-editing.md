@@ -86,8 +86,8 @@ A rota `/carteira/editar` deixa de ser necessária quando esta fatia existir.
 - incluir posição aceita apenas ativos e contas já existentes; criar um ativo
   novo exige definir símbolo e tipo de cotação, e fica para uma fatia própria;
 - na largura de celular a coluna de quantidade fica oculta e a edição direta
-  não é oferecida; uma folha de edição para celular pode ser especificada
-  depois;
+  não é oferecida; resolvido pela [spec 019](019-pencil-edit-mode.md), que
+  também trocou o duplo clique pelo modo de edição com lápis;
 - executar "Atualizar carteira" sobre um rascunho reaplica cotações dos
   provedores e sobrescreve cotações editadas manualmente nesta tela. Em
   2026-10-01 uma reexecução reprecificou o rascunho de outubro às 20:18 no

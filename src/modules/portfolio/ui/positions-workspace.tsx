@@ -9,6 +9,7 @@ import {
   CopyIcon,
   LockKeyIcon,
   MagnifyingGlassIcon,
+  PencilSimpleIcon,
   TableIcon,
   TrashIcon,
   XIcon,
@@ -124,8 +125,6 @@ const columns = helper.columns([
   helper.accessor("share", { header: "%" }),
 ]);
 
-type EditingCell = { rowKey: string; field: "value" | "strategy" };
-
 export function PositionsWorkspace({
   month,
   catalog,
@@ -152,8 +151,7 @@ export function PositionsWorkspace({
   const [pending, setPending] = useState<Record<string, PendingEdit>>({});
   const [removed, setRemoved] = useState<string[]>([]);
   const [added, setAdded] = useState<AddedDraft[]>([]);
-  const [unlocked, setUnlocked] = useState(false);
-  const [editing, setEditing] = useState<EditingCell | null>(null);
+  const [editMode, setEditMode] = useState(false);
   const [drawerId, setDrawerId] = useState<string | null>(null);
   const [toast, setToast] = useState<EditToastState | null>(null);
   const [isSaving, startSaving] = useTransition();
@@ -165,12 +163,16 @@ export function PositionsWorkspace({
     setPending({});
     setRemoved([]);
     setAdded([]);
-    setUnlocked(false);
-    setEditing(null);
+    setEditMode(false);
     setDrawerId(null);
   }
 
   const changeCount = countChanges(pending, removed, added);
+  const invalidCount =
+    Object.entries(pending).filter(
+      ([positionId, edit]) =>
+        edit.value !== undefined && !removed.includes(positionId) && parseLocaleNumber(edit.value) === null,
+    ).length + added.filter((draft) => parseLocaleNumber(draft.value) === null).length;
 
   useEffect(() => {
     setPendingChanges(changeCount);
@@ -226,8 +228,8 @@ export function PositionsWorkspace({
     );
   }
 
-  const canEdit = month.isLatest || unlocked;
-  const confirmHistory = unlocked;
+  const canEdit = editMode;
+  const confirmHistory = editMode && !month.isLatest;
   const monthLabel = formatMonthCompact(month.referenceDate);
   const sortedPositions = table.getRowModel().rows.map((row) => row.original);
   const activePositions = sortedPositions.filter((position) => !position.isRemoved);
@@ -257,6 +259,15 @@ export function PositionsWorkspace({
       message: result.message,
       undoToken: result.ok ? result.undoToken : undefined,
     });
+
+  const valueTextOf = (position: DisplayPosition) => {
+    if (position.isAdded) {
+      return position.quantityText;
+    }
+
+    const original = month.positions.find((entry) => entry.id === position.id);
+    return pending[position.id]?.value ?? (original ? editableValueText(original) : position.quantityText).replace(".", ",");
+  };
 
   const commitValue = (position: DisplayPosition, text: string) => {
     if (position.isAdded) {
@@ -331,7 +342,11 @@ export function PositionsWorkspace({
     setPending({});
     setRemoved([]);
     setAdded([]);
-    setEditing(null);
+  };
+
+  const exitEditMode = () => {
+    discard();
+    setEditMode(false);
   };
 
   const save = () =>
@@ -352,7 +367,7 @@ export function PositionsWorkspace({
       });
 
       if (result.ok) {
-        discard();
+        exitEditMode();
       }
       notify(result);
     });
@@ -429,13 +444,11 @@ export function PositionsWorkspace({
       <PositionRow
         key={rowKey}
         position={position}
-        rowKey={rowKey}
         rowIndex={index}
         valueBrl={valueBrl}
         canEdit={canEdit}
-        editing={editing}
+        valueText={valueTextOf(position)}
         strategyOptions={strategyOptions}
-        onEdit={setEditing}
         onCommitValue={commitValue}
         onCommitStrategy={commitStrategy}
         onToggleRemoval={toggleRemoval}
@@ -472,29 +485,40 @@ export function PositionsWorkspace({
             {formatBrl(displayTotal)}
             {month.usdRate ? ` · US$ ${formatUsd(displayTotal / month.usdRate)}` : ""}
           </p>
-          {month.isLatest && catalog.clone.allowed && cloneTarget ? (
-            <button
-              type="button"
-              disabled={isSaving || changeCount > 0}
-              onClick={cloneMonth}
-              className="inline-flex h-9 items-center gap-2 rounded-xl bg-primary px-3.5 text-xs font-semibold text-primary-foreground outline-none transition-[background-color,transform] duration-150 hover:bg-primary/90 focus-visible:ring-3 focus-visible:ring-ring/40 active:scale-[0.98] disabled:opacity-40"
-            >
-              <CopyIcon aria-hidden="true" size={14} weight="bold" />
-              Criar {formatMonthCompact(cloneTarget)} a partir de {monthLabel}
-            </button>
-          ) : null}
+          <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+            {editMode ? null : month.isLatest ? (
+              <button
+                type="button"
+                onClick={() => setEditMode(true)}
+                className="inline-flex h-9 items-center gap-2 rounded-xl border border-border bg-card/70 px-3.5 text-xs font-semibold text-foreground outline-none transition-colors hover:bg-white/[0.05] focus-visible:ring-2 focus-visible:ring-ring/50"
+              >
+                <PencilSimpleIcon aria-hidden="true" size={14} weight="bold" />
+                Editar posições
+              </button>
+            ) : (
+              <HistoryUnlockDialog monthLabel={monthLabel} onConfirm={() => setEditMode(true)} />
+            )}
+            {month.isLatest && !editMode && catalog.clone.allowed && cloneTarget ? (
+              <button
+                type="button"
+                disabled={isSaving || changeCount > 0}
+                onClick={cloneMonth}
+                className="inline-flex h-9 items-center gap-2 rounded-xl bg-primary px-3.5 text-xs font-semibold text-primary-foreground outline-none transition-[background-color,transform] duration-150 hover:bg-primary/90 focus-visible:ring-3 focus-visible:ring-ring/40 active:scale-[0.98] disabled:opacity-40"
+              >
+                <CopyIcon aria-hidden="true" size={14} weight="bold" />
+                Criar {formatMonthCompact(cloneTarget)} a partir de {monthLabel}
+              </button>
+            ) : null}
+          </div>
         </div>
       </header>
 
-      {!canEdit ? (
+      {!month.isLatest && !editMode ? (
         <div className="mt-6 flex flex-wrap items-center gap-3 rounded-2xl border border-border bg-card/60 px-4 py-3">
           <LockKeyIcon aria-hidden="true" className="text-muted-foreground" size={16} weight="duotone" />
           <p className="text-xs text-muted-foreground">
-            {monthLabel} é uma competência passada e está travada para edição.
+            {monthLabel} é uma competência passada e está travada para edição. Editar pede confirmação.
           </p>
-          <div className="ml-auto">
-            <HistoryUnlockDialog monthLabel={monthLabel} onConfirm={() => setUnlocked(true)} />
-          </div>
         </div>
       ) : !month.isLatest ? (
         <div className="mt-6 flex items-center gap-3 rounded-2xl border border-warning-border bg-warning/30 px-4 py-3">
@@ -610,7 +634,7 @@ export function PositionsWorkspace({
                       <th
                         key={header.id}
                         aria-sort={sorted === "asc" ? "ascending" : sorted === "desc" ? "descending" : "none"}
-                        className={cn("px-4 py-3 first:pl-5 sm:first:pl-6", meta.hide)}
+                        className={cn("px-4 py-3 first:pl-5 sm:first:pl-6", columnHide(header.column.id, canEdit))}
                       >
                         <button
                           type="button"
@@ -701,25 +725,39 @@ export function PositionsWorkspace({
         </div>
       </section>
 
-      {changeCount > 0 ? (
+      {editMode ? (
         <div className="fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom,0px)+16px)] z-40 flex justify-center px-4">
-          <div className="flex w-full max-w-xl items-center gap-3 rounded-2xl border border-warning-border bg-card/95 px-4 py-3 shadow-2xl backdrop-blur-xl">
-            <span className="size-2 shrink-0 rounded-full bg-warning-foreground" />
-            <p className="text-xs text-foreground">
-              {changeCount} {changeCount === 1 ? "alteração pendente" : "alterações pendentes"}
+          <div
+            className={cn(
+              "flex w-full max-w-xl items-center gap-3 rounded-2xl border bg-card/95 px-4 py-3 shadow-2xl backdrop-blur-xl",
+              invalidCount > 0 ? "border-destructive/40" : changeCount > 0 ? "border-warning-border" : "border-border",
+            )}
+          >
+            <PencilSimpleIcon
+              aria-hidden="true"
+              className={cn("shrink-0", invalidCount > 0 ? "text-destructive" : "text-warning-foreground")}
+              size={14}
+              weight="bold"
+            />
+            <p className="text-xs text-foreground" aria-live="polite">
+              {invalidCount > 0
+                ? `${invalidCount} ${invalidCount === 1 ? "valor inválido" : "valores inválidos"}`
+                : changeCount === 0
+                  ? "Modo de edição"
+                  : `${changeCount} ${changeCount === 1 ? "alteração pendente" : "alterações pendentes"}`}
             </p>
             <button
               type="button"
-              onClick={discard}
+              onClick={exitEditMode}
               disabled={isSaving}
               className="ml-auto h-8 rounded-lg px-3 text-xs font-medium text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50"
             >
-              Descartar
+              {changeCount > 0 ? "Descartar" : "Sair da edição"}
             </button>
             <button
               type="button"
               onClick={save}
-              disabled={isSaving}
+              disabled={isSaving || changeCount === 0 || invalidCount > 0}
               className="inline-flex h-8 items-center rounded-lg bg-primary px-3.5 text-xs font-semibold text-primary-foreground outline-none transition-[background-color,transform] duration-150 hover:bg-primary/90 focus-visible:ring-3 focus-visible:ring-ring/40 active:scale-[0.98] disabled:opacity-50"
             >
               {isSaving ? "Salvando…" : "Salvar"}
@@ -748,34 +786,29 @@ export function PositionsWorkspace({
 
 function PositionRow({
   position,
-  rowKey,
   rowIndex,
   valueBrl,
   canEdit,
-  editing,
+  valueText,
   strategyOptions,
-  onEdit,
   onCommitValue,
   onCommitStrategy,
   onToggleRemoval,
   onOpenAllocations,
 }: {
   position: DisplayPosition;
-  rowKey: string;
   rowIndex: number;
   valueBrl: number;
   canEdit: boolean;
-  editing: EditingCell | null;
+  valueText: string;
   strategyOptions: string[];
-  onEdit: (cell: EditingCell | null) => void;
   onCommitValue: (position: DisplayPosition, text: string) => void;
   onCommitStrategy: (position: DisplayPosition, strategy: string | null) => void;
   onToggleRemoval: (position: DisplayPosition) => void;
   onOpenAllocations: (position: DisplayPosition) => void;
 }) {
   const isPartial = Math.abs(valueBrl - position.totalBrl) > 0.005;
-  const editingValue = editing?.rowKey === rowKey && editing.field === "value";
-  const editingStrategy = editing?.rowKey === rowKey && editing.field === "strategy";
+  const editable = canEdit && !position.isRemoved;
 
   return (
     <tr
@@ -797,44 +830,24 @@ function PositionRow({
         <p className="text-xs text-foreground/80">{position.institutionName}</p>
         <p className="mt-1 text-[10px] text-muted-foreground">{position.accountName}</p>
       </Cell>
-      <Cell id="strategy" changed={position.strategyChanged && !position.isAdded}>
-        {canEdit && !position.isRemoved ? (
-          editingStrategy ? (
-            <select
-              autoFocus
-              aria-label={`Estratégia de ${position.assetName}`}
-              defaultValue={position.strategy ?? ""}
-              onChange={(event) => {
-                onCommitStrategy(position, event.target.value || null);
-                onEdit(null);
-                focusCell("strategy", rowIndex);
-              }}
-              onBlur={() => onEdit(null)}
-              onKeyDown={(event) => {
-                if (event.key === "Escape") {
-                  onEdit(null);
-                  focusCell("strategy", rowIndex);
-                }
-              }}
-              className="h-8 w-full min-w-[140px] rounded-md border border-primary/50 bg-background px-2 text-xs text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-            >
-              <option value="">{NO_STRATEGY}</option>
-              {strategyOptions.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </select>
-          ) : (
-            <EditableTrigger
-              field="strategy"
-              rowIndex={rowIndex}
-              label={`Editar estratégia de ${position.assetName}`}
-              onStart={() => onEdit({ rowKey, field: "strategy" })}
-            >
-              <span className="text-xs text-foreground/80">{strategyOf(position)}</span>
-            </EditableTrigger>
-          )
+      <Cell id="strategy" editMode={canEdit} changed={position.strategyChanged && !position.isAdded}>
+        {editable ? (
+          <select
+            data-edit-cell="strategy"
+            data-row={rowIndex}
+            aria-label={`Estratégia de ${position.assetName}`}
+            value={position.strategy ?? ""}
+            onChange={(event) => onCommitStrategy(position, event.target.value || null)}
+            onKeyDown={(event) => moveFocus(event, "strategy", rowIndex)}
+            className="h-8 w-full min-w-[140px] rounded-md border border-border bg-background/60 px-2 text-xs text-foreground outline-none focus-visible:border-primary/60 focus-visible:ring-2 focus-visible:ring-ring/50"
+          >
+            <option value="">{NO_STRATEGY}</option>
+            {strategyOptions.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
         ) : (
           <span className="text-xs text-foreground/80">{strategyOf(position)}</span>
         )}
@@ -862,32 +875,14 @@ function PositionRow({
       <Cell id="baseCurrency">
         <span className="font-mono text-xs text-muted-foreground">{position.baseCurrency}</span>
       </Cell>
-      <Cell id="quantity" changed={position.valueChanged && !position.isAdded}>
-        {canEdit && !position.isRemoved ? (
-          editingValue ? (
-            <ValueInput
-              position={position}
-              onCommit={(text) => {
-                onCommitValue(position, text);
-                onEdit(null);
-                focusCell("value", rowIndex + 1, rowIndex);
-              }}
-              onCancel={() => {
-                onEdit(null);
-                focusCell("value", rowIndex);
-              }}
-            />
-          ) : (
-            <EditableTrigger
-              field="value"
-              rowIndex={rowIndex}
-              align="right"
-              label={`Editar ${isQuoted(position) ? "quantidade" : "saldo"} de ${position.assetName}`}
-              onStart={() => onEdit({ rowKey, field: "value" })}
-            >
-              <QuantityText position={position} />
-            </EditableTrigger>
-          )
+      <Cell id="quantity" editMode={canEdit} changed={position.valueChanged && !position.isAdded}>
+        {editable ? (
+          <ValueField
+            position={position}
+            rowIndex={rowIndex}
+            text={valueText}
+            onChange={(text) => onCommitValue(position, text)}
+          />
         ) : (
           <QuantityText position={position} />
         )}
@@ -953,97 +948,39 @@ function QuantityText({ position }: { position: DisplayPosition }) {
   );
 }
 
-function ValueInput({
+function ValueField({
   position,
-  onCommit,
-  onCancel,
+  rowIndex,
+  text,
+  onChange,
 }: {
   position: DisplayPosition;
-  onCommit: (text: string) => void;
-  onCancel: () => void;
+  rowIndex: number;
+  text: string;
+  onChange: (text: string) => void;
 }) {
-  const [text, setText] = useState(
-    position.valueChanged ? position.quantityText : editableValueText(position),
-  );
-  const parsed = parseLocaleNumber(text);
-  const invalid = parsed === null;
-
-  const commit = () => {
-    if (!invalid) {
-      onCommit(text.trim());
-    }
-  };
+  const invalid = parseLocaleNumber(text) === null;
 
   return (
     <input
-      autoFocus
+      data-edit-cell="value"
+      data-row={rowIndex}
       inputMode="decimal"
       aria-label={`${isQuoted(position) ? "Quantidade" : "Saldo"} de ${position.assetName}`}
       aria-invalid={invalid}
       value={text}
-      onChange={(event) => setText(event.target.value)}
+      onChange={(event) => onChange(event.target.value)}
       onFocus={(event) => event.currentTarget.select()}
-      onBlur={() => (invalid ? onCancel() : commit())}
-      onKeyDown={(event) => {
-        if (event.key === "Enter") {
-          event.preventDefault();
-          commit();
-        } else if (event.key === "Escape") {
-          event.preventDefault();
-          onCancel();
-        }
-      }}
+      onKeyDown={(event) => moveFocus(event, "value", rowIndex)}
       className={cn(
-        "h-8 w-full min-w-[120px] rounded-md border bg-background px-2 text-right font-mono text-xs text-foreground outline-none focus-visible:ring-2",
-        invalid ? "border-destructive focus-visible:ring-destructive/40" : "border-primary/50 focus-visible:ring-ring/50",
+        "h-8 w-full min-w-[104px] rounded-md border bg-background/60 px-2 text-right font-mono text-xs text-foreground outline-none focus-visible:ring-2 sm:min-w-[120px]",
+        invalid
+          ? "border-destructive focus-visible:ring-destructive/40"
+          : position.valueChanged && !position.isAdded
+            ? "border-warning-border focus-visible:ring-ring/50"
+            : "border-border focus-visible:border-primary/60 focus-visible:ring-ring/50",
       )}
     />
-  );
-}
-
-function EditableTrigger({
-  field,
-  rowIndex,
-  align = "left",
-  label,
-  onStart,
-  children,
-}: {
-  field: "value" | "strategy";
-  rowIndex: number;
-  align?: "left" | "right";
-  label: string;
-  onStart: () => void;
-  children: ReactNode;
-}) {
-  const handleKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
-    if (event.key === "Enter" || event.key === "F2") {
-      event.preventDefault();
-      onStart();
-    } else if (event.key === "ArrowDown") {
-      event.preventDefault();
-      focusCell(field, rowIndex + 1);
-    } else if (event.key === "ArrowUp") {
-      event.preventDefault();
-      focusCell(field, rowIndex - 1);
-    }
-  };
-
-  return (
-    <button
-      type="button"
-      data-edit-cell={field}
-      data-row={rowIndex}
-      aria-label={label}
-      onDoubleClick={onStart}
-      onKeyDown={handleKeyDown}
-      className={cn(
-        "-mx-1.5 -my-1 rounded-md border border-transparent px-1.5 py-1 outline-none transition-colors hover:border-border focus-visible:border-primary/60 focus-visible:ring-2 focus-visible:ring-ring/40",
-        align === "right" && "ml-auto block",
-      )}
-    >
-      {children}
-    </button>
   );
 }
 
@@ -1077,7 +1014,17 @@ function IconButton({
   );
 }
 
-function Cell({ id, changed = false, children }: { id: string; changed?: boolean; children: ReactNode }) {
+function Cell({
+  id,
+  editMode = false,
+  changed = false,
+  children,
+}: {
+  id: string;
+  editMode?: boolean;
+  changed?: boolean;
+  children: ReactNode;
+}) {
   const meta = COLUMN_META[id];
 
   return (
@@ -1087,7 +1034,7 @@ function Cell({ id, changed = false, children }: { id: string; changed?: boolean
         meta.align === "right" && "text-right",
         meta.calculated && "bg-white/[0.012]",
         changed && "bg-warning/25 shadow-[inset_2px_0_0_var(--warning-border)]",
-        meta.hide,
+        columnHide(id, editMode),
       )}
     >
       {children}
@@ -1104,15 +1051,34 @@ function FooterValue({ label, value, emphasis = false }: { label: string; value:
   );
 }
 
-function focusCell(field: "value" | "strategy", rowIndex: number, fallbackIndex?: number) {
-  requestAnimationFrame(() => {
-    const target =
-      document.querySelector<HTMLElement>(`[data-edit-cell="${field}"][data-row="${rowIndex}"]`) ??
-      (fallbackIndex === undefined
-        ? null
-        : document.querySelector<HTMLElement>(`[data-edit-cell="${field}"][data-row="${fallbackIndex}"]`));
-    target?.focus();
-  });
+const EDIT_MODE_HIDE: Record<string, string> = { quantity: "", strategy: "hidden sm:table-cell" };
+
+function columnHide(id: string, editMode: boolean) {
+  return editMode && id in EDIT_MODE_HIDE ? EDIT_MODE_HIDE[id] : COLUMN_META[id].hide;
+}
+
+function moveFocus(
+  event: KeyboardEvent<HTMLInputElement | HTMLSelectElement>,
+  field: "value" | "strategy",
+  rowIndex: number,
+) {
+  const step =
+    event.key === "ArrowDown" || (field === "value" && event.key === "Enter")
+      ? 1
+      : event.key === "ArrowUp"
+        ? -1
+        : 0;
+
+  if (step === 0 || (field === "strategy" && event.altKey)) {
+    return;
+  }
+
+  const target = document.querySelector<HTMLElement>(`[data-edit-cell="${field}"][data-row="${rowIndex + step}"]`);
+
+  if (target) {
+    event.preventDefault();
+    target.focus();
+  }
 }
 
 function parseSorting(value: string): SortingState {

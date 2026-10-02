@@ -1,7 +1,7 @@
 "use client";
 
 import { Dialog } from "@base-ui/react/dialog";
-import { LockKeyIcon, PlusIcon, TrashIcon, XIcon } from "@phosphor-icons/react/dist/ssr";
+import { PencilSimpleIcon, PlusIcon, TrashIcon, XIcon } from "@phosphor-icons/react/dist/ssr";
 import { useState, type ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
@@ -32,9 +32,9 @@ export function HistoryUnlockDialog({
 }) {
   return (
     <Dialog.Root>
-      <Dialog.Trigger className="inline-flex h-8 items-center gap-2 rounded-lg border border-warning-border bg-warning/40 px-3 text-[11px] font-semibold text-warning-foreground outline-none transition-colors hover:bg-warning/60 focus-visible:ring-2 focus-visible:ring-ring/50">
-        <LockKeyIcon aria-hidden="true" size={13} weight="bold" />
-        Editar este mês
+      <Dialog.Trigger className="inline-flex h-9 items-center gap-2 rounded-xl border border-warning-border bg-warning/40 px-3.5 text-xs font-semibold text-warning-foreground outline-none transition-colors hover:bg-warning/60 focus-visible:ring-2 focus-visible:ring-ring/50">
+        <PencilSimpleIcon aria-hidden="true" size={14} weight="bold" />
+        Editar posições
       </Dialog.Trigger>
       <Dialog.Portal>
         <Dialog.Backdrop className={backdropClass} />

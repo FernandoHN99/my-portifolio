@@ -129,6 +129,7 @@ percentual atual, percentual ideal, valor atual, valor ideal e diferença.
 7. [014 — Configuração da carteira](../specs/014-target-settings.md): concluída.
 8. [016 — Histórico de uma posição e de um ativo](../specs/016-position-history.md): planejada, sem prazo.
 9. [018 — Faixa de tolerância ajustável](../specs/018-adjustable-tolerance.md): concluída.
+10. [019 — Modo de edição com lápis](../specs/019-pencil-edit-mode.md): concluída.
 
 Cada fatia termina com `pnpm check`, `pnpm build` e os testes do Playwright.
 
@@ -185,7 +186,7 @@ padronizando símbolos e fontes.
 - separar a atualização de cotações (automática a cada hora e manual) da
   virada de mês das posições (automática, preenchendo meses faltantes);
 - substituir o duplo clique por modo de edição com lápis, válido também no
-  celular;
+  celular: concluída na [spec 019](../specs/019-pencil-edit-mode.md);
 - padronizar as cotações de todos os ativos, sem prazo;
 - tornar ajustável a faixa de tolerância dentro da configuração existente,
   antes fixa em dois pontos percentuais: concluída na
