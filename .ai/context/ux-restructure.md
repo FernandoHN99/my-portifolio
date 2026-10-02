@@ -127,7 +127,7 @@ percentual atual, percentual ideal, valor atual, valor ideal e diferença.
 5. [013 — Posições: filtros e consulta](../specs/013-positions-filters.md): concluída.
 6. [017 — Posições: edição](../specs/017-positions-editing.md): concluída.
 7. [014 — Configuração da carteira](../specs/014-target-settings.md): concluída.
-8. [016 — Histórico de uma posição e de um ativo](../specs/016-position-history.md): agendada nesta rodada.
+8. [016 — Histórico de uma posição e de um ativo](../specs/016-position-history.md): interrompida; ver item 19.
 9. [018 — Faixa de tolerância ajustável](../specs/018-adjustable-tolerance.md): concluída.
 10. [019 — Modo de edição com lápis](../specs/019-pencil-edit-mode.md): concluída.
 11. [020 — Cotações diárias e atualização ao abrir](../specs/020-daily-quotes.md): concluída.
@@ -140,7 +140,8 @@ percentual atual, percentual ideal, valor atual, valor ideal e diferença.
 18. [026 — Inclusão de posição com conta, instituição, ativo e vencimento novos](../specs/026-new-position-entities.md):
     concluída.
 19. [016 — Histórico de uma posição e de um ativo](../specs/016-position-history.md):
-    a próxima.
+    interrompida em 2026-10-02 a pedido do usuário; o trabalho parcial, sem
+    verificação, está no branch `wip/016-pagina-da-posicao`.
 
 As fatias 020, 021 e 023 a 027 foram implementadas em paralelo, cada uma num
 worktree com banco próprio, revisadas por um revisor independente e

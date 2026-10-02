@@ -11,12 +11,42 @@ e Claude Code consultando a mesma base de conhecimento.
 
 ## Trabalho em andamento
 
-A reestruturação da UX pedida pelo usuário, nas specs 010 a 017, teve as
-fatias acordadas concluídas em 2026-10-02. O propósito, as restrições, as
-regras de cálculo e as decisões ainda abertas estão em
-`.ai/context/ux-restructure.md`, e o estado de cada fatia fica em
-`.ai/specs/README.md`. Previdência continua fora dessa iniciativa até o
-usuário decidir o próximo passo.
+Estado em 2026-10-02, ao fim da sessão que implementou as specs 018 a 027:
+
+- concluídas, verificadas e no `main`: reestruturação da UX (specs 010 a
+  017), tolerância ajustável (018), edição com lápis (019), cotações
+  diárias com atualização ao abrir (020), virada de mês automática (021),
+  página única de cotações em Posições, sem "Revisão de dados" e
+  "Atualização" (022), linha do tempo compacta (023), ajustes da Visão Geral
+  (024), listas de seleção estilizadas (025), inclusão de posição com
+  instituição, conta, ativo e vencimento novos (026) e ajustes da
+  configuração de metas (027);
+- **não concluída: [spec 016](.ai/specs/016-position-history.md), página da
+  posição.** Foi interrompida a pedido do usuário. O trabalho parcial, sem
+  lint, build, testes nem revisão, está no branch
+  `wip/016-pagina-da-posicao`; retomar de lá, concluir a spec e verificar
+  antes de integrar ao `main`;
+- várias specs têm uma seção "Questões em aberto" com escolhas feitas pelos
+  agentes que aguardam o usuário; as perguntas mais relevantes estão nas
+  specs 020, 021, 022, 024 e 026;
+- Previdência continua fora até o usuário decidir o próximo passo; ele
+  indicou que é o assunto seguinte a esses ajustes.
+
+O propósito, as restrições, as regras de cálculo e as decisões da
+iniciativa estão em `.ai/context/ux-restructure.md`, e o estado de cada
+fatia fica em `.ai/specs/README.md`.
+
+Ao atualizar um ambiente local: `pnpm install`, `pnpm db:migrate`,
+`pnpm db:generate` (o `migrate dev` do Prisma 7 não regenera o cliente) e
+reiniciar o `pnpm dev`. Ao abrir, o app cria as competências que faltam e
+atualiza as cotações se a última atualização tiver mais de uma hora.
+
+Testes de interface rodam sobre os dados reais e não podem gravar: todo
+arquivo em `tests/e2e/` substitui a checagem de abertura com
+`stubQuoteChecks` (`tests/e2e/support/quote-checks.ts`) e entra em edição
+com `enterEditMode` (`tests/e2e/support/edit-mode.ts`). Os provedores de
+cotação não são alcançáveis em ambientes de nuvem; nesses casos, verifique
+com respostas simuladas e registre na spec.
 
 ## Como trabalhar neste projeto
 

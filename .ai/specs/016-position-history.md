@@ -1,10 +1,17 @@
 # 016 — Histórico de uma posição e de um ativo
 
-Estado: planejada, sem prazo
+Estado: em andamento, interrompida em 2026-10-02 a pedido do usuário. O
+trabalho parcial (domínio, consulta, rota e componentes da página), sem lint,
+build, testes nem revisão, está no branch `wip/016-pagina-da-posicao`.
 Definida em: 2026-10-01
 
-Ideia registrada pelo usuário durante a reestruturação da UX, para ser
-executada depois das fatias já acordadas.
+Ideia registrada pelo usuário durante a reestruturação da UX. Em 2026-10-02
+o usuário pediu a página: clicar numa posição abre a evolução do patrimônio
+dela, o gráfico do ativo e indicadores de valorização e valor ganho ("me
+surpreenda nessa página"). O histórico do ativo deve vir das cotações
+diárias da [spec 020](020-daily-quotes.md), e das mensais antes delas. O
+pedido completo está em [Reestruturação da UX](../context/ux-restructure.md),
+em "Ajustes pedidos em 2026-10-02, antes da previdência".
 
 ## Problema
 
