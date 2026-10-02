@@ -8,7 +8,7 @@ import {
   WarningCircleIcon,
   XCircleIcon,
 } from "@phosphor-icons/react/dist/ssr";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode, type RefObject } from "react";
 
 import { Picker, type PickerOption } from "@/components/ui/picker";
 import { cn } from "@/lib/utils";
@@ -18,8 +18,10 @@ import {
   ASSET_KIND_DEFINITIONS,
   ASSET_KINDS,
   baseCurrencyOf,
+  buildAssetKey,
   cleanName,
   defaultAllocation,
+  duplicateAssetMessage,
   normalizeKey,
   normalizeTicker,
   tickerHint,
@@ -47,7 +49,7 @@ import {
   secondaryButtonClass,
 } from "@/modules/portfolio/ui/edit-dialogs";
 import { providerLabel } from "@/modules/quotes/domain/quote-refresh";
-import type { TickerCheckResponse } from "@/modules/quotes/domain/ticker-check";
+import { tickerCheckAllowsSaving, type TickerCheckResponse } from "@/modules/quotes/domain/ticker-check";
 
 export type AddPositionMonth = { id: string; label: string; isCurrent: boolean; quotes: MonthQuote[] };
 
@@ -75,6 +77,7 @@ export function AddPositionDialog({
   drafts,
   occupied,
   onAdd,
+  finalFocus,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -83,12 +86,19 @@ export function AddPositionDialog({
   drafts: AddedDraft[];
   occupied: Set<string>;
   onAdd: (draft: NewPositionDraft) => void;
+  /**
+   * Para onde o foco volta ao fechar. O diálogo abre sem gatilho próprio, às
+   * vezes depois da confirmação de histórico, cujo botão some ao entrar em
+   * edição.
+   */
+  finalFocus?: RefObject<HTMLElement | null>;
 }) {
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Backdrop className={backdropClass} />
         <Dialog.Popup
+          finalFocus={finalFocus}
           className={cn(
             centeredPopupClass,
             "max-h-[calc(100dvh-2rem)] w-[min(520px,calc(100vw-2rem))] overflow-y-auto overscroll-contain",
@@ -161,6 +171,14 @@ function AddPositionForm({
     })),
   ];
 
+  const institutionNameOf = (institutionRef: string | null) =>
+    institutionRef === null
+      ? null
+      : institutionRef.startsWith(NEW_INSTITUTION)
+        ? (newInstitutions.find((entry) => `${NEW_INSTITUTION}${entry.key}` === institutionRef)?.name ?? null)
+        : (catalog.institutions.find((entry) => entry.id === institutionRef)?.name ?? null);
+  const institutionName = institutionNameOf(institutionValue);
+
   const accountsOf = (institutionRef: string | null) => {
     if (!institutionRef) {
       return { existing: [], pending: [] as AccountEntry[] };
@@ -186,14 +204,24 @@ function AddPositionForm({
     ...accounts.pending.map((account) => ({ value: `${NEW_ACCOUNT}${account.key}`, label: account.name, hint: "nova" })),
   ];
 
+  // Ativos novos de outras posições ainda não salvas. Um ativo sem ticker é da
+  // instituição em que foi criado, como na importação, e só aparece nela; com
+  // ticker, vale em qualquer instituição.
   const pendingAssets = uniqueByKey(drafts.flatMap((draft) => (draft.newAsset ? [draft.newAsset] : [])));
+  const pendingAssetsAt = (name: string | null) =>
+    pendingAssets.filter((asset) => pendingAssetKeyAt(asset, name) === asset.key);
+  const availablePendingAssets = pendingAssetsAt(institutionName);
   const assetOptions: PickerOption[] = [
     ...catalog.assets.map((asset) => ({
       value: asset.id,
       label: asset.name,
       hint: asset.ticker ?? (asset.maturityDate ? maturityHint(asset.maturityDate) : undefined),
     })),
-    ...pendingAssets.map((asset) => ({ value: `${NEW_ASSET}${asset.key}`, label: asset.name, hint: "novo" })),
+    ...availablePendingAssets.map((asset) => ({
+      value: `${NEW_ASSET}${asset.key}`,
+      label: asset.name,
+      hint: asset.maturityDate ? `novo · ${maturityHint(asset.maturityDate)}` : "novo",
+    })),
     ...(newAssetName ? [{ value: FORM_ASSET, label: newAssetName, hint: "novo" }] : []),
   ];
   const strategyOptions: PickerOption[] = [
@@ -201,12 +229,22 @@ function AddPositionForm({
     ...catalog.strategies.map((entry) => ({ value: entry, label: entry })),
   ];
 
-  const selectInstitution = (next: string) => {
+  const selectInstitution = (next: string, name = institutionNameOf(next)) => {
     if (next === institutionValue) {
       return;
     }
 
     setInstitutionValue(next);
+
+    // Um ativo novo sem ticker de outra posição pertence à instituição dela.
+    if (
+      assetValue?.startsWith(NEW_ASSET) &&
+      assetValue !== FORM_ASSET &&
+      !pendingAssetsAt(name).some((asset) => `${NEW_ASSET}${asset.key}` === assetValue)
+    ) {
+      setAssetValue(null);
+    }
+
     const { existing, pending } = accountsOf(next);
 
     if (existing.length + pending.length === 1) {
@@ -239,7 +277,7 @@ function AddPositionForm({
     if (!newInstitutions.some((institution) => institution.key === key)) {
       setCreatedInstitution({ key, name });
     }
-    selectInstitution(`${NEW_INSTITUTION}${key}`);
+    selectInstitution(`${NEW_INSTITUTION}${key}`, name);
   };
 
   const createAccount = (text: string) => {
@@ -289,7 +327,7 @@ function AddPositionForm({
   // Ativo escolhido: existente, novo de outra posição pendente ou digitado aqui.
   const catalogAsset = assetValue ? catalog.assets.find((asset) => asset.id === assetValue) : undefined;
   const pendingAsset = assetValue?.startsWith(NEW_ASSET)
-    ? pendingAssets.find((asset) => `${NEW_ASSET}${asset.key}` === assetValue)
+    ? availablePendingAssets.find((asset) => `${NEW_ASSET}${asset.key}` === assetValue)
     : undefined;
   const isFormAsset = assetValue === FORM_ASSET && newAssetName !== null;
   const definition = isFormAsset && kind ? ASSET_KIND_DEFINITIONS[kind] : null;
@@ -301,6 +339,26 @@ function AddPositionForm({
         : null;
   const check = useTickerCheck(month.id, definition?.ticker === "market" ? kind : null, symbol);
   const allocation = allocationDraft ?? (kind ? defaultAllocation(kind, symbol) : null);
+  const maturityDate = definition?.allowsMaturity && maturity ? maturity : null;
+
+  // Identidade do ativo novo, a mesma que o servidor calcula: um ativo igual,
+  // existente ou de outra posição pendente, bloqueia a inclusão aqui em vez de
+  // recusar o salvamento inteiro depois.
+  const assetKey =
+    isFormAsset && definition && (definition.ticker === null ? institutionName : symbol)
+      ? buildAssetKey({
+          name: newAssetName,
+          ticker: symbol,
+          institutionName: institutionName ?? "",
+          maturityDate,
+        })
+      : null;
+  const existingTwin = assetKey ? catalog.assets.find((asset) => asset.normalizedKey === assetKey) : undefined;
+  const twin = existingTwin ?? (assetKey ? pendingAssets.find((asset) => asset.key === assetKey) : undefined);
+  const twinWarning =
+    kind && twin
+      ? duplicateAssetMessage({ name: twin.name, kind, symbol, maturityDate, pending: !existingTwin })
+      : null;
 
   const response = check.state === "done" ? check.response : null;
   const needsManualPrice =
@@ -331,10 +389,10 @@ function AddPositionForm({
     if (definition.ticker === "usd") {
       price = quoteOf(USD_SYMBOL);
       missingQuoteSymbol = price ? null : USD_SYMBOL;
-    } else if (definition.ticker === "market") {
-      if (response?.status === "known") {
+    } else if (definition.ticker === "market" && tickerCheckAllowsSaving(response)) {
+      if (response.status === "known") {
         price = response.priceBrl;
-      } else if (response?.status === "found" && month.isCurrent) {
+      } else if (response.status === "found" && month.isCurrent) {
         price = response.priceBrl;
       } else if (needsManualPrice) {
         price = manualPriceValue !== null && manualPriceValue > 0 ? manualPriceValue : null;
@@ -342,7 +400,7 @@ function AddPositionForm({
     }
 
     const priceReady = definition.ticker === null || price !== null;
-    assetReady = allocationComplete && priceReady && !missingQuoteSymbol;
+    assetReady = allocationComplete && priceReady && !missingQuoteSymbol && assetKey !== null && !twinWarning;
   }
 
   const parsedValue = parseLocaleNumber(value);
@@ -356,9 +414,11 @@ function AddPositionForm({
   const duplicate =
     accountRef !== null && assetIdentity !== null && occupied.has(`${draftAccountId(accountRef)}:${assetIdentity}`);
   const canAdd = Boolean(accountRef) && assetReady && validValue && !duplicate;
+  // Um ativo cotado pelo USD, novo ou existente, guarda o saldo em dólares.
+  const selectedQuoteSymbol = catalogAsset?.quoteSymbol ?? pendingAsset?.ticker ?? symbol;
   const valueLabel = !assetValue
     ? "Quantidade ou saldo"
-    : definition?.ticker === "usd"
+    : selectedQuoteSymbol === USD_SYMBOL
       ? "Saldo (US$)"
       : quoted
         ? "Quantidade"
@@ -371,10 +431,9 @@ function AddPositionForm({
 
     let newAsset: NewAssetDraft | null = null;
 
-    if (isFormAsset && kind && allocation && newAssetName) {
-      const maturityDate = ASSET_KIND_DEFINITIONS[kind].allowsMaturity && maturity ? maturity : null;
+    if (isFormAsset && kind && allocation && newAssetName && assetKey) {
       newAsset = {
-        key: [kind, normalizeKey(newAssetName), symbol ?? "", maturityDate ?? ""].join("|"),
+        key: assetKey,
         name: newAssetName,
         kind,
         ticker: symbol,
@@ -531,6 +590,12 @@ function AddPositionForm({
                   className={cn(inputClass, "font-mono")}
                 />
               </Field>
+            ) : null}
+
+            {twinWarning ? (
+              <div data-asset-duplicate>
+                <StatusLine tone="error">{twinWarning}</StatusLine>
+              </div>
             ) : null}
 
             {allocation ? (
@@ -703,6 +768,9 @@ function TickerStatus({
 
   if (!text.trim()) {
     content = <StatusLine tone="muted">{tickerHint(kind)}</StatusLine>;
+  } else if (!symbol && ASSET_KIND_DEFINITIONS[kind].provider === "alpha-vantage" && /^[A-Z0-9]{1,4}$/.test(text.trim())) {
+    // Na B3 só o ticker completo é conferido; "PETR" ainda está sendo digitado.
+    content = <StatusLine tone="muted">Digite o ticker completo, como PETR4 ou GPCA11.</StatusLine>;
   } else if (!symbol) {
     content = <StatusLine tone="error">Ticker inválido para {ASSET_KIND_DEFINITIONS[kind].label}.</StatusLine>;
   } else if (check.state === "checking" || check.state === "idle") {
@@ -844,6 +912,20 @@ function resolveAccount(
         },
       }
     : null;
+}
+
+/** Chave que o ativo pendente teria numa posição desta instituição. */
+function pendingAssetKeyAt(asset: NewAssetDraft, institutionName: string | null) {
+  if (!asset.ticker && institutionName === null) {
+    return null;
+  }
+
+  return buildAssetKey({
+    name: asset.name,
+    ticker: asset.ticker,
+    institutionName: institutionName ?? "",
+    maturityDate: asset.maturityDate,
+  });
 }
 
 function institutionRefOf(account: NewAccountDraft) {

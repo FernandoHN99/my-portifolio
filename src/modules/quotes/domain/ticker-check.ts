@@ -26,9 +26,9 @@ export type TickerCheckResponse =
   | { status: "conflict"; symbol: string; message: string }
   | { status: "invalid"; message: string };
 
-export type TickerCheckStatus = TickerCheckResponse["status"];
-
 /** Estados em que o ativo novo pode ser salvo, com ou sem cotação digitada. */
-export function tickerCheckAllowsSaving(response: TickerCheckResponse | null) {
+export function tickerCheckAllowsSaving(
+  response: TickerCheckResponse | null,
+): response is Extract<TickerCheckResponse, { status: "found" | "known" | "unavailable" }> {
   return response?.status === "found" || response?.status === "known" || response?.status === "unavailable";
 }

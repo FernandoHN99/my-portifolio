@@ -2,6 +2,11 @@ export type QuoteRequest = {
   symbol: string;
   instrumentType: string;
   baseCurrency: string;
+  /**
+   * Identificador do símbolo no provedor, quando é outro: a moeda da CoinGecko
+   * guardada para um cripto novo (spec 026).
+   */
+  providerId?: string;
 };
 
 export type QuoteSuccess = {

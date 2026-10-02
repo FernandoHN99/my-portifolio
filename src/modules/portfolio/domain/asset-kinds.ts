@@ -120,14 +120,13 @@ export const USD_SYMBOL = "USD";
 const RESERVED_SYMBOLS = new Set(["USD", "BRL"]);
 const B3_SUFFIX = ".SAO";
 
-export function isAssetKind(value: string): value is AssetKind {
-  return (ASSET_KINDS as readonly string[]).includes(value);
-}
-
 /**
  * Símbolo de cotação a partir do ticker digitado, ou `null` quando o texto não
  * serve como ticker do tipo. Na B3 o Alpha Vantage usa o sufixo `.SAO`, como o
- * `GPCA11.SAO` importado da planilha; o sufixo é acrescentado quando falta.
+ * `GPCA11.SAO` importado da planilha; o sufixo é acrescentado quando falta. O
+ * ticker da B3 só vale completo, com quatro caracteres e um ou dois dígitos
+ * (PETR4, B3SA3, GPCA11): "PETR" a meio da digitação não chega a gastar uma das
+ * 25 consultas diárias do Alpha Vantage.
  */
 export function normalizeTicker(kind: AssetKind, raw: string): string | null {
   const definition = ASSET_KIND_DEFINITIONS[kind];
@@ -144,7 +143,7 @@ export function normalizeTicker(kind: AssetKind, raw: string): string | null {
 
   if (definition.provider === "alpha-vantage") {
     const base = text.replace(/\.(SAO|SA)$/, "");
-    return /^[A-Z0-9]{4,8}$/.test(base) ? `${base}${B3_SUFFIX}` : null;
+    return /^[A-Z0-9]{4}\d{1,2}$/.test(base) ? `${base}${B3_SUFFIX}` : null;
   }
 
   if (RESERVED_SYMBOLS.has(text)) {
@@ -234,9 +233,10 @@ export function normalizeKey(value: string) {
 
 /**
  * Identidade do ativo, no formato da importação: ativos com ticker por nome e
- * ticker; os demais por instituição e nome. O vencimento entra na chave dos
- * ativos sem ticker, para que dois títulos de mesmo nome e prazos diferentes
- * sejam ativos distintos.
+ * ticker, inclusive os saldos em dólar, de ticker USD; os demais por
+ * instituição e nome. O vencimento vai no fim da chave, para que dois títulos
+ * de mesmo nome e prazos diferentes sejam ativos distintos, como dois Time
+ * Deposit ou duas LCI BRB.
  */
 export function buildAssetKey({
   name,
@@ -250,13 +250,43 @@ export function buildAssetKey({
   maturityDate: string | null;
 }) {
   const normalizedName = normalizeKey(name);
+  const base = ticker
+    ? `market:${normalizedName}:${ticker.toUpperCase()}`
+    : `private:${normalizeKey(institutionName)}:${normalizedName}`;
 
-  if (ticker) {
-    return `market:${normalizedName}:${ticker.toUpperCase()}`;
-  }
-
-  const base = `private:${normalizeKey(institutionName)}:${normalizedName}`;
   return maturityDate ? `${base}:${maturityDate}` : base;
+}
+
+/**
+ * Aviso de um ativo novo cuja chave já existe, no diálogo e no servidor. Sem
+ * vencimento, informar um é o caminho para um título de mesmo nome com outro
+ * prazo.
+ */
+export function duplicateAssetMessage({
+  name,
+  kind,
+  symbol,
+  maturityDate,
+  pending = false,
+}: {
+  name: string;
+  kind: AssetKind;
+  symbol: string | null;
+  maturityDate: string | null;
+  /** O ativo igual é novo, de outra posição ainda não salva. */
+  pending?: boolean;
+}) {
+  const definition = ASSET_KIND_DEFINITIONS[kind];
+  const quotedBy =
+    definition.ticker === "market" ? ` com o ticker ${symbol}` : definition.ticker === "usd" ? " cotado pelo USD" : "";
+  // Sem ticker, o ativo é da instituição em que foi criado.
+  const scope = `${definition.ticker === null ? " nesta instituição" : ""}${maturityDate ? " com este vencimento" : ""}`;
+  const alternative = definition.allowsMaturity && !maturityDate ? " ou informe um vencimento" : "";
+  const subject = pending
+    ? `"${name}"${quotedBy} já é o ativo novo de outra posição${scope}`
+    : `O ativo "${name}"${quotedBy} já existe${scope}`;
+
+  return `${subject}. Escolha-o na lista${alternative}.`;
 }
 
 /** Texto curto e limpo para nomes digitados: sem espaços repetidos. */

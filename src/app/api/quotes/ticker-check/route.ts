@@ -3,11 +3,11 @@ import { z } from "zod";
 import { rejectForeignRequest } from "@/lib/same-origin-request";
 import { ASSET_KINDS } from "@/modules/portfolio/domain/asset-kinds";
 import { checkTicker } from "@/modules/quotes/application/check-ticker";
-import type { TickerCheckResponse } from "@/modules/quotes/domain/ticker-check";
+import type { TickerCheckRequest, TickerCheckResponse } from "@/modules/quotes/domain/ticker-check";
 
 export const dynamic = "force-dynamic";
 
-const requestSchema = z.object({
+const requestSchema: z.ZodType<TickerCheckRequest> = z.object({
   monthId: z.string().uuid(),
   kind: z.enum(ASSET_KINDS),
   ticker: z.string().trim().min(1).max(20),

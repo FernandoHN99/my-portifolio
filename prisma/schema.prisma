@@ -105,17 +105,22 @@ model Account {
 }
 
 model Asset {
-  id            String     @id @default(uuid()) @db.Uuid
-  normalizedKey String     @unique @map("normalized_key")
-  name          String
-  ticker        String?
-  quoteSymbol   String?    @map("quote_symbol")
-  baseCurrency  String     @map("base_currency")
+  id              String     @id @default(uuid()) @db.Uuid
+  normalizedKey   String     @unique @map("normalized_key")
+  name            String
+  ticker          String?
+  quoteSymbol     String?    @map("quote_symbol")
+  baseCurrency    String     @map("base_currency")
   // Vencimento informativo de ativos sem ticker, como renda fixa (spec 026).
   // Só ativos criados pela interface o recebem; os importados ficam nulos.
-  maturityDate  DateTime?  @map("maturity_date") @db.Date
-  createdAt     DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
-  positions     Position[]
+  maturityDate    DateTime?  @map("maturity_date") @db.Date
+  // Identificador do símbolo no provedor quando não é o próprio símbolo: a
+  // moeda da CoinGecko conferida ao incluir um cripto novo (spec 026), para a
+  // atualização de cotações não buscar outra moeda com o mesmo símbolo. Nulo
+  // nos demais ativos; BTC e SOL têm identificador fixo no código.
+  quoteProviderId String?    @map("quote_provider_id")
+  createdAt       DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+  positions       Position[]
 
   @@index([ticker])
   @@map("assets")

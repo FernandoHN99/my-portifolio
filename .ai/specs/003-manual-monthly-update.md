@@ -59,7 +59,8 @@ ficam como registro.
   <https://finnhub.io/docs/api/quote>.
 - Alpha Vantage para ativos restantes, com orçamento explícito de 25 chamadas
   gratuitas por dia:
-  <https://www.alphavantage.co/support/>.
+  <https://www.alphavantage.co/support/>. A checagem de ticker de ativos novos
+  da [spec 026](026-new-position-entities.md) também gasta desse orçamento.
 
 As chaves ficam somente em variáveis de ambiente locais. O aplicativo não
 copiará as credenciais encontradas no VBA.

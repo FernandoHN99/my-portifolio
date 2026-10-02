@@ -19,6 +19,7 @@
     "import:excel": "tsx scripts/import-excel.ts",
     "normalize:portfolio": "tsx scripts/normalize-portfolio.ts",
     "normalize:allocations": "tsx scripts/normalize-allocations.ts",
+    "verify:new-position": "tsx scripts/verify-new-position-entities.ts",
     "postinstall": "prisma generate"
   },
   "dependencies": {

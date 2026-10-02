@@ -7,6 +7,8 @@ export type EditingCatalog = {
   accounts: { id: string; label: string; institutionId: string; name: string }[];
   assets: {
     id: string;
+    /** Identidade do ativo, para o diálogo recusar um ativo novo repetido. */
+    normalizedKey: string;
     name: string;
     ticker: string | null;
     quoteSymbol: string | null;
@@ -42,7 +44,15 @@ export async function getEditingCatalog(): Promise<EditingCatalog> {
       }),
       prisma.asset.findMany({
         orderBy: { name: "asc" },
-        select: { id: true, name: true, ticker: true, quoteSymbol: true, baseCurrency: true, maturityDate: true },
+        select: {
+          id: true,
+          normalizedKey: true,
+          name: true,
+          ticker: true,
+          quoteSymbol: true,
+          baseCurrency: true,
+          maturityDate: true,
+        },
       }),
       prisma.position.findMany({
         where: { strategy: { not: null } },

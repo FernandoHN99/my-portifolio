@@ -74,7 +74,7 @@ export async function fetchCurrentQuotes(
 
   results.push(
     ...(await fetchCryptoQuotes(
-      crypto.map((request) => request.symbol),
+      crypto.map((request) => ({ symbol: request.symbol, coinId: request.providerId })),
       configuration.coinGeckoApiKey,
     )),
   );

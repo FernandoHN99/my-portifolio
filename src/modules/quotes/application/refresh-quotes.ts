@@ -337,6 +337,28 @@ async function buildQuoteRequests(prisma: PrismaClient, monthId: string) {
     }
   }
 
+  // Um cripto novo é cotado pela moeda da CoinGecko conferida ao incluí-lo e
+  // guardada no ativo (spec 026), e não por uma nova busca pelo símbolo.
+  const cryptoSymbols = [...metadata.values()]
+    .filter((request) => request.instrumentType === "CRIPTO")
+    .map((request) => request.symbol);
+  const pinned =
+    cryptoSymbols.length > 0
+      ? await prisma.asset.findMany({
+          where: { quoteSymbol: { in: cryptoSymbols }, quoteProviderId: { not: null } },
+          orderBy: { createdAt: "asc" },
+          select: { quoteSymbol: true, quoteProviderId: true },
+        })
+      : [];
+
+  for (const asset of pinned) {
+    const request = asset.quoteSymbol ? metadata.get(asset.quoteSymbol) : undefined;
+
+    if (request && asset.quoteProviderId && !request.providerId) {
+      metadata.set(request.symbol, { ...request, providerId: asset.quoteProviderId });
+    }
+  }
+
   const valid: QuoteRequest[] = [];
   const failures: QuoteResult[] = [];
 

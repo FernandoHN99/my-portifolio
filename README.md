@@ -42,6 +42,18 @@ pnpm test:e2e
 O teste do Playwright usa o Google Chrome local em desktop e em viewport
 mobile. As specs e seu estado ficam em `.ai/specs/`.
 
+A inclusão de posição com instituição, conta e ativo novos
+([spec 026](.ai/specs/026-new-position-entities.md)) tem uma conferência do
+servidor que checa tickers, grava inclusões e as desfaz, com os provedores de
+cotação simulados. Ela grava no banco e só roda num banco descartável,
+carregado como na importação inicial abaixo, cujo nome se repete em
+`VERIFY_DISPOSABLE_DATABASE`:
+
+```bash
+DATABASE_URL=postgresql://.../my_portifolio_verify \
+VERIFY_DISPOSABLE_DATABASE=my_portifolio_verify pnpm verify:new-position
+```
+
 ## Importação inicial
 
 Com o PostgreSQL ativo, importe as três tabelas-base do arquivo de referência:

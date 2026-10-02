@@ -30,9 +30,10 @@ const coinGeckoSearchSchema = z.object({
 /**
  * Identificador CoinGecko de um ticker. Os já usados na carteira têm o
  * identificador fixo; os demais vêm da busca da CoinGecko: entre as moedas com
- * exatamente esse símbolo, a de maior capitalização. É a mesma regra na
- * checagem de um ativo novo e na atualização de cotações (spec 026), e o nome
- * encontrado aparece na checagem para o usuário conferir a moeda.
+ * exatamente esse símbolo, a de maior capitalização. O nome encontrado aparece
+ * na checagem de um ativo novo para o usuário conferir a moeda, e a moeda
+ * conferida fica guardada no ativo ao salvar (`assets.quote_provider_id`, spec
+ * 026); a busca só volta a decidir para um símbolo sem moeda guardada.
  */
 export async function resolveCoinGeckoCoin(symbol: string, apiKey?: string): Promise<CoinGeckoCoin | null> {
   const known = KNOWN_COINS[symbol];
@@ -60,16 +61,20 @@ export async function fetchCoinGeckoPrices(ids: string[], apiKey?: string) {
   return new Map(Object.entries(payload).map(([id, quote]) => [id, quote.brl]));
 }
 
+/**
+ * Cotações de cripto em reais. `coinId` é a moeda guardada no ativo do símbolo;
+ * sem ela, o identificador sai de `resolveCoinGeckoCoin`.
+ */
 export async function fetchCryptoQuotes(
-  symbols: string[],
+  requests: { symbol: string; coinId?: string }[],
   apiKey?: string,
 ): Promise<QuoteResult[]> {
   const results: QuoteResult[] = [];
   const supported: { symbol: string; id: string }[] = [];
 
-  for (const symbol of symbols) {
+  for (const { symbol, coinId } of requests) {
     try {
-      const coin = await resolveCoinGeckoCoin(symbol, apiKey);
+      const coin = coinId ? { id: coinId } : await resolveCoinGeckoCoin(symbol, apiKey);
 
       if (coin) {
         supported.push({ symbol, id: coin.id });

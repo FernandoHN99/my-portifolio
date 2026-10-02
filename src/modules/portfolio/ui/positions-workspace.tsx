@@ -160,6 +160,9 @@ export function PositionsWorkspace({
   const [isSaving, startSaving] = useTransition();
   const [isUndoing, startUndo] = useTransition();
   const sequence = useRef(0);
+  // Botão "Adicionar posição" do modo de edição, que recebe o foco quando o
+  // diálogo fecha mesmo se ele abriu pela confirmação de histórico.
+  const addButtonRef = useRef<HTMLButtonElement>(null);
 
   if (month?.id !== stateMonthId) {
     setStateMonthId(month?.id);
@@ -531,6 +534,7 @@ export function PositionsWorkspace({
                 a confirmação de histórico numa competência passada. */}
             {editMode || month.isLatest ? (
               <button
+                ref={addButtonRef}
                 type="button"
                 onClick={() => {
                   setEditMode(true);
@@ -823,6 +827,7 @@ export function PositionsWorkspace({
         drafts={added}
         occupied={occupied}
         onAdd={addDraft}
+        finalFocus={addButtonRef}
       />
 
       <AllocationDrawer

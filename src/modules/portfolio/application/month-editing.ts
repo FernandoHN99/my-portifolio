@@ -7,6 +7,7 @@ import {
   baseCurrencyOf,
   buildAssetKey,
   cleanName,
+  duplicateAssetMessage,
   normalizeKey,
   normalizeTicker,
   providerForQuote,
@@ -455,15 +456,24 @@ async function resolveAdditionAsset(
 
   if (existing) {
     throw new MonthEditError(
-      symbol
-        ? `O ativo "${existing.name}" com o ticker ${symbol} já existe. Escolha-o na lista.`
-        : `O ativo "${existing.name}" já existe nesta instituição${maturityKey ? " com este vencimento" : ""}. Escolha-o na lista.`,
+      duplicateAssetMessage({ name: existing.name, kind: input.kind, symbol, maturityDate: maturityKey }),
     );
   }
 
-  if (symbol) {
-    await ensureMonthQuote(transaction, input, symbol, batch);
-  }
+  const verifiedCoinId = symbol ? await ensureMonthQuote(transaction, input, symbol, batch) : null;
+  // A moeda da CoinGecko fica no ativo para a atualização de cotações não
+  // buscar outra moeda com o mesmo símbolo. Um símbolo que outro ativo já cota
+  // mantém a moeda dele.
+  const quoteProviderId =
+    symbol && definition.provider === "coingecko"
+      ? ((
+          await transaction.asset.findFirst({
+            where: { quoteSymbol: symbol, quoteProviderId: { not: null } },
+            orderBy: { createdAt: "asc" },
+            select: { quoteProviderId: true },
+          })
+        )?.quoteProviderId ?? verifiedCoinId)
+      : null;
 
   const asset = await transaction.asset.create({
     data: {
@@ -473,6 +483,7 @@ async function resolveAdditionAsset(
       quoteSymbol: symbol,
       baseCurrency: baseCurrencyOf(input.kind, symbol),
       maturityDate,
+      quoteProviderId,
     },
     select: { id: true },
   });
@@ -487,14 +498,15 @@ async function resolveAdditionAsset(
  * cotado na competência usa a cotação existente. Os demais exigem a conferência
  * do ticker: com o ticker encontrado e a competência do mês corrente, vale a
  * cotação de hoje, também gravada no histórico diário; com o provedor
- * indisponível ou numa competência passada, vale a cotação digitada.
+ * indisponível ou numa competência passada, vale a cotação digitada. Devolve a
+ * moeda da CoinGecko conferida, quando houver.
  */
 async function ensureMonthQuote(
   transaction: Transaction,
   input: NewAssetInput,
   symbol: string,
   batch: AdditionBatch,
-) {
+): Promise<string | null> {
   const definition = ASSET_KIND_DEFINITIONS[input.kind];
   const instrumentType = definition.instrumentType ?? "FIAT";
   const baseCurrency = baseCurrencyOf(input.kind, symbol);
@@ -516,7 +528,7 @@ async function ensureMonthQuote(
   }
 
   if (batch.quoteBySymbol.has(symbol)) {
-    return;
+    return null;
   }
 
   if (definition.ticker !== "market") {
@@ -577,6 +589,8 @@ async function ensureMonthQuote(
       batch.created.dailyQuoteIds.push(created.id);
     }
   }
+
+  return verified.coinId;
 }
 
 function hasCreated(created: CreatedEntities) {
