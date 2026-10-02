@@ -11,26 +11,23 @@ e Claude Code consultando a mesma base de conhecimento.
 
 ## Trabalho em andamento
 
-Estado em 2026-10-02, ao fim da sessão que implementou as specs 018 a 027:
+Estado em 2026-10-02, ao fim da sessão que respondeu às questões em aberto e
+implementou as specs 016 e 028 a 033, todas no `main`:
 
-- concluídas, verificadas e no `main`: reestruturação da UX (specs 010 a
-  017), tolerância ajustável (018), edição com lápis (019), cotações
-  diárias com atualização ao abrir (020), virada de mês automática (021),
-  página única de cotações em Posições, sem "Revisão de dados" e
-  "Atualização" (022), linha do tempo compacta (023), ajustes da Visão Geral
-  (024), listas de seleção estilizadas (025), inclusão de posição com
-  instituição, conta, ativo e vencimento novos (026) e ajustes da
-  configuração de metas (027);
-- **não concluída: [spec 016](.ai/specs/016-position-history.md), página da
-  posição.** Foi interrompida a pedido do usuário. O trabalho parcial, sem
-  lint, build, testes nem revisão, está no branch
-  `wip/016-pagina-da-posicao`; retomar de lá, concluir a spec e verificar
-  antes de integrar ao `main`;
-- várias specs têm uma seção "Questões em aberto" com escolhas feitas pelos
-  agentes que aguardam o usuário; as perguntas mais relevantes estão nas
-  specs 020, 021, 022, 024 e 026;
-- Previdência continua fora até o usuário decidir o próximo passo; ele
-  indicou que é o assunto seguinte a esses ajustes.
+- concluídas e verificadas: página da posição (016), regras de cotação com
+  edição restrita, seta só no mês corrente e histórico de 36 meses (028),
+  histórico de 3 anos ao incluir ativo (029), Visão Geral por meses do
+  calendário e metas sem posição (030), filtros em cascata e vencimento em
+  Posições (031), finalizar o mês corrente (032) e escolha da moeda da
+  CoinGecko (033);
+- as respostas do usuário, o backlog e as perguntas que ele não entendeu e
+  aguardam explicação estão em `.ai/context/ux-restructure.md`, em "Respostas
+  do usuário às questões em aberto, 2026-10-02 (segunda rodada)";
+- antes de produção há um passo único de preparação do histórico, em
+  `.ai/context/pre-deploy.md`. Não altere os dados antigos importados antes
+  dele;
+- backlog: Previdência, o próximo assunto indicado pelo usuário, e o livro de
+  movimentações (compras e vendas).
 
 O propósito, as restrições, as regras de cálculo e as decisões da
 iniciativa estão em `.ai/context/ux-restructure.md`, e o estado de cada
@@ -46,7 +43,11 @@ arquivo em `tests/e2e/` substitui a checagem de abertura com
 `stubQuoteChecks` (`tests/e2e/support/quote-checks.ts`) e entra em edição
 com `enterEditMode` (`tests/e2e/support/edit-mode.ts`). Os provedores de
 cotação não são alcançáveis em ambientes de nuvem; nesses casos, verifique
-com respostas simuladas e registre na spec.
+com respostas simuladas e registre na spec. Os cenários de edição de cotação
+só rodam quando a competência aberta tem uma cotação editável (spec 028).
+
+O Alpha Vantage gratuito permite 25 consultas por dia, compartilhadas pela
+atualização de cotações do GPCA11.SAO e pela busca de histórico da spec 029.
 
 ## Como trabalhar neste projeto
 

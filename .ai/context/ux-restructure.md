@@ -2,7 +2,7 @@
 
 Registrado em: 2026-10-01
 Origem: briefing do usuário, com capturas da planilha anexadas na conversa.
-Estágio: fatias acordadas concluídas em 2026-10-02; resta a 016, sem prazo, e as decisões abertas abaixo.
+Estágio: fatias acordadas, a 016 e as specs 028 a 033 concluídas em 2026-10-02; restam o passo pré-produção, o backlog e as perguntas que aguardam explicação ao usuário.
 
 Este documento é a fonte principal do propósito, das restrições e das regras
 de cálculo desta iniciativa. As specs descrevem cada fatia e apontam para
@@ -127,7 +127,7 @@ percentual atual, percentual ideal, valor atual, valor ideal e diferença.
 5. [013 — Posições: filtros e consulta](../specs/013-positions-filters.md): concluída.
 6. [017 — Posições: edição](../specs/017-positions-editing.md): concluída.
 7. [014 — Configuração da carteira](../specs/014-target-settings.md): concluída.
-8. [016 — Histórico de uma posição e de um ativo](../specs/016-position-history.md): interrompida; ver item 19.
+8. [016 — Histórico de uma posição e de um ativo](../specs/016-position-history.md): concluída; ver item 19.
 9. [018 — Faixa de tolerância ajustável](../specs/018-adjustable-tolerance.md): concluída.
 10. [019 — Modo de edição com lápis](../specs/019-pencil-edit-mode.md): concluída.
 11. [020 — Cotações diárias e atualização ao abrir](../specs/020-daily-quotes.md): concluída.
@@ -140,8 +140,19 @@ percentual atual, percentual ideal, valor atual, valor ideal e diferença.
 18. [026 — Inclusão de posição com conta, instituição, ativo e vencimento novos](../specs/026-new-position-entities.md):
     concluída.
 19. [016 — Histórico de uma posição e de um ativo](../specs/016-position-history.md):
-    interrompida em 2026-10-02 a pedido do usuário; o trabalho parcial, sem
-    verificação, está no branch `wip/016-pagina-da-posicao`.
+    interrompida em 2026-10-02 a pedido do usuário e concluída no mesmo dia,
+    depois das respostas da segunda rodada.
+20. [028 — Regras de cotação](../specs/028-quote-rules.md): concluída.
+21. [029 — Histórico de 3 anos ao incluir um ativo](../specs/029-asset-price-history.md): concluída.
+22. [030 — Visão Geral: meses do calendário, início do período e metas sem posição](../specs/030-overview-calendar-comparisons.md): concluída.
+23. [031 — Posições: vencimento, filtros em cascata e campos de 16 px](../specs/031-positions-cascading-filters.md): concluída.
+24. [032 — Finalizar o mês corrente](../specs/032-finalize-current-month.md): concluída.
+25. [033 — Escolha da moeda da CoinGecko](../specs/033-coingecko-coin-choice.md): concluída.
+
+As specs 016 e 028 a 033 foram implementadas em sequência no `main` em
+2026-10-02, com autorização do usuário para commitar e dar push sem pedir
+aprovação a cada commit. Os branches `wip/016-pagina-da-posicao` e
+`claude/sleepy-goodall-qrywar`, este já integrado, foram apagados.
 
 As fatias 020, 021 e 023 a 027 foram implementadas em paralelo, cada uma num
 worktree com banco próprio, revisadas por um revisor independente e
@@ -293,8 +304,7 @@ Registradas em 2026-10-02, aguardando o usuário:
   [spec 018](../specs/018-adjustable-tolerance.md);
 - criar e remover categorias de metas: mantido sem pedido do usuário
   ([spec 014](../specs/014-target-settings.md));
-- agendar a [spec 016](../specs/016-position-history.md), que depende do
-  histórico diário de cotações.
+- [spec 016](../specs/016-position-history.md): concluída em 2026-10-02.
 
 ## Respostas do usuário às questões em aberto, 2026-10-02 (segunda rodada)
 
@@ -398,6 +408,33 @@ até ele responder:
 - recusar classes fora da lista no rateio (spec 025);
 - os 30 dias para "vencendo" e o USD como moeda base das criptos que não são
   o BTC (spec 026), que o usuário tende a aceitar.
+
+Explicações preparadas para o usuário (registradas na spec de cada assunto):
+
+- **"Atualizar carteira"** (spec 022): era o botão antigo da spec 003, que
+  buscava as cotações e criava o mês numa ação só. Foi substituído pela
+  atualização automática (020) e pela virada de mês (021). A execução que ele
+  deixou aparece no histórico como "Fluxo anterior", só para leitura. A
+  pergunta é se ela pode sumir do histórico;
+- **outro ano na linha do tempo** (spec 023): a linha é uma só. Ao clicar no
+  ano de 2024 estando em Set/26, hoje só os meses de 2024 se abrem e a tela
+  continua em Set/26 até um mês ser clicado. A alternativa é já abrir um mês
+  de 2024;
+- **rateio** (spec 025): é a divisão de uma posição entre classificações
+  (classe, subclasse e prazo), com pesos que somam 100%, editada pelo botão de
+  pizza no modo de edição. Digitar uma classe nova oferece "Usar ‘nome’"; a
+  pergunta é se só as classes existentes devem ser aceitas;
+- **"vencendo" e moeda base** (spec 026): o selo fica amarelo a 30 dias do
+  vencimento; e, no recorte por moeda, o BTC conta como BTC e as outras
+  criptos como dólar;
+- **a tela passa sozinha para o mês novo** (spec 021), confirmada pelo
+  usuário com pedido de explicação: quando o mês vira, quem está vendo o app
+  sem um mês fixado no endereço passa a ver o mês novo; com um mês fixado ou
+  edição pendente, nada muda;
+- **meta sem posição como "Comprar"** (spec 030), confirmada com pedido de
+  explicação: se a meta diz 10% em IPCA Curto e a carteira não tem nenhuma
+  posição nisso, a tabela de comprar e vender passa a mostrar a linha com 0%
+  atual e o valor a comprar, em vez de omiti-la.
 
 ## Critérios de aceite da iniciativa
 

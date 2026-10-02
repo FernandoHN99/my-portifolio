@@ -3,7 +3,7 @@
 Estado: base aprovada; implementação incremental autorizada.
 Origem: decisões explícitas do usuário na conversa de descoberta.
 Registrado em: 2026-09-21.
-Última atualização: 2026-10-02.
+Última atualização: 2026-10-02 (segunda rodada de respostas).
 
 Este documento é a fonte principal das decisões consolidadas abaixo.
 O diagnóstico do sistema existente permanece em
@@ -40,6 +40,17 @@ que faltarem, copiando a anterior, com a cotação do último dia de cada mês
 disponível no histórico
 ([spec 021](../.ai/specs/021-automatic-month-rollover.md)). Não haverá
 agendamento nem tentativa de atualizar com o aplicativo desligado.
+
+Atualizado em 2026-10-02: cada mês guarda, para cada ativo, a cotação de
+fechamento, a mais recente do mês; gráficos e valorização usam essa cotação,
+e as anteriores não são apagadas. Ao incluir um ativo novo, o fechamento
+mensal dos últimos três anos é buscado uma vez, conforme os limites de cada
+provedor ([spec 028](../.ai/specs/028-quote-rules.md) e
+[spec 029](../.ai/specs/029-asset-price-history.md)). O mês corrente pode
+ser finalizado, e editá-lo passa a pedir a confirmação dos meses passados
+([spec 032](../.ai/specs/032-finalize-current-month.md)). Preencher meses
+passados que faltam não é funcionalidade do aplicativo: é o
+[passo pré-produção](../.ai/context/pre-deploy.md).
 
 ### Importação do Excel
 
@@ -100,9 +111,9 @@ financeiros reais.
 
 ### Navegação e competência selecionada
 
-A navegação principal fica no topo, em abas: Visão Geral, Alocação e
-Posições, com a configuração da carteira em um acesso próprio. Não há barra
-lateral.
+A navegação principal fica no topo, em abas: Visão Geral e Posições, com a
+configuração da carteira em um acesso próprio. A aba de alocação foi
+incorporada à Visão Geral na reestruturação da UX. Não há barra lateral.
 
 Um seletor global de competência governa todas as telas e fica registrado na
 URL. O propósito do produto é percorrer o histórico mês a mês e comparar a
