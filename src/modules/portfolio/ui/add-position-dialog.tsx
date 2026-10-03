@@ -29,6 +29,7 @@ import {
   type AllocationSeed,
   type AssetKind,
 } from "@/modules/portfolio/domain/asset-kinds";
+import { normalizeLiquidity } from "@/modules/portfolio/domain/liquidity";
 import { maturityHint } from "@/modules/portfolio/presentation/maturity";
 import { formatBrl, formatPriceBrl, parseLocaleNumber } from "@/modules/portfolio/presentation/portfolio-format";
 import {
@@ -45,6 +46,7 @@ import {
   centeredPopupClass,
   Field,
   inputClass,
+  LiquidityPicker,
   primaryButtonClass,
   RedemptionPicker,
   secondaryButtonClass,
@@ -150,6 +152,7 @@ function AddPositionForm({
   const [kind, setKind] = useState<AssetKind | null>(null);
   const [tickerText, setTickerText] = useState("");
   const [maturity, setMaturity] = useState("");
+  const [liquidity, setLiquidity] = useState("");
   const [allocationDraft, setAllocationDraft] = useState<AllocationSeed | null>(null);
   const [manualPrice, setManualPrice] = useState("");
   // Moeda da CoinGecko escolhida para um símbolo e as candidatas da última
@@ -458,6 +461,7 @@ function AddPositionForm({
         ticker: symbol,
         baseCurrency: baseCurrencyOf(kind, symbol),
         maturityDate,
+        liquidity: normalizeLiquidity(liquidity),
         allocation: {
           assetClass: allocation.assetClass.trim(),
           subclass: allocation.subclass.trim(),
@@ -605,6 +609,12 @@ function AddPositionForm({
                     manualPrice.trim() !== "" && (manualPriceValue === null || manualPriceValue <= 0) && "border-destructive",
                   )}
                 />
+              </Field>
+            ) : null}
+
+            {definition ? (
+              <Field label="Liquidez (opcional)">
+                <LiquidityPicker value={liquidity} onChange={setLiquidity} />
               </Field>
             ) : null}
 

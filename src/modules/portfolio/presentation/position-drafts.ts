@@ -25,6 +25,7 @@ export type NewAssetDraft = {
   ticker: string | null;
   baseCurrency: string;
   maturityDate: string | null;
+  liquidity: string | null;
   allocation: AllocationSeed;
   quoteCheckToken: string | null;
   manualPriceBrl: string | null;
@@ -146,6 +147,7 @@ export function buildDisplayPositions({
             quoteSymbol: draft.newAsset.ticker,
             baseCurrency: draft.newAsset.baseCurrency,
             maturityDate: draft.newAsset.maturityDate,
+            liquidity: draft.newAsset.liquidity,
             ownPrice: draft.newAsset.priceBrl,
             allocation: draft.newAsset.allocation,
           }
@@ -172,6 +174,7 @@ export function buildDisplayPositions({
         strategy: draft.strategy,
         baseCurrency: asset.baseCurrency,
         maturityDate: asset.maturityDate,
+        liquidity: asset.liquidity,
         quantity: asset.quoteSymbol ? value : totalBrl,
         quantityText: draft.value,
         unitPriceBrl: price,

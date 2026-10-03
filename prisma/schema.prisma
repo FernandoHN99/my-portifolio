@@ -114,6 +114,10 @@ model Asset {
   // Vencimento informativo de ativos sem ticker, como renda fixa (spec 026).
   // Só ativos criados pela interface o recebem; os importados ficam nulos.
   maturityDate    DateTime?  @map("maturity_date") @db.Date
+  // Prazo de liquidez do ativo, opcional (spec 039): em quanto tempo o dinheiro
+  // fica disponível no resgate, como "D+0", "D+1" ou "No vencimento". Diferente
+  // do vencimento e do resgate Curto, Médio e Longo do rateio.
+  liquidity       String?
   // Identificador do símbolo no provedor quando não é o próprio símbolo: a
   // moeda da CoinGecko conferida ao incluir um cripto novo (spec 026), para a
   // atualização de cotações não buscar outra moeda com o mesmo símbolo. Nulo

@@ -11,26 +11,28 @@ e Claude Code consultando a mesma base de conhecimento.
 
 ## Trabalho em andamento
 
-Estado em 2026-10-02, ao fim da sessão que respondeu às questões em aberto e
-implementou as specs 016 e 028 a 037, todas no `main`:
+Estado em 2026-10-03, quando o usuário pediu para encerrar a sessão e
+continuar depois. Specs 016 e 028 a 039 concluídas e no `main`; detalhes em
+`.ai/specs/README.md`.
 
-- concluídas e verificadas: página da posição (016), regras de cotação (028),
-  histórico de 3 anos ao incluir ativo (029), Visão Geral por meses do
-  calendário (030), filtros em cascata e vencimento (031), escolha da moeda
-  da CoinGecko (033), mês aberto ou fechado pelo cadeado da linha do tempo
-  (034, que substituiu o "finalizar" da 032), resgate fixo e classes
-  existentes no rateio (035), altcoins como moeda base (036) e provedores de
-  cotação em cadeia com Yahoo Finance, Binance e PTAX (037);
+- **onde parou**: a próxima fatia, ainda sem spec (seria a 040), reúne três
+  pedidos da quarta rodada: tirar a conta "Principal" da interface, renomear o
+  ativo pela página da posição e trocar a lista de ativos da inclusão por texto
+  livre. Proposta de cada um em `.ai/context/ux-restructure.md`, em
+  "Respostas do usuário, 2026-10-03 (quarta rodada)";
+- transações dentro das posições e a previdência estão no backlog, em
+  `.ai/context/backlog.md`;
 - as respostas do usuário, o backlog e o que ainda aguarda resposta estão em
   `.ai/context/ux-restructure.md`, nas seções de respostas de 2026-10-02
-  (segunda e terceira rodadas);
+  (segunda, terceira e quarta rodadas);
 - só um mês aberto (rascunho) aceita edição; os testes que editam usam a
   competência mais recente, e abrir um mês grava no banco;
 - antes de produção há um passo único de preparação do histórico, em
   `.ai/context/pre-deploy.md`. Não altere os dados antigos importados antes
   dele;
-- backlog: Previdência, o próximo assunto indicado pelo usuário, e o livro de
-  movimentações (compras e vendas).
+- depois de `pnpm db:generate`, o `pnpm dev` precisa reiniciar para usar o
+  cliente Prisma novo; tocar o `next.config.ts` reinicia o servidor sem
+  fechar o processo.
 
 O propósito, as restrições, as regras de cálculo e as decisões da
 iniciativa estão em `.ai/context/ux-restructure.md`, e o estado de cada

@@ -22,6 +22,8 @@ export type MonthPosition = {
   baseCurrency: string;
   /** Vencimento do ativo (AAAA-MM-DD), quando informado na inclusão (spec 026). */
   maturityDate: string | null;
+  /** Prazo de liquidez do ativo, opcional (spec 039). */
+  liquidity: string | null;
   quantity: number;
   quantityText: string;
   unitPriceBrl: number | null;
@@ -87,7 +89,7 @@ export async function getMonthPositions(
               totalBrl: true,
               strategy: true,
               asset: {
-                select: { name: true, ticker: true, quoteSymbol: true, baseCurrency: true, maturityDate: true },
+                select: { name: true, ticker: true, quoteSymbol: true, baseCurrency: true, maturityDate: true, liquidity: true },
               },
               account: {
                 select: { name: true, institution: { select: { name: true } } },
@@ -169,6 +171,7 @@ export async function getMonthPositions(
             strategy: position.strategy,
             baseCurrency: position.asset.baseCurrency,
             maturityDate: position.asset.maturityDate ? toDateKey(position.asset.maturityDate) : null,
+            liquidity: position.asset.liquidity,
             quantity: position.quantity.toNumber(),
             quantityText: position.quantity.toString(),
             unitPriceBrl: position.unitPriceBrl ? position.unitPriceBrl.toNumber() : null,

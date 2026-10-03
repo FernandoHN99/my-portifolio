@@ -39,6 +39,8 @@ export type PositionHistoryView = {
   baseCurrency: string;
   /** AAAA-MM-DD, quando informado na inclusão (spec 026). */
   maturityDate: string | null;
+  /** Prazo de liquidez do ativo, opcional (spec 039). */
+  liquidity: string | null;
   institutionName: string;
   accountName: string;
   selectedMonth: string;
@@ -79,7 +81,7 @@ export async function getPositionHistory({
     const [asset, account, positions, classRows] = await Promise.all([
       prisma.asset.findUnique({
         where: { id: assetId },
-        select: { name: true, ticker: true, quoteSymbol: true, baseCurrency: true, maturityDate: true },
+        select: { name: true, ticker: true, quoteSymbol: true, baseCurrency: true, maturityDate: true, liquidity: true },
       }),
       prisma.account.findUnique({
         where: { id: accountId },
@@ -177,6 +179,7 @@ export async function getPositionHistory({
       quoteSymbol: asset.quoteSymbol,
       baseCurrency: asset.baseCurrency,
       maturityDate: asset.maturityDate ? toDateKey(asset.maturityDate) : null,
+      liquidity: asset.liquidity,
       institutionName: account.institution.name,
       accountName: account.name,
       selectedMonth,

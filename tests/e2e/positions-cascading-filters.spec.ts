@@ -80,3 +80,14 @@ test("em tela de toque os campos usam 16 px para o Safari não ampliar", async (
   const size = await search.evaluate((element) => getComputedStyle(element).fontSize);
   expect(size).toBe(coarse ? "16px" : "12px");
 });
+
+test("a liquidez tem coluna e filtro", async ({ page }, testInfo) => {
+  await page.goto("/posicoes?mes=2026-09");
+  await expect(page.getByRole("heading", { level: 1, name: "Carteira do mês" })).toBeVisible();
+  expect(await optionsOf(page, "Liquidez")).toContain("Sem liquidez informada");
+
+  if (!testInfo.project.name.startsWith("mobile")) {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await expect(page.getByRole("columnheader", { name: "Liquidez" })).toBeVisible();
+  }
+});

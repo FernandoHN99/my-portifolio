@@ -39,6 +39,7 @@ import { AssetPriceChart } from "@/modules/portfolio/ui/asset-price-chart";
 import { BalanceChangeChart } from "@/modules/portfolio/ui/balance-change-chart";
 import { ChangeKpiCard, KpiCard } from "@/modules/portfolio/ui/kpi-card";
 import { MaturityBadge } from "@/modules/portfolio/ui/maturity-badge";
+import { LiquidityEditor } from "@/modules/portfolio/ui/liquidity-editor";
 import { MaturityEditor } from "@/modules/portfolio/ui/maturity-editor";
 import { HighlightRow, PositionAttribution } from "@/modules/portfolio/ui/position-attribution";
 import { PositionAllocation } from "@/modules/portfolio/ui/position-allocation";
@@ -250,6 +251,7 @@ export function PositionDetail({ history }: { history: PositionHistoryView | nul
           quoted={quoted}
           dollarBalance={dollarBalance}
           assetId={history.assetId}
+          liquidity={history.liquidity}
           maturityDate={history.maturityDate}
           referenceDay={history.referenceDay}
         />
@@ -446,6 +448,7 @@ function PositionHighlights({
   quoted,
   dollarBalance,
   assetId,
+  liquidity,
   maturityDate,
   referenceDay,
 }: {
@@ -453,6 +456,7 @@ function PositionHighlights({
   quoted: boolean;
   dollarBalance: boolean;
   assetId: string;
+  liquidity: string | null;
   maturityDate: string | null;
   referenceDay: string;
 }) {
@@ -518,6 +522,7 @@ function PositionHighlights({
               : "A posição ainda não existia"
           }
         />
+        <LiquidityEditor assetId={assetId} liquidity={liquidity} />
         {!quoted ? (
           <MaturityEditor assetId={assetId} maturityDate={maturityDate} referenceDay={referenceDay} />
         ) : null}

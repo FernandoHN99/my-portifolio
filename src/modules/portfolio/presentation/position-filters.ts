@@ -3,6 +3,7 @@ import type { MonthPosition } from "@/modules/portfolio/application/get-month-po
 export const NO_CLASS = "Sem classificação";
 export const NO_STRATEGY = "Sem estratégia";
 export const NO_MATURITY = "Sem vencimento";
+export const NO_LIQUIDITY = "Sem liquidez informada";
 
 export type PositionFilters = {
   classes: string[];
@@ -12,10 +13,19 @@ export type PositionFilters = {
   currencies: string[];
   /** Ano do vencimento, como "2027", ou "Sem vencimento" (spec 031). */
   maturities: string[];
+  /** Prazo de liquidez do ativo, ou "Sem liquidez informada" (spec 039). */
+  liquidities: string[];
   search: string;
 };
 
-export type FilterDimension = "classes" | "subclasses" | "institutions" | "strategies" | "currencies" | "maturities";
+export type FilterDimension =
+  | "classes"
+  | "subclasses"
+  | "institutions"
+  | "strategies"
+  | "currencies"
+  | "maturities"
+  | "liquidities";
 
 export const FILTER_DIMENSIONS: FilterDimension[] = [
   "classes",
@@ -24,6 +34,7 @@ export const FILTER_DIMENSIONS: FilterDimension[] = [
   "strategies",
   "currencies",
   "maturities",
+  "liquidities",
 ];
 
 /** Parâmetro da URL de cada filtro. */
@@ -34,6 +45,7 @@ export const FILTER_PARAMS: Record<FilterDimension, string> = {
   strategies: "estrategia",
   currencies: "moeda",
   maturities: "venc",
+  liquidities: "liq",
 };
 
 export type GroupBy = "instituicao" | "classe";
@@ -64,6 +76,11 @@ export function subclassesOf(position: MonthPosition) {
   return [...new Set(position.allocations.map((allocation) => allocation.subclass))];
 }
 
+/** Prazo de liquidez, para o filtro; "Sem liquidez informada" quando vazio. */
+export function liquidityOf(position: MonthPosition) {
+  return position.liquidity ?? NO_LIQUIDITY;
+}
+
 /** Ano do vencimento, para o filtro; "Sem vencimento" quando não informado. */
 export function maturityOf(position: MonthPosition) {
   return position.maturityDate ? position.maturityDate.slice(0, 4) : NO_MATURITY;
@@ -90,6 +107,10 @@ export function filterPositions<T extends MonthPosition>(positions: T[], filters
     }
 
     if (filters.maturities.length > 0 && !filters.maturities.includes(maturityOf(position))) {
+      return false;
+    }
+
+    if (filters.liquidities.length > 0 && !filters.liquidities.includes(liquidityOf(position))) {
       return false;
     }
 
@@ -232,6 +253,7 @@ const EMPTY_FILTERS: PositionFilters = {
   strategies: [],
   currencies: [],
   maturities: [],
+  liquidities: [],
   search: "",
 };
 
@@ -260,6 +282,8 @@ function facetValues(position: MonthPosition, dimension: FilterDimension, scoped
       return [position.baseCurrency];
     case "maturities":
       return [maturityOf(position)];
+    case "liquidities":
+      return [liquidityOf(position)];
   }
 }
 

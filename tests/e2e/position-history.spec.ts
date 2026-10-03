@@ -106,8 +106,9 @@ test("meses sem competência e sem a posição aparecem como lacunas", async ({ 
 
 test("a linha inteira abre a posição de um saldo sem cotação", async ({ page }) => {
   await page.goto("/posicoes?mes=2026-09");
+  await expect(page.getByRole("navigation", { name: "Competências" })).toHaveAttribute("data-hydrated");
   await row(page, "Porquinho").getByText("R$ 2.427,12").filter({ visible: true }).first().click();
-  await expect(page).toHaveURL(POSITION_PATH);
+  await expect(page).toHaveURL(POSITION_PATH, { timeout: 15_000 });
   await expect(page.getByRole("heading", { level: 1, name: "Porquinho" })).toBeVisible();
 
   await expect(page.getByText("SALDO", { exact: true })).toBeVisible();
@@ -130,6 +131,16 @@ test("a linha inteira abre a posição de um saldo sem cotação", async ({ page
   await expect(maturity.getByRole("button", { name: "Salvar vencimento" })).toBeDisabled();
   await maturity.getByRole("button", { name: "Cancelar edição do vencimento" }).click();
   await expect(maturity).toContainText("Não informado");
+
+  // A liquidez vale para qualquer ativo; abre e cancela sem gravar (spec 039).
+  const liquidity = page.getByTestId("position-liquidity");
+  await liquidity.getByRole("button", { name: /^(Informar|Editar) liquidez$/ }).click();
+  await liquidity.getByRole("combobox", { name: "Liquidez" }).click();
+  await expect(page.getByRole("option", { name: "D+0", exact: true })).toBeVisible();
+  await expect(page.getByRole("option", { name: "No vencimento" })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await liquidity.getByRole("button", { name: "Cancelar edição da liquidez" }).click();
+  await expect(liquidity.getByRole("combobox")).toHaveCount(0);
 });
 
 test("no modo de edição a linha não abre a posição", async ({ page }) => {

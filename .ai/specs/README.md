@@ -42,6 +42,7 @@ Esta pasta organiza a implementação em fatias pequenas e revisáveis.
 - [036 — Altcoins como moeda base](036-altcoins-currency.md): concluída.
 - [037 — Provedores de cotação em cadeia, com Yahoo, Binance e PTAX](037-quote-provider-chains.md): concluída.
 - [038 — Gráficos para daltonismo, sem contorno, e card da atualização só no mês corrente](038-colorblind-charts.md): concluída.
+- [039 — Prazo de liquidez do ativo](039-asset-liquidity.md): concluída.
 
 As specs 010 a 017 formam a reestruturação da UX pedida pelo usuário. O
 propósito, as restrições e as regras de cálculo comuns a elas estão em

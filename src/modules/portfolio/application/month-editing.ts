@@ -14,6 +14,7 @@ import {
   USD_SYMBOL,
   type AssetKind,
 } from "@/modules/portfolio/domain/asset-kinds";
+import { MAX_LIQUIDITY_LENGTH, normalizeLiquidity } from "@/modules/portfolio/domain/liquidity";
 import { isRedemption } from "@/modules/portfolio/domain/redemption";
 import { readVerifiedTicker } from "@/modules/quotes/application/check-ticker";
 import { addMonths, currentReferenceMonth } from "@/modules/quotes/domain/calendar";
@@ -41,6 +42,8 @@ export type NewAssetInput = {
   kind: AssetKind;
   ticker: string | null;
   maturityDate: string | null;
+  /** Prazo de liquidez, opcional (spec 039). */
+  liquidity?: string | null;
   allocation: { assetClass: string; subclass: string; duration: string };
   quoteCheckToken: string | null;
   manualPriceBrl: string | null;
@@ -485,6 +488,7 @@ async function resolveAdditionAsset(
       quoteSymbol: symbol,
       baseCurrency: baseCurrencyOf(input.kind, symbol),
       maturityDate,
+      liquidity: normalizeLiquidity(input.liquidity)?.slice(0, MAX_LIQUIDITY_LENGTH) ?? null,
       quoteProviderId,
     },
     select: { id: true },

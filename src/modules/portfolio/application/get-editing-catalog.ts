@@ -14,6 +14,7 @@ export type EditingCatalog = {
     quoteSymbol: string | null;
     baseCurrency: string;
     maturityDate: string | null;
+    liquidity: string | null;
   }[];
   strategies: string[];
   allocation: { classes: string[]; subclasses: string[] };
@@ -52,6 +53,7 @@ export async function getEditingCatalog(): Promise<EditingCatalog> {
           quoteSymbol: true,
           baseCurrency: true,
           maturityDate: true,
+          liquidity: true,
         },
       }),
       prisma.position.findMany({

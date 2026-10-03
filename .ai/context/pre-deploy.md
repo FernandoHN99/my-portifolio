@@ -31,7 +31,8 @@ altera os dados antigos importados da planilha.
   de cripto com ticker USD;
 - o resgate de cada classificação como Curto, Médio, Longo ou Nenhum
   ([spec 035](../specs/035-redemption-and-known-classes.md)), no lugar de D+0
-  e D+1.
+  e D+1, que passam para a liquidez do ativo
+  ([spec 039](../specs/039-asset-liquidity.md)).
 
 ## O que não é funcionalidade do aplicativo
 

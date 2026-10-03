@@ -109,6 +109,7 @@ const COLUMN_META: Record<string, ColumnMeta> = {
   classes: { align: "left", calculated: false, hide: "hidden lg:table-cell" },
   baseCurrency: { align: "left", calculated: false, hide: "hidden md:table-cell" },
   maturityDate: { align: "left", calculated: false, hide: "hidden xl:table-cell" },
+  liquidity: { align: "left", calculated: false, hide: "hidden xl:table-cell" },
   quantity: { align: "right", calculated: false, hide: "hidden md:table-cell" },
   unitPriceBrl: { align: "right", calculated: true, hide: "hidden lg:table-cell" },
   totalBrl: { align: "right", calculated: true, hide: "" },
@@ -128,6 +129,7 @@ const columns = helper.columns([
     header: "Vencimento",
     sortUndefined: "last",
   }),
+  helper.accessor((row) => row.liquidity ?? undefined, { id: "liquidity", header: "Liquidez", sortUndefined: "last" }),
   helper.accessor("quantity", { header: "Quantidade" }),
   helper.accessor((row) => row.unitPriceBrl ?? -1, { id: "unitPriceBrl", header: "Cotação" }),
   helper.accessor("totalBrl", { header: "Total R$" }),
@@ -152,6 +154,7 @@ export function PositionsWorkspace({
       estrategia: list,
       moeda: list,
       venc: list,
+      liq: list,
       q: parseAsString.withDefault(""),
       ordem: parseAsString.withDefault("totalBrl.desc"),
       agrupar: parseAsStringLiteral(GROUP_OPTIONS),
@@ -221,6 +224,7 @@ export function PositionsWorkspace({
     strategies: query.estrategia,
     currencies: query.moeda,
     maturities: query.venc,
+    liquidities: query.liq,
     search: query.q,
   };
   const display = month ? buildDisplayPositions({ month, catalog, pending, removed, added }) : [];
@@ -273,6 +277,7 @@ export function PositionsWorkspace({
     filters.strategies.length +
     filters.currencies.length +
     filters.maturities.length +
+    filters.liquidities.length +
     (filters.search ? 1 : 0);
   const occupied = new Set(
     display.filter((position) => !position.isRemoved).map((position) => `${position.accountId}:${position.assetId}`),
@@ -406,6 +411,7 @@ export function PositionsWorkspace({
                   kind: draft.newAsset.kind,
                   ticker: draft.newAsset.ticker,
                   maturityDate: draft.newAsset.maturityDate,
+                  liquidity: draft.newAsset.liquidity,
                   allocation: draft.newAsset.allocation,
                   quoteCheckToken: draft.newAsset.quoteCheckToken,
                   manualPriceBrl: draft.newAsset.manualPriceBrl,
@@ -474,7 +480,7 @@ export function PositionsWorkspace({
     });
 
   const clearFilters = () =>
-    void setQuery({ classe: null, subclasse: null, inst: null, estrategia: null, moeda: null, venc: null, q: null });
+    void setQuery({ classe: null, subclasse: null, inst: null, estrategia: null, moeda: null, venc: null, liq: null, q: null });
 
   // Fora do modo de edição, a linha abre a página da posição (spec 016), com a
   // query da tabela para a volta reabrir os mesmos filtros.
@@ -639,6 +645,7 @@ export function PositionsWorkspace({
           <MultiSelectFilter label="Estratégia" options={options.strategies} selected={filters.strategies} onChange={(next) => void setQuery({ estrategia: next })} />
           <MultiSelectFilter label="Moeda" options={options.currencies} selected={filters.currencies} onChange={(next) => void setQuery({ moeda: next })} />
           <MultiSelectFilter label="Vencimento" options={options.maturities} selected={filters.maturities} onChange={(next) => void setQuery({ venc: next })} />
+          <MultiSelectFilter label="Liquidez" options={options.liquidities} selected={filters.liquidities} onChange={(next) => void setQuery({ liq: next })} />
 
           {activeFilterCount > 0 ? (
             <button
@@ -1006,6 +1013,11 @@ function PositionRow({
         ) : (
           <span className="text-[10px] text-muted-foreground">—</span>
         )}
+      </Cell>
+      <Cell id="liquidity">
+        <span className={cn("text-xs", position.liquidity ? "font-mono text-foreground/80" : "text-[10px] text-muted-foreground")}>
+          {position.liquidity ?? "—"}
+        </span>
       </Cell>
       <Cell id="quantity" editMode={canEdit} changed={position.valueChanged && !position.isAdded}>
         {editable ? (

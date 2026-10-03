@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 import { z } from "zod";
 
-import { updateAssetMaturity } from "@/modules/portfolio/application/asset-maturity";
+import { updateAssetLiquidity, updateAssetMaturity } from "@/modules/portfolio/application/asset-attributes";
 import {
   applyPositionChanges,
   cloneLatestMonth,
@@ -42,6 +42,7 @@ const newAssetSchema = z.object({
   kind: z.enum(ASSET_KINDS),
   ticker: z.string().trim().max(20).nullable(),
   maturityDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(),
+  liquidity: z.string().trim().max(30).nullable().optional(),
   allocation: z.object({ assetClass: label(80), subclass: label(80), duration: label(80) }),
   quoteCheckToken: z.string().uuid().nullable(),
   manualPriceBrl: value.nullable(),
@@ -159,6 +160,21 @@ export async function saveAssetMaturityAction(input: unknown): Promise<EditActio
   return run(async () => {
     await updateAssetMaturity(parsed.data);
     return { ok: true, message: parsed.data.maturityDate ? "Vencimento salvo." : "Vencimento removido." };
+  });
+}
+
+export async function saveAssetLiquidityAction(input: unknown): Promise<EditActionResult> {
+  const parsed = z
+    .object({ assetId: z.string().uuid(), liquidity: z.string().trim().max(60).nullable() })
+    .safeParse(input);
+
+  if (!parsed.success) {
+    return { ok: false, message: "Informe uma liquidez válida." };
+  }
+
+  return run(async () => {
+    await updateAssetLiquidity(parsed.data);
+    return { ok: true, message: parsed.data.liquidity ? "Liquidez salva." : "Liquidez removida." };
   });
 }
 

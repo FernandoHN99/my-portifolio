@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import type { EditingCatalog } from "@/modules/portfolio/application/get-editing-catalog";
 import type { MonthPosition } from "@/modules/portfolio/application/get-month-positions";
 import { categoryColor } from "@/modules/portfolio/presentation/category-colors";
+import { LIQUIDITY_SUGGESTIONS } from "@/modules/portfolio/domain/liquidity";
 import { isRedemption, redemptionLabel, REDEMPTION_VALUES } from "@/modules/portfolio/domain/redemption";
 import { formatBrl, parseLocaleNumber } from "@/modules/portfolio/presentation/portfolio-format";
 
@@ -289,6 +290,41 @@ export function RedemptionPicker({
   ];
 
   return <Picker aria-label={label} options={options} value={value || null} onValueChange={onChange} placeholder="Escolha" />;
+}
+
+const NO_LIQUIDITY_VALUE = "__sem_liquidez__";
+
+/**
+ * Prazo de liquidez do ativo (spec 039): sugestões comuns, como D+0 e D+1, ou
+ * outro valor digitado, confirmado em "Usar". "Não informar" deixa em branco.
+ */
+export function LiquidityPicker({
+  label = "Liquidez",
+  value,
+  onChange,
+}: {
+  label?: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const options = [
+    { value: NO_LIQUIDITY_VALUE, label: "Não informar" },
+    ...(value && !LIQUIDITY_SUGGESTIONS.includes(value) ? [value] : []).map((entry) => ({ value: entry, label: entry })),
+    ...LIQUIDITY_SUGGESTIONS.map((entry) => ({ value: entry, label: entry })),
+  ];
+
+  return (
+    <Picker
+      aria-label={label}
+      options={options}
+      value={value || null}
+      placeholder="Opcional"
+      onValueChange={(next) => onChange(next === NO_LIQUIDITY_VALUE ? "" : next)}
+      onCreate={(text) => onChange(text)}
+      createLabel={(text) => `Usar “${text}”`}
+      emptyMessage="Digite para usar outro prazo"
+    />
+  );
 }
 
 export function Field({ label, children }: { label: string; children: ReactNode }) {
