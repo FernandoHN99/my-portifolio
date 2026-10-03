@@ -12,17 +12,20 @@ e Claude Code consultando a mesma base de conhecimento.
 ## Trabalho em andamento
 
 Estado em 2026-10-02, ao fim da sessão que respondeu às questões em aberto e
-implementou as specs 016 e 028 a 033, todas no `main`:
+implementou as specs 016 e 028 a 037, todas no `main`:
 
-- concluídas e verificadas: página da posição (016), regras de cotação com
-  edição restrita, seta só no mês corrente e histórico de 36 meses (028),
+- concluídas e verificadas: página da posição (016), regras de cotação (028),
   histórico de 3 anos ao incluir ativo (029), Visão Geral por meses do
-  calendário e metas sem posição (030), filtros em cascata e vencimento em
-  Posições (031), finalizar o mês corrente (032) e escolha da moeda da
-  CoinGecko (033);
-- as respostas do usuário, o backlog e as perguntas que ele não entendeu e
-  aguardam explicação estão em `.ai/context/ux-restructure.md`, em "Respostas
-  do usuário às questões em aberto, 2026-10-02 (segunda rodada)";
+  calendário (030), filtros em cascata e vencimento (031), escolha da moeda
+  da CoinGecko (033), mês aberto ou fechado pelo cadeado da linha do tempo
+  (034, que substituiu o "finalizar" da 032), resgate fixo e classes
+  existentes no rateio (035), altcoins como moeda base (036) e provedores de
+  cotação em cadeia com Yahoo Finance, Binance e PTAX (037);
+- as respostas do usuário, o backlog e o que ainda aguarda resposta estão em
+  `.ai/context/ux-restructure.md`, nas seções de respostas de 2026-10-02
+  (segunda e terceira rodadas);
+- só um mês aberto (rascunho) aceita edição; os testes que editam usam a
+  competência mais recente, e abrir um mês grava no banco;
 - antes de produção há um passo único de preparação do histórico, em
   `.ai/context/pre-deploy.md`. Não altere os dados antigos importados antes
   dele;
@@ -46,8 +49,9 @@ cotação não são alcançáveis em ambientes de nuvem; nesses casos, verifique
 com respostas simuladas e registre na spec. Os cenários de edição de cotação
 só rodam quando a competência aberta tem uma cotação editável (spec 028).
 
-O Alpha Vantage gratuito permite 25 consultas por dia, compartilhadas pela
-atualização de cotações do GPCA11.SAO e pela busca de histórico da spec 029.
+As cotações seguem cadeias de provedores (spec 037): o Yahoo Finance cota a
+B3 sem chave, e o Alpha Vantage, de 25 consultas por dia, fica por último.
+`BRAPI_TOKEN` é opcional.
 
 ## Como trabalhar neste projeto
 

@@ -2,7 +2,7 @@
 
 Registrado em: 2026-10-01
 Origem: briefing do usuário, com capturas da planilha anexadas na conversa.
-Estágio: fatias acordadas, a 016 e as specs 028 a 033 concluídas em 2026-10-02; restam o passo pré-produção, o backlog e as perguntas que aguardam explicação ao usuário.
+Estágio: fatias acordadas, a 016 e as specs 028 a 037 concluídas em 2026-10-02; restam o passo pré-produção e o backlog.
 
 Este documento é a fonte principal do propósito, das restrições e das regras
 de cálculo desta iniciativa. As specs descrevem cada fatia e apontam para
@@ -148,6 +148,10 @@ percentual atual, percentual ideal, valor atual, valor ideal e diferença.
 23. [031 — Posições: vencimento, filtros em cascata e campos de 16 px](../specs/031-positions-cascading-filters.md): concluída.
 24. [032 — Finalizar o mês corrente](../specs/032-finalize-current-month.md): concluída.
 25. [033 — Escolha da moeda da CoinGecko](../specs/033-coingecko-coin-choice.md): concluída.
+26. [034 — Mês aberto ou fechado na linha do tempo](../specs/034-open-closed-months.md): concluída.
+27. [035 — Resgate fixo e classes existentes no rateio](../specs/035-redemption-and-known-classes.md): concluída.
+28. [036 — Altcoins como moeda base](../specs/036-altcoins-currency.md): concluída.
+29. [037 — Provedores de cotação em cadeia](../specs/037-quote-provider-chains.md): concluída.
 
 As specs 016 e 028 a 033 foram implementadas em sequência no `main` em
 2026-10-02, com autorização do usuário para commitar e dar push sem pedir
@@ -435,6 +439,37 @@ Explicações preparadas para o usuário (registradas na spec de cada assunto):
   explicação: se a meta diz 10% em IPCA Curto e a carteira não tem nenhuma
   posição nisso, a tabela de comprar e vender passa a mostrar a linha com 0%
   atual e o valor a comprar, em vez de omiti-la.
+
+## Respostas do usuário, 2026-10-02 (terceira rodada)
+
+Dadas depois das specs 028 a 033, com nova autorização para implementar,
+commitar e dar push em sequência.
+
+- **"Atualizar carteira"** pode sair do histórico. A criação do mês deve ser
+  conferida sempre: ao abrir, de hora em hora com o app aberto e no botão de
+  atualizar ([spec 034](../specs/034-open-closed-months.md)).
+- **Linha do tempo**: sem as setas e sem "Mais recente". No lugar, "Fechado"
+  com cadeado ou "Aberto" com cadeado aberto e "Fechar mês". Sem o selo "Mês de
+  ano · Rascunho" nos cabeçalhos. Editar posições só com o mês aberto
+  ([spec 034](../specs/034-open-closed-months.md)).
+- **Resgate**: o antigo campo de duração vira "Resgate", com Curto, Médio,
+  Longo ou Nenhum; a subclasse continua livre
+  ([spec 035](../specs/035-redemption-and-known-classes.md)).
+- **Rateio**: só classes existentes, por enquanto
+  ([spec 035](../specs/035-redemption-and-known-classes.md)).
+- **Moeda**: o que não for BTC entre as criptos é "Altcoins"; as moedas
+  possíveis passam a ser EUR, USD, BRL, Altcoins e BTC, pela moeda base do
+  ativo ([spec 036](../specs/036-altcoins-currency.md)).
+- **APIs**: pesquisar fontes públicas ou com chave gratuita de limite maior,
+  inclusive para ETFs da B3 e meses anteriores, e usá-las com prioridade
+  ([spec 037](../specs/037-quote-provider-chains.md)).
+- **Mês novo automático**: confirmado.
+- **Selo de vencimento**: confirmado.
+- **Cotações**: o botão sai de Posições e vira um ícone ao lado da última
+  atualização ([spec 034](../specs/034-open-closed-months.md)).
+
+Ainda aberta: o usuário escreveu "Atualizado às <tempo>"; o topo mostra
+"Atualizado há N min". Não ficou claro se ele quer o horário absoluto.
 
 ## Critérios de aceite da iniciativa
 
