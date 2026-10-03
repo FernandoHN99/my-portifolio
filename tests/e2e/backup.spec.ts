@@ -25,10 +25,15 @@ test("exporta todos os dados num arquivo", async ({ page }) => {
     /^attachment; filename="meu-portfolio-backup-\d{4}-\d{2}-\d{2}-\d{4}\.json"$/,
   );
   expect(backup.format).toBe("meu-portfolio-backup");
-  expect(backup.version).toBe(3);
-  // Sem as tabelas da importação do Excel, com o registro de importações (spec 047).
+  expect(backup.version).toBe(4);
+  // Sem as tabelas da importação do Excel, com o registro de importações (spec 047);
+  // da carteira do usuário, sem as execuções da atualização, que são de todos
+  // (spec 052).
   expect(Object.keys(backup.tables)).toContain("dataImports");
+  expect(Object.keys(backup.tables)).toContain("manualQuotes");
   expect(Object.keys(backup.tables)).not.toContain("importBatches");
+  expect(Object.keys(backup.tables)).not.toContain("quoteRefreshRuns");
+  expect(backup.tables.positions.every((row) => !("userId" in (row as object)))).toBe(true);
   expect(backup.tables.portfolioMonths.length).toBeGreaterThan(0);
   expect(backup.tables.positions.length).toBeGreaterThan(0);
   expect(backup.tables.targetPlans.length).toBeGreaterThan(0);

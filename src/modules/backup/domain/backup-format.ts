@@ -1,31 +1,34 @@
-// Formato do arquivo de backup (spec 042): todos os dados do aplicativo num
-// JSON versionado, que a restauração grava de volta com os mesmos
-// identificadores. Sem dependências de banco, para servir também à interface.
-// Como evoluir o formato: docs/backup-format.md.
+// Formato do arquivo de backup (spec 042): a carteira de um usuário num JSON
+// versionado (spec 052). Sem dependências de banco, para servir também à
+// interface. Como evoluir o formato: docs/backup-format.md.
 
 export const BACKUP_FORMAT = "meu-portfolio-backup";
-/** Versão 3 (spec 049): sem as tabelas da atualização mensal manual nem o status IMPORTED. */
-export const BACKUP_VERSION = 3;
+/**
+ * Versão 4 (specs 051 e 052): os dados de um usuário, sem `userId`, com as
+ * cotações digitadas à mão e, das compartilhadas, só as dos símbolos dele; sem
+ * as execuções da atualização, que são de todos.
+ */
+export const BACKUP_VERSION = 4;
 
 /**
  * Tabelas do backup, na ordem em que a restauração as grava: cada uma depois
  * das que ela referencia. A limpeza segue a ordem inversa. `label` aparece no
- * resumo da restauração; as auxiliares ficam fora do resumo.
+ * resumo da restauração; as auxiliares ficam fora do resumo. `shared`: as
+ * cotações automáticas, de todos os usuários, que a restauração só completa.
  */
 export const BACKUP_TABLES = [
-  { key: "dataImports", label: null },
-  { key: "institutions", label: "Instituições" },
-  { key: "accounts", label: null },
-  { key: "assets", label: "Ativos" },
-  { key: "portfolioMonths", label: "Competências" },
-  { key: "positions", label: "Posições" },
-  { key: "positionAllocations", label: "Rateios" },
-  { key: "marketQuotes", label: "Cotações mensais" },
-  { key: "targetPlans", label: "Versões das metas" },
-  { key: "allocationTargets", label: null },
-  { key: "quoteRefreshRuns", label: "Execuções de cotação" },
-  { key: "quoteRefreshResults", label: null },
-  { key: "dailyQuotes", label: "Cotações diárias" },
+  { key: "dataImports", label: null, shared: false },
+  { key: "institutions", label: "Instituições", shared: false },
+  { key: "accounts", label: null, shared: false },
+  { key: "assets", label: "Ativos", shared: false },
+  { key: "portfolioMonths", label: "Competências", shared: false },
+  { key: "positions", label: "Posições", shared: false },
+  { key: "positionAllocations", label: "Rateios", shared: false },
+  { key: "targetPlans", label: "Versões das metas", shared: false },
+  { key: "allocationTargets", label: null, shared: false },
+  { key: "manualQuotes", label: "Cotações digitadas", shared: false },
+  { key: "marketQuotes", label: "Cotações mensais", shared: true },
+  { key: "dailyQuotes", label: "Cotações diárias", shared: true },
 ] as const;
 
 export type BackupTableKey = (typeof BACKUP_TABLES)[number]["key"];
@@ -49,6 +52,7 @@ export type BackupPreview = {
   firstMonth: string | null;
   lastMonth: string | null;
   file: BackupCounts;
+  /** Hoje: os dados do usuário e, das cotações compartilhadas, as dos símbolos dele. */
   current: BackupCounts;
 };
 

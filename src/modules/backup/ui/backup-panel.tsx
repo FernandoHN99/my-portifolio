@@ -26,9 +26,10 @@ import {
 import { formatMonthCompact } from "@/modules/portfolio/presentation/portfolio-format";
 import { formatRefreshDateTime } from "@/modules/quotes/presentation/refresh-time";
 
-// Backup dos dados na Configuração (spec 042): baixar um arquivo com tudo e
-// restaurá-lo depois. A restauração confere o arquivo, mostra o que ele traz ao
-// lado dos dados de hoje e só substitui depois da confirmação.
+// Backup dos dados na Configuração (spec 042): baixar um arquivo com a carteira
+// do usuário e restaurá-lo depois (spec 052). A restauração confere o arquivo,
+// mostra o que ele traz ao lado dos dados de hoje e só substitui depois da
+// confirmação.
 
 type Pending = { backup: unknown; preview: BackupPreview };
 
@@ -124,8 +125,8 @@ export function BackupPanel() {
         </h2>
       </div>
       <p className="mt-1 max-w-2xl text-[11px] leading-5 text-muted-foreground">
-        Um arquivo com tudo: posições, rateios, cotações, metas e o histórico de atualizações. Restaurar troca
-        todos os dados do aplicativo pelos do arquivo.
+        Um arquivo com a sua carteira: posições, rateios, metas, as cotações que você digitou e o histórico das
+        cotações dos seus ativos. Restaurar troca os dados da sua carteira pelos do arquivo.
       </p>
 
       <div className="mt-5 flex flex-wrap gap-2">
@@ -176,7 +177,8 @@ export function BackupPanel() {
                   {pending.preview.firstMonth && pending.preview.lastMonth
                     ? `, com competências de ${month(pending.preview.firstMonth)} a ${month(pending.preview.lastMonth)}`
                     : ", sem competências"}
-                  . Todos os dados de hoje serão substituídos; exporte um backup antes se quiser guardá-los.
+                  . Os dados da sua carteira serão substituídos; exporte um backup antes se quiser guardá-los. Das
+                  cotações automáticas, que são de todos, só entram as que faltarem.
                 </Dialog.Description>
                 <table className="mt-5 w-full text-left text-xs">
                   <thead>

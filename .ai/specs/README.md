@@ -23,7 +23,7 @@ Esta pasta organiza a implementação em fatias pequenas e revisáveis.
 - [017 — Posições: edição](017-positions-editing.md): concluída.
 - [018 — Faixa de tolerância ajustável](018-adjustable-tolerance.md): concluída.
 - [019 — Modo de edição com lápis](019-pencil-edit-mode.md): concluída; substituída pela 043.
-- [020 — Cotações diárias e atualização ao abrir](020-daily-quotes.md): concluída.
+- [020 — Cotações diárias e atualização ao abrir](020-daily-quotes.md): concluída; a atualização manual saiu na 051.
 - [021 — Virada de mês automática](021-automatic-month-rollover.md): concluída.
 - [022 — Página de cotações em Posições](022-quotes-page.md): concluída.
 - [023 — Linha do tempo compacta](023-compact-month-timeline.md): concluída.
@@ -54,6 +54,8 @@ Esta pasta organiza a implementação em fatias pequenas e revisáveis.
 - [048 — Metas padrão, cotações em Posições e abas com cadeado](048-default-targets-and-quotes-button.md): concluída.
 - [049 — Limpeza do modelo: tabelas e status sem uso](049-model-cleanup.md): concluída.
 - [050 — Login e dados por usuário](050-login-and-user-data.md): concluída.
+- [051 — Cotações automáticas compartilhadas, à mão por usuário e só atualização automática](051-shared-automatic-quotes.md): concluída.
+- [052 — Backup por usuário no novo modelo](052-per-user-backup.md): concluída.
 
 As specs 010 a 017 formam a reestruturação da UX pedida pelo usuário. O
 propósito, as restrições e as regras de cálculo comuns a elas estão em
