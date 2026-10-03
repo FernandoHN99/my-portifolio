@@ -62,13 +62,6 @@ const TABLE_SPECS: Record<BackupTableKey, TableSpec> = {
     serial: "quote_refresh_results",
   },
   dailyQuotes: { model: "dailyQuote", fields: Prisma.DailyQuoteScalarFieldEnum },
-  monthlyUpdateRuns: { model: "monthlyUpdateRun", fields: Prisma.MonthlyUpdateRunScalarFieldEnum },
-  quoteUpdateResults: {
-    model: "quoteUpdateResult",
-    fields: Prisma.QuoteUpdateResultScalarFieldEnum,
-    bigints: ["id"],
-    serial: "quote_update_results",
-  },
 };
 
 const INSERT_CHUNK = 1_000;
@@ -107,6 +100,25 @@ const UPGRADES: Record<number, (tables: RawTables) => RawTables> = {
       positionAllocations: drop("positionAllocations", ["sourceRowId"]),
       marketQuotes: drop("marketQuotes", ["sourceRowId"]),
       allocationTargets: drop("allocationTargets", ["sourceSheet", "sourceCell"]),
+    };
+  },
+  // 2 → 3 (spec 049): saem as tabelas da atualização mensal manual, sem uso, e
+  // o status IMPORTED, da importação do Excel, vira REVIEWED (mês fechado).
+  2: (tables) => {
+    const { monthlyUpdateRuns: _runs, quoteUpdateResults: _results, ...rest } = tables;
+    void _runs;
+    void _results;
+    const months = tables.portfolioMonths;
+
+    return {
+      ...rest,
+      portfolioMonths: Array.isArray(months)
+        ? months.map((month) =>
+            month && typeof month === "object" && (month as BackupRow).status === "IMPORTED"
+              ? { ...(month as BackupRow), status: "REVIEWED" }
+              : month,
+          )
+        : months,
     };
   },
 };

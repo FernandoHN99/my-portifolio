@@ -878,7 +878,7 @@ export async function undoChange(token: string) {
     async (transaction) => {
       const month = await transaction.portfolioMonth.findUnique({
         where: { id: entry.monthId },
-        select: { id: true, referenceDate: true, targetUpdate: { select: { id: true } } },
+        select: { id: true, referenceDate: true },
       });
 
       if (!month) {
@@ -894,10 +894,6 @@ export async function undoChange(token: string) {
       }
 
       if (entry.kind === "delete-month") {
-        if (month.targetUpdate) {
-          throw new MonthEditError("A competência já passou por atualização de cotações.");
-        }
-
         await transaction.marketQuote.deleteMany({ where: { referenceDate: month.referenceDate } });
         await transaction.portfolioMonth.delete({ where: { id: month.id } });
         return { referenceDate: month.referenceDate, deleted: true };

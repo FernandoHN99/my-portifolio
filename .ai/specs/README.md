@@ -6,7 +6,7 @@ Esta pasta organiza a implementação em fatias pequenas e revisáveis.
 
 - [001 — Fundação da aplicação](001-foundation.md): concluída.
 - [002 — Importação auditável do Excel](002-excel-import.md): concluída; removida pela 047.
-- [003 — Atualização mensal manual](003-manual-monthly-update.md): concluída.
+- [003 — Atualização mensal manual](003-manual-monthly-update.md): concluída; tabelas removidas pela 049.
 - [004 — Shell visual dark e revisão](004-dark-product-shell.md): concluída.
 - [005 — Domínio inicial da carteira](005-portfolio-domain.md): concluída.
 - [006 — Edição das posições do rascunho](006-draft-position-editing.md): concluída.
@@ -52,6 +52,7 @@ Esta pasta organiza a implementação em fatias pequenas e revisáveis.
 - [046 — Histórico de execuções do mês e ilha do topo](046-run-history-and-nav-island.md): concluída.
 - [047 — Fim da importação do Excel: dados só pelo backup em JSON](047-json-only-data.md): concluída.
 - [048 — Metas padrão, cotações em Posições e abas com cadeado](048-default-targets-and-quotes-button.md): concluída.
+- [049 — Limpeza do modelo: tabelas e status sem uso](049-model-cleanup.md): concluída.
 
 As specs 010 a 017 formam a reestruturação da UX pedida pelo usuário. O
 propósito, as restrições e as regras de cálculo comuns a elas estão em

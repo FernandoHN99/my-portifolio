@@ -22,7 +22,7 @@ Excel.
 ```json
 {
   "format": "meu-portfolio-backup",
-  "version": 2,
+  "version": 3,
   "exportedAt": "2026-10-03T18:17:27.609Z",
   "tables": {
     "dataImports": [],
@@ -42,11 +42,10 @@ Excel.
 - a ordem de `BACKUP_TABLES` é a de gravação: cada tabela depois das que ela
   referencia. A limpeza segue a ordem inversa.
 
-Tabelas da versão 2, na ordem: `dataImports`, `institutions`, `accounts`,
+Tabelas da versão 3, na ordem: `dataImports`, `institutions`, `accounts`,
 `assets`, `portfolioMonths`, `positions`, `positionAllocations`,
 `marketQuotes`, `targetPlans`, `allocationTargets`, `quoteRefreshRuns`,
-`quoteRefreshResults`, `dailyQuotes`, `monthlyUpdateRuns`,
-`quoteUpdateResults`.
+`quoteRefreshResults`, `dailyQuotes`.
 
 ## Restauração
 
@@ -75,6 +74,7 @@ conferido.
 |---|---|---|
 | 1 | 2026-10-03, spec 042 | primeira versão, com as tabelas da importação do Excel |
 | 2 | 2026-10-03, spec 047 | saem `importBatches`, `importSourceRows`, `importIssues` e os campos `sourceBatchId`, `sourceRowId`, `sourceSheet` e `sourceCell`; entra `dataImports` |
+| 3 | 2026-10-03, spec 049 | saem `monthlyUpdateRuns` e `quoteUpdateResults`, sem uso; meses com status `IMPORTED` passam a `REVIEWED` |
 
 ## Como mudar o formato
 

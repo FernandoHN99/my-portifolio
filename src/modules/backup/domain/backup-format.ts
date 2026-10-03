@@ -4,8 +4,8 @@
 // Como evoluir o formato: docs/backup-format.md.
 
 export const BACKUP_FORMAT = "meu-portfolio-backup";
-/** Versão 2 (spec 047): sem as tabelas da importação do Excel, com `dataImports`. */
-export const BACKUP_VERSION = 2;
+/** Versão 3 (spec 049): sem as tabelas da atualização mensal manual nem o status IMPORTED. */
+export const BACKUP_VERSION = 3;
 
 /**
  * Tabelas do backup, na ordem em que a restauração as grava: cada uma depois
@@ -26,8 +26,6 @@ export const BACKUP_TABLES = [
   { key: "quoteRefreshRuns", label: "Execuções de cotação" },
   { key: "quoteRefreshResults", label: null },
   { key: "dailyQuotes", label: "Cotações diárias" },
-  { key: "monthlyUpdateRuns", label: null },
-  { key: "quoteUpdateResults", label: null },
 ] as const;
 
 export type BackupTableKey = (typeof BACKUP_TABLES)[number]["key"];
