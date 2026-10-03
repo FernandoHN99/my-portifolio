@@ -14,6 +14,7 @@ import {
   USD_SYMBOL,
   type AssetKind,
 } from "@/modules/portfolio/domain/asset-kinds";
+import { isRedemption } from "@/modules/portfolio/domain/redemption";
 import { readVerifiedTicker } from "@/modules/quotes/application/check-ticker";
 import { addMonths, currentReferenceMonth } from "@/modules/quotes/domain/calendar";
 import { isQuoteEditable } from "@/modules/quotes/domain/quote-refresh";
@@ -432,8 +433,9 @@ async function resolveAdditionAsset(
   const allocation: AllocationSeed = {
     assetClass: normalizeLabel(input.allocation.assetClass, "classe"),
     subclass: normalizeLabel(input.allocation.subclass, "subclasse"),
-    duration: normalizeLabel(input.allocation.duration, "duração"),
+    duration: normalizeLabel(input.allocation.duration, "resgate"),
   };
+  await assertAllocationRules(transaction, [allocation]);
   const maturityKey = maturityDate ? maturityDate.toISOString().slice(0, 10) : null;
   const normalizedKey = buildAssetKey({
     name,
@@ -652,7 +654,7 @@ export async function replaceAllocations(input: {
   const parsed = input.allocations.map((allocation) => ({
     assetClass: normalizeLabel(allocation.assetClass, "classe"),
     subclass: normalizeLabel(allocation.subclass, "subclasse"),
-    duration: normalizeLabel(allocation.duration, "duração"),
+    duration: normalizeLabel(allocation.duration, "resgate"),
     weight: parsePositive(allocation.weightPercent, 8).div(100),
   }));
 
@@ -662,7 +664,7 @@ export async function replaceAllocations(input: {
 
   const identities = new Set(parsed.map((entry) => `${entry.assetClass}|${entry.subclass}|${entry.duration}`));
   if (identities.size !== parsed.length) {
-    throw new MonthEditError("Há classificações repetidas com a mesma classe, subclasse e duração.");
+    throw new MonthEditError("Há classificações repetidas com a mesma classe, subclasse e resgate.");
   }
 
   const sum = parsed.reduce((total, entry) => total.plus(entry.weight), new Prisma.Decimal(0));
@@ -683,6 +685,13 @@ export async function replaceAllocations(input: {
     if (!position) {
       throw new MonthEditError("A posição não pertence a esta competência.");
     }
+
+    // Um prazo antigo, como D+0, só continua se a posição já o tinha.
+    const current = await transaction.positionAllocation.findMany({
+      where: { positionId: position.id },
+      select: { duration: true },
+    });
+    await assertAllocationRules(transaction, parsed, new Set(current.map((entry) => entry.duration)));
 
     await transaction.positionAllocation.deleteMany({ where: { positionId: position.id } });
     await transaction.positionAllocation.createMany({
@@ -918,6 +927,42 @@ export async function undoChange(token: string) {
     },
     { maxWait: 10_000, timeout: 60_000 },
   );
+}
+
+/**
+ * Regras do rateio (spec 035): a classe precisa ser uma das já cadastradas,
+ * nos rateios ou nas metas; a subclasse aceita valores novos; o resgate é
+ * Curto, Médio, Longo ou Nenhum, além de um prazo antigo que a posição já tinha.
+ */
+async function assertAllocationRules(
+  transaction: Transaction,
+  allocations: { assetClass: string; duration: string }[],
+  legacyRedemptions: Set<string> = new Set(),
+) {
+  const classes = [...new Set(allocations.map((entry) => entry.assetClass))];
+  const [used, targeted] = await Promise.all([
+    transaction.positionAllocation.findMany({
+      where: { assetClass: { in: classes } },
+      distinct: ["assetClass"],
+      select: { assetClass: true },
+    }),
+    transaction.allocationTarget.findMany({
+      where: { scope: "ASSET_CLASS", primaryLabel: { in: classes } },
+      select: { primaryLabel: true },
+    }),
+  ]);
+  const known = new Set([...used.map((entry) => entry.assetClass), ...targeted.map((entry) => entry.primaryLabel)]);
+  const unknown = classes.filter((assetClass) => !known.has(assetClass));
+
+  if (unknown.length > 0) {
+    throw new MonthEditError(`A classe ${unknown.join(", ")} não existe. Escolha uma das classes cadastradas.`);
+  }
+
+  const invalid = allocations.find((entry) => !isRedemption(entry.duration) && !legacyRedemptions.has(entry.duration));
+
+  if (invalid) {
+    throw new MonthEditError(`Resgate inválido: ${invalid.duration}. Use Curto, Médio, Longo ou Nenhum.`);
+  }
 }
 
 /**

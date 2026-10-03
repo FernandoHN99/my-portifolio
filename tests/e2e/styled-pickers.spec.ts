@@ -136,7 +136,7 @@ test("a estratégia da tabela abre a lista e mantém as setas entre linhas", asy
   await expect(page.locator("[data-edit-cell]")).toHaveCount(0);
 });
 
-test("o rateio mostra todas as opções e aceita um valor novo", async ({ page }) => {
+test("o rateio aceita só classes existentes, subclasse nova e resgate fixo", async ({ page }) => {
   await page.goto("/posicoes");
   await enterEditMode(page);
   await page.getByRole("button", { name: "Rateio de Bitcoin 01" }).click();
@@ -148,24 +148,33 @@ test("o rateio mostra todas as opções e aceita um valor novo", async ({ page }
   await expect(page.getByRole("option", { name: "Renda Fixa" })).toBeVisible();
   await expect(page.getByRole("option", { name: "Cripto" })).toHaveAttribute("aria-selected", "true");
 
-  // Sair do campo sem escolher volta ao valor anterior.
+  // A classe só aceita as cadastradas (spec 035): digitar outra não oferece "Usar".
   await page.keyboard.type("Classe nova");
+  await expect(page.getByRole("option", { name: /Usar/ })).toHaveCount(0);
+  await expect(page.getByText("Nenhuma classe com esse nome")).toBeVisible();
+  // Sair do campo sem escolher volta ao valor anterior. O Tab abre a lista da
+  // subclasse, e o Escape fecha só essa lista.
   await page.keyboard.press("Tab");
   await page.keyboard.press("Escape");
   await expect(drawer).toBeVisible();
   await expect(assetClass).toHaveValue("Cripto");
 
-  await assetClass.click();
-  await page.keyboard.type("Classe nova");
-  await page.getByRole("option", { name: "Usar “Classe nova”" }).click();
-  await expect(assetClass).toHaveValue("Classe nova");
+  // A subclasse continua aceitando um valor novo.
+  const subclass = drawer.getByRole("combobox", { name: "Subclasse da classificação 1", exact: true });
+  await subclass.click();
+  await page.keyboard.press("ControlOrMeta+a");
+  await page.keyboard.type("Subclasse nova");
+  await page.getByRole("option", { name: "Usar “Subclasse nova”" }).click();
+  await expect(subclass).toHaveValue("Subclasse nova");
 
-  // Com a lista aberta, Escape fecha só a lista; com ela fechada, fecha o painel.
-  await page.keyboard.type("x");
-  await expect(assetClass).toHaveAttribute("aria-expanded", "true");
+  // O resgate é fixo: Curto, Médio, Longo ou Nenhum.
+  const redemption = drawer.getByRole("combobox", { name: "Resgate da classificação 1", exact: true });
+  await expect(redemption).toHaveValue("Nenhum");
+  await redemption.click();
+  await expect(page.getByRole("option")).toHaveText(["Curto", "Médio", "Longo", "Nenhum"]);
   await page.keyboard.press("Escape");
-  await expect(drawer).toBeVisible();
-  await expect(assetClass).toHaveValue("Classe nova");
+
+  // Com a lista fechada, Escape fecha o painel sem salvar.
   await page.keyboard.press("Escape");
   await expect(drawer).toHaveCount(0);
   await page.getByRole("button", { name: "Sair da edição" }).click();

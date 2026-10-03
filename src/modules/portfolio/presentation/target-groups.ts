@@ -5,7 +5,7 @@ export const TARGET_SCOPES: { scope: AllocationGroupKey; title: string; descript
   { scope: "CURRENCY", title: "Moeda", description: "Sobre o patrimônio total." },
   { scope: "STRATEGY", title: "Estratégia", description: "Sobre o patrimônio total." },
   { scope: "CLASS_CURRENCY", title: "Moeda dentro de cada classe", description: "Cada classe soma 100%." },
-  { scope: "FIXED_INCOME", title: "Renda fixa: subclasse × duração", description: "Sobre o total de renda fixa." },
+  { scope: "FIXED_INCOME", title: "Renda fixa: subclasse × resgate", description: "Sobre o total de renda fixa." },
   { scope: "VARIABLE_INCOME", title: "Renda variável", description: "Sobre o total de renda variável." },
 ];
 

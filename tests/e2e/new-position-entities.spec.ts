@@ -223,7 +223,7 @@ test("renda fixa pede subclasse e duração e mostra o vencimento", async ({ pag
   await dialog.getByRole("combobox", { name: "Subclasse" }).click();
   await page.getByRole("option", { name: "IPCA", exact: true }).click();
   await expect(add).toBeDisabled();
-  await dialog.getByRole("combobox", { name: "Duração" }).click();
+  await dialog.getByRole("combobox", { name: "Resgate" }).click();
   await page.getByRole("option", { name: "Longo", exact: true }).click();
   await expect(add).toBeEnabled();
   await add.click();
@@ -386,7 +386,7 @@ test("renda fixa de nome existente pede vencimento e fica na instituição dela"
   await chooseKind(page, dialog, /Renda fixa/);
   await dialog.getByRole("combobox", { name: "Subclasse" }).click();
   await page.getByRole("option", { name: "IPCA", exact: true }).click();
-  await dialog.getByRole("combobox", { name: "Duração" }).click();
+  await dialog.getByRole("combobox", { name: "Resgate" }).click();
   await page.getByRole("option", { name: "Curto", exact: true }).click();
   await dialog.getByRole("textbox", { name: "Saldo (R$)" }).fill("1000");
 

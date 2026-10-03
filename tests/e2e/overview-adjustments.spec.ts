@@ -92,10 +92,10 @@ test("a Visão Geral cabe na largura da tela", async ({ page }) => {
   expect(await pageWidth(page)).toBeLessThanOrEqual(page.viewportSize()?.width ?? 0);
 });
 
-test("renda fixa por duração mostra o atual em cima e o ideal embaixo na mesma escala", async ({ page }) => {
+test("renda fixa por resgate mostra o atual em cima e o ideal embaixo na mesma escala", async ({ page }) => {
   await page.goto("/?mes=2026-09");
 
-  const card = page.getByRole("region", { name: "Renda fixa por duração" });
+  const card = page.getByRole("region", { name: "Renda fixa por resgate" });
   await card.scrollIntoViewIfNeeded();
 
   const legend = card.getByRole("list", { name: "Prazos" });
@@ -120,7 +120,7 @@ test("renda fixa por duração mostra o atual em cima e o ideal embaixo na mesma
   expect(await categories(current)).toEqual(await categories(target));
   await expect(current.locator(".recharts-label-list text").first()).toBeVisible();
 
-  const table = card.getByRole("table", { name: "Renda fixa por duração, atual e ideal" });
+  const table = card.getByRole("table", { name: "Renda fixa por resgate, atual e ideal" });
   expect(Math.abs((await columnSum(table, 3)) - 100)).toBeLessThan(0.5);
   expect(Math.abs((await columnSum(table, 4)) - 100)).toBeLessThan(0.5);
 });
@@ -129,7 +129,7 @@ test("um prazo fora do padrão ocupa a mesma posição nos dois gráficos", asyn
   // Em outubro de 2025 há BTC sem prazo só no atual; os dois gráficos mantêm as mesmas séries.
   await page.goto("/?mes=2025-10");
 
-  const card = page.getByRole("region", { name: "Renda fixa por duração" });
+  const card = page.getByRole("region", { name: "Renda fixa por resgate" });
   await card.scrollIntoViewIfNeeded();
 
   const legend = card.getByRole("list", { name: "Prazos" });
@@ -160,10 +160,10 @@ test("num celular de 360 px, toda barra da renda fixa tem rótulo", async ({ pag
   await page.setViewportSize({ width: 360, height: 800 });
   await page.goto("/?mes=2026-09");
 
-  const card = page.getByRole("region", { name: "Renda fixa por duração" });
+  const card = page.getByRole("region", { name: "Renda fixa por resgate" });
   await card.scrollIntoViewIfNeeded();
 
-  const table = card.getByRole("table", { name: "Renda fixa por duração, atual e ideal" });
+  const table = card.getByRole("table", { name: "Renda fixa por resgate, atual e ideal" });
   const filled = async (column: number) =>
     (await columnShares(table, column)).filter((share) => share > 0).length;
   const labels = (mode: string) => card.getByTestId(`duration-${mode}`).locator(".recharts-label-list text");

@@ -204,7 +204,7 @@ export function defaultAllocation(kind: AssetKind, symbol: string | null): Alloc
       return { assetClass: "Renda Fixa", subclass: "", duration: "" };
     case "brl-cash":
     case "usd-balance":
-      return { assetClass: "Caixa", subclass: "Pós-fixado", duration: "D+0" };
+      return { assetClass: "Caixa", subclass: "Pós-fixado", duration: "Curto" };
   }
 }
 

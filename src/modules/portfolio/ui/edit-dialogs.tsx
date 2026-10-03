@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import type { EditingCatalog } from "@/modules/portfolio/application/get-editing-catalog";
 import type { MonthPosition } from "@/modules/portfolio/application/get-month-positions";
 import { categoryColor } from "@/modules/portfolio/presentation/category-colors";
+import { isRedemption, redemptionLabel, REDEMPTION_VALUES } from "@/modules/portfolio/domain/redemption";
 import { formatBrl, parseLocaleNumber } from "@/modules/portfolio/presentation/portfolio-format";
 
 export const backdropClass =
@@ -141,6 +142,7 @@ function AllocationEditor({
                   values={catalog.allocation.classes}
                   value={row.assetClass}
                   onChange={(value) => update(row.key, "assetClass", value)}
+                  allowCreate={false}
                 />
               </Field>
               <Field label="Subclasse">
@@ -151,10 +153,9 @@ function AllocationEditor({
                   onChange={(value) => update(row.key, "subclass", value)}
                 />
               </Field>
-              <Field label="Duração">
-                <AllocationPicker
-                  label={`Duração da classificação ${index + 1}`}
-                  values={catalog.allocation.durations}
+              <Field label="Resgate">
+                <RedemptionPicker
+                  label={`Resgate da classificação ${index + 1}`}
                   value={row.duration}
                   onChange={(value) => update(row.key, "duration", value)}
                 />
@@ -229,19 +230,22 @@ function AllocationEditor({
 }
 
 /**
- * Classificação do rateio: escolhe entre os valores já usados e, como a lista
- * de sugestões anterior, aceita um valor novo digitado, confirmado em "Usar".
+ * Classificação do rateio: escolhe entre os valores já usados. A subclasse
+ * aceita um valor novo digitado, confirmado em "Usar"; a classe só aceita as
+ * cadastradas (spec 035).
  */
 export function AllocationPicker({
   label,
   values,
   value,
   onChange,
+  allowCreate = true,
 }: {
   label: string;
   values: string[];
   value: string;
   onChange: (value: string) => void;
+  allowCreate?: boolean;
 }) {
   const options = (value && !values.includes(value) ? [...values, value] : values).map((entry) => ({
     value: entry,
@@ -254,11 +258,37 @@ export function AllocationPicker({
       options={options}
       value={value || null}
       onValueChange={onChange}
-      onCreate={(text) => onChange(text)}
-      createLabel={(text) => `Usar “${text}”`}
-      emptyMessage="Digite para usar um valor novo"
+      {...(allowCreate
+        ? {
+            onCreate: (text: string) => onChange(text),
+            createLabel: (text: string) => `Usar “${text}”`,
+            emptyMessage: "Digite para usar um valor novo",
+          }
+        : { emptyMessage: "Nenhuma classe com esse nome" })}
     />
   );
+}
+
+/**
+ * Prazo de resgate da classificação (spec 035): Curto, Médio, Longo ou
+ * Nenhum. Um prazo antigo da posição, como D+0, aparece como opção até ser
+ * trocado.
+ */
+export function RedemptionPicker({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const options = [
+    ...REDEMPTION_VALUES.map((entry) => ({ value: entry, label: redemptionLabel(entry) })),
+    ...(value && !isRedemption(value) ? [{ value, label: value, hint: "da planilha" }] : []),
+  ];
+
+  return <Picker aria-label={label} options={options} value={value || null} onValueChange={onChange} placeholder="Escolha" />;
 }
 
 export function Field({ label, children }: { label: string; children: ReactNode }) {

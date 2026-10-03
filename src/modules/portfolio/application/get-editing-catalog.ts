@@ -16,7 +16,7 @@ export type EditingCatalog = {
     maturityDate: string | null;
   }[];
   strategies: string[];
-  allocation: { classes: string[]; subclasses: string[]; durations: string[] };
+  allocation: { classes: string[]; subclasses: string[] };
   clone: { allowed: boolean; sourceMonth: string | null; targetMonth: string | null };
 };
 
@@ -25,7 +25,7 @@ const EMPTY_CATALOG: EditingCatalog = {
   accounts: [],
   assets: [],
   strategies: [],
-  allocation: { classes: [], subclasses: [], durations: [] },
+  allocation: { classes: [], subclasses: [] },
   clone: { allowed: false, sourceMonth: null, targetMonth: null },
 };
 
@@ -103,7 +103,6 @@ export async function getEditingCatalog(): Promise<EditingCatalog> {
           ...targets.filter((entry) => entry.scope === "ASSET_CLASS").map((entry) => entry.primaryLabel),
         ]),
         subclasses: sorted(allocations.map((entry) => entry.subclass)),
-        durations: sorted(allocations.map((entry) => entry.duration)),
       },
       clone: {
         allowed: target !== null && target.getTime() <= currentReferenceMonth().getTime(),

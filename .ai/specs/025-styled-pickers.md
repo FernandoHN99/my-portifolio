@@ -156,8 +156,9 @@ escolhida fica marcada.
   é a divisão de uma posição entre classificações (classe, subclasse e
   prazo), com pesos que somam 100%, editada pelo botão de gráfico de pizza no
   modo de edição. Hoje, digitar uma classe que não existe oferece "Usar
-  ‘nome’"; a alternativa seria aceitar só as classes já cadastradas. Segue
-  como está até a resposta.
+  ‘nome’"; a alternativa seria aceitar só as classes já cadastradas.
+  Respondida em 2026-10-02: só as classes existentes, por enquanto
+  ([spec 035](035-redemption-and-known-classes.md)).
 
 ## Critérios de aceite
 

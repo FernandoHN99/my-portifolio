@@ -43,7 +43,7 @@ export function FixedIncomeDurationChart({ duration }: { duration: FixedIncomeDu
   return (
     <section className="premium-panel rounded-[24px] p-5 sm:p-6" aria-labelledby="duration-title">
       <h2 id="duration-title" className="text-base font-semibold tracking-[-0.025em]">
-        Renda fixa por duração
+        Renda fixa por resgate
       </h2>
       <p className="mt-1 text-[11px] text-muted-foreground">
         Percentual sobre o total de renda fixa, atual e ideal na mesma escala.
@@ -81,7 +81,7 @@ export function FixedIncomeDurationChart({ duration }: { duration: FixedIncomeDu
       </div>
 
       <table className="sr-only">
-        <caption>Renda fixa por duração, atual e ideal</caption>
+        <caption>Renda fixa por resgate, atual e ideal</caption>
         <thead>
           <tr>
             <th scope="col">Subclasse</th>
@@ -136,7 +136,7 @@ function DurationBars({
   }));
 
   return (
-    <figure aria-label={`Renda fixa por duração, ${title.toLowerCase()}`} data-testid={`duration-${mode}`}>
+    <figure aria-label={`Renda fixa por resgate, ${title.toLowerCase()}`} data-testid={`duration-${mode}`}>
       <figcaption className="text-[10px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
         {title}
       </figcaption>

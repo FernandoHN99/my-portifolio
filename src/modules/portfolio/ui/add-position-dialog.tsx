@@ -46,6 +46,7 @@ import {
   Field,
   inputClass,
   primaryButtonClass,
+  RedemptionPicker,
   secondaryButtonClass,
 } from "@/modules/portfolio/ui/edit-dialogs";
 import { providerLabel } from "@/modules/quotes/domain/quote-refresh";
@@ -639,6 +640,7 @@ function AddPositionForm({
                       values={catalog.allocation.classes}
                       value={allocation.assetClass}
                       onChange={(next) => setAllocationDraft({ ...allocation, assetClass: next })}
+                      allowCreate={false}
                     />
                   </Field>
                   <Field label="Subclasse">
@@ -649,10 +651,9 @@ function AddPositionForm({
                       onChange={(next) => setAllocationDraft({ ...allocation, subclass: next })}
                     />
                   </Field>
-                  <Field label="Duração">
-                    <AllocationPicker
-                      label="Duração"
-                      values={catalog.allocation.durations}
+                  <Field label="Resgate">
+                    <RedemptionPicker
+                      label="Resgate"
                       value={allocation.duration}
                       onChange={(next) => setAllocationDraft({ ...allocation, duration: next })}
                     />
@@ -660,7 +661,7 @@ function AddPositionForm({
                 </div>
                 {!allocation.subclass || !allocation.duration ? (
                   <p className="mt-1.5 text-[11px] text-muted-foreground">
-                    Escolha a subclasse e a duração para a posição entrar nas análises.
+                    Escolha a subclasse e o resgate para a posição entrar nas análises.
                   </p>
                 ) : (
                   <p className="mt-1.5 text-[11px] text-muted-foreground">
