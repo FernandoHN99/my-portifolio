@@ -31,6 +31,8 @@ export type QuoteProviderConfiguration = {
   coinGeckoApiKey?: string;
   finnhubApiKey?: string;
   alphaVantageApiKey?: string;
+  /** Chave gratuita da brapi.dev, opcional (spec 037). */
+  brapiToken?: string;
 };
 
 export function quoteFailure(

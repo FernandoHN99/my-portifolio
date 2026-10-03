@@ -803,7 +803,7 @@ function TickerStatus({
 
   if (!text.trim()) {
     content = <StatusLine tone="muted">{tickerHint(kind)}</StatusLine>;
-  } else if (!symbol && ASSET_KIND_DEFINITIONS[kind].provider === "alpha-vantage" && /^[A-Z0-9]{1,4}$/.test(text.trim())) {
+  } else if (!symbol && ASSET_KIND_DEFINITIONS[kind].provider === "yahoo" && /^[A-Z0-9]{1,4}$/.test(text.trim())) {
     // Na B3 só o ticker completo é conferido; "PETR" ainda está sendo digitado.
     content = <StatusLine tone="muted">Digite o ticker completo, como PETR4 ou GPCA11.</StatusLine>;
   } else if (!symbol) {

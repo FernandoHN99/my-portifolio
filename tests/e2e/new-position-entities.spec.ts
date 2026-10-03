@@ -138,7 +138,7 @@ test("o ticker de um ativo novo é conferido no provedor do tipo", async ({ page
     if (ticker === "QQQ") {
       return { status: "unavailable", symbol: "QQQ", provider: "finnhub", code: "NETWORK_ERROR", message: "Não foi possível conectar ao provedor.", token: TOKEN };
     }
-    return { status: "not-found", symbol: ticker, provider: kind === "crypto" ? "coingecko" : "alpha-vantage", message: `Não encontrou o ticker ${ticker}.` };
+    return { status: "not-found", symbol: ticker, provider: kind === "crypto" ? "coingecko" : "yahoo", message: `Não encontrou o ticker ${ticker}.` };
   });
   await page.goto("/posicoes");
   const dialog = await openAddDialog(page);
@@ -186,11 +186,11 @@ test("o ticker de um ativo novo é conferido no provedor do tipo", async ({ page
   await dialog.getByRole("textbox", { name: "Cotação em R$" }).fill("2550");
   await expect(add).toBeEnabled();
 
-  // Na B3 o sufixo do Alpha Vantage é acrescentado.
+  // Na B3 o símbolo guardado leva o sufixo .SAO.
   await kind.click();
   await page.getByRole("option", { name: /ETF da B3/ }).click();
-  // Só o ticker completo da B3 é conferido, para poupar as consultas diárias
-  // do Alpha Vantage.
+  // Só o ticker completo da B3 é conferido, sem consultar o provedor a cada
+  // tecla.
   const sent = requests.length;
   await ticker.fill("BOVA");
   await expect(status).toContainText("Digite o ticker completo");

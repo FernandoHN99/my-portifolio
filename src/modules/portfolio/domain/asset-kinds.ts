@@ -3,9 +3,10 @@
 // moeda base e o rateio inicial. Sem dependências de banco, para servir ao
 // servidor e à interface.
 //
-// O roteamento segue o da atualização de cotações (`fetchCurrentQuotes`), que
-// reproduz o da planilha: câmbio na AwesomeAPI, cripto na CoinGecko, demais
-// ativos com base USD no Finnhub e os de outra base no Alpha Vantage.
+// O roteamento segue o da atualização de cotações (`fetchCurrentQuotes`): o
+// provedor indicado é o primeiro da cadeia de cada grupo (spec 037), câmbio na
+// AwesomeAPI, cripto na CoinGecko, ativos com base USD no Finnhub e os da B3 no
+// Yahoo Finance; os seguintes da cadeia são reservas.
 
 export const ASSET_KINDS = [
   "us-etf",
@@ -20,7 +21,7 @@ export const ASSET_KINDS = [
 
 export type AssetKind = (typeof ASSET_KINDS)[number];
 
-export type QuoteProvider = "finnhub" | "alpha-vantage" | "coingecko" | "awesome-api";
+export type QuoteProvider = "finnhub" | "alpha-vantage" | "yahoo" | "coingecko" | "awesome-api";
 
 export type AllocationSeed = { assetClass: string; subclass: string; duration: string };
 
@@ -63,18 +64,18 @@ export const ASSET_KIND_DEFINITIONS: Record<AssetKind, AssetKindDefinition> = {
   "br-etf": {
     kind: "br-etf",
     label: "ETF da B3",
-    hint: "Alpha Vantage · BRL",
+    hint: "Yahoo Finance · BRL",
     ticker: "market",
-    provider: "alpha-vantage",
+    provider: "yahoo",
     instrumentType: "ETF",
     allowsMaturity: false,
   },
   "br-stock": {
     kind: "br-stock",
     label: "Ação ou FII da B3",
-    hint: "Alpha Vantage · BRL",
+    hint: "Yahoo Finance · BRL",
     ticker: "market",
-    provider: "alpha-vantage",
+    provider: "yahoo",
     instrumentType: "ACAO",
     allowsMaturity: false,
   },
@@ -124,11 +125,11 @@ const B3_SUFFIX = ".SAO";
 
 /**
  * Símbolo de cotação a partir do ticker digitado, ou `null` quando o texto não
- * serve como ticker do tipo. Na B3 o Alpha Vantage usa o sufixo `.SAO`, como o
- * `GPCA11.SAO` importado da planilha; o sufixo é acrescentado quando falta. O
- * ticker da B3 só vale completo, com quatro caracteres e um ou dois dígitos
- * (PETR4, B3SA3, GPCA11): "PETR" a meio da digitação não chega a gastar uma das
- * 25 consultas diárias do Alpha Vantage.
+ * serve como ticker do tipo. Na B3 o símbolo guardado leva o sufixo `.SAO`, como
+ * o `GPCA11.SAO` importado da planilha (formato do Alpha Vantage, convertido
+ * para `.SA` no Yahoo Finance); o sufixo é acrescentado quando falta. O ticker
+ * da B3 só vale completo, com quatro caracteres e um ou dois dígitos (PETR4,
+ * B3SA3, GPCA11): "PETR" a meio da digitação não chega a consultar o provedor.
  */
 export function normalizeTicker(kind: AssetKind, raw: string): string | null {
   const definition = ASSET_KIND_DEFINITIONS[kind];
@@ -143,7 +144,7 @@ export function normalizeTicker(kind: AssetKind, raw: string): string | null {
 
   const text = raw.trim().toUpperCase();
 
-  if (definition.provider === "alpha-vantage") {
+  if (definition.provider === "yahoo") {
     const base = text.replace(/\.(SAO|SA)$/, "");
     return /^[A-Z0-9]{4}\d{1,2}$/.test(base) ? `${base}${B3_SUFFIX}` : null;
   }
@@ -161,8 +162,8 @@ export function normalizeTicker(kind: AssetKind, raw: string): string | null {
 
 export function tickerHint(kind: AssetKind) {
   switch (ASSET_KIND_DEFINITIONS[kind].provider) {
-    case "alpha-vantage":
-      return "Como GPCA11; o sufixo .SAO é acrescentado.";
+    case "yahoo":
+      return "Como GPCA11 ou PETR4.";
     case "coingecko":
       return "Como ETH ou ADA.";
     case "finnhub":
@@ -221,7 +222,7 @@ export function providerForQuote(instrumentType: string, baseCurrency: string): 
     return "coingecko";
   }
 
-  return baseCurrency === "USD" ? "finnhub" : "alpha-vantage";
+  return baseCurrency === "USD" ? "finnhub" : "yahoo";
 }
 
 /** Chave sem acentos, maiúsculas nem pontuação, como a da importação. */

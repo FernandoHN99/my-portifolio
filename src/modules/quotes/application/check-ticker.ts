@@ -23,6 +23,7 @@ import {
 } from "@/modules/quotes/infrastructure/coingecko";
 import { lookupFinnhubSymbol } from "@/modules/quotes/infrastructure/finnhub";
 import { describeProviderError } from "@/modules/quotes/infrastructure/http";
+import { fetchYahooPrice } from "@/modules/quotes/infrastructure/yahoo";
 
 // Checagem do ticker de um ativo novo (spec 026). O resultado fica guardado no
 // servidor sob um token opaco, como o desfazer da spec 017: ao salvar, a
@@ -271,29 +272,65 @@ async function lookupSymbol(
   try {
     switch (provider) {
       case "finnhub": {
-        if (!configuration.finnhubApiKey) {
-          return missingKey("FINNHUB_API_KEY");
+        // EUA: Finnhub e, sem a chave ou com ele fora do ar, o Yahoo Finance
+        // (spec 037). Os dois cotam em dólar; o real sai do câmbio do dia.
+        let priceUsd: number | null = null;
+
+        if (configuration.finnhubApiKey) {
+          try {
+            const result = await lookupFinnhubSymbol(symbol, configuration.finnhubApiKey);
+
+            if (!result.found) {
+              return { state: "not-found" };
+            }
+
+            priceUsd = result.priceUsd;
+          } catch {
+            priceUsd = null;
+          }
         }
 
-        const result = await lookupFinnhubSymbol(symbol, configuration.finnhubApiKey);
+        if (priceUsd === null) {
+          const yahoo = await lookupYahoo(symbol);
 
-        if (!result.found) {
-          return { state: "not-found" };
+          if (yahoo.state !== "found") {
+            return yahoo;
+          }
+
+          priceUsd = yahoo.price;
         }
 
-        // O Finnhub cota em dólar; sem o câmbio do dia não há preço em reais,
-        // mas o ticker existe e pode ser salvo com a cotação digitada.
+        // Sem o câmbio do dia não há preço em reais, mas o ticker existe e pode
+        // ser salvo com a cotação digitada.
         try {
           const usdBrl = await fetchUsdBrl(configuration.awesomeApiKey);
-          return { state: "found", priceBrl: result.priceUsd * usdBrl, coinId: null, name: null };
+          return { state: "found", priceBrl: priceUsd * usdBrl, coinId: null, name: null };
         } catch (error) {
           const described = describeProviderError(error);
           return {
             state: "unavailable",
             code: described.code,
-            message: `O Finnhub encontrou ${symbol}, mas o câmbio do dia não respondeu na AwesomeAPI: ${described.message}`,
+            message: `${symbol} existe, mas o câmbio do dia não respondeu na AwesomeAPI: ${described.message}`,
           };
         }
+      }
+      case "yahoo": {
+        // B3: Yahoo Finance e, se ele falhar sem dizer que o ticker não existe,
+        // o Alpha Vantage, que tem 25 consultas por dia (spec 037).
+        const yahoo = await lookupYahoo(symbol);
+
+        if (yahoo.state === "found") {
+          return { state: "found", priceBrl: yahoo.price, coinId: null, name: null };
+        }
+
+        if (yahoo.state === "not-found" || !configuration.alphaVantageApiKey) {
+          return yahoo;
+        }
+
+        const result = await lookupAlphaVantageSymbol(symbol, configuration.alphaVantageApiKey);
+        return result.found
+          ? { state: "found", priceBrl: result.priceBrl, coinId: null, name: null }
+          : { state: "not-found" };
       }
       case "alpha-vantage": {
         if (!configuration.alphaVantageApiKey) {
@@ -337,6 +374,22 @@ async function lookupSymbol(
   } catch (error) {
     const described = describeProviderError(error);
     return { state: "unavailable", code: described.code, message: described.message };
+  }
+}
+
+async function lookupYahoo(
+  symbol: string,
+): Promise<{ state: "found"; price: number } | { state: "not-found" } | { state: "unavailable"; code: string; message: string }> {
+  try {
+    return { state: "found", price: (await fetchYahooPrice(symbol)).price };
+  } catch (error) {
+    const described = describeProviderError(error);
+
+    if (described.code === "NOT_FOUND") {
+      return { state: "not-found" };
+    }
+
+    return { state: "unavailable", code: described.code, message: `Yahoo Finance: ${described.message}` };
   }
 }
 

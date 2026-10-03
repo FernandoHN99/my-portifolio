@@ -74,6 +74,12 @@ globalThis.fetch = (async (input: string | URL | Request) => {
     return json({ USDBRL: { bid: "5.10" } });
   }
 
+  // Yahoo Finance fora do ar: a B3 cai na reserva do Alpha Vantage (spec 037),
+  // que é o que este roteiro confere.
+  if (url.hostname === "query1.finance.yahoo.com") {
+    return new Response("indisponível", { status: 503 });
+  }
+
   if (url.hostname === "www.alphavantage.co") {
     const symbol = url.searchParams.get("symbol");
     if (symbol === "BOVA11.SAO") {
@@ -188,8 +194,10 @@ async function main() {
   mark = calls.length;
   const fail = await checkTicker({ monthId: sep.id, kind: "us-stock", ticker: "FAIL" }, { configuration: CONFIGURATION });
   check(
+    // Com o Finnhub fora do ar, o Yahoo Finance é a reserva (spec 037), também
+    // fora do ar neste roteiro.
     "erro de rede é indisponível com token",
-    fail.status === "unavailable" && fail.code === "NETWORK_ERROR" && Boolean(fail.token),
+    fail.status === "unavailable" && fail.message.startsWith("Yahoo Finance:") && Boolean(fail.token),
     fail,
   );
   await checkTicker({ monthId: sep.id, kind: "us-stock", ticker: "FAIL" }, { configuration: CONFIGURATION });
@@ -198,7 +206,8 @@ async function main() {
     { monthId: sep.id, kind: "us-stock", ticker: "AAPL" },
     { configuration: { ...CONFIGURATION, finnhubApiKey: undefined } },
   );
-  check("chave ausente é indisponível", noKey.status === "unavailable" && noKey.code === "MISSING_API_KEY", noKey);
+  // Sem a chave do Finnhub, a checagem vai direto ao Yahoo Finance (spec 037).
+  check("chave ausente usa a reserva", noKey.status === "unavailable" && noKey.message.startsWith("Yahoo Finance:"), noKey);
   mark = calls.length;
   const bova = await checkTicker({ monthId: sep.id, kind: "br-etf", ticker: "bova11" }, { configuration: CONFIGURATION });
   check(
@@ -255,13 +264,15 @@ async function main() {
   const plain = { maturityDate: null, quoteCheckToken: null, manualPriceBrl: null };
   const cryptoAllocation = { assetClass: "Cripto", subclass: "Altcoin", duration: "-" };
   const usAllocation = { assetClass: "Renda Variável", subclass: "Ações EUA", duration: "-" };
-  const cashAllocation = { assetClass: "Caixa", subclass: "Pós-fixado", duration: "D+0" };
+  const cashAllocation = { assetClass: "Caixa", subclass: "Pós-fixado", duration: "Curto" };
   const tokenOf = (response: Awaited<ReturnType<typeof checkTicker>>) =>
     response.status === "found" || response.status === "unavailable" ? response.token : null;
 
   // Competência anterior: só aceita edição aberta (spec 034); encontrado exige
   // a cotação digitada.
-  await setMonthOpen({ monthId: sep.id, open: true });
+  if ((await prisma.portfolioMonth.findUniqueOrThrow({ where: { id: sep.id } })).status !== "DRAFT") {
+    await setMonthOpen({ monthId: sep.id, open: true });
+  }
   const beforePast = await counts();
   await expectError(
     "competência passada exige a cotação digitada",
@@ -413,7 +424,7 @@ async function main() {
       { accountId: inter.id, newAsset: { ...plain, name: "Time Deposit", kind: "usd-balance", ticker: null, maturityDate: "2027-01-15", allocation: cashAllocation }, value: "1", strategy: null },
       {
         newAccount: { institutionId: inter.institutionId, institutionName: null, name: "Outra" },
-        newAsset: { ...plain, name: "Time Deposit", kind: "usd-balance", ticker: null, maturityDate: "2027-01-15", allocation: { ...cashAllocation, duration: "D+1" } },
+        newAsset: { ...plain, name: "Time Deposit", kind: "usd-balance", ticker: null, maturityDate: "2027-01-15", allocation: { ...cashAllocation, duration: "Médio" } },
         value: "1",
         strategy: null,
       },

@@ -124,8 +124,9 @@ contínua com a planilha.
 ## Questões ainda em aberto
 
 - Regras finais de correção e auditoria após a importação inicial.
-- Fontes gratuitas de cotações, prioridade entre provedores e tratamento
-  específico dos limites de cada serviço.
+- Fontes gratuitas de cotações e prioridade entre provedores: definidas em
+  2026-10-02 na [spec 037](../.ai/specs/037-quote-provider-chains.md), com
+  cadeias de reserva por grupo de ativo.
 - Biblioteca dos gráficos, a definir junto da primeira visão analítica.
 - Hospedagem e empacotamento fora do ambiente de desenvolvimento.
 

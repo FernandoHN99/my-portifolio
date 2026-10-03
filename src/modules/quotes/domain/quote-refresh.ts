@@ -80,11 +80,15 @@ export function isRefreshDue(lastStartedAt: Date | null, now: Date) {
 const PROVIDER_LABELS: Record<string, string> = {
   "alpha-vantage": "Alpha Vantage",
   "awesome-api": "AwesomeAPI",
+  bcb: "Banco Central (PTAX)",
+  binance: "Binance",
+  brapi: "brapi",
   coingecko: "CoinGecko",
   configuration: "Configuração",
   finnhub: "Finnhub",
   fixed: "Valor fixo",
   provider: "Provedor",
+  yahoo: "Yahoo Finance",
 };
 
 export function providerLabel(provider: string) {
