@@ -8,6 +8,8 @@ import { useQuoteRefresh } from "@/components/product/use-quote-refresh";
 import { cn } from "@/lib/utils";
 import type { QuoteRefreshSummary } from "@/modules/quotes/domain/quote-refresh";
 
+const OPEN_CHECK_POLL_MS = 5 * 60 * 1000;
+
 export function QuoteRefreshIndicator({
   summary: serverSummary,
   canRefresh = true,
@@ -27,8 +29,17 @@ export function QuoteRefreshIndicator({
       }
     };
 
+    // Com o aplicativo aberto e visível, a checagem também roda sozinha: a cada
+    // poucos minutos o cliente tenta, e `runOpenCheck` só chama o servidor uma
+    // vez por hora. Assim a virada de mês e as cotações acompanham o relógio
+    // sem recarregar a página (spec 034).
+    const timer = window.setInterval(checkWhenVisible, OPEN_CHECK_POLL_MS);
+
     document.addEventListener("visibilitychange", checkWhenVisible);
-    return () => document.removeEventListener("visibilitychange", checkWhenVisible);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", checkWhenVisible);
+    };
   }, [onDataChanged]);
 
   const longLabel = client.spinning

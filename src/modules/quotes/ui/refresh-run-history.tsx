@@ -23,14 +23,12 @@ import { providerLabel, RUN_HISTORY_MONTHS } from "@/modules/quotes/domain/quote
 const ORIGIN_LABELS: Record<QuoteRunOrigin, string> = {
   AUTO: "Automática",
   MANUAL: "Manual",
-  MONTHLY_UPDATE: "Atualizar carteira",
 };
 
 const STATUS: Record<QuoteRunHistoryStatus, { label: string; className: string }> = {
   COMPLETED: { label: "Concluída", className: "bg-primary/10 text-primary" },
   COMPLETED_WITH_ISSUES: { label: "Com falhas", className: "bg-warning/50 text-warning-foreground" },
   FAILED: { label: "Falhou", className: "bg-destructive/12 text-destructive" },
-  INTERRUPTED: { label: "Interrompida", className: "bg-destructive/12 text-destructive" },
   RUNNING: { label: "Em andamento", className: "bg-white/[0.06] text-muted-foreground" },
 };
 
@@ -125,11 +123,6 @@ function RunRow({ run }: { run: QuoteRunHistoryEntry }) {
         <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
           <LocalDateTime iso={run.at} className="font-mono text-xs text-foreground" />
           <span className="text-[11px] text-muted-foreground">{ORIGIN_LABELS[run.origin]}</span>
-          {run.origin === "MONTHLY_UPDATE" ? (
-            <span className="rounded-full bg-white/[0.05] px-2 py-0.5 text-[9px] font-semibold tracking-[0.08em] text-muted-foreground uppercase">
-              Fluxo anterior
-            </span>
-          ) : null}
         </span>
         <span className="mt-1 block text-xs text-muted-foreground">{describeRun(run)}</span>
       </span>
@@ -218,24 +211,12 @@ function describeRun(run: QuoteRunHistoryEntry) {
     return "Consultando os provedores.";
   }
 
-  // A execução antiga gravava as cotações e as posições numa transação só, no
-  // fim; parada no meio, nada chegou às posições.
-  if (run.status === "INTERRUPTED") {
-    return "Interrompida antes de terminar; nenhuma cotação foi aplicada.";
-  }
-
   const total = run.succeeded + run.failures.length;
 
   if (total === 0) {
     return run.status === "FAILED"
       ? (run.errorMessage ?? "A atualização falhou antes de consultar os provedores.")
       : "Nenhuma cotação para atualizar.";
-  }
-
-  // A atualização anterior aplicava tudo ou nada: com uma falha, nenhum valor
-  // chegou às posições.
-  if (run.origin === "MONTHLY_UPDATE" && run.status !== "COMPLETED") {
-    return `${plural(run.failures.length, "cotação com falha", "cotações com falha")} de ${total}; nenhuma foi aplicada.`;
   }
 
   if (run.failures.length === 0) {

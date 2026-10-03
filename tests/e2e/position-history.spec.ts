@@ -34,7 +34,9 @@ test("o nome do ativo abre a posição e a volta mantém mês e filtros", async 
   await expect(
     page.getByRole("navigation", { name: "Navegação principal" }).getByRole("link", { name: "Posições" }),
   ).toHaveAttribute("aria-current", "page");
-  await expect(page.getByText("Setembro de 2026", { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("navigation", { name: "Competências" }).getByRole("button", { name: /^Setembro de 2026/ }),
+  ).toHaveAttribute("aria-current", "date");
 
   await page.getByRole("link", { name: "Voltar para Posições" }).click();
   await expect(page).toHaveURL(/\/posicoes\?mes=2026-09&classe=Cripto&ordem=share\.desc$/);
@@ -128,14 +130,15 @@ test("a linha inteira abre a posição de um saldo sem cotação", async ({ page
 });
 
 test("no modo de edição a linha não abre a posição", async ({ page }) => {
-  await page.goto("/posicoes?mes=2026-09");
+  // Só o mês aberto, o mais recente, aceita edição (spec 034).
+  await page.goto("/posicoes");
   await expect(row(page, "Bitcoin 01").getByRole("link", { name: "Bitcoin 01" })).toBeVisible();
 
   await enterEditMode(page);
   await expect(row(page, "Bitcoin 01").getByRole("link")).toHaveCount(0);
   await row(page, "Bitcoin 01").getByText("Ledger", { exact: true }).filter({ visible: true }).first().click();
   await row(page, "Bitcoin 01").getByText("Bitcoin 01", { exact: true }).click();
-  await expect(page).toHaveURL(/\/posicoes\?mes=2026-09$/);
+  await expect(page).toHaveURL(/\/posicoes$/);
 
   await page.getByRole("button", { name: "Sair da edição" }).click();
   await expect(row(page, "Bitcoin 01").getByRole("link", { name: "Bitcoin 01" })).toBeVisible();

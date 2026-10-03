@@ -35,8 +35,9 @@ Esta pasta organiza a implementação em fatias pequenas e revisáveis.
 - [029 — Histórico de 3 anos ao incluir um ativo](029-asset-price-history.md): concluída.
 - [030 — Visão Geral: meses do calendário, início do período e metas sem posição](030-overview-calendar-comparisons.md): concluída.
 - [031 — Posições: vencimento, filtros em cascata e campos de 16 px](031-positions-cascading-filters.md): concluída.
-- [032 — Finalizar o mês corrente](032-finalize-current-month.md): concluída.
+- [032 — Finalizar o mês corrente](032-finalize-current-month.md): substituída pela 034.
 - [033 — Escolha da moeda da CoinGecko na inclusão de cripto](033-coingecko-coin-choice.md): concluída.
+- [034 — Mês aberto ou fechado na linha do tempo](034-open-closed-months.md): concluída.
 
 As specs 010 a 017 formam a reestruturação da UX pedida pelo usuário. O
 propósito, as restrições e as regras de cálculo comuns a elas estão em

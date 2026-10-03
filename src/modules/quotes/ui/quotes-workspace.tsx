@@ -2,7 +2,6 @@
 
 import {
   ArrowLeftIcon,
-  CalendarBlankIcon,
   CheckCircleIcon,
   CurrencyCircleDollarIcon,
   LockKeyIcon,
@@ -17,17 +16,14 @@ import { saveQuotesAction, undoChangeAction, type EditActionResult } from "@/app
 import { LocalDateTime } from "@/components/product/local-time";
 import { refreshUnlessEditing, subscribeQuoteRunFinished } from "@/components/product/quote-refresh-client";
 import { confirmDiscardChanges, setPendingChanges } from "@/components/product/unsaved-changes";
-import { MonthStatusBadge } from "@/components/product/month-status-badge";
 import { cn } from "@/lib/utils";
 import {
   formatBrl,
-  formatMonth,
   formatMonthCompact,
   formatPriceBrl,
   parseLocaleNumber,
 } from "@/modules/portfolio/presentation/portfolio-format";
 import { parseMonthParam } from "@/modules/portfolio/presentation/reference-month";
-import { HistoryUnlockDialog } from "@/modules/portfolio/ui/edit-dialogs";
 import { EditToast, type EditToastState } from "@/modules/portfolio/ui/edit-toast";
 import type { MonthQuoteRow, MonthQuotesView } from "@/modules/quotes/application/get-month-quotes";
 import type { QuoteRunHistoryPage } from "@/modules/quotes/application/get-run-history";
@@ -119,7 +115,6 @@ export function QuotesWorkspace({
   }
 
   const monthLabel = formatMonthCompact(month.referenceDate);
-  const confirmHistory = editMode && month.isLocked;
   const previewTotal =
     month.totalBrl + changed.reduce((total, row) => total + (row.invalid ? 0 : row.previewTotal - row.totalBrl), 0);
   const usdRow = rows.find((row) => row.symbol === "USD");
@@ -145,7 +140,6 @@ export function QuotesWorkspace({
     startSaving(async () => {
       const result = await saveQuotesAction({
         monthId: month.id,
-        confirmHistory,
         quotes: changed.map((row) => ({ symbol: row.symbol, valueBrl: row.text.trim() })),
       });
 
@@ -192,16 +186,11 @@ export function QuotesWorkspace({
           </p>
         </div>
         <div className="flex flex-col items-start gap-3 sm:items-end">
-          <div className="inline-flex w-fit items-center gap-2 rounded-xl border border-border bg-card/70 px-3.5 py-2.5 text-xs text-muted-foreground">
-            <CalendarBlankIcon aria-hidden="true" className="text-primary" size={15} weight="duotone" />
-            <span>{formatMonth(month.referenceDate)}</span>
-            <MonthStatusBadge status={month.status} />
-          </div>
           <p className="font-mono text-xs text-muted-foreground">
             {formatBrl(previewTotal)}
             {usdRate ? ` · US$ ${formatUsd(previewTotal / usdRate)}` : ""}
           </p>
-          {editMode || editableCount === 0 ? null : !month.isLocked ? (
+          {editMode || editableCount === 0 || month.isLocked ? null : (
             <button
               type="button"
               onClick={() => setEditMode(true)}
@@ -210,13 +199,6 @@ export function QuotesWorkspace({
               <PencilSimpleIcon aria-hidden="true" size={14} weight="bold" />
               Editar cotações
             </button>
-          ) : (
-            <HistoryUnlockDialog
-              monthLabel={monthLabel}
-              label="Editar cotações"
-              finalized={month.isLatest}
-              onConfirm={() => setEditMode(true)}
-            />
           )}
         </div>
       </header>
@@ -232,20 +214,11 @@ export function QuotesWorkspace({
             cotação não encontrada ou com falha na última atualização.
           </p>
         </div>
-      ) : month.isLocked && !editMode ? (
+      ) : month.isLocked ? (
         <div className="mt-6 flex flex-wrap items-center gap-3 rounded-2xl border border-border bg-card/60 px-4 py-3">
           <LockKeyIcon aria-hidden="true" className="text-muted-foreground" size={16} weight="duotone" />
-          <p className="text-xs text-muted-foreground">
-            {month.isLatest
-              ? `${monthLabel} está finalizado e travado para edição. Editar pede confirmação.`
-              : `${monthLabel} é uma competência passada e está travada para edição. Editar pede confirmação.`}
-          </p>
-        </div>
-      ) : month.isLocked ? (
-        <div className="mt-6 flex items-center gap-3 rounded-2xl border border-warning-border bg-warning/30 px-4 py-3">
-          <LockKeyIcon aria-hidden="true" className="text-warning-foreground" size={16} weight="duotone" />
-          <p className="text-xs text-warning-foreground">
-            Editando o histórico de {monthLabel}. As alterações valem para todas as análises deste mês.
+          <p data-testid="month-locked" className="text-xs text-muted-foreground">
+            {monthLabel} está fechado. Para editar uma cotação com falha, abra o mês pelo cadeado na linha do tempo.
           </p>
         </div>
       ) : null}

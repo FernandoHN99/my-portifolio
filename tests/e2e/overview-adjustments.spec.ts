@@ -208,7 +208,14 @@ test("os cards respondem ao ponteiro como os indicadores", async ({ page }) => {
     return;
   }
 
-  await expect.poll(() => style(kpi, "transform")).toBe("matrix(1, 0, 0, 1, 0, -1)");
+  // Repete o hover a cada tentativa: um card que ainda se movia pode ter saído
+  // de baixo do cursor.
+  await expect
+    .poll(async () => {
+      await kpi.hover();
+      return style(kpi, "transform");
+    })
+    .toBe("matrix(1, 0, 0, 1, 0, -1)");
 
   // O painel ganha a borda e o fundo do hover, mas não sobe.
   const panelTop = await documentTop(panel);

@@ -1,6 +1,5 @@
 "use client";
 
-import { CaretLeftIcon, CaretRightIcon } from "@phosphor-icons/react/dist/ssr";
 import { AnimatePresence, motion, useReducedMotion, type Transition } from "motion/react";
 import { useQueryState } from "nuqs";
 import {
@@ -15,6 +14,7 @@ import {
 } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 
+import { MonthLock } from "@/components/product/month-lock";
 import { confirmDiscardChanges } from "@/components/product/unsaved-changes";
 import { cn } from "@/lib/utils";
 import type { PortfolioMonthSummary } from "@/modules/portfolio/application/get-portfolio-months";
@@ -69,8 +69,8 @@ export function MonthTimeline({ months, selectedMonth }: MonthTimelineProps) {
   const activeYear = active ? active.referenceDate.getUTCFullYear() : null;
 
   // O ano aberto para consulta só vale para a competência em que foi aberto.
-  // Qualquer troca de competência, pelo mês, pelas setas, pelo teclado, por
-  // "Mais recente" ou pela URL, devolve a faixa ao ano dela; sem limpar aqui, o
+  // Qualquer troca de competência, pelo mês, pelo teclado ou pela URL, devolve
+  // a faixa ao ano dela; sem limpar aqui, o
   // ano consultado reabriria sozinho se a competência voltasse à de antes.
   if (browsing !== null && browsing.from !== activeMonth) {
     setBrowsing(null);
@@ -78,7 +78,6 @@ export function MonthTimeline({ months, selectedMonth }: MonthTimelineProps) {
 
   const expandedYear = browsing?.year ?? activeYear;
   const hydrated = useSyncExternalStore(subscribeNothing, isClient, isServer);
-  const latestMonth = months.at(-1);
   const years = useMemo(() => groupByYear(months), [months]);
 
   const reveal = useCallback((behavior: ScrollBehavior) => {
@@ -209,6 +208,7 @@ export function MonthTimeline({ months, selectedMonth }: MonthTimelineProps) {
     setBrowsing(year === activeYear ? null : { year, from: activeMonth });
   };
 
+  // As setas do teclado continuam trocando de mês, sem botões na tela.
   useHotkeys("left", () => select(activeIndex - 1), [activeIndex, months, activeMonth]);
   useHotkeys("right", () => select(activeIndex + 1), [activeIndex, months, activeMonth]);
 
@@ -220,9 +220,9 @@ export function MonthTimeline({ months, selectedMonth }: MonthTimelineProps) {
   const fade = `linear-gradient(to right, ${edges.start ? "transparent" : "black"}, black 20px, black calc(100% - 20px), ${edges.end ? "transparent" : "black"})`;
 
   return (
-    // Na tela larga a faixa fica centralizada (pedido do usuário em 2026-10-02,
-    // spec 030): a coluna do meio encolhe e rola quando falta espaço, e
-    // "Mais recente" fica na coluna da direita.
+    // Na tela larga a faixa fica centralizada (spec 030): a coluna do meio
+    // encolhe e rola quando falta espaço. À direita, a situação do mês
+    // selecionado, aberto ou fechado (spec 034).
     <div className="relative flex items-center gap-2 border-b border-border/70 bg-background/80 px-4 py-2 backdrop-blur-xl sm:grid sm:grid-cols-[minmax(0,1fr)_minmax(0,auto)_minmax(0,1fr)] sm:px-6">
       <span
         aria-hidden="true"
@@ -237,60 +237,37 @@ export function MonthTimeline({ months, selectedMonth }: MonthTimelineProps) {
         {isPending ? "Carregando competência" : ""}
       </span>
 
-      <div className="flex min-w-0 items-center gap-2 sm:col-start-2">
-        <div className="flex shrink-0 items-center gap-0.5 rounded-xl border border-border bg-card/70 p-[3px]">
-          <StepButton
-            label="Mês anterior"
-            disabled={activeIndex <= 0}
-            onClick={() => select(activeIndex - 1)}
-          >
-            <CaretLeftIcon aria-hidden="true" size={14} weight="bold" />
-          </StepButton>
-          <StepButton
-            label="Próximo mês"
-            disabled={activeIndex >= months.length - 1}
-            onClick={() => select(activeIndex + 1)}
-          >
-            <CaretRightIcon aria-hidden="true" size={14} weight="bold" />
-          </StepButton>
+      {/* Invertida para que, sem rolagem, a faixa mostre o fim, onde fica a
+          competência mais recente; assim o celular já abre no lugar certo antes
+          de o JavaScript carregar. A ordem dos anos dentro dela não muda. */}
+      <nav
+        ref={stripRef}
+        aria-label="Competências"
+        data-hydrated={hydrated || undefined}
+        onScroll={updateEdges}
+        className="flex min-w-0 flex-1 flex-row-reverse overflow-x-auto [scrollbar-width:none] sm:col-start-2 [&::-webkit-scrollbar]:hidden"
+        style={{ maskImage: fade, WebkitMaskImage: fade }}
+      >
+        <div className="flex w-max shrink-0 items-center gap-1.5">
+          {years.map((group) => (
+            <YearCapsule
+              key={group.year}
+              group={group}
+              expanded={group.year === expandedYear}
+              activeMonth={activeMonth}
+              panelMotion={panelMotion}
+              onExpand={() => expandYear(group.year)}
+              onSelect={goTo}
+              onOpened={handleYearOpened}
+            />
+          ))}
         </div>
+      </nav>
 
-        {/* Invertida para que, sem rolagem, a faixa mostre o fim, onde fica a
-            competência mais recente; assim o celular já abre no lugar certo antes
-            de o JavaScript carregar. A ordem dos anos dentro dela não muda. */}
-        <nav
-          ref={stripRef}
-          aria-label="Competências"
-          data-hydrated={hydrated || undefined}
-          onScroll={updateEdges}
-          className="flex min-w-0 flex-row-reverse overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-          style={{ maskImage: fade, WebkitMaskImage: fade }}
-        >
-          <div className="flex w-max shrink-0 items-center gap-1.5">
-            {years.map((group) => (
-              <YearCapsule
-                key={group.year}
-                group={group}
-                expanded={group.year === expandedYear}
-                activeMonth={activeMonth}
-                panelMotion={panelMotion}
-                onExpand={() => expandYear(group.year)}
-                onSelect={goTo}
-                onOpened={handleYearOpened}
-              />
-            ))}
-          </div>
-        </nav>
-      </div>
-
-      {latestMonth && latestMonth.month !== activeMonth ? (
-        <button
-          type="button"
-          onClick={() => goTo(latestMonth.month)}
-          className="ml-auto hidden h-10 shrink-0 items-center justify-self-end rounded-xl border border-border bg-card/70 px-3 text-[11px] font-medium text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50 sm:col-start-3 sm:flex"
-        >
-          Mais recente
-        </button>
+      {active ? (
+        <div className="ml-auto flex shrink-0 justify-self-end sm:col-start-3">
+          <MonthLock month={active} />
+        </div>
       ) : null}
     </div>
   );
@@ -466,30 +443,6 @@ function YearTicks({
         );
       })}
     </span>
-  );
-}
-
-function StepButton({
-  children,
-  disabled,
-  label,
-  onClick,
-}: {
-  children: React.ReactNode;
-  disabled: boolean;
-  label: string;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      aria-label={label}
-      disabled={disabled}
-      onClick={onClick}
-      className="grid size-8 shrink-0 place-items-center rounded-lg text-muted-foreground outline-none transition-colors hover:bg-white/[0.045] hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50 disabled:opacity-35 disabled:hover:bg-transparent disabled:hover:text-muted-foreground"
-    >
-      {children}
-    </button>
   );
 }
 

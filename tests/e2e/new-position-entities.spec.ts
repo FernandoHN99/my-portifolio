@@ -91,23 +91,10 @@ test("adicionar posição fica no topo, entra em edição e abre o diálogo", as
   await expect(page.locator("[data-edit-cell]")).toHaveCount(0);
 });
 
-test("numa competência passada, adicionar pede a confirmação do histórico", async ({ page }) => {
+test("num mês fechado não há adicionar posição", async ({ page }) => {
   await page.goto("/posicoes?mes=2026-08");
-  await page.getByRole("button", { name: "Adicionar posição" }).click();
-  await expect(page.getByRole("dialog")).toContainText("Isso altera o histórico");
-  await page.getByRole("button", { name: "Cancelar" }).click();
-  await expect(page.locator("[data-edit-cell]")).toHaveCount(0);
-
-  await page.getByRole("button", { name: "Adicionar posição" }).click();
-  await page.getByRole("button", { name: "Editar mesmo assim" }).click();
-  const dialog = page.getByRole("dialog", { name: "Adicionar posição" });
-  await expect(dialog).toBeVisible();
-  await expect(page.getByText(/Editando o histórico/)).toBeVisible();
-  await dialog.getByRole("button", { name: "Cancelar" }).click();
-  await expect(dialog).toHaveCount(0);
-  // O botão da confirmação some ao entrar em edição; o foco volta ao botão do topo.
-  await expect(page.getByRole("button", { name: "Adicionar posição" })).toBeFocused();
-  await leaveEditMode(page);
+  await expect(page.getByTestId("month-locked")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Adicionar posição" })).toHaveCount(0);
 });
 
 test("instituição e conta aceitam valores novos sem duplicar os existentes", async ({ page }) => {
@@ -288,10 +275,12 @@ test("ticker já cotado no mês e símbolo de outro provedor", async ({ page }) 
 
 test("numa competência passada, o ticker encontrado pede a cotação do mês", async ({ page }) => {
   await stubTickerCheck(page, () => found("ETH", "coingecko", 10000, "Ethereum"));
+  // Precisa de um mês passado aberto (spec 034); abrir grava no banco, então o
+  // cenário só roda quando os dados reais já têm um.
   await page.goto("/posicoes?mes=2026-08");
-  await page.getByRole("button", { name: "Adicionar posição" }).click();
-  await page.getByRole("button", { name: "Editar mesmo assim" }).click();
-  const dialog = page.getByRole("dialog", { name: "Adicionar posição" });
+  await expect(page.getByTestId("month-lock")).toBeVisible();
+  test.skip((await page.getByRole("button", { name: "Adicionar posição" }).count()) === 0, "Ago/26 está fechado.");
+  const dialog = await openAddDialog(page);
   await pick(page, dialog.getByRole("combobox", { name: "Instituição" }), "inter", /^Inter$/);
   await pick(page, dialog.getByRole("combobox", { name: "Ativo" }), "Ethereum", "Criar “Ethereum”");
   await chooseKind(page, dialog, /Cripto/);

@@ -1,6 +1,7 @@
 # 032 — Finalizar o mês corrente
 
-Estado: concluída em 2026-10-02.
+Estado: concluída em 2026-10-02 e substituída no mesmo dia pela
+[spec 034](034-open-closed-months.md), com aberto e fechado na linha do tempo.
 Definida em: 2026-10-02
 
 ## Problema

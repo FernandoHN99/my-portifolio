@@ -16,27 +16,21 @@ async function skipWithoutEditableQuote(page: Page) {
   test.skip(editable === 0, "Nenhuma cotação editável nos dados reais desta competência.");
 }
 
-// Como o lápis de Posições: a competência aberta pode ser um mês passado, que
-// pede a confirmação de histórico antes de entrar em edição.
+// Só o mês aberto aceita edição (spec 034).
 async function enterQuoteEditMode(page: Page) {
   await page.getByRole("button", { name: "Editar cotações" }).click();
-  const confirm = page.getByRole("button", { name: "Editar mesmo assim" });
-  const field = page.locator('[data-quote-cell="value"]').first();
-  await expect(field.or(confirm)).toBeVisible();
-
-  if (await confirm.isVisible()) {
-    await confirm.click();
-  }
-
-  await expect(field).toBeVisible();
+  await expect(page.locator('[data-quote-cell="value"]').first()).toBeVisible();
 }
 
-test("o botão Cotações de Posições abre as cotações do mês", async ({ page }) => {
+test("o ícone de cotações abre as cotações do mês", async ({ page }) => {
   await page.goto("/posicoes?mes=2026-09");
   await expect(page.getByRole("heading", { level: 1, name: "Carteira do mês" })).toBeVisible();
-  await expect(page.getByRole("button", { name: /Cotações do mês/ })).toHaveCount(0);
 
-  await page.getByRole("link", { name: "Cotações", exact: true }).click();
+  // No computador o ícone fica no topo, ao lado da última atualização; no
+  // celular, no cabeçalho de Posições. Só um aparece de cada vez.
+  const icon = page.getByRole("link", { name: "Cotações do mês" });
+  await expect(icon).toHaveCount(1);
+  await icon.click();
   await expect(page).toHaveURL(/\/posicoes\/cotacoes\?mes=2026-09$/);
   await expect(page.getByRole("heading", { level: 1, name: "Cotações do mês" })).toBeVisible();
   await expect(

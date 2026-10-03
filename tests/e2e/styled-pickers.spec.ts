@@ -92,7 +92,7 @@ test("as listas da nova posição abrem ao clicar e filtram ao digitar", async (
 test("a estratégia da tabela abre a lista e mantém as setas entre linhas", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name.startsWith("mobile"), "A estratégia só aparece a partir de telas pequenas.");
 
-  await page.goto("/posicoes?mes=2026-09");
+  await page.goto("/posicoes");
   await enterEditMode(page);
   const rows = page.locator('[data-edit-cell="strategy"]');
 
@@ -137,7 +137,7 @@ test("a estratégia da tabela abre a lista e mantém as setas entre linhas", asy
 });
 
 test("o rateio mostra todas as opções e aceita um valor novo", async ({ page }) => {
-  await page.goto("/posicoes?mes=2026-09");
+  await page.goto("/posicoes");
   await enterEditMode(page);
   await page.getByRole("button", { name: "Rateio de Bitcoin 01" }).click();
   const drawer = page.getByRole("dialog");

@@ -127,7 +127,6 @@ const undoStore = (globalForUndo.monthUndoStore ??= new Map<string, UndoEntry>()
 
 export async function applyPositionChanges(input: {
   monthId: string;
-  confirmHistory: boolean;
   updates: PositionUpdate[];
   removals: string[];
   additions: PositionAddition[];
@@ -136,7 +135,7 @@ export async function applyPositionChanges(input: {
     throw new MonthEditError("Não há alterações para salvar.");
   }
 
-  return withUndo(input.monthId, input.confirmHistory, async (transaction, month) => {
+  return withUndo(input.monthId, async (transaction, month) => {
     const positions = await transaction.position.findMany({
       where: { portfolioMonthId: month.id },
       select: {
@@ -647,7 +646,6 @@ async function removeUnusedCreated(transaction: Transaction, created: CreatedEnt
 
 export async function replaceAllocations(input: {
   monthId: string;
-  confirmHistory: boolean;
   positionId: string;
   allocations: AllocationInput[];
 }) {
@@ -676,7 +674,7 @@ export async function replaceAllocations(input: {
     throw new MonthEditError("Nenhum peso pode ultrapassar 100%.");
   }
 
-  return withUndo(input.monthId, input.confirmHistory, async (transaction, month) => {
+  return withUndo(input.monthId, async (transaction, month) => {
     const position = await transaction.position.findFirst({
       where: { id: input.positionId, portfolioMonthId: month.id },
       select: { id: true },
@@ -695,7 +693,6 @@ export async function replaceAllocations(input: {
 
 export async function updateMonthQuotes(input: {
   monthId: string;
-  confirmHistory: boolean;
   quotes: QuoteInput[];
 }) {
   const parsed = input.quotes.map((quote) => ({
@@ -711,7 +708,7 @@ export async function updateMonthQuotes(input: {
     throw new MonthEditError("Há cotações repetidas.");
   }
 
-  return withUndo(input.monthId, input.confirmHistory, async (transaction, month) => {
+  return withUndo(input.monthId, async (transaction, month) => {
     await assertQuotesEditable(
       transaction,
       month.referenceDate,
@@ -924,34 +921,27 @@ export async function undoChange(token: string) {
 }
 
 /**
- * Finaliza a competência mais recente, em rascunho, ou a reabre (spec 032).
- * Finalizada, editar posições e cotações pede a confirmação de histórico; as
- * cotações continuam sendo atualizadas pela atualização automática.
+ * Abre ou fecha um mês (spec 034). Aberto é rascunho e aceita edição; fechado
+ * trava posições, rateio e cotações à mão até ser aberto de novo. A
+ * atualização automática continua reprecificando o mês corrente fechado.
  */
-export async function setMonthFinalized({ monthId, finalized }: { monthId: string; finalized: boolean }) {
+export async function setMonthOpen({ monthId, open }: { monthId: string; open: boolean }) {
   const prisma = requirePrisma();
-  const [month, latest] = await Promise.all([
-    prisma.portfolioMonth.findUnique({ where: { id: monthId }, select: { id: true, status: true } }),
-    prisma.portfolioMonth.findFirst({ orderBy: { referenceDate: "desc" }, select: { id: true } }),
-  ]);
+  const month = await prisma.portfolioMonth.findUnique({ where: { id: monthId }, select: { id: true, status: true } });
 
   if (!month) {
     throw new MonthEditError("Esta competência não existe.");
   }
 
-  if (latest?.id !== month.id) {
-    throw new MonthEditError("Só a competência mais recente pode ser finalizada ou reaberta.");
-  }
+  const isOpen = month.status === PortfolioMonthStatus.DRAFT;
 
-  const expected = finalized ? PortfolioMonthStatus.DRAFT : PortfolioMonthStatus.REVIEWED;
-
-  if (month.status !== expected) {
-    throw new MonthEditError(finalized ? "A competência não está em rascunho." : "A competência não está finalizada.");
+  if (isOpen === open) {
+    throw new MonthEditError(open ? "Este mês já está aberto." : "Este mês já está fechado.");
   }
 
   await prisma.portfolioMonth.update({
     where: { id: month.id },
-    data: { status: finalized ? PortfolioMonthStatus.REVIEWED : PortfolioMonthStatus.DRAFT },
+    data: { status: open ? PortfolioMonthStatus.DRAFT : PortfolioMonthStatus.REVIEWED },
   });
 }
 
@@ -995,7 +985,6 @@ async function assertQuotesEditable(transaction: Transaction, referenceDate: Dat
 
 async function withUndo(
   monthId: string,
-  confirmHistory: boolean,
   mutate: (
     transaction: Transaction,
     month: { id: string; referenceDate: Date },
@@ -1006,7 +995,7 @@ async function withUndo(
   try {
     return await prisma.$transaction(
       async (transaction) => {
-        const month = await assertEditable(transaction, monthId, confirmHistory);
+        const month = await assertEditable(transaction, monthId);
         const before = await readSnapshot(transaction, month);
         const extras = await mutate(transaction, month);
         const after = await readSnapshot(transaction, month);
@@ -1032,7 +1021,7 @@ async function withUndo(
   }
 }
 
-async function assertEditable(transaction: Transaction, monthId: string, confirmHistory: boolean) {
+async function assertEditable(transaction: Transaction, monthId: string) {
   const month = await transaction.portfolioMonth.findUnique({
     where: { id: monthId },
     select: { id: true, referenceDate: true, status: true },
@@ -1042,18 +1031,10 @@ async function assertEditable(transaction: Transaction, monthId: string, confirm
     throw new MonthEditError("Esta competência não existe.");
   }
 
-  const latest = await transaction.portfolioMonth.findFirst({
-    orderBy: { referenceDate: "desc" },
-    select: { id: true },
-  });
-
-  if (latest?.id !== month.id && !confirmHistory) {
-    throw new MonthEditError("Confirme a edição do histórico antes de alterar uma competência passada.");
-  }
-
-  // O mês corrente finalizado pede a mesma confirmação dos passados (spec 032).
-  if (month.status === PortfolioMonthStatus.REVIEWED && !confirmHistory) {
-    throw new MonthEditError("Confirme a edição antes de alterar uma competência finalizada.");
+  // Só um mês aberto (rascunho) aceita edição (spec 034); para editar um mês
+  // fechado, o usuário o abre antes pela linha do tempo.
+  if (month.status !== PortfolioMonthStatus.DRAFT) {
+    throw new MonthEditError("Este mês está fechado. Abra o mês na linha do tempo para editar.");
   }
 
   return { id: month.id, referenceDate: month.referenceDate };

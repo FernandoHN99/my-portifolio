@@ -1,4 +1,4 @@
-import { MonthlyUpdateStatus, QuoteUpdateStatus } from "@/generated/prisma/client";
+import { QuoteUpdateStatus } from "@/generated/prisma/client";
 import { getPrismaClient } from "@/lib/prisma";
 import {
   RUN_HISTORY_MONTHS,
@@ -8,22 +8,18 @@ import {
 } from "@/modules/quotes/domain/quote-refresh";
 
 // Histórico das execuções de cotações (spec 028): todas, de qualquer mês, dos
-// últimos 36 meses, da mais recente para a mais antiga, em páginas. A
-// execução antiga de "Atualizar carteira" (spec 003) continua visível.
+// últimos 36 meses, da mais recente para a mais antiga, em páginas. As
+// execuções antigas de "Atualizar carteira" (spec 003) saíram do histórico a
+// pedido do usuário (spec 034); continuam guardadas em `monthly_update_runs`.
 
-export type QuoteRunOrigin = QuoteRefreshTriggerKind | "MONTHLY_UPDATE";
-
-// "INTERRUPTED" só vale para a execução antiga: ela ficou RUNNING quando o
-// processo parou no meio, e o código que a encerrava foi removido.
-export type QuoteRunHistoryStatus = QuoteRefreshRunStatus | "INTERRUPTED";
+export type QuoteRunOrigin = QuoteRefreshTriggerKind;
+export type QuoteRunHistoryStatus = QuoteRefreshRunStatus;
 
 export type QuoteRunHistoryEntry = {
   id: string;
   origin: QuoteRunOrigin;
   status: QuoteRunHistoryStatus;
-  // Instante mostrado e usado na ordenação: o início da execução, ou, na
-  // execução antiga, o fim da última tentativa, porque cada nova tentativa
-  // substituía os resultados mantendo o início da primeira.
+  /** Início da execução. */
   at: string;
   succeeded: number;
   failures: QuoteFailureView[];
@@ -68,7 +64,7 @@ export async function getRunHistory(before?: string): Promise<QuoteRunHistoryPag
   } as const;
 
   try {
-    const [runs, runCount, legacyRuns] = await Promise.all([
+    const [runs, total] = await Promise.all([
       prisma.quoteRefreshRun.findMany({
         where: { startedAt: { gte: since, ...(cursor ? { lt: cursor } : {}) } },
         orderBy: { startedAt: "desc" },
@@ -83,21 +79,11 @@ export async function getRunHistory(before?: string): Promise<QuoteRunHistoryPag
         },
       }),
       prisma.quoteRefreshRun.count({ where: { startedAt: { gte: since } } }),
-      prisma.monthlyUpdateRun.findMany({
-        where: { startedAt: { gte: since } },
-        select: {
-          id: true,
-          status: true,
-          startedAt: true,
-          completedAt: true,
-          errorMessage: true,
-          quoteResults: resultSelect,
-        },
-      }),
     ]);
 
     const failedSymbols = new Set(
-      [...runs.flatMap((run) => run.results), ...legacyRuns.flatMap((run) => run.quoteResults)]
+      runs
+        .flatMap((run) => run.results)
         .filter((result) => result.status === QuoteUpdateStatus.FAILED)
         .map((result) => result.symbol),
     );
@@ -139,31 +125,11 @@ export async function getRunHistory(before?: string): Promise<QuoteRunHistoryPag
       };
     });
 
-    for (const legacy of legacyRuns) {
-      const at = legacy.completedAt ?? legacy.startedAt;
-
-      if (cursor && at.getTime() >= cursor.getTime()) {
-        continue;
-      }
-
-      const failures = failuresOf(legacy.quoteResults);
-      entries.push({
-        id: legacy.id,
-        origin: "MONTHLY_UPDATE",
-        status: legacy.status === MonthlyUpdateStatus.RUNNING ? "INTERRUPTED" : legacy.status,
-        at: at.toISOString(),
-        succeeded: legacy.quoteResults.length - failures.length,
-        failures,
-        errorMessage: legacy.errorMessage,
-      });
-    }
-
-    entries.sort((left, right) => right.at.localeCompare(left.at));
     const page = entries.slice(0, RUN_HISTORY_PAGE_SIZE);
 
     return {
       runs: page,
-      total: runCount + legacyRuns.length,
+      total,
       nextCursor: entries.length > RUN_HISTORY_PAGE_SIZE ? page.at(-1)!.at : null,
     };
   } catch (error) {

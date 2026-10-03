@@ -29,7 +29,9 @@ test("apresenta a carteira normalizada", async ({ page }) => {
 test("o seletor global de mês governa as telas", async ({ page }) => {
   await page.goto("/?mes=2026-02");
 
-  await expect(page.getByText("Fevereiro de 2026", { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("navigation", { name: "Competências" }).getByRole("button", { name: /^Fevereiro de 2026/ }),
+  ).toHaveAttribute("aria-current", "date");
 
   await page.getByRole("link", { name: "Posições" }).click();
   await expect(page).toHaveURL(/\/posicoes\?mes=2026-02/);
@@ -95,23 +97,13 @@ test("o lápis coloca as posições em edição até salvar ou descartar", async
   await expect(page.locator("[data-edit-cell]")).toHaveCount(0);
 });
 
-test("competência passada exige confirmação para editar", async ({ page }) => {
+test("um mês fechado não oferece edição", async ({ page }) => {
   await page.goto("/posicoes?mes=2026-08");
 
-  await expect(page.getByText(/travada para edição/)).toBeVisible();
+  await expect(page.getByTestId("month-locked")).toContainText("Ago/26 está fechado");
   await expect(page.locator("[data-edit-cell]")).toHaveCount(0);
-
-  await page.getByRole("button", { name: "Editar posições" }).click();
-  await expect(page.getByRole("dialog")).toContainText("Isso altera o histórico");
-  await page.getByRole("button", { name: "Cancelar" }).click();
-  await expect(page.locator("[data-edit-cell]")).toHaveCount(0);
-
-  await page.getByRole("button", { name: "Editar posições" }).click();
-  await page.getByRole("button", { name: "Editar mesmo assim" }).click();
-  await expect(page.getByText(/Editando o histórico/)).toBeVisible();
-  await expect(page.locator('[data-edit-cell="value"]').first()).toBeVisible();
-  await page.getByRole("button", { name: "Sair da edição" }).click();
-  await expect(page.locator("[data-edit-cell]")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Editar posições" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Adicionar posição" })).toHaveCount(0);
 });
 
 test("a configuração simula metas antes de salvar", async ({ page }) => {

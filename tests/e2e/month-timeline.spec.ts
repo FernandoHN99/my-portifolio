@@ -15,7 +15,7 @@ const year = (page: Page, value: number) =>
 const month = (page: Page, label: string) =>
   timeline(page).getByRole("button", { name: new RegExp(`^${label}`) });
 
-// Os botões de ano e as setas só respondem depois da hidratação do React.
+// Os botões de ano e de mês só respondem depois da hidratação do React.
 async function openTimeline(page: Page, url: string) {
   await page.goto(url);
   await expect(timeline(page)).toHaveAttribute("data-hydrated");
@@ -33,7 +33,7 @@ test("a linha do tempo abre só o ano da competência", async ({ page }) => {
 
 test("abrir outro ano não troca a competência até escolher um mês", async ({ page }) => {
   await openTimeline(page, "/?mes=2026-02");
-  await expect(page.getByText("Fevereiro de 2026", { exact: true })).toBeVisible();
+  await expect(month(page, "Fevereiro de 2026")).toHaveAttribute("aria-current", "date");
 
   await year(page, 2025).click();
   await expect(year(page, 2025)).toHaveAttribute("aria-expanded", "true");
@@ -44,23 +44,21 @@ test("abrir outro ano não troca a competência até escolher um mês", async ({
     "Competência selecionada: Fevereiro de 2026",
   );
   await expect(page).toHaveURL(/mes=2026-02/);
-  await expect(page.getByText("Fevereiro de 2026", { exact: true })).toBeVisible();
 
   await month(page, "Dezembro de 2025").click();
   await expect(page).toHaveURL(/mes=2025-12/);
   await expect(month(page, "Dezembro de 2025")).toHaveAttribute("aria-current", "date");
-  await expect(page.getByText("Dezembro de 2025", { exact: true })).toBeVisible();
 });
 
-test("as setas atravessam o ano e a competência fica na URL", async ({ page }) => {
+test("o teclado atravessa o ano e a competência fica na URL, sem setas na tela", async ({ page }) => {
   await openTimeline(page, "/?mes=2026-01");
   await expect(month(page, "Janeiro de 2026")).toHaveAttribute("aria-current", "date");
+  await expect(page.getByRole("button", { name: /Mês anterior|Próximo mês|Mais recente/ })).toHaveCount(0);
 
-  await page.getByRole("button", { name: "Mês anterior" }).click();
+  await page.keyboard.press("ArrowLeft");
   await expect(page).toHaveURL(/mes=2025-12/);
   await expect(year(page, 2025)).toHaveAttribute("aria-expanded", "true");
   await expect(month(page, "Dezembro de 2025")).toHaveAttribute("aria-current", "date");
-  await expect(page.getByText("Dezembro de 2025", { exact: true })).toBeVisible();
 
   await page.keyboard.press("ArrowRight");
   await expect(page).toHaveURL(/mes=2026-01/);
@@ -70,37 +68,42 @@ test("as setas atravessam o ano e a competência fica na URL", async ({ page }) 
   await expect(month(page, "Janeiro de 2026")).toHaveAttribute("aria-current", "date");
 });
 
-test("consultar outro ano não o reabre quando a competência volta", async ({ page, isMobile }) => {
+test("consultar outro ano não o reabre quando a competência volta", async ({ page }) => {
   await openTimeline(page, "/?mes=2026-02");
 
   await year(page, 2024).click();
   await expect(year(page, 2024)).toHaveAttribute("aria-expanded", "true");
-  await page.getByRole("button", { name: "Próximo mês" }).click();
+  await page.keyboard.press("ArrowRight");
   await expect(page).toHaveURL(/mes=2026-03/);
-  await page.getByRole("button", { name: "Mês anterior" }).click();
+  await page.keyboard.press("ArrowLeft");
   await expect(page).toHaveURL(/mes=2026-02/);
   await expect(year(page, 2026)).toHaveAttribute("aria-expanded", "true");
   await expect(year(page, 2024)).toHaveAttribute("aria-expanded", "false");
   await expect(month(page, "Fevereiro de 2026")).toHaveAttribute("aria-current", "date");
+});
 
-  // "Mais recente" só aparece a partir de telas pequenas.
-  if (isMobile) {
-    return;
-  }
+test("o cadeado mostra se o mês está aberto ou fechado", async ({ page }) => {
+  // Setembro de 2026 veio da planilha e está fechado: abrir pede confirmação.
+  await openTimeline(page, "/posicoes?mes=2026-09");
+  const lock = page.getByTestId("month-lock");
+  await expect(lock).toHaveAttribute("data-state", "closed");
+  await expect(lock).toContainText("Fechado");
+  await expect(page.getByRole("button", { name: "Editar posições" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Adicionar posição" })).toHaveCount(0);
+  await expect(page.getByTestId("month-locked")).toContainText("Set/26 está fechado");
 
-  await openTimeline(page, "/");
-  await year(page, 2024).click();
-  await month(page, "Maio de 2024").click();
-  await expect(page).toHaveURL(/mes=2024-05/);
-  await page.getByRole("button", { name: "Mais recente" }).click();
-  // A competência mais recente depende da virada automática de mês: setembro
-  // de 2026 vindo da planilha, ou um mês posterior criado ao abrir o app.
-  await expect(page).not.toHaveURL(/mes=2024-05/);
-  const [, latestYear] = /mes=(\d{4})-\d{2}/.exec(page.url()) ?? [];
-  expect(`${latestYear}`.localeCompare("2026")).toBeGreaterThanOrEqual(0);
-  await expect(year(page, Number(latestYear))).toHaveAttribute("aria-expanded", "true");
-  await expect(year(page, 2024)).toHaveAttribute("aria-expanded", "false");
-  await expect(timeline(page).locator('[aria-current="date"]')).toHaveCount(1);
+  await lock.click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toContainText("Abrir Set/26?");
+  await dialog.getByRole("button", { name: "Cancelar" }).click();
+  await expect(lock).toHaveAttribute("data-state", "closed");
+
+  // O mês mais recente, quando em rascunho, está aberto e oferece fechar.
+  await openTimeline(page, "/posicoes");
+  const latest = page.getByTestId("month-lock");
+  test.skip((await latest.getAttribute("data-state")) !== "open", "O mês mais recente está fechado nos dados reais.");
+  await expect(latest.getByRole("button", { name: /^Fechar / })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Editar posições" })).toBeVisible();
 });
 
 test("o foco segue para o ano que abre mesmo com toques seguidos", async ({ page }) => {
@@ -166,7 +169,8 @@ test("alterações pendentes seguram a troca de mês, mas não a de ano", async 
   const active = timeline(page).locator("[aria-current='date']");
   const activeLabel = await active.getAttribute("aria-label");
 
-  await page.getByRole("button", { name: "Mês anterior" }).click();
+  // Outro mês do ano aberto; com o foco no campo, as setas movem o cursor.
+  await timeline(page).locator("[data-expanded] [role='group'] button:not([aria-current])").first().click();
   await expect.poll(() => dialogs.length).toBe(1);
   expect(dialogs[0]).toContain("alteração não salva");
   await expect(page).not.toHaveURL(/mes=/);

@@ -57,6 +57,13 @@ export async function ensureMonthsUpToDate(today: Date = new Date()): Promise<Mo
         source = generated.month;
       }
 
+      // Os meses anteriores ao corrente ficam fechados (spec 034): editá-los
+      // exige abri-los de novo na linha do tempo, como os meses passados.
+      await transaction.portfolioMonth.updateMany({
+        where: { referenceDate: { lt: target }, status: PortfolioMonthStatus.DRAFT },
+        data: { status: PortfolioMonthStatus.REVIEWED },
+      });
+
       return { state: "created", months };
     },
     { maxWait: 10_000, timeout: 60_000 },

@@ -1,6 +1,8 @@
 // Tipos e regras da atualização de cotações compartilhados entre servidor e
 // interface. Sem dependências de banco, para poder ser importado no cliente.
 
+import type { MonthRolloverOutcome } from "@/modules/portfolio/domain/month-rollover";
+
 export const QUOTE_REFRESH_INTERVAL_MS = 60 * 60 * 1000;
 
 /** Janela do histórico de execuções da página de cotações (spec 028). */
@@ -43,6 +45,8 @@ export type QuoteRefreshOutcome =
   | { state: "unavailable"; message: string };
 
 export type ManualRefreshResponse = {
+  /** Virada de mês conferida antes da atualização (spec 034). */
+  rollover?: MonthRolloverOutcome;
   refresh: QuoteRefreshOutcome;
   summary: QuoteRefreshSummary | null;
 };

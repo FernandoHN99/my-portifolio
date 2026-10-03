@@ -1,8 +1,6 @@
-import { CalendarBlankIcon, FileSearchIcon } from "@phosphor-icons/react/dist/ssr";
+import { FileSearchIcon } from "@phosphor-icons/react/dist/ssr";
 
-import { MonthStatusBadge } from "@/components/product/month-status-badge";
 import type { OverviewData } from "@/modules/portfolio/application/get-overview-data";
-import { formatMonth } from "@/modules/portfolio/presentation/portfolio-format";
 import { toMonthParam } from "@/modules/portfolio/presentation/reference-month";
 import { CompositionDonuts } from "@/modules/portfolio/ui/composition-donuts";
 import { FixedIncomeDurationChart } from "@/modules/portfolio/ui/fixed-income-duration-chart";
@@ -32,13 +30,6 @@ export function OverviewDashboard({ overview }: { overview: OverviewData | null 
           <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground">
             Posições separadas por conta, consolidadas em uma única visão.
           </p>
-        </div>
-        <div className="flex flex-col items-start gap-3 sm:items-end">
-          <div className="inline-flex w-fit items-center gap-2 rounded-xl border border-border bg-card/70 px-3.5 py-2.5 text-xs text-muted-foreground">
-            <CalendarBlankIcon aria-hidden="true" className="text-primary" size={15} weight="duotone" />
-            <span>{formatMonth(overview.referenceDate)}</span>
-            <MonthStatusBadge status={overview.monthStatus} />
-          </div>
         </div>
       </header>
 

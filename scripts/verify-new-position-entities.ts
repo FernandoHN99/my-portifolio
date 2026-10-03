@@ -111,7 +111,7 @@ function callsTo(host: string, since: number) {
 async function main() {
   // Importados depois do substituto de `fetch` e da trava do banco.
   const { getPrismaClient } = await import("../src/lib/prisma");
-  const { applyPositionChanges, cloneLatestMonth, undoChange } = await import(
+  const { applyPositionChanges, cloneLatestMonth, setMonthOpen, undoChange } = await import(
     "../src/modules/portfolio/application/month-editing"
   );
   const { checkTicker } = await import("../src/modules/quotes/application/check-ticker");
@@ -259,14 +259,15 @@ async function main() {
   const tokenOf = (response: Awaited<ReturnType<typeof checkTicker>>) =>
     response.status === "found" || response.status === "unavailable" ? response.token : null;
 
-  // Competência anterior: encontrado exige a cotação digitada.
+  // Competência anterior: só aceita edição aberta (spec 034); encontrado exige
+  // a cotação digitada.
+  await setMonthOpen({ monthId: sep.id, open: true });
   const beforePast = await counts();
   await expectError(
     "competência passada exige a cotação digitada",
     () =>
       applyPositionChanges({
         monthId: sep.id,
-        confirmHistory: true,
         updates: [],
         removals: [],
         additions: [
@@ -283,7 +284,6 @@ async function main() {
   check("salvamento recusado não muda nada", JSON.stringify(await counts()) === JSON.stringify(beforePast));
   const pastSave = await applyPositionChanges({
     monthId: sep.id,
-    confirmHistory: true,
     updates: [],
     removals: [],
     additions: [
@@ -371,7 +371,7 @@ async function main() {
   const refuse = (label: string, addition: Parameters<typeof applyPositionChanges>[0]["additions"], pattern: RegExp) =>
     expectError(
       label,
-      () => applyPositionChanges({ monthId: oct.id, confirmHistory: false, updates: [], removals: [], additions: addition }),
+      () => applyPositionChanges({ monthId: oct.id, updates: [], removals: [], additions: addition }),
       pattern,
     );
 
@@ -455,7 +455,6 @@ async function main() {
   const before = await counts();
   const save = await applyPositionChanges({
     monthId: oct.id,
-    confirmHistory: false,
     updates: [],
     removals: [],
     additions: [

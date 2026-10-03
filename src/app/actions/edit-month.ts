@@ -10,7 +10,7 @@ import {
   cloneLatestMonth,
   MonthEditError,
   replaceAllocations,
-  setMonthFinalized,
+  setMonthOpen,
   undoChange,
   updateMonthQuotes,
 } from "@/modules/portfolio/application/month-editing";
@@ -24,7 +24,7 @@ export type EditActionResult =
 
 const value = z.string().trim().min(1).max(40);
 const strategy = z.string().trim().max(60).nullable();
-const monthScope = { monthId: z.string().uuid(), confirmHistory: z.boolean() };
+const monthScope = { monthId: z.string().uuid() };
 const label = (max: number) => z.string().trim().min(1).max(max);
 
 // Conta e ativo novos da inclusão de posição (spec 026). O servidor ainda
@@ -162,16 +162,16 @@ export async function saveAssetMaturityAction(input: unknown): Promise<EditActio
   });
 }
 
-export async function setMonthFinalizedAction(input: unknown): Promise<EditActionResult> {
-  const parsed = z.object({ monthId: z.string().uuid(), finalized: z.boolean() }).safeParse(input);
+export async function setMonthOpenAction(input: unknown): Promise<EditActionResult> {
+  const parsed = z.object({ monthId: z.string().uuid(), open: z.boolean() }).safeParse(input);
 
   if (!parsed.success) {
     return { ok: false, message: "Competência inválida." };
   }
 
   return run(async () => {
-    await setMonthFinalized(parsed.data);
-    return { ok: true, message: parsed.data.finalized ? "Mês finalizado." : "Mês reaberto para edição." };
+    await setMonthOpen(parsed.data);
+    return { ok: true, message: parsed.data.open ? "Mês aberto para edição." : "Mês fechado." };
   });
 }
 

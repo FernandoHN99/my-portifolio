@@ -1,4 +1,4 @@
-import { ChartDonutIcon, GearSixIcon } from "@phosphor-icons/react/dist/ssr";
+import { ChartDonutIcon, CurrencyCircleDollarIcon, GearSixIcon } from "@phosphor-icons/react/dist/ssr";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
@@ -55,6 +55,16 @@ export async function AppShell({ active, months, selectedMonth, children }: AppS
 
           <div className="flex shrink-0 items-center gap-2">
             <QuoteRefreshIndicator summary={quoteRefresh} canRefresh={canRefresh} />
+            {/* Cotações do mês ao lado da última atualização (spec 034). No
+                celular não cabe sem cortar as abas e fica em Posições. */}
+            <Link
+              href={selectedMonth ? `/posicoes/cotacoes?mes=${selectedMonth}` : "/posicoes/cotacoes"}
+              aria-label="Cotações do mês"
+              title="Cotações do mês"
+              className="hidden size-9 shrink-0 place-items-center rounded-xl border border-border text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50 sm:grid"
+            >
+              <CurrencyCircleDollarIcon aria-hidden="true" size={17} weight="duotone" />
+            </Link>
             <Link
               href="/configuracao"
               aria-label="Configuração da carteira"

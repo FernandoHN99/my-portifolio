@@ -3,7 +3,6 @@
 import NumberFlow from "@number-flow/react";
 import {
   ArrowLeftIcon,
-  CalendarBlankIcon,
   ChartPieSliceIcon,
   CoinsIcon,
   InfoIcon,
@@ -15,14 +14,12 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { parseAsStringLiteral, useQueryState } from "nuqs";
 
-import { MonthStatusBadge } from "@/components/product/month-status-badge";
 import { cn } from "@/lib/utils";
 import type { PositionHistoryView } from "@/modules/portfolio/application/get-position-history";
 import type { HistorySlot, PositionSummary, PresentSlot } from "@/modules/portfolio/domain/position-history";
 import { categoryColor } from "@/modules/portfolio/presentation/category-colors";
 import {
   formatBrl,
-  formatMonth,
   formatPercent,
   formatPriceBrl,
 } from "@/modules/portfolio/presentation/portfolio-format";
@@ -38,7 +35,6 @@ import {
   positionHref,
   positionsTableHref,
 } from "@/modules/portfolio/presentation/position-page";
-import { monthFromKey } from "@/modules/portfolio/domain/position-history";
 import { AssetPriceChart } from "@/modules/portfolio/ui/asset-price-chart";
 import { BalanceChangeChart } from "@/modules/portfolio/ui/balance-change-chart";
 import { ChangeKpiCard, KpiCard } from "@/modules/portfolio/ui/kpi-card";
@@ -142,11 +138,6 @@ export function PositionDetail({ history }: { history: PositionHistoryView | nul
           </div>
         </div>
         <div className="flex flex-col items-start gap-3 sm:items-end">
-          <div className="inline-flex w-fit items-center gap-2 rounded-xl border border-border bg-card/70 px-3.5 py-2.5 text-xs text-muted-foreground">
-            <CalendarBlankIcon aria-hidden="true" className="text-primary" size={15} weight="duotone" />
-            <span>{formatMonth(monthFromKey(history.selectedMonth))}</span>
-            <MonthStatusBadge status={history.monthStatus} />
-          </div>
           <p className="font-mono text-xs text-muted-foreground">
             {current
               ? `${formatBrl(current.valueBrl)}${usdValue !== null ? ` · US$ ${formatUsd(usdValue)}` : ""}`

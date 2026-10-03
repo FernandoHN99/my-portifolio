@@ -1,7 +1,7 @@
 "use client";
 
 import { Dialog } from "@base-ui/react/dialog";
-import { LockKeyIcon, LockKeyOpenIcon, PencilSimpleIcon, PlusIcon, TrashIcon, XIcon } from "@phosphor-icons/react/dist/ssr";
+import { PlusIcon, TrashIcon, XIcon } from "@phosphor-icons/react/dist/ssr";
 import { useState, type ReactNode } from "react";
 
 import { Picker } from "@/components/ui/picker";
@@ -27,115 +27,6 @@ export const secondaryButtonClass =
 /** Botão principal do cabeçalho, como "Adicionar posição" e o clone do mês. */
 export const headerPrimaryButtonClass =
   "inline-flex h-9 items-center gap-2 rounded-xl bg-primary px-3.5 text-xs font-semibold text-primary-foreground outline-none transition-[background-color,transform] duration-150 hover:bg-primary/90 focus-visible:ring-3 focus-visible:ring-ring/40 active:scale-[0.98] disabled:opacity-40";
-
-/**
- * Confirmação de edição de uma competência passada. O gatilho é o botão de
- * editar, com o tom de aviso, ou o de adicionar posição, que entra em edição
- * e abre o diálogo de inclusão depois de confirmar.
- */
-export function HistoryUnlockDialog({
-  monthLabel,
-  label = "Editar posições",
-  variant = "edit",
-  finalized = false,
-  onConfirm,
-}: {
-  monthLabel: string;
-  label?: string;
-  variant?: "edit" | "add";
-  /** A competência é a mais recente, finalizada pelo usuário (spec 032). */
-  finalized?: boolean;
-  onConfirm: () => void;
-}) {
-  return (
-    <Dialog.Root>
-      <Dialog.Trigger
-        className={
-          variant === "add"
-            ? headerPrimaryButtonClass
-            : "inline-flex h-9 items-center gap-2 rounded-xl border border-warning-border bg-warning/40 px-3.5 text-xs font-semibold text-warning-foreground outline-none transition-colors hover:bg-warning/60 focus-visible:ring-2 focus-visible:ring-ring/50"
-        }
-      >
-        {variant === "add" ? (
-          <PlusIcon aria-hidden="true" size={14} weight="bold" />
-        ) : (
-          <PencilSimpleIcon aria-hidden="true" size={14} weight="bold" />
-        )}
-        {label}
-      </Dialog.Trigger>
-      <Dialog.Portal>
-        <Dialog.Backdrop className={backdropClass} />
-        <Dialog.Popup className={centeredPopupClass}>
-          <Dialog.Title className="text-base font-semibold tracking-[-0.02em]">
-            Editar {monthLabel}?
-          </Dialog.Title>
-          <Dialog.Description className="mt-2 text-sm leading-6 text-muted-foreground">
-            {finalized
-              ? `${monthLabel} está finalizado. Editar altera as posições depois do fechamento do mês e todas as análises da competência.`
-              : `Você está editando ${monthLabel}. Isso altera o histórico da carteira e todas as análises daquela competência.`}
-          </Dialog.Description>
-          <div className="mt-6 flex justify-end gap-2">
-            <Dialog.Close className={secondaryButtonClass}>Cancelar</Dialog.Close>
-            <Dialog.Close className={primaryButtonClass} onClick={onConfirm}>
-              Editar mesmo assim
-            </Dialog.Close>
-          </div>
-        </Dialog.Popup>
-      </Dialog.Portal>
-    </Dialog.Root>
-  );
-}
-
-/**
- * Finalizar ou reabrir o mês mais recente (spec 032). Finalizado, editar pede a
- * mesma confirmação dos meses passados; as cotações seguem atualizando.
- */
-export function FinalizeMonthDialog({
-  monthLabel,
-  finalized,
-  disabled,
-  onConfirm,
-}: {
-  monthLabel: string;
-  finalized: boolean;
-  disabled?: boolean;
-  onConfirm: () => void;
-}) {
-  return (
-    <Dialog.Root>
-      <Dialog.Trigger
-        disabled={disabled}
-        className="inline-flex h-9 items-center gap-2 rounded-xl border border-border bg-card/70 px-3.5 text-xs font-semibold text-foreground outline-none transition-colors hover:bg-white/[0.05] focus-visible:ring-2 focus-visible:ring-ring/50 disabled:opacity-40"
-      >
-        {finalized ? (
-          <LockKeyOpenIcon aria-hidden="true" size={14} weight="bold" />
-        ) : (
-          <LockKeyIcon aria-hidden="true" size={14} weight="bold" />
-        )}
-        {finalized ? "Reabrir mês" : "Finalizar mês"}
-      </Dialog.Trigger>
-      <Dialog.Portal>
-        <Dialog.Backdrop className={backdropClass} />
-        <Dialog.Popup className={centeredPopupClass}>
-          <Dialog.Title className="text-base font-semibold tracking-[-0.02em]">
-            {finalized ? `Reabrir ${monthLabel}?` : `Finalizar ${monthLabel}?`}
-          </Dialog.Title>
-          <Dialog.Description className="mt-2 text-sm leading-6 text-muted-foreground">
-            {finalized
-              ? `${monthLabel} volta a ser rascunho: as posições podem ser editadas sem confirmação.`
-              : `Use depois de ajustar os aportes do mês. Finalizado, editar as posições e cotações de ${monthLabel} pede a mesma confirmação dos meses passados. As cotações continuam sendo atualizadas.`}
-          </Dialog.Description>
-          <div className="mt-6 flex justify-end gap-2">
-            <Dialog.Close className={secondaryButtonClass}>Cancelar</Dialog.Close>
-            <Dialog.Close className={primaryButtonClass} onClick={onConfirm}>
-              {finalized ? "Reabrir" : "Finalizar"}
-            </Dialog.Close>
-          </div>
-        </Dialog.Popup>
-      </Dialog.Portal>
-    </Dialog.Root>
-  );
-}
 
 type AllocationDraft = { key: number; assetClass: string; subclass: string; duration: string; weight: string };
 

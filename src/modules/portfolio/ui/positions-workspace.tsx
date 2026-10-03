@@ -5,7 +5,6 @@ import {
   ArrowCounterClockwiseIcon,
   ArrowDownIcon,
   ArrowUpIcon,
-  CalendarBlankIcon,
   ChartPieSliceIcon,
   CopyIcon,
   CurrencyCircleDollarIcon,
@@ -42,7 +41,6 @@ import {
 
 import {
   cloneLatestMonthAction,
-  setMonthFinalizedAction,
   saveAllocationsAction,
   savePositionChangesAction,
   undoChangeAction,
@@ -50,7 +48,6 @@ import {
 } from "@/app/actions/edit-month";
 import { setPendingChanges } from "@/components/product/unsaved-changes";
 import { Picker, type PickerOption } from "@/components/ui/picker";
-import { MonthStatusBadge } from "@/components/product/month-status-badge";
 import { cn } from "@/lib/utils";
 import type { EditingCatalog } from "@/modules/portfolio/application/get-editing-catalog";
 import type { MonthPositions } from "@/modules/portfolio/application/get-month-positions";
@@ -81,20 +78,14 @@ import {
 } from "@/modules/portfolio/presentation/position-drafts";
 import {
   formatBrl,
-  formatMonth,
   formatMonthCompact,
   formatSharePercent,
   parseLocaleNumber,
 } from "@/modules/portfolio/presentation/portfolio-format";
 import { positionHref } from "@/modules/portfolio/presentation/position-page";
-import { parseMonthParam } from "@/modules/portfolio/presentation/reference-month";
+import { parseMonthParam, toMonthParam } from "@/modules/portfolio/presentation/reference-month";
 import { AddPositionDialog } from "@/modules/portfolio/ui/add-position-dialog";
-import {
-  AllocationDrawer,
-  FinalizeMonthDialog,
-  headerPrimaryButtonClass,
-  HistoryUnlockDialog,
-} from "@/modules/portfolio/ui/edit-dialogs";
+import { AllocationDrawer, headerPrimaryButtonClass } from "@/modules/portfolio/ui/edit-dialogs";
 import { EditToast, type EditToastState } from "@/modules/portfolio/ui/edit-toast";
 import { MaturityBadge } from "@/modules/portfolio/ui/maturity-badge";
 import { MultiSelectFilter } from "@/modules/portfolio/ui/multi-select-filter";
@@ -153,7 +144,6 @@ export function PositionsWorkspace({
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const monthParam = searchParams.get("mes");
   const [query, setQuery] = useQueryStates(
     {
       classe: list,
@@ -185,6 +175,11 @@ export function PositionsWorkspace({
   // Botão "Adicionar posição" do modo de edição, que recebe o foco quando o
   // diálogo fecha mesmo se ele abriu pela confirmação de histórico.
   const addButtonRef = useRef<HTMLButtonElement>(null);
+
+  // Um mês fechado pelo cadeado da linha do tempo sai do modo de edição.
+  if (editMode && month?.isLocked) {
+    setEditMode(false);
+  }
 
   if (month?.id !== stateMonthId) {
     setStateMonthId(month?.id);
@@ -262,8 +257,6 @@ export function PositionsWorkspace({
   }
 
   const canEdit = editMode;
-  const confirmHistory = editMode && month.isLocked;
-  const finalized = month.isLatest && month.status === "REVIEWED";
   const monthLabel = formatMonthCompact(month.referenceDate);
   const sortedPositions = table.getRowModel().rows.map((row) => row.original);
   const activePositions = sortedPositions.filter((position) => !position.isRemoved);
@@ -391,7 +384,6 @@ export function PositionsWorkspace({
     startSaving(async () => {
       const result = await savePositionChangesAction({
         monthId: month.id,
-        confirmHistory,
         updates: Object.entries(pending)
           .filter(([positionId]) => !removed.includes(positionId))
           .map(([positionId, edit]) => ({ positionId, ...edit })),
@@ -440,7 +432,6 @@ export function PositionsWorkspace({
     startSaving(async () => {
       const result = await saveAllocationsAction({
         monthId: month.id,
-        confirmHistory,
         positionId: drawerPosition.id,
         allocations,
       });
@@ -460,12 +451,6 @@ export function PositionsWorkspace({
       if (result.ok && result.month) {
         router.push(`/posicoes?mes=${result.month}`);
       }
-    });
-
-  const toggleFinalized = (next: boolean) =>
-    startSaving(async () => {
-      notify(await setMonthFinalizedAction({ monthId: month.id, finalized: next }));
-      router.refresh();
     });
 
   const undo = (token: string) =>
@@ -540,26 +525,23 @@ export function PositionsWorkspace({
           </p>
         </div>
         <div className="flex flex-col items-start gap-3 sm:items-end">
-          <div className="inline-flex w-fit items-center gap-2 rounded-xl border border-border bg-card/70 px-3.5 py-2.5 text-xs text-muted-foreground">
-            <CalendarBlankIcon aria-hidden="true" className="text-primary" size={15} weight="duotone" />
-            <span>{formatMonth(month.referenceDate)}</span>
-            <MonthStatusBadge status={month.status} />
-          </div>
           <p className="font-mono text-xs text-muted-foreground">
             {formatBrl(displayTotal)}
             {month.usdRate ? ` · US$ ${formatUsd(displayTotal / month.usdRate)}` : ""}
           </p>
           <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-            {editMode ? null : (
-              <Link
-                href={monthParam ? `/posicoes/cotacoes?mes=${monthParam}` : "/posicoes/cotacoes"}
-                className="inline-flex h-9 items-center gap-2 rounded-xl border border-border bg-card/70 px-3.5 text-xs font-semibold text-foreground outline-none transition-colors hover:bg-white/[0.05] focus-visible:ring-2 focus-visible:ring-ring/50"
-              >
-                <CurrencyCircleDollarIcon aria-hidden="true" size={14} weight="bold" />
-                Cotações
-              </Link>
-            )}
-            {editMode ? null : !month.isLocked ? (
+            {/* As cotações ficam no topo, ao lado da última atualização; no
+                celular, onde não cabem lá, ficam aqui como ícone (spec 034). */}
+            <Link
+              href={`/posicoes/cotacoes?mes=${toMonthParam(month.referenceDate)}`}
+              aria-label="Cotações do mês"
+              className="grid size-9 place-items-center rounded-xl border border-border bg-card/70 text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50 sm:hidden"
+            >
+              <CurrencyCircleDollarIcon aria-hidden="true" size={16} weight="duotone" />
+            </Link>
+            {/* Só o mês aberto aceita edição (spec 034); um mês fechado é aberto
+                pelo cadeado da linha do tempo. */}
+            {editMode || month.isLocked ? null : (
               <button
                 type="button"
                 onClick={() => setEditMode(true)}
@@ -568,13 +550,10 @@ export function PositionsWorkspace({
                 <PencilSimpleIcon aria-hidden="true" size={14} weight="bold" />
                 Editar posições
               </button>
-            ) : (
-              <HistoryUnlockDialog monthLabel={monthLabel} finalized={finalized} onConfirm={() => setEditMode(true)} />
             )}
             {/* Adicionar posição fica em evidência dentro e fora do modo de
-                edição; fora dele, entra em edição antes de abrir o diálogo, com
-                a confirmação de histórico numa competência passada. */}
-            {editMode || !month.isLocked ? (
+                edição; fora dele, entra em edição antes de abrir o diálogo. */}
+            {month.isLocked ? null : (
               <button
                 ref={addButtonRef}
                 type="button"
@@ -587,26 +566,7 @@ export function PositionsWorkspace({
                 <PlusIcon aria-hidden="true" size={14} weight="bold" />
                 Adicionar posição
               </button>
-            ) : (
-              <HistoryUnlockDialog
-                monthLabel={monthLabel}
-                label="Adicionar posição"
-                variant="add"
-                finalized={finalized}
-                onConfirm={() => {
-                  setEditMode(true);
-                  setAddOpen(true);
-                }}
-              />
             )}
-            {month.isLatest && month.status !== "IMPORTED" && !editMode ? (
-              <FinalizeMonthDialog
-                monthLabel={monthLabel}
-                finalized={finalized}
-                disabled={isSaving || changeCount > 0}
-                onConfirm={() => toggleFinalized(!finalized)}
-              />
-            ) : null}
             {month.isLatest && !editMode && catalog.clone.allowed && cloneTarget ? (
               <button
                 type="button"
@@ -622,20 +582,11 @@ export function PositionsWorkspace({
         </div>
       </header>
 
-      {month.isLocked && !editMode ? (
+      {month.isLocked ? (
         <div className="mt-6 flex flex-wrap items-center gap-3 rounded-2xl border border-border bg-card/60 px-4 py-3">
           <LockKeyIcon aria-hidden="true" className="text-muted-foreground" size={16} weight="duotone" />
           <p data-testid="month-locked" className="text-xs text-muted-foreground">
-            {finalized
-              ? `${monthLabel} está finalizado e travado para edição. Editar pede confirmação.`
-              : `${monthLabel} é uma competência passada e está travada para edição. Editar pede confirmação.`}
-          </p>
-        </div>
-      ) : month.isLocked ? (
-        <div className="mt-6 flex items-center gap-3 rounded-2xl border border-warning-border bg-warning/30 px-4 py-3">
-          <LockKeyIcon aria-hidden="true" className="text-warning-foreground" size={16} weight="duotone" />
-          <p className="text-xs text-warning-foreground">
-            Editando o histórico de {monthLabel}. As alterações valem para todas as análises deste mês.
+            {monthLabel} está fechado. Para editar, abra o mês pelo cadeado na linha do tempo.
           </p>
         </div>
       ) : null}
