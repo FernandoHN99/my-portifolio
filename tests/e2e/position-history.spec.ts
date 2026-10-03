@@ -22,8 +22,11 @@ const flowValue = (page: Page, testId: string) => async () =>
 
 async function openBitcoin01(page: Page, query = "mes=2026-09") {
   await page.goto(`/posicoes?${query}`);
+  // Espera a hidratação: um clique antes dela segue o link sem a transição. A
+  // primeira abertura compila a rota no servidor de desenvolvimento.
+  await expect(page.getByRole("navigation", { name: "Competências" })).toHaveAttribute("data-hydrated");
   await row(page, "Bitcoin 01").getByRole("link", { name: "Bitcoin 01" }).click();
-  await expect(page).toHaveURL(POSITION_PATH);
+  await expect(page).toHaveURL(POSITION_PATH, { timeout: 15_000 });
   await expect(page.getByRole("heading", { level: 1, name: "Bitcoin 01" })).toBeVisible();
 }
 
@@ -132,16 +135,18 @@ test("a linha inteira abre a posição de um saldo sem cotação", async ({ page
 test("no modo de edição a linha não abre a posição", async ({ page }) => {
   // Só o mês aberto, o mais recente, aceita edição (spec 034).
   await page.goto("/posicoes");
-  await expect(row(page, "Bitcoin 01").getByRole("link", { name: "Bitcoin 01" })).toBeVisible();
+  // O Bitcoin 01 pode estar em mais de uma conta; o cenário usa o da Ledger.
+  const ledger = row(page, "Bitcoin 01").filter({ hasText: "Ledger" });
+  await expect(ledger.getByRole("link", { name: "Bitcoin 01" })).toBeVisible();
 
   await enterEditMode(page);
-  await expect(row(page, "Bitcoin 01").getByRole("link")).toHaveCount(0);
-  await row(page, "Bitcoin 01").getByText("Ledger", { exact: true }).filter({ visible: true }).first().click();
-  await row(page, "Bitcoin 01").getByText("Bitcoin 01", { exact: true }).click();
+  await expect(ledger.getByRole("link")).toHaveCount(0);
+  await ledger.getByText("Ledger", { exact: true }).filter({ visible: true }).first().click();
+  await ledger.getByText("Bitcoin 01", { exact: true }).click();
   await expect(page).toHaveURL(/\/posicoes$/);
 
   await page.getByRole("button", { name: "Sair da edição" }).click();
-  await expect(row(page, "Bitcoin 01").getByRole("link", { name: "Bitcoin 01" })).toBeVisible();
+  await expect(ledger.getByRole("link", { name: "Bitcoin 01" })).toBeVisible();
 });
 
 test("o seletor global troca a competência da posição e mostra a ausência", async ({ page }) => {

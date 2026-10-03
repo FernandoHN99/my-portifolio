@@ -96,7 +96,11 @@ test("a estratégia da tabela abre a lista e mantém as setas entre linhas", asy
   await enterEditMode(page);
   const rows = page.locator('[data-edit-cell="strategy"]');
 
-  const first = page.getByRole("combobox", { name: "Estratégia de Bitcoin 01" });
+  // O Bitcoin 01 pode estar em mais de uma conta; o cenário usa o da Ledger.
+  const first = page
+    .getByTestId("position-row")
+    .filter({ hasText: "Ledger" })
+    .getByRole("combobox", { name: "Estratégia de Bitcoin 01" });
   await first.click();
   await expect(page.getByRole("option")).toHaveCount(5);
   await expect(page.getByRole("option", { name: "Core-Satellite" })).toHaveAttribute("aria-selected", "true");
@@ -139,7 +143,7 @@ test("a estratégia da tabela abre a lista e mantém as setas entre linhas", asy
 test("o rateio aceita só classes existentes, subclasse nova e resgate fixo", async ({ page }) => {
   await page.goto("/posicoes");
   await enterEditMode(page);
-  await page.getByRole("button", { name: "Rateio de Bitcoin 01" }).click();
+  await page.getByTestId("position-row").filter({ hasText: "Ledger" }).getByRole("button", { name: "Rateio de Bitcoin 01" }).click();
   const drawer = page.getByRole("dialog");
 
   const assetClass = drawer.getByRole("combobox", { name: "Classe da classificação 1", exact: true });

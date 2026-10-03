@@ -223,12 +223,9 @@ export function QuotesWorkspace({
         </div>
       ) : null}
 
-      <LastRefreshCard
-        summary={summary}
-        selectedMonth={month.month}
-        currentMonth={month.currentMonth}
-        currentMonthExists={month.currentMonthExists}
-      />
+      {/* A atualização só muda o mês corrente; nos outros meses o card não
+          aparece (spec 038). */}
+      {month.isCurrent ? <LastRefreshCard summary={summary} currentMonth={month.currentMonth} /> : null}
 
       <section className="premium-panel mt-6 overflow-hidden rounded-[24px]" aria-labelledby="month-quotes-title">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 border-b border-border/60 px-5 py-4 sm:px-6">

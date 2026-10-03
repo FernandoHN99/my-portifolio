@@ -122,7 +122,7 @@ export function BalanceChangeChart({
             {rows.map((row) => (
               <Cell
                 key={row.month}
-                fill={(row.change ?? 0) >= 0 ? "var(--primary)" : "var(--destructive)"}
+                fill={(row.change ?? 0) >= 0 ? "var(--chart-up)" : "var(--chart-down)"}
                 fillOpacity={row.month === selectedMonth ? 1 : 0.5}
               />
             ))}

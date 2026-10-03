@@ -41,7 +41,7 @@ test("o ícone de cotações abre as cotações do mês", async ({ page }) => {
   const btc = page.getByTestId("quote-row").filter({ hasText: "BTC" });
   await expect(btc).toContainText("Bitcoin 01");
   await expect(btc).toContainText("R$");
-  await expect(page.getByRole("region", { name: "Última atualização" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Última atualização" })).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "Histórico de execuções" })).toBeVisible();
   await expect(page.getByTestId("run-history-count")).toContainText("nos últimos 36 meses");
   await expect(page.locator("[data-quote-cell]")).toHaveCount(0);

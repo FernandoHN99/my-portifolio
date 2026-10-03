@@ -436,8 +436,8 @@ function YearTicks({
                   : month.changeBrl === null
                     ? "bg-muted-foreground/45"
                     : month.changeBrl >= 0
-                      ? "bg-primary"
-                      : "bg-destructive",
+                      ? "bg-chart-up"
+                      : "bg-chart-down",
             )}
           />
         );
@@ -486,7 +486,7 @@ function markerClass(month: PortfolioMonthSummary, active: boolean) {
     return "bg-primary-foreground/50";
   }
 
-  return month.changeBrl >= 0 ? "bg-primary/70" : "bg-destructive/70";
+  return month.changeBrl >= 0 ? "bg-chart-up/70" : "bg-chart-down/70";
 }
 
 function describeMonth(month: PortfolioMonthSummary) {

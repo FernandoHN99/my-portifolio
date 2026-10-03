@@ -21,7 +21,9 @@ type WaterfallBar = {
   signed: boolean;
 };
 
-const FLOW_COLOR = "#6ea8ff";
+// Aportes e resgates em roxo, longe do azul e do laranja de alta e queda
+// (spec 038).
+const FLOW_COLOR = "#cc79a7";
 
 /**
  * Decomposição da variação em cascata: valor de partida, ganho de preço,
@@ -309,7 +311,7 @@ function barColor(bar: WaterfallBar) {
     return FLOW_COLOR;
   }
 
-  return bar.value >= 0 ? "var(--primary)" : "var(--destructive)";
+  return bar.value >= 0 ? "var(--chart-up)" : "var(--chart-down)";
 }
 
 // Rótulo curto sobre a barra, sem o símbolo da moeda, que já está no eixo: com

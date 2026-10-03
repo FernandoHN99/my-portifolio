@@ -11,23 +11,18 @@ import { formatRefreshDateTime } from "@/modules/quotes/presentation/refresh-tim
 
 // Última atualização das cotações, com a mesma atualização manual da seta do
 // topo. Os dois usam o mesmo cliente: giram juntos e publicam os mesmos avisos.
+// Aparece só no mês corrente, o único que a atualização muda (spec 038).
 export function LastRefreshCard({
   summary: serverSummary,
-  selectedMonth,
   currentMonth,
-  currentMonthExists,
 }: {
   summary: QuoteRefreshSummary | null;
-  selectedMonth: string;
   currentMonth: string;
-  currentMonthExists: boolean;
 }) {
   const { client, now, summary, time, lastRun, hasIssues, refresh } = useQuoteRefresh(serverSummary);
   const lastAttemptIsLatestUpdate =
     lastRun !== null && summary?.lastUpdatedAt === (lastRun.finishedAt ?? lastRun.startedAt);
   const failed = lastRun?.failures ?? [];
-  // Atualizar só faz sentido no mês corrente (spec 028).
-  const canRefresh = selectedMonth === currentMonth;
 
   return (
     <section
@@ -67,33 +62,31 @@ export function LastRefreshCard({
           </p>
         ) : null}
         <p className="mt-1.5 text-[11px] leading-5 text-muted-foreground">
-          {scopeNote(selectedMonth, currentMonth, currentMonthExists)}
+          Busca as cotações de hoje nos provedores e recalcula as posições de {compact(currentMonth)}.
         </p>
       </div>
 
       {/* Sem o atributo disabled, como a seta do topo: o botão continua focado
           enquanto a atualização roda, e um clique repetido é ignorado. */}
-      {canRefresh ? (
-        <button
-          type="button"
-          onClick={refresh}
-          aria-disabled={client.running || undefined}
-          aria-busy={client.running || undefined}
-          className="group inline-flex h-9 shrink-0 items-center justify-center gap-2 self-start rounded-xl bg-primary px-3.5 text-xs font-semibold text-primary-foreground outline-none transition-[background-color,transform] duration-150 hover:bg-primary/90 focus-visible:ring-3 focus-visible:ring-ring/40 active:scale-[0.98] aria-disabled:cursor-wait aria-disabled:opacity-70 sm:self-center"
-        >
-          <ArrowClockwiseIcon
-            aria-hidden="true"
-            size={14}
-            weight="bold"
-            className={cn(
-              client.spinning
-                ? "animate-spin"
-                : "transition-transform duration-200 ease-out group-hover:rotate-45 motion-reduce:transition-none",
-            )}
-          />
-          {client.running ? "Atualizando…" : "Atualizar cotações"}
-        </button>
-      ) : null}
+      <button
+        type="button"
+        onClick={refresh}
+        aria-disabled={client.running || undefined}
+        aria-busy={client.running || undefined}
+        className="group inline-flex h-9 shrink-0 items-center justify-center gap-2 self-start rounded-xl bg-primary px-3.5 text-xs font-semibold text-primary-foreground outline-none transition-[background-color,transform] duration-150 hover:bg-primary/90 focus-visible:ring-3 focus-visible:ring-ring/40 active:scale-[0.98] aria-disabled:cursor-wait aria-disabled:opacity-70 sm:self-center"
+      >
+        <ArrowClockwiseIcon
+          aria-hidden="true"
+          size={14}
+          weight="bold"
+          className={cn(
+            client.spinning
+              ? "animate-spin"
+              : "transition-transform duration-200 ease-out group-hover:rotate-45 motion-reduce:transition-none",
+          )}
+        />
+        {client.running ? "Atualizando…" : "Atualizar cotações"}
+      </button>
     </section>
   );
 }
@@ -101,14 +94,4 @@ export function LastRefreshCard({
 function compact(month: string) {
   const date = parseMonthParam(month);
   return date ? formatMonthCompact(date) : month;
-}
-
-function scopeNote(selectedMonth: string, currentMonth: string, currentMonthExists: boolean) {
-  const base = currentMonthExists
-    ? `Busca as cotações de hoje nos provedores e recalcula as posições de ${compact(currentMonth)}.`
-    : "Busca as cotações de hoje nos provedores e guarda no histórico diário.";
-
-  return selectedMonth === currentMonth
-    ? base
-    : `A atualização roda sozinha ao abrir o aplicativo e só muda ${compact(currentMonth)}, o mês corrente. As cotações de ${compact(selectedMonth)} ficam como fechamento do mês.`;
 }

@@ -134,8 +134,9 @@ test("fora do mês corrente o topo mostra só o horário, sem a seta", async ({ 
   await expect(page.getByRole("button", { name: /^Atualizar cotações/ })).toHaveCount(0);
 
   await page.goto("/posicoes/cotacoes?mes=2026-09");
-  await expect(page.getByRole("region", { name: "Última atualização" }).getByRole("button")).toHaveCount(0);
-  await expect(page.getByRole("region", { name: "Última atualização" })).toContainText(/só muda [A-Z][a-z]{2}\/\d{2}, o mês corrente/);
+  // Fora do mês corrente o card da última atualização não aparece (spec 038).
+  await expect(page.getByRole("heading", { level: 1, name: "Cotações do mês" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Última atualização" })).toHaveCount(0);
 });
 
 test("uma falha ao gravar a atualização indica cada ativo", async ({ page }) => {
@@ -176,6 +177,8 @@ test("a checagem automática avisa quando o aplicativo não responde", async ({ 
 // As abas principais não podem ser cortadas pelo indicador do topo. O rótulo
 // de data é o mais longo no computador, e "59 min" o mais largo no celular.
 test("o indicador do topo não corta as abas em telas estreitas", async ({ page }) => {
+  // Vinte e quatro navegações: o tempo padrão não basta com a suíte em paralelo.
+  test.setTimeout(120_000);
   const labels = [
     { lastUpdatedAt: "2026-09-30T07:39:00.000Z", widths: [320, 360, 375, 640, 768, 1024] },
     { lastUpdatedAt: new Date(Date.now() - 59 * MINUTE).toISOString(), widths: [320, 360] },

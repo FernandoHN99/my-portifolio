@@ -20,6 +20,8 @@
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
+  --color-chart-up: var(--chart-up);
+  --color-chart-down: var(--chart-down);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -63,6 +65,12 @@
   --accent: oklch(0.205 0.025 160);
   --accent-foreground: oklch(0.84 0.105 158);
   --destructive: oklch(0.68 0.2 25);
+  /*
+   * Alta e queda nos gráficos e marcas (spec 038): azul e laranja da paleta
+   * Okabe-Ito, distinguíveis com daltonismo, no lugar de verde e vermelho.
+   */
+  --chart-up: #56b4e9;
+  --chart-down: #e69f00;
   --border: oklch(0.255 0.014 165 / 0.72);
   --input: oklch(0.255 0.014 165);
   --ring: oklch(0.71 0.12 158);
@@ -222,4 +230,14 @@
   textarea {
     font-size: 16px;
   }
+}
+
+/*
+ * Gráficos sem o contorno de foco ao clicar (spec 038): o Recharts torna a
+ * área e as fatias focáveis, e o clique deixava um retângulo em volta.
+ */
+.recharts-wrapper:focus,
+.recharts-wrapper :focus,
+.recharts-wrapper :focus-visible {
+  outline: none;
 }

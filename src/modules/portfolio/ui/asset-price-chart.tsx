@@ -117,7 +117,7 @@ export function AssetPriceChart({
               data-testid="price-range-change"
               className={cn(
                 "rounded-full px-2 py-0.5 font-mono text-[10px] font-semibold",
-                change >= 0 ? "bg-primary/10 text-primary" : "bg-destructive/12 text-destructive",
+                change >= 0 ? "bg-chart-up/12 text-chart-up" : "bg-chart-down/12 text-chart-down",
               )}
             >
               {formatPercent(change)} no período

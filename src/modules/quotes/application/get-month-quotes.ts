@@ -51,7 +51,6 @@ export type MonthQuotesView = {
   // A atualização de cotações só reprecifica a competência do mês corrente.
   isCurrent: boolean;
   currentMonth: string;
-  currentMonthExists: boolean;
   totalBrl: number;
   quotes: MonthQuoteRow[];
 };
@@ -65,7 +64,7 @@ export async function getMonthQuotes(referenceDate?: Date): Promise<MonthQuotesV
 
   try {
     const current = currentReferenceMonth();
-    const [month, latest, currentMonth] = await Promise.all([
+    const [month, latest] = await Promise.all([
       prisma.portfolioMonth.findFirst({
         where: referenceDate ? { referenceDate } : undefined,
         orderBy: { referenceDate: "desc" },
@@ -83,7 +82,6 @@ export async function getMonthQuotes(referenceDate?: Date): Promise<MonthQuotesV
         },
       }),
       prisma.portfolioMonth.findFirst({ orderBy: { referenceDate: "desc" }, select: { id: true } }),
-      prisma.portfolioMonth.findUnique({ where: { referenceDate: current }, select: { id: true } }),
     ]);
 
     if (!month) {
@@ -166,7 +164,6 @@ export async function getMonthQuotes(referenceDate?: Date): Promise<MonthQuotesV
       isLocked: month.status !== "DRAFT",
       isCurrent: month.referenceDate.getTime() === current.getTime(),
       currentMonth: toMonthParam(current),
-      currentMonthExists: currentMonth !== null,
       totalBrl: month.positions
         .reduce((total, position) => total.plus(position.totalBrl), new Prisma.Decimal(0))
         .toNumber(),
