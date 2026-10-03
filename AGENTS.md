@@ -11,11 +11,15 @@ e Claude Code consultando a mesma base de conhecimento.
 
 ## Trabalho em andamento
 
-Estado em 2026-10-03: specs 016 e 028 a 040 concluídas e no `main`;
+Estado em 2026-10-03: specs 016, 028 a 040 e 042 concluídas e no `main`;
 detalhes em `.ai/specs/README.md`.
 
 - **próximo passo**: o usuário quer iniciar o passo pré-produção, a preparação
   única do histórico para importação, descrito em `.ai/context/pre-deploy.md`;
+- o backup dos dados ([spec 042](.ai/specs/042-data-backup.md)) exporta e
+  restaura tudo pela Configuração ou por `pnpm backup:export` e
+  `pnpm backup:restore`; os arquivos ficam em `backups/`, fora do Git. É o
+  caminho para levar os dados a outro banco, como o de produção;
 - transações dentro das posições e a previdência estão no backlog, em
   `.ai/context/backlog.md`;
 - as respostas do usuário, o backlog e o que ainda aguarda resposta estão em
@@ -38,6 +42,12 @@ Ao atualizar um ambiente local: `pnpm install`, `pnpm db:migrate`,
 `pnpm db:generate` (o `migrate dev` do Prisma 7 não regenera o cliente) e
 reiniciar o `pnpm dev`. Ao abrir, o app cria as competências que faltam e
 atualiza as cotações se a última atualização tiver mais de uma hora.
+
+Para testar gravações sem tocar nos dados reais, use um schema de teste no
+mesmo Postgres (ideia do usuário, spec 042): `pnpm db:test-schema create
+<nome>` aplica as migrações, `DATABASE_URL="$(pnpm --silent db:test-schema url
+<nome>)"` aponta qualquer roteiro para ele, e `E2E_BASE_URL` leva o Playwright
+a um servidor já rodando nesse schema.
 
 Testes de interface rodam sobre os dados reais e não podem gravar: todo
 arquivo em `tests/e2e/` substitui a checagem de abertura com

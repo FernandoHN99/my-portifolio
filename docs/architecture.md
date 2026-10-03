@@ -23,6 +23,10 @@ Executar Next.js diretamente no computador e PostgreSQL em Docker
 durante o desenvolvimento. Esta decisão não define o empacotamento
 nem a hospedagem de produção.
 
+Atualizado em 2026-10-03: testes que gravam usam um schema próprio no mesmo
+Postgres, indicado em `?schema=` na `DATABASE_URL`
+([spec 042](../.ai/specs/042-data-backup.md)).
+
 ### Evolução do histórico
 
 Guardar preços diários e posições mensais revisadas, evoluindo o
@@ -70,6 +74,13 @@ financeira corrigida por suposição.
 Atualizado em 2026-10-02: a tela de revisão dos achados foi removida a
 pedido do usuário ([spec 022](../.ai/specs/022-quotes-page.md)). Os dados de
 origem e os achados continuam preservados nas tabelas da importação.
+
+### Backup dos dados
+
+Decidido em 2026-10-03: o aplicativo exporta todos os dados num arquivo JSON
+versionado e restaura um arquivo desses substituindo tudo, numa transação, só
+depois de mostrar o resumo e pedir confirmação
+([spec 042](../.ai/specs/042-data-backup.md)).
 
 ### Acesso inicial
 

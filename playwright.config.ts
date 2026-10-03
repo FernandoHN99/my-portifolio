@@ -1,5 +1,9 @@
 import { defineConfig, devices } from "@playwright/test";
 
+// E2E_BASE_URL aponta os testes para outro servidor já rodando, como um app
+// ligado a um schema de teste do banco (pnpm db:test-schema), sem subir o dev.
+const externalBaseUrl = process.env.E2E_BASE_URL;
+
 export default defineConfig({
   testDir: "./tests/e2e",
   fullyParallel: true,
@@ -7,7 +11,7 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   reporter: "html",
   use: {
-    baseURL: "http://127.0.0.1:3000",
+    baseURL: externalBaseUrl ?? "http://127.0.0.1:3000",
     trace: "on-first-retry",
   },
   projects: [
@@ -20,10 +24,12 @@ export default defineConfig({
       use: { ...devices["Pixel 7"], channel: "chrome" },
     },
   ],
-  webServer: {
-    command: "pnpm dev --hostname 127.0.0.1",
-    url: "http://127.0.0.1:3000",
-    reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
-  },
+  webServer: externalBaseUrl
+    ? undefined
+    : {
+        command: "pnpm dev --hostname 127.0.0.1",
+        url: "http://127.0.0.1:3000",
+        reuseExistingServer: !process.env.CI,
+        timeout: 120_000,
+      },
 });

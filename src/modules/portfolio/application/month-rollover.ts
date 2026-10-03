@@ -1,4 +1,5 @@
 import { PortfolioMonthStatus, Prisma } from "@/generated/prisma/client";
+import { MONTH_ROLLOVER_LOCK_KEY } from "@/lib/advisory-locks";
 import { getPrismaClient } from "@/lib/prisma";
 import type { GeneratedMonthView, MonthRolloverOutcome } from "@/modules/portfolio/domain/month-rollover";
 import { toMonthParam } from "@/modules/portfolio/presentation/reference-month";
@@ -6,8 +7,6 @@ import { addMonths, calendarDay, lastDayOf, monthOf } from "@/modules/quotes/dom
 
 type Transaction = Prisma.TransactionClient;
 
-// Chave do bloqueio consultivo que serializa a criação de competências.
-const MONTH_ROLLOVER_LOCK_KEY = 2_026_100_202;
 
 // Garante que exista a competência do mês de `today`, copiando a anterior para
 // cada mês que faltar depois da mais recente. Competências passadas geradas

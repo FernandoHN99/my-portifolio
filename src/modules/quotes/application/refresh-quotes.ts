@@ -7,6 +7,7 @@ import {
   QuoteUpdateStatus,
   type PrismaClient,
 } from "@/generated/prisma/client";
+import { QUOTE_REFRESH_LOCK_KEY } from "@/lib/advisory-locks";
 import { getPrismaClient } from "@/lib/prisma";
 import { fetchCurrentQuotes } from "@/modules/quotes/application/fetch-current-quotes";
 import { calendarDay, monthOf, toDateKey } from "@/modules/quotes/domain/calendar";
@@ -29,9 +30,8 @@ export type QuoteFetcher = (requests: QuoteRequest[]) => Promise<QuoteResult[]>;
 
 type Transaction = Prisma.TransactionClient;
 
-// Chave do bloqueio consultivo do PostgreSQL que serializa a reserva de uma
-// execução. O bloqueio dura só a transação curta que cria a execução.
-const QUOTE_REFRESH_LOCK_KEY = 2_026_100_201;
+// O bloqueio consultivo (QUOTE_REFRESH_LOCK_KEY) serializa a reserva de uma
+// execução e dura só a transação curta que cria a execução.
 // Uma execução que continua RUNNING depois disso foi interrompida.
 const STALE_RUN_MS = 10 * 60 * 1000;
 

@@ -16,6 +16,7 @@ import {
   useRef,
   useState,
   useTransition,
+  type ReactNode,
 } from "react";
 
 import { saveTargetPlanAction } from "@/app/actions/target-plan";
@@ -47,7 +48,8 @@ const EMPTY_ROWS: AllocationRow[] = [];
 
 type Draft = Record<string, string>;
 
-export function TargetEditor({ editor }: { editor: TargetEditorData }) {
+/** `children` entra no fim da coluna principal, como o backup dos dados (spec 042). */
+export function TargetEditor({ editor, children }: { editor: TargetEditorData; children?: ReactNode }) {
   const [draft, setDraft] = useState<Draft>({});
   const [toleranceDraft, setToleranceDraft] = useState<string | null>(null);
   const [previewScope, setPreviewScope] = useState<AllocationGroupKey>("ASSET_CLASS");
@@ -283,6 +285,7 @@ export function TargetEditor({ editor }: { editor: TargetEditorData }) {
               ))}
             </ol>
           </section>
+          {children}
         </div>
 
         <aside className="xl:sticky xl:top-[148px] xl:self-start" aria-label="Prévia do rebalanceamento">

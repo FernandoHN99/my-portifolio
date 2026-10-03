@@ -44,6 +44,7 @@ Esta pasta organiza a implementação em fatias pequenas e revisáveis.
 - [038 — Gráficos para daltonismo, sem contorno, e card da atualização só no mês corrente](038-colorblind-charts.md): concluída.
 - [039 — Prazo de liquidez do ativo](039-asset-liquidity.md): concluída.
 - [040 — Inclusão pelo tipo, nome livre, renomear ativo, sem conta, e cor da diferença](040-simpler-position-entry.md): concluída.
+- [042 — Backup dos dados: exportar e restaurar](042-data-backup.md): concluída.
 
 As specs 010 a 017 formam a reestruturação da UX pedida pelo usuário. O
 propósito, as restrições e as regras de cálculo comuns a elas estão em
