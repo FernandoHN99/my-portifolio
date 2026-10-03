@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { rejectForeignRequest } from "@/lib/same-origin-request";
+import { rejectWithoutSession } from "@/modules/auth/session";
 import { ASSET_KINDS } from "@/modules/portfolio/domain/asset-kinds";
 import { checkTicker } from "@/modules/quotes/application/check-ticker";
 import type { TickerCheckRequest, TickerCheckResponse } from "@/modules/quotes/domain/ticker-check";
@@ -24,6 +25,12 @@ export async function POST(request: Request) {
 
   if (rejection) {
     return rejection;
+  }
+
+  const unauthorized = await rejectWithoutSession();
+
+  if (unauthorized) {
+    return unauthorized;
   }
 
   const parsed = requestSchema.safeParse(await request.json().catch(() => null));

@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 
 import { PortfolioMonthStatus, Prisma, QuoteUpdateStatus } from "@/generated/prisma/client";
-import { getPrismaClient } from "@/lib/prisma";
+import { currentUserId, getUserDb, SCOPED_USER } from "@/lib/user-db";
 import {
   applyAssetAttributes,
   AssetAttributeError,
@@ -121,7 +121,9 @@ type CreatedEntities = {
   dailyQuoteIds: string[];
 };
 
-type UndoEntry =
+// O depósito do desfazer é um só no servidor; cada entrada guarda o usuário
+// que fez a alteração, e só ele pode desfazê-la (spec 050).
+type UndoEntry = { userId: string } & (
   | {
       kind: "restore";
       monthId: string;
@@ -132,7 +134,10 @@ type UndoEntry =
       /** Ativos editados junto, no estado anterior. */
       assets?: AssetState[];
     }
-  | { kind: "delete-month"; monthId: string; fingerprint: string; expiresAt: number };
+  | { kind: "delete-month"; monthId: string; fingerprint: string; expiresAt: number }
+);
+
+type NewUndoEntry = UndoEntry extends infer Entry ? (Entry extends unknown ? Omit<Entry, "userId"> : never) : never;
 
 const UNDO_TTL_MS = 10 * 60 * 1000;
 const MAX_STRATEGY_LENGTH = 60;
@@ -198,6 +203,7 @@ export async function addPosition(input: { monthId: string; addition: PositionAd
     await assertAllocationRules(transaction, allocations);
     const created = await transaction.position.create({
       data: {
+        userId: SCOPED_USER,
         portfolioMonthId: month.id,
         accountId: account.id,
         assetId: asset.id,
@@ -210,7 +216,7 @@ export async function addPosition(input: { monthId: string; addition: PositionAd
       select: { id: true },
     });
     await transaction.positionAllocation.createMany({
-      data: allocations.map((allocation) => ({ ...allocation, positionId: created.id })),
+      data: allocations.map((allocation) => ({ ...allocation, userId: SCOPED_USER, positionId: created.id })),
     });
 
     return hasCreated(batch.created) ? { created: batch.created } : undefined;
@@ -266,7 +272,7 @@ export async function editPosition(input: { monthId: string; edit: PositionEdit 
     );
     await transaction.positionAllocation.deleteMany({ where: { positionId: position.id } });
     await transaction.positionAllocation.createMany({
-      data: allocations.map((allocation) => ({ ...allocation, positionId: position.id })),
+      data: allocations.map((allocation) => ({ ...allocation, userId: SCOPED_USER, positionId: position.id })),
     });
 
     let previous: AssetState | null;
@@ -353,7 +359,7 @@ async function resolveAdditionAccount(
   }
 
   const account = await transaction.account.create({
-    data: { institutionId: institution.id, name },
+    data: { userId: SCOPED_USER, institutionId: institution.id, name },
     select: { id: true },
   });
   batch.accounts.set(key, account.id);
@@ -384,7 +390,7 @@ async function resolveInstitution(transaction: Transaction, input: NewAccountInp
     return reused;
   }
 
-  const existing = await transaction.institution.findUnique({
+  const existing = await transaction.institution.findFirst({
     where: { normalizedName },
     select: { name: true },
   });
@@ -394,7 +400,7 @@ async function resolveInstitution(transaction: Transaction, input: NewAccountInp
   }
 
   const institution = await transaction.institution.create({
-    data: { name, normalizedName },
+    data: { userId: SCOPED_USER, name, normalizedName },
     select: { id: true, name: true },
   });
   batch.institutions.set(normalizedName, institution);
@@ -460,7 +466,7 @@ async function resolveAdditionAsset(
     return { id: reused.id, quoteSymbol: reused.quoteSymbol };
   }
 
-  const existing = await transaction.asset.findUnique({ where: { normalizedKey }, select: { name: true } });
+  const existing = await transaction.asset.findFirst({ where: { normalizedKey }, select: { name: true } });
 
   if (existing) {
     throw new MonthEditError(
@@ -485,6 +491,7 @@ async function resolveAdditionAsset(
 
   const asset = await transaction.asset.create({
     data: {
+      userId: SCOPED_USER,
       normalizedKey,
       name,
       ticker: symbol,
@@ -771,7 +778,8 @@ export async function updateMonthQuotes(input: {
 }
 
 export async function cloneLatestMonth() {
-  const prisma = requirePrisma();
+  const prisma = await requirePrisma();
+  const userId = await currentUserId();
 
   return prisma.$transaction(
     async (transaction) => {
@@ -808,20 +816,20 @@ export async function cloneLatestMonth() {
       }
 
       const month = await transaction.portfolioMonth.create({
-        data: { referenceDate: target, status: PortfolioMonthStatus.DRAFT },
+        data: { userId: SCOPED_USER, referenceDate: target, status: PortfolioMonthStatus.DRAFT },
         select: { id: true },
       });
 
       for (const position of latest.positions) {
         const { allocations, ...fields } = position;
         const created = await transaction.position.create({
-          data: { ...fields, portfolioMonthId: month.id },
+          data: { ...fields, userId: SCOPED_USER, portfolioMonthId: month.id },
           select: { id: true },
         });
 
         if (allocations.length > 0) {
           await transaction.positionAllocation.createMany({
-            data: allocations.map((allocation) => ({ ...allocation, positionId: created.id })),
+            data: allocations.map((allocation) => ({ ...allocation, userId: SCOPED_USER, positionId: created.id })),
           });
         }
       }
@@ -851,7 +859,7 @@ export async function cloneLatestMonth() {
       }
 
       const after = await readSnapshot(transaction, { id: month.id, referenceDate: target });
-      const token = storeUndo({
+      const token = storeUndo(userId, {
         kind: "delete-month",
         monthId: month.id,
         fingerprint: fingerprint(after),
@@ -865,14 +873,20 @@ export async function cloneLatestMonth() {
 }
 
 export async function undoChange(token: string) {
-  const entry = undoStore.get(token);
-  undoStore.delete(token);
+  const prisma = await requirePrisma();
+  const userId = await currentUserId();
+  const stored = undoStore.get(token);
+  // A entrada de outro usuário fica intacta e é tratada como inexistente.
+  const entry = stored?.userId === userId ? stored : undefined;
+
+  if (entry) {
+    undoStore.delete(token);
+  }
 
   if (!entry || entry.expiresAt < Date.now()) {
     throw new MonthEditError("Não é mais possível desfazer esta alteração.");
   }
 
-  const prisma = requirePrisma();
 
   return prisma.$transaction(
     async (transaction) => {
@@ -964,7 +978,7 @@ async function assertAllocationRules(
  * atualização automática continua reprecificando o mês corrente fechado.
  */
 export async function setMonthOpen({ monthId, open }: { monthId: string; open: boolean }) {
-  const prisma = requirePrisma();
+  const prisma = await requirePrisma();
   const month = await prisma.portfolioMonth.findUnique({ where: { id: monthId }, select: { id: true, status: true } });
 
   if (!month) {
@@ -1028,7 +1042,8 @@ async function withUndo(
     month: { id: string; referenceDate: Date },
   ) => Promise<{ created?: CreatedEntities; assets?: AssetState[] } | void>,
 ) {
-  const prisma = requirePrisma();
+  const prisma = await requirePrisma();
+  const userId = await currentUserId();
 
   try {
     return await prisma.$transaction(
@@ -1037,7 +1052,7 @@ async function withUndo(
         const before = await readSnapshot(transaction, month);
         const extras = await mutate(transaction, month);
         const after = await readSnapshot(transaction, month);
-        const undoToken = storeUndo({
+        const undoToken = storeUndo(userId, {
           kind: "restore",
           monthId: month.id,
           snapshot: before,
@@ -1139,7 +1154,7 @@ async function restoreSnapshot(
   for (const { allocations, ...position } of snapshot.positions) {
     await transaction.position.upsert({
       where: { id: position.id },
-      create: { ...position, portfolioMonthId: month.id },
+      create: { ...position, userId: SCOPED_USER, portfolioMonthId: month.id },
       update: {
         quantity: position.quantity,
         unitPriceBrl: position.unitPriceBrl,
@@ -1152,7 +1167,7 @@ async function restoreSnapshot(
 
     if (allocations.length > 0) {
       await transaction.positionAllocation.createMany({
-        data: allocations.map((allocation) => ({ ...allocation, positionId: position.id })),
+        data: allocations.map((allocation) => ({ ...allocation, userId: SCOPED_USER, positionId: position.id })),
       });
     }
   }
@@ -1179,7 +1194,7 @@ function fingerprint(snapshot: MonthSnapshot) {
     .digest("hex");
 }
 
-function storeUndo(entry: UndoEntry) {
+function storeUndo(userId: string, entry: NewUndoEntry) {
   const now = Date.now();
 
   for (const [key, value] of undoStore) {
@@ -1189,12 +1204,12 @@ function storeUndo(entry: UndoEntry) {
   }
 
   const token = randomUUID();
-  undoStore.set(token, entry);
+  undoStore.set(token, { ...entry, userId } as UndoEntry);
   return token;
 }
 
-function requirePrisma() {
-  const prisma = getPrismaClient();
+async function requirePrisma() {
+  const prisma = await getUserDb();
 
   if (!prisma) {
     throw new MonthEditError("O banco de dados não está disponível.");

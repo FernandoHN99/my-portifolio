@@ -1,3 +1,4 @@
+import { rejectWithoutSession } from "@/modules/auth/session";
 import { exportBackup } from "@/modules/backup/application/backup";
 import { backupFileName } from "@/modules/backup/domain/backup-format";
 
@@ -8,6 +9,12 @@ export const dynamic = "force-dynamic";
 export async function GET(request: Request) {
   if (request.headers.get("sec-fetch-site") === "cross-site") {
     return Response.json({ message: "Origem não permitida." }, { status: 403 });
+  }
+
+  const unauthorized = await rejectWithoutSession();
+
+  if (unauthorized) {
+    return unauthorized;
   }
 
   const backup = await exportBackup().catch(() => null);

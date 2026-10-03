@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { unstable_rethrow } from "next/navigation";
 import { after } from "next/server";
 import { z } from "zod";
 
@@ -14,6 +15,7 @@ import {
   undoChange,
   updateMonthQuotes,
 } from "@/modules/portfolio/application/month-editing";
+import { requireSessionUser } from "@/modules/auth/session";
 import { ASSET_KINDS } from "@/modules/portfolio/domain/asset-kinds";
 import { backfillNewAssetHistories } from "@/modules/quotes/application/backfill-asset-history";
 import { toMonthParam } from "@/modules/portfolio/presentation/reference-month";
@@ -203,6 +205,9 @@ export async function undoChangeAction(token: unknown): Promise<EditActionResult
 }
 
 async function run(operation: () => Promise<EditActionResult>): Promise<EditActionResult> {
+  // Sem sessão, leva à entrada (spec 050), fora do try para não virar erro.
+  await requireSessionUser();
+
   try {
     const result = await operation();
     revalidatePath("/");
@@ -211,6 +216,7 @@ async function run(operation: () => Promise<EditActionResult>): Promise<EditActi
     revalidatePath("/posicoes/[accountId]/[assetId]", "page");
     return result;
   } catch (error) {
+    unstable_rethrow(error);
     return {
       ok: false,
       message: error instanceof MonthEditError ? error.message : "Não foi possível concluir a operação.",

@@ -101,10 +101,20 @@ dados, inclusive para o banco de produção. Cada restauração fica registrada 
 para mudá-lo junto com o modelo estão em [Formato do backup](backup-format.md)
 ([spec 047](../.ai/specs/047-json-only-data.md)).
 
-### Acesso inicial
+### Acesso e usuários
 
-A primeira versão funciona somente no computador local e não possui
-autenticação.
+Decisão inicial, de 2026-09-21: a primeira versão funcionava somente no
+computador local e não possuía autenticação.
+
+Atualizado em 2026-10-03: com o app publicado na Vercel, o usuário pediu login
+no próprio app, e as cotações automáticas passaram a ser compartilhadas entre
+os usuários ([spec 050](../.ai/specs/050-login-and-user-data.md) e
+[spec 051](../.ai/specs/051-shared-automatic-quotes.md)). O login usa e-mail e
+senha com Better Auth e sessões no Postgres; cada usuário tem a própria
+carteira, isolada por `user_id` e por chaves estrangeiras compostas, e o
+código acessa os dados pelo cliente com escopo (`src/lib/user-db.ts`). As
+escolhas feitas pelo agente na ausência do usuário estão na spec 050, a
+confirmar.
 
 ### Organização do código
 

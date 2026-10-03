@@ -1,5 +1,5 @@
 import { Prisma, type PortfolioMonthStatus } from "@/generated/prisma/client";
-import { getPrismaClient } from "@/lib/prisma";
+import { getUserDb } from "@/lib/user-db";
 import { calendarDay, currentReferenceMonth, lastDayOf, toDateKey } from "@/modules/quotes/domain/calendar";
 
 export type MonthPositionAllocation = {
@@ -64,7 +64,7 @@ export type MonthPositions = {
 export async function getMonthPositions(
   referenceDate?: Date,
 ): Promise<MonthPositions | null> {
-  const prisma = getPrismaClient();
+  const prisma = await getUserDb();
 
   if (!prisma) {
     return null;

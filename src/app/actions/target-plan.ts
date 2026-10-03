@@ -1,8 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { unstable_rethrow } from "next/navigation";
 import { z } from "zod";
 
+import { requireSessionUser } from "@/modules/auth/session";
 import { saveTargetPlan, TargetPlanError } from "@/modules/portfolio/application/target-plan-editing";
 
 const schema = z.object({
@@ -16,6 +18,7 @@ const schema = z.object({
 export type TargetPlanActionResult = { ok: boolean; message: string };
 
 export async function saveTargetPlanAction(input: unknown): Promise<TargetPlanActionResult> {
+  await requireSessionUser();
   const parsed = schema.safeParse(input);
 
   if (!parsed.success) {
@@ -28,6 +31,7 @@ export async function saveTargetPlanAction(input: unknown): Promise<TargetPlanAc
     revalidatePath("/configuracao");
     return { ok: true, message: `${plan.name} passou a valer em todas as análises.` };
   } catch (error) {
+    unstable_rethrow(error);
     return {
       ok: false,
       message: error instanceof TargetPlanError ? error.message : "Não foi possível salvar as metas.",

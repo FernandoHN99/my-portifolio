@@ -1,5 +1,5 @@
 import { Prisma, type PortfolioMonthStatus } from "@/generated/prisma/client";
-import { getPrismaClient } from "@/lib/prisma";
+import { getUserDb } from "@/lib/user-db";
 import { toMonthParam } from "@/modules/portfolio/presentation/reference-month";
 
 export type PortfolioMonthSummary = {
@@ -13,7 +13,7 @@ export type PortfolioMonthSummary = {
 };
 
 export async function getPortfolioMonths(): Promise<PortfolioMonthSummary[]> {
-  const prisma = getPrismaClient();
+  const prisma = await getUserDb();
 
   if (!prisma) {
     return [];

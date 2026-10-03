@@ -1,4 +1,5 @@
 import { rejectForeignRequest } from "@/lib/same-origin-request";
+import { rejectWithoutSession } from "@/modules/auth/session";
 import { ensureMonthsUpToDate } from "@/modules/portfolio/application/month-rollover";
 import type { MonthRolloverOutcome } from "@/modules/portfolio/domain/month-rollover";
 import { getQuoteRefreshSummary, refreshQuotes } from "@/modules/quotes/application/refresh-quotes";
@@ -14,6 +15,12 @@ export async function POST(request: Request) {
 
   if (rejection) {
     return rejection;
+  }
+
+  const unauthorized = await rejectWithoutSession();
+
+  if (unauthorized) {
+    return unauthorized;
   }
 
   const rollover = await ensureMonthsUpToDate().catch(

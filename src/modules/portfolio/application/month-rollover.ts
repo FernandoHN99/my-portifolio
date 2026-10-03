@@ -1,6 +1,6 @@
 import { PortfolioMonthStatus, Prisma } from "@/generated/prisma/client";
 import { MONTH_ROLLOVER_LOCK_KEY } from "@/lib/advisory-locks";
-import { getPrismaClient } from "@/lib/prisma";
+import { getUserDb, SCOPED_USER } from "@/lib/user-db";
 import type { GeneratedMonthView, MonthRolloverOutcome } from "@/modules/portfolio/domain/month-rollover";
 import { toMonthParam } from "@/modules/portfolio/presentation/reference-month";
 import { addMonths, calendarDay, lastDayOf, monthOf } from "@/modules/quotes/domain/calendar";
@@ -13,7 +13,7 @@ type Transaction = Prisma.TransactionClient;
 // aqui usam a cotação do último dia do mês disponível no histórico diário; na
 // falta dele, repetem a do mês anterior e isso é informado no resultado.
 export async function ensureMonthsUpToDate(today: Date = new Date()): Promise<MonthRolloverOutcome> {
-  const prisma = getPrismaClient();
+  const prisma = await getUserDb();
 
   if (!prisma) {
     return { state: "unavailable", message: "O banco de dados não está configurado." };
@@ -166,7 +166,7 @@ async function copyMonth(
   }
 
   const created = await transaction.portfolioMonth.create({
-    data: { referenceDate: month, status: PortfolioMonthStatus.DRAFT },
+    data: { userId: SCOPED_USER, referenceDate: month, status: PortfolioMonthStatus.DRAFT },
     select: { id: true, referenceDate: true },
   });
 
@@ -195,6 +195,7 @@ async function copyMonth(
         const repriced = quote?.fromHistory ? quote.valueBrl : null;
 
         return {
+          userId: SCOPED_USER,
           portfolioMonthId: created.id,
           accountId: position.accountId,
           assetId: position.assetId,
@@ -217,7 +218,7 @@ async function copyMonth(
     );
     const allocations = positions.flatMap((position) => {
       const positionId = idByIdentity.get(`${position.accountId}:${position.assetId}`);
-      return positionId ? position.allocations.map((allocation) => ({ ...allocation, positionId })) : [];
+      return positionId ? position.allocations.map((allocation) => ({ ...allocation, userId: SCOPED_USER, positionId })) : [];
     });
 
     if (allocations.length > 0) {

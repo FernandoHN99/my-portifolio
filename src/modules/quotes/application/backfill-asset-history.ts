@@ -18,10 +18,10 @@ import { describeProviderError } from "@/modules/quotes/infrastructure/http";
 import { fetchYahooDailyHistory } from "@/modules/quotes/infrastructure/yahoo";
 
 // Histórico de fechamento mensal dos ativos novos (spec 029). Depois de uma
-// inclusão de posição no mês corrente, cada símbolo da competência corrente sem
-// nenhuma cotação anterior ao mês recebe o fechamento dos últimos 36 meses, ou
-// do que o provedor oferece, guardado no histórico diário no último pregão de
-// cada mês. Uma consulta por ativo, com reserva (spec 037):
+// inclusão de posição no mês corrente, cada símbolo das competências correntes
+// de todos os usuários sem nenhuma cotação anterior ao mês recebe o fechamento
+// dos últimos 36 meses, ou do que o provedor oferece, guardado no histórico
+// diário no último pregão de cada mês. Uma consulta por ativo, com reserva (spec 037):
 //
 // - ações e ETFs, dos EUA ou da B3: Yahoo Finance, três anos de fechamento
 //   diário sem chave; reserva no TIME_SERIES_MONTHLY do Alpha Vantage. O
@@ -56,20 +56,15 @@ export async function backfillNewAssetHistories(now = new Date()): Promise<Backf
   const current = currentReferenceMonth(now);
   const toMonth = toDateKey(current).slice(0, 7);
   const fromMonth = toDateKey(addMonths(current, -HISTORY_BACKFILL_MONTHS)).slice(0, 7);
-  const month = await prisma.portfolioMonth.findUnique({
-    where: { referenceDate: current },
-    select: {
-      positions: { select: { asset: { select: { quoteSymbol: true, quoteProviderId: true } } } },
-    },
+  // As cotações são compartilhadas (spec 051): valem os ativos de todos os
+  // usuários na competência corrente.
+  const positions = await prisma.position.findMany({
+    where: { portfolioMonth: { referenceDate: current } },
+    select: { asset: { select: { quoteSymbol: true, quoteProviderId: true } } },
   });
-
-  if (!month) {
-    return [];
-  }
-
   const providerIds = new Map<string, string | null>();
 
-  for (const { asset } of month.positions) {
+  for (const { asset } of positions) {
     if (asset.quoteSymbol && asset.quoteSymbol !== "USD" && asset.quoteSymbol !== "BRL") {
       providerIds.set(asset.quoteSymbol, asset.quoteProviderId ?? providerIds.get(asset.quoteSymbol) ?? null);
     }

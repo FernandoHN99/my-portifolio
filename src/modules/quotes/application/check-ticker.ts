@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 
-import { getPrismaClient } from "@/lib/prisma";
+import { getUserDb } from "@/lib/user-db";
 import {
   ASSET_KIND_DEFINITIONS,
   baseCurrencyOf,
@@ -106,7 +106,7 @@ export async function checkTicker(
     return { status: "invalid", message: "Digite um ticker válido para este tipo de ativo." };
   }
 
-  const prisma = getPrismaClient();
+  const prisma = await getUserDb();
 
   if (!prisma) {
     throw new Error("O banco de dados não está disponível.");

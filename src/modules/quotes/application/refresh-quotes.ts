@@ -64,17 +64,25 @@ export async function refreshQuotes({
   let results: QuoteResult[] | null = null;
 
   try {
-    const currentMonth = await prisma.portfolioMonth.findUnique({
-      where: { referenceDate: monthOf(today) },
-      select: { id: true },
+    // As cotações são de todos os usuários (spec 051): os símbolos vêm da
+    // competência mais recente de cada um, e só as do mês corrente são
+    // reprecificadas.
+    const referenceDate = monthOf(today);
+    const latestMonths = await prisma.portfolioMonth.findMany({
+      distinct: ["userId"],
+      orderBy: [{ userId: "asc" }, { referenceDate: "desc" }],
+      select: { id: true, referenceDate: true },
     });
-    const scopeMonth =
-      currentMonth ??
-      (await prisma.portfolioMonth.findFirst({
-        orderBy: { referenceDate: "desc" },
-        select: { id: true },
-      }));
-    const requests = scopeMonth ? await buildQuoteRequests(prisma, scopeMonth.id) : { valid: [], failures: [] };
+    const currentMonthIds = latestMonths
+      .filter((month) => month.referenceDate.getTime() === referenceDate.getTime())
+      .map((month) => month.id);
+    const requests =
+      latestMonths.length > 0
+        ? await buildQuoteRequests(
+            prisma,
+            latestMonths.map((month) => month.id),
+          )
+        : { valid: [], failures: [] };
     const fetched = await fetchSafely(fetchQuotes, requests.valid);
     const fetchedAt = clock();
     const completed = completeResults(requests.valid, fetched).concat(requests.failures);
@@ -131,10 +139,10 @@ export async function refreshQuotes({
           });
         }
 
-        if (currentMonth) {
+        if (currentMonthIds.length > 0) {
           await applyToCurrentMonth(transaction, {
-            monthId: currentMonth.id,
-            referenceDate: monthOf(today),
+            monthIds: currentMonthIds,
+            referenceDate,
             today,
             prices: new Map(successes.map((success) => [success.symbol, toPrice(success.valueBrl)])),
             metadata,
@@ -151,7 +159,6 @@ export async function refreshQuotes({
                   ? QuoteRefreshStatus.FAILED
                   : QuoteRefreshStatus.COMPLETED_WITH_ISSUES,
             finishedAt: clock(),
-            portfolioMonthId: currentMonth?.id ?? null,
             errorMessage:
               failures.length === 0
                 ? null
@@ -305,9 +312,9 @@ async function recordFailedRun(
   });
 }
 
-async function buildQuoteRequests(prisma: PrismaClient, monthId: string) {
+async function buildQuoteRequests(prisma: PrismaClient, monthIds: string[]) {
   const positions = await prisma.position.findMany({
-    where: { portfolioMonthId: monthId, asset: { quoteSymbol: { not: null } } },
+    where: { portfolioMonthId: { in: monthIds }, asset: { quoteSymbol: { not: null } } },
     select: { asset: { select: { quoteSymbol: true } } },
   });
   const symbols = [
@@ -430,13 +437,13 @@ function completeResults(requests: QuoteRequest[], fetched: QuoteResult[]) {
 async function applyToCurrentMonth(
   transaction: Transaction,
   {
-    monthId,
+    monthIds,
     referenceDate,
     today,
     prices,
     metadata,
   }: {
-    monthId: string;
+    monthIds: string[];
     referenceDate: Date;
     today: Date;
     prices: Map<string, Prisma.Decimal>;
@@ -469,7 +476,7 @@ async function applyToCurrentMonth(
   }
 
   const positions = await transaction.position.findMany({
-    where: { portfolioMonthId: monthId, asset: { quoteSymbol: { in: [...prices.keys()] } } },
+    where: { portfolioMonthId: { in: monthIds }, asset: { quoteSymbol: { in: [...prices.keys()] } } },
     select: { id: true, quantity: true, asset: { select: { quoteSymbol: true } } },
   });
 
@@ -490,7 +497,7 @@ async function applyToCurrentMonth(
 
   if (usdBrl) {
     await transaction.position.updateMany({
-      where: { portfolioMonthId: monthId, exchangeRateBrl: { not: null } },
+      where: { portfolioMonthId: { in: monthIds }, exchangeRateBrl: { not: null } },
       data: { exchangeRateBrl: usdBrl },
     });
   }

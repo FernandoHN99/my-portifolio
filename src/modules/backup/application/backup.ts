@@ -1,6 +1,6 @@
 import { Prisma } from "@/generated/prisma/client";
 import { DEFAULT_TARGETS_LOCK_KEY, MONTH_ROLLOVER_LOCK_KEY, QUOTE_REFRESH_LOCK_KEY } from "@/lib/advisory-locks";
-import { getPrismaClient } from "@/lib/prisma";
+import { getUserDb, SCOPED_USER } from "@/lib/user-db";
 import {
   BACKUP_FORMAT,
   BACKUP_TABLES,
@@ -148,7 +148,7 @@ function serializeValue(key: BackupTableKey, field: string, value: unknown) {
 
 /** Todas as tabelas, numa leitura consistente. */
 export async function exportBackup(now = new Date()): Promise<BackupFile | null> {
-  const prisma = getPrismaClient();
+  const prisma = await getUserDb();
 
   if (!prisma) {
     return null;
@@ -284,7 +284,7 @@ async function currentCounts(client: Transaction): Promise<BackupCounts> {
 
 /** Resumo do arquivo ao lado dos dados atuais, sem gravar nada. */
 export async function previewBackup(input: unknown): Promise<BackupPreview | null> {
-  const prisma = getPrismaClient();
+  const prisma = await getUserDb();
 
   if (!prisma) {
     return null;
@@ -311,7 +311,7 @@ export async function previewBackup(input: unknown): Promise<BackupPreview | nul
  * importação, que a configuração mostra ao lado das versões das metas.
  */
 export async function restoreBackup(input: unknown): Promise<BackupCounts | null> {
-  const prisma = getPrismaClient();
+  const prisma = await getUserDb();
 
   if (!prisma) {
     return null;
@@ -357,7 +357,7 @@ export async function restoreBackup(input: unknown): Promise<BackupCounts | null
       }
 
       await transaction.dataImport.create({
-        data: { exportedAt: new Date(file.exportedAt), formatVersion: sourceVersion },
+        data: { userId: SCOPED_USER, exportedAt: new Date(file.exportedAt), formatVersion: sourceVersion },
       });
 
       return { ...counts, dataImports: counts.dataImports + 1 };

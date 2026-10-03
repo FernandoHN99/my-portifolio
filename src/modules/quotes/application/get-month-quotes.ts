@@ -1,5 +1,5 @@
 import { Prisma, QuoteUpdateStatus, type PortfolioMonthStatus } from "@/generated/prisma/client";
-import { getPrismaClient } from "@/lib/prisma";
+import { getUserDb } from "@/lib/user-db";
 import { toMonthParam } from "@/modules/portfolio/presentation/reference-month";
 import { addMonths, currentReferenceMonth, toDateKey } from "@/modules/quotes/domain/calendar";
 import { isQuoteEditable, type QuoteRefreshTriggerKind } from "@/modules/quotes/domain/quote-refresh";
@@ -56,7 +56,7 @@ export type MonthQuotesView = {
 };
 
 export async function getMonthQuotes(referenceDate?: Date): Promise<MonthQuotesView | null> {
-  const prisma = getPrismaClient();
+  const prisma = await getUserDb();
 
   if (!prisma) {
     return null;

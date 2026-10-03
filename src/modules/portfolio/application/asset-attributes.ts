@@ -97,7 +97,7 @@ export async function applyAssetAttributes(
   const normalizedKey = `${parts.join(":")}${maturity ? `:${maturity}` : ""}`;
 
   if (normalizedKey !== asset.normalizedKey) {
-    const twin = await transaction.asset.findUnique({ where: { normalizedKey }, select: { id: true } });
+    const twin = await transaction.asset.findFirst({ where: { normalizedKey }, select: { id: true } });
 
     if (twin && twin.id !== asset.id) {
       throw new AssetAttributeError(
@@ -127,7 +127,7 @@ export async function applyAssetAttributes(
 
 /** Volta o ativo ao estado de antes da edição, se a chave antiga ainda estiver livre. */
 export async function restoreAssetState(transaction: Prisma.TransactionClient, state: AssetState) {
-  const twin = await transaction.asset.findUnique({ where: { normalizedKey: state.normalizedKey }, select: { id: true } });
+  const twin = await transaction.asset.findFirst({ where: { normalizedKey: state.normalizedKey }, select: { id: true } });
 
   if (twin && twin.id !== state.id) {
     throw new AssetAttributeError("Outro ativo passou a usar o nome anterior; o desfazer não é possível.");

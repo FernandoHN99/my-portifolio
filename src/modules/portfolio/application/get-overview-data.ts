@@ -1,5 +1,5 @@
 import { Prisma, type PortfolioMonthStatus } from "@/generated/prisma/client";
-import { getPrismaClient } from "@/lib/prisma";
+import { getUserDb } from "@/lib/user-db";
 import { getAllocationOverview } from "@/modules/portfolio/application/get-allocation-overview";
 import {
   buildFixedIncomeDuration,
@@ -81,7 +81,7 @@ const COMPOSITION_TITLES: Record<string, string> = {
 };
 
 export async function getOverviewData(referenceDate?: Date): Promise<OverviewData | null> {
-  const prisma = getPrismaClient();
+  const prisma = await getUserDb();
 
   if (!prisma) {
     return null;

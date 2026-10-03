@@ -1,5 +1,5 @@
 import { Prisma, type PortfolioMonthStatus } from "@/generated/prisma/client";
-import { getPrismaClient } from "@/lib/prisma";
+import { getUserDb } from "@/lib/user-db";
 import {
   buildAllocationGroups,
   DEFAULT_REBALANCE_TOLERANCE,
@@ -35,7 +35,7 @@ type PositionForAllocation = {
 export async function getAllocationOverview(
   referenceDate?: Date,
 ): Promise<AllocationOverview | null> {
-  const prisma = getPrismaClient();
+  const prisma = await getUserDb();
 
   if (!prisma) {
     return null;
@@ -89,7 +89,7 @@ export async function getAllocationOverview(
 }
 
 export async function getActivePlan(): Promise<{ targets: TargetValue[]; tolerance: number }> {
-  const prisma = getPrismaClient();
+  const prisma = await getUserDb();
 
   if (!prisma) {
     return { targets: [], tolerance: DEFAULT_REBALANCE_TOLERANCE };

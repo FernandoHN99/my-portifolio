@@ -25,6 +25,19 @@ pnpm dev
 A aplicação fica disponível em `http://localhost:3000`. O PostgreSQL é
 publicado somente em `127.0.0.1`.
 
+O aplicativo pede login ([spec 050](.ai/specs/050-login-and-user-data.md)), e
+cada usuário vê só a própria carteira. Gere o segredo das sessões
+(`openssl rand -base64 32`) em `BETTER_AUTH_SECRET` e crie a conta pelo
+terminal; a senha vem de `AUTH_USER_PASSWORD` ou é gerada e mostrada uma vez:
+
+```bash
+pnpm auth:user create voce@exemplo.com "Seu nome"
+pnpm auth:user list
+```
+
+Pela tela, **Criar conta** só aceita os e-mails de `AUTH_ALLOWED_EMAILS`,
+separados por vírgula. Vazio, ninguém cria conta por lá.
+
 Depois de aplicar uma migração, rode `pnpm db:generate`, porque o Prisma 7
 não regenera o cliente automaticamente, e reinicie o `pnpm dev`, que mantém o
 cliente anterior em memória.
@@ -42,8 +55,11 @@ pnpm test:e2e
 O teste do Playwright usa o Google Chrome local em desktop e em viewport
 mobile. As specs e seu estado ficam em `.ai/specs/`.
 
-Os testes de interface rodam sobre os dados do banco e não gravam. Para
-testar gravações, use um schema de teste no mesmo PostgreSQL:
+Os testes de interface rodam sobre os dados do banco e não gravam dados da
+carteira. Eles entram com o usuário de `E2E_USER_EMAIL` e `E2E_USER_PASSWORD`
+(crie a conta com `pnpm auth:user create` e restaure um backup nela); o login é
+a única gravação. Para testar gravações, use um schema de teste no mesmo
+PostgreSQL:
 
 ```bash
 pnpm db:test-schema create teste
@@ -56,13 +72,13 @@ nesse schema.
 ## Dados
 
 A forma oficial de carregar, levar e guardar os dados é o backup em JSON:
-**Configuração → Backup dos dados** exporta e restaura tudo, e os comandos
-abaixo fazem o mesmo pelo terminal. Os arquivos ficam em `backups/`, fora do
-Git.
+**Configuração → Backup dos dados** exporta e restaura a carteira do usuário
+que entrou, e os comandos abaixo fazem o mesmo pelo terminal, para o usuário
+indicado. Os arquivos ficam em `backups/`, fora do Git.
 
 ```bash
-pnpm backup:export
-pnpm backup:restore backups/<arquivo>.json --apply
+pnpm backup:export --user voce@exemplo.com
+pnpm backup:restore --user voce@exemplo.com backups/<arquivo>.json --apply
 ```
 
 Sem `--apply`, a restauração só confere o arquivo e mostra o resumo.

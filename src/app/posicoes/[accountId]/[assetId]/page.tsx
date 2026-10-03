@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 import { AppShell } from "@/components/product/app-shell";
-import { getPrismaClient } from "@/lib/prisma";
+import { getUserDb } from "@/lib/user-db";
 import { getEditingCatalog } from "@/modules/portfolio/application/get-editing-catalog";
 import { getMonthContext } from "@/modules/portfolio/application/get-month-context";
 import { getMonthPositions } from "@/modules/portfolio/application/get-month-positions";
@@ -18,7 +18,7 @@ type PositionPageProps = {
 
 export async function generateMetadata({ params }: PositionPageProps): Promise<Metadata> {
   const { assetId } = await params;
-  const asset = await getPrismaClient()
+  const asset = await (await getUserDb())
     ?.asset.findUnique({ where: { id: assetId }, select: { name: true } })
     .catch(() => null);
 

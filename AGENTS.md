@@ -57,7 +57,9 @@ mesmo Postgres (ideia do usuário, spec 042): `pnpm db:test-schema create
 <nome>)"` aponta qualquer roteiro para ele, e `E2E_BASE_URL` leva o Playwright
 a um servidor já rodando nesse schema.
 
-Testes de interface rodam sobre os dados reais e não podem gravar: todo
+Testes de interface entram com o usuário de `E2E_USER_EMAIL` e
+`E2E_USER_PASSWORD` (projeto `setup` do Playwright, spec 050) e rodam sobre os
+dados reais dele, sem gravar dados da carteira: todo
 arquivo em `tests/e2e/` substitui a checagem de abertura com
 `stubQuoteChecks` (`tests/e2e/support/quote-checks.ts`); os que editam
 procuram um mês aberto com `openEditableMonth`

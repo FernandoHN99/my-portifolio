@@ -1,5 +1,5 @@
 import type { PortfolioMonthStatus } from "@/generated/prisma/client";
-import { getPrismaClient } from "@/lib/prisma";
+import { getUserDb } from "@/lib/user-db";
 import type { PortfolioMonthSummary } from "@/modules/portfolio/application/get-portfolio-months";
 import {
   buildHistorySlots,
@@ -71,7 +71,7 @@ export async function getPositionHistory({
   months: PortfolioMonthSummary[];
   selected: PortfolioMonthSummary | null;
 }): Promise<PositionHistoryView | null> {
-  const prisma = getPrismaClient();
+  const prisma = await getUserDb();
 
   if (!prisma || !selected || !UUID.test(accountId) || !UUID.test(assetId)) {
     return null;
@@ -199,7 +199,7 @@ export async function getPositionHistory({
 }
 
 async function getPriceHistory(symbol: string, today: string): Promise<PriceHistory> {
-  const prisma = getPrismaClient()!;
+  const prisma = (await getUserDb())!;
   const symbols = symbol === "USD" ? ["USD"] : [symbol, "USD"];
   const [monthly, daily] = await Promise.all([
     prisma.marketQuote.findMany({

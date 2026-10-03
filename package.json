@@ -19,6 +19,7 @@
     "db:test-schema": "tsx scripts/db-test-schema.ts",
     "backup:export": "tsx scripts/backup.ts export",
     "backup:restore": "tsx scripts/backup.ts restore",
+    "auth:user": "tsx scripts/auth-user.ts",
     "postinstall": "prisma generate"
   },
   "dependencies": {
@@ -28,6 +29,7 @@
     "@prisma/adapter-pg": "7.10.0",
     "@prisma/client": "7.10.0",
     "@tanstack/react-table": "^9.2.4",
+    "better-auth": "1.7.7",
     "class-variance-authority": "^0.7.1",
     "cn": "^0.4.0",
     "date-fns": "^4.4.0",

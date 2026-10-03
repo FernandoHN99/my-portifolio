@@ -1,4 +1,4 @@
-import { getPrismaClient } from "@/lib/prisma";
+import { getUserDb } from "@/lib/user-db";
 import { getAllocationOverview } from "@/modules/portfolio/application/get-allocation-overview";
 import type { AllocationAggregates, AllocationGroupKey } from "@/modules/portfolio/domain/rebalance";
 
@@ -44,7 +44,7 @@ export type TargetEditorResult =
   | { state: "error"; message: string };
 
 export async function getTargetEditor(referenceDate?: Date): Promise<TargetEditorResult> {
-  const prisma = getPrismaClient();
+  const prisma = await getUserDb();
 
   if (!prisma) {
     return { state: "error", message: "O banco de dados não está configurado." };

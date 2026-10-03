@@ -1,6 +1,6 @@
 import { Prisma } from "@/generated/prisma/client";
 import { DEFAULT_TARGETS_LOCK_KEY } from "@/lib/advisory-locks";
-import { getPrismaClient } from "@/lib/prisma";
+import { getUserDb, SCOPED_USER } from "@/lib/user-db";
 import { getAllocationOverview } from "@/modules/portfolio/application/get-allocation-overview";
 import { buildDefaultTargets, DEFAULT_TARGET_PLAN_NAME } from "@/modules/portfolio/domain/default-targets";
 import { DEFAULT_REBALANCE_TOLERANCE, MAX_REBALANCE_TOLERANCE } from "@/modules/portfolio/domain/rebalance";
@@ -16,7 +16,7 @@ export class TargetPlanError extends Error {
 const SUM_TOLERANCE = new Prisma.Decimal("0.0001");
 
 export async function saveTargetPlan(input: { targets: { key: string; percent: string }[]; tolerance: string }) {
-  const prisma = getPrismaClient();
+  const prisma = await getUserDb();
 
   if (!prisma) {
     throw new TargetPlanError("O banco de dados não está disponível.");
@@ -82,12 +82,13 @@ export async function saveTargetPlan(input: { targets: { key: string; percent: s
   return prisma.$transaction(async (transaction) => {
     await transaction.targetPlan.updateMany({ where: { isActive: true }, data: { isActive: false } });
     const plan = await transaction.targetPlan.create({
-      data: { name, isActive: true, tolerancePercent: tolerance },
+      data: { userId: SCOPED_USER, name, isActive: true, tolerancePercent: tolerance },
       select: { id: true, name: true },
     });
 
     await transaction.allocationTarget.createMany({
       data: parsed.map((target) => ({
+        userId: SCOPED_USER,
         planId: plan.id,
         key: target.key,
         scope: target.scope,
@@ -112,7 +113,7 @@ export type DefaultTargetPlanOutcome = "created" | "existing" | "no-positions";
  * qualquer salvamento, e tudo sai no backup.
  */
 export async function ensureDefaultTargetPlan(): Promise<DefaultTargetPlanOutcome> {
-  const prisma = getPrismaClient();
+  const prisma = await getUserDb();
 
   if (!prisma) {
     throw new TargetPlanError("O banco de dados não está disponível.");
@@ -137,12 +138,13 @@ export async function ensureDefaultTargetPlan(): Promise<DefaultTargetPlanOutcom
     }
 
     const plan = await transaction.targetPlan.create({
-      data: { name: DEFAULT_TARGET_PLAN_NAME, isActive: true, tolerancePercent: DEFAULT_REBALANCE_TOLERANCE },
+      data: { userId: SCOPED_USER, name: DEFAULT_TARGET_PLAN_NAME, isActive: true, tolerancePercent: DEFAULT_REBALANCE_TOLERANCE },
       select: { id: true },
     });
 
     await transaction.allocationTarget.createMany({
       data: targets.map((target) => ({
+        userId: SCOPED_USER,
         planId: plan.id,
         key: target.key,
         scope: target.scope,

@@ -1,4 +1,4 @@
-import { getPrismaClient } from "@/lib/prisma";
+import { getUserDb } from "@/lib/user-db";
 import { toMonthParam } from "@/modules/portfolio/presentation/reference-month";
 import { currentReferenceMonth, toDateKey } from "@/modules/quotes/domain/calendar";
 
@@ -36,7 +36,7 @@ const EMPTY_CATALOG: EditingCatalog = {
 };
 
 export async function getEditingCatalog(): Promise<EditingCatalog> {
-  const prisma = getPrismaClient();
+  const prisma = await getUserDb();
 
   if (!prisma) {
     return EMPTY_CATALOG;

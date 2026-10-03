@@ -1,4 +1,5 @@
 import { rejectForeignRequest } from "@/lib/same-origin-request";
+import { rejectWithoutSession } from "@/modules/auth/session";
 import { BackupValidationError, previewBackup, restoreBackup } from "@/modules/backup/application/backup";
 import type { BackupRestoreResponse } from "@/modules/backup/domain/backup-format";
 
@@ -12,6 +13,12 @@ export async function POST(request: Request) {
 
   if (rejection) {
     return rejection;
+  }
+
+  const unauthorized = await rejectWithoutSession();
+
+  if (unauthorized) {
+    return unauthorized;
   }
 
   let body: { mode?: unknown; backup?: unknown };

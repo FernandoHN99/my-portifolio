@@ -3,6 +3,8 @@ import type { Metadata } from "next";
 
 import { AppShell } from "@/components/product/app-shell";
 import { cn } from "@/lib/utils";
+import { requireSessionUser } from "@/modules/auth/session";
+import { AccountPanel } from "@/modules/auth/ui/account-panel";
 import { BackupPanel } from "@/modules/backup/ui/backup-panel";
 import { getMonthContext } from "@/modules/portfolio/application/get-month-context";
 import { getTargetEditor } from "@/modules/portfolio/application/get-target-editor";
@@ -21,6 +23,7 @@ export default async function SettingsPage({
   searchParams: Promise<{ mes?: string }>;
 }) {
   const { mes } = await searchParams;
+  const user = await requireSessionUser();
   const { months, selected } = await getMonthContext(mes);
   let result = await getTargetEditor(selected?.referenceDate);
 
@@ -40,6 +43,7 @@ export default async function SettingsPage({
       {result.state === "ready" ? (
         <TargetEditor editor={result.editor}>
           <BackupPanel />
+          <AccountPanel name={user.name} email={user.email} />
         </TargetEditor>
       ) : (
         // Sem metas, como num banco vazio, ou sem conseguir lê-las, o backup
@@ -70,7 +74,10 @@ export default async function SettingsPage({
               </p>
             )}
           </div>
-          <BackupPanel />
+          <div className="space-y-6">
+            <BackupPanel />
+            <AccountPanel name={user.name} email={user.email} />
+          </div>
         </div>
       )}
     </AppShell>

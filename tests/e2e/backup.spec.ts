@@ -25,7 +25,7 @@ test("exporta todos os dados num arquivo", async ({ page }) => {
     /^attachment; filename="meu-portfolio-backup-\d{4}-\d{2}-\d{2}-\d{4}\.json"$/,
   );
   expect(backup.format).toBe("meu-portfolio-backup");
-  expect(backup.version).toBe(2);
+  expect(backup.version).toBe(3);
   // Sem as tabelas da importação do Excel, com o registro de importações (spec 047).
   expect(Object.keys(backup.tables)).toContain("dataImports");
   expect(Object.keys(backup.tables)).not.toContain("importBatches");

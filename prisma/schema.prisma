@@ -1,5 +1,10 @@
 // Os dados entram e saem do aplicativo pelo backup em JSON (spec 042); o
 // formato acompanha este schema e é mantido conforme docs/backup-format.md.
+//
+// Dados por usuário (spec 050): as tabelas da carteira têm `user_id`, e as
+// chaves estrangeiras entre elas incluem o usuário, para nenhuma linha apontar
+// para dados de outro. O código as acessa pelo cliente com escopo
+// (src/lib/user-db.ts). As cotações são compartilhadas (spec 051).
 
 generator client {
   provider = "prisma-client"
@@ -10,16 +15,99 @@ datasource db {
   provider = "postgresql"
 }
 
+// Login (spec 050): tabelas do Better Auth, com os nomes de campo que a
+// biblioteca usa. `auth_accounts` guarda a senha; `accounts` é das contas da
+// carteira. Os ids são UUID, como os das tabelas da carteira que apontam para o
+// usuário.
+model User {
+  id            String           @id @default(uuid()) @db.Uuid
+  name          String
+  email         String           @unique
+  emailVerified Boolean          @default(false) @map("email_verified")
+  image         String?
+  createdAt     DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
+  sessions      Session[]
+  authAccounts  AuthAccount[]
+  dataImports   DataImport[]
+  institutions  Institution[]
+  assets        Asset[]
+  months        PortfolioMonth[]
+  targetPlans   TargetPlan[]
+
+  @@map("users")
+}
+
+model Session {
+  id        String   @id @default(uuid()) @db.Uuid
+  expiresAt DateTime @map("expires_at") @db.Timestamptz(3)
+  token     String   @unique
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  ipAddress String?  @map("ip_address")
+  userAgent String?  @map("user_agent")
+  userId    String   @map("user_id") @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+model AuthAccount {
+  id                    String    @id @default(uuid()) @db.Uuid
+  accountId             String    @map("account_id")
+  providerId            String    @map("provider_id")
+  userId                String    @map("user_id") @db.Uuid
+  accessToken           String?   @map("access_token")
+  refreshToken          String?   @map("refresh_token")
+  idToken               String?   @map("id_token")
+  accessTokenExpiresAt  DateTime? @map("access_token_expires_at") @db.Timestamptz(3)
+  refreshTokenExpiresAt DateTime? @map("refresh_token_expires_at") @db.Timestamptz(3)
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt             DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("auth_accounts")
+}
+
+model Verification {
+  id         String   @id @default(uuid()) @db.Uuid
+  identifier String
+  value      String
+  expiresAt  DateTime @map("expires_at") @db.Timestamptz(3)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@index([identifier])
+  @@map("verifications")
+}
+
+// Contagem do limite de pedidos do login, no banco porque na Vercel cada
+// instância tem a própria memória.
+model RateLimit {
+  id          String @id @default(uuid()) @db.Uuid
+  key         String @unique
+  count       Int
+  lastRequest BigInt @map("last_request")
+
+  @@map("rate_limits")
+}
+
 /// Importação de um backup (spec 047): a configuração mostra cada uma ao lado
 /// das versões das metas.
 model DataImport {
   id            String   @id @default(uuid()) @db.Uuid
+  userId        String   @map("user_id") @db.Uuid
   importedAt    DateTime @default(now()) @map("imported_at") @db.Timestamptz(3)
   /// Quando o arquivo importado foi exportado.
   exportedAt    DateTime @map("exported_at") @db.Timestamptz(3)
   formatVersion Int      @map("format_version")
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([importedAt])
+  @@index([userId, importedAt])
   @@map("data_imports")
 }
 
@@ -31,29 +119,39 @@ enum PortfolioMonthStatus {
 
 model Institution {
   id             String    @id @default(uuid()) @db.Uuid
+  userId         String    @map("user_id") @db.Uuid
   name           String
-  normalizedName String    @unique @map("normalized_name")
+  normalizedName String    @map("normalized_name")
   createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   accounts       Account[]
 
+  @@unique([userId, normalizedName])
+  @@unique([id, userId])
   @@map("institutions")
 }
 
 model Account {
   id            String      @id @default(uuid()) @db.Uuid
+  userId        String      @map("user_id") @db.Uuid
   institutionId String      @map("institution_id") @db.Uuid
   name          String
   createdAt     DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
-  institution   Institution @relation(fields: [institutionId], references: [id], onDelete: Restrict)
+  // NoAction: como Restrict, mas conferido no fim do comando, o que deixa a
+  // exclusão de um usuário apagar tudo dele de uma vez.
+  institution   Institution @relation(fields: [institutionId, userId], references: [id, userId], onDelete: NoAction)
   positions     Position[]
 
   @@unique([institutionId, name])
+  @@unique([id, userId])
+  @@index([userId])
   @@map("accounts")
 }
 
 model Asset {
   id              String     @id @default(uuid()) @db.Uuid
-  normalizedKey   String     @unique @map("normalized_key")
+  userId          String     @map("user_id") @db.Uuid
+  normalizedKey   String     @map("normalized_key")
   name            String
   ticker          String?
   quoteSymbol     String?    @map("quote_symbol")
@@ -71,25 +169,34 @@ model Asset {
   // nos demais ativos; BTC e SOL têm identificador fixo no código.
   quoteProviderId String?    @map("quote_provider_id")
   createdAt       DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+  user            User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   positions       Position[]
 
+  @@unique([userId, normalizedKey])
+  @@unique([id, userId])
   @@index([ticker])
   @@map("assets")
 }
 
 model PortfolioMonth {
   id             String               @id @default(uuid()) @db.Uuid
-  referenceDate  DateTime             @unique @map("reference_date") @db.Date
+  userId         String               @map("user_id") @db.Uuid
+  referenceDate  DateTime             @map("reference_date") @db.Date
   status         PortfolioMonthStatus @default(REVIEWED)
   createdAt      DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
+  user           User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
   positions      Position[]
   quoteRefreshes QuoteRefreshRun[]
 
+  @@unique([userId, referenceDate])
+  @@unique([id, userId])
+  @@index([referenceDate])
   @@map("portfolio_months")
 }
 
 model Position {
   id               String               @id @default(uuid()) @db.Uuid
+  userId           String               @map("user_id") @db.Uuid
   portfolioMonthId String               @map("portfolio_month_id") @db.Uuid
   accountId        String               @map("account_id") @db.Uuid
   assetId          String               @map("asset_id") @db.Uuid
@@ -100,12 +207,13 @@ model Position {
   strategy         String?
   createdAt        DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt        DateTime             @updatedAt @map("updated_at") @db.Timestamptz(3)
-  portfolioMonth   PortfolioMonth       @relation(fields: [portfolioMonthId], references: [id], onDelete: Cascade)
-  account          Account              @relation(fields: [accountId], references: [id], onDelete: Restrict)
-  asset            Asset                @relation(fields: [assetId], references: [id], onDelete: Restrict)
+  portfolioMonth   PortfolioMonth       @relation(fields: [portfolioMonthId, userId], references: [id, userId], onDelete: Cascade)
+  account          Account              @relation(fields: [accountId, userId], references: [id, userId], onDelete: NoAction)
+  asset            Asset                @relation(fields: [assetId, userId], references: [id, userId], onDelete: NoAction)
   allocations      PositionAllocation[]
 
   @@unique([portfolioMonthId, accountId, assetId])
+  @@unique([id, userId])
   @@index([portfolioMonthId])
   @@index([accountId])
   @@index([assetId])
@@ -208,6 +316,7 @@ enum QuoteUpdateStatus {
 
 model PositionAllocation {
   id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
   positionId String   @map("position_id") @db.Uuid
   assetClass String   @map("asset_class")
   subclass   String
@@ -215,7 +324,7 @@ model PositionAllocation {
   weight     Decimal  @db.Decimal(12, 10)
   createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
-  position   Position @relation(fields: [positionId], references: [id], onDelete: Cascade)
+  position   Position @relation(fields: [positionId, userId], references: [id, userId], onDelete: Cascade)
 
   @@unique([positionId, assetClass, subclass, duration])
   @@index([positionId])
@@ -233,25 +342,30 @@ enum AllocationTargetScope {
 
 model TargetPlan {
   id               String             @id @default(uuid()) @db.Uuid
+  userId           String             @map("user_id") @db.Uuid
   name             String
   isActive         Boolean            @default(true) @map("is_active")
   tolerancePercent Decimal            @default(2) @map("tolerance_percent") @db.Decimal(5, 2)
   createdAt        DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt        DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
+  user             User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   targets          AllocationTarget[]
 
+  @@unique([id, userId])
+  @@index([userId])
   @@map("target_plans")
 }
 
 model AllocationTarget {
   id             String                @id @default(uuid()) @db.Uuid
+  userId         String                @map("user_id") @db.Uuid
   planId         String                @map("plan_id") @db.Uuid
   key            String
   scope          AllocationTargetScope
   primaryLabel   String                @map("primary_label")
   secondaryLabel String?               @map("secondary_label")
   percentage     Decimal               @db.Decimal(12, 10)
-  plan           TargetPlan            @relation(fields: [planId], references: [id], onDelete: Cascade)
+  plan           TargetPlan            @relation(fields: [planId, userId], references: [id, userId], onDelete: Cascade)
 
   @@unique([planId, key])
   @@index([planId, scope])

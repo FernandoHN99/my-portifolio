@@ -53,6 +53,7 @@ Esta pasta organiza a implementação em fatias pequenas e revisáveis.
 - [047 — Fim da importação do Excel: dados só pelo backup em JSON](047-json-only-data.md): concluída.
 - [048 — Metas padrão, cotações em Posições e abas com cadeado](048-default-targets-and-quotes-button.md): concluída.
 - [049 — Limpeza do modelo: tabelas e status sem uso](049-model-cleanup.md): concluída.
+- [050 — Login e dados por usuário](050-login-and-user-data.md): concluída.
 
 As specs 010 a 017 formam a reestruturação da UX pedida pelo usuário. O
 propósito, as restrições e as regras de cálculo comuns a elas estão em
