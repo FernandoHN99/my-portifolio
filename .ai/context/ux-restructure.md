@@ -496,7 +496,7 @@ em [Backlog](backlog.md).
 
 ## Ajustes pedidos em 2026-10-03, depois do histórico e do backup
 
-Feitos nas specs 043 a 047, sem commit até a aprovação do usuário:
+Feitos nas specs 043 a 047 e commitados com a 048, com aprovação do usuário:
 
 - formulário único para incluir e editar, num diálogo com as abas Geral,
   Ativo e Rateio; lápis e lixeira no hover de cada linha; "Editar posição" na

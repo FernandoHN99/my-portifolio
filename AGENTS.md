@@ -11,9 +11,9 @@ e Claude Code consultando a mesma base de conhecimento.
 
 ## Trabalho em andamento
 
-Estado em 2026-10-03: specs 016 e 028 a 042 concluídas e no `main`; specs
-043 a 048 concluídas, aguardando a aprovação do commit; detalhes em
-`.ai/specs/README.md`. O próximo assunto, pedido pelo usuário, é o deploy.
+Estado em 2026-10-03: specs 016 e 028 a 048 concluídas e no `main`; detalhes
+em `.ai/specs/README.md`. O próximo assunto, pedido pelo usuário, é o deploy,
+tratado em outra conversa.
 
 - o banco local tem o histórico preparado no passo pré-produção
   ([spec 041](.ai/specs/041-history-preparation.md)), importado pelo usuário em
