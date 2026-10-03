@@ -24,6 +24,7 @@ import {
 import { MAX_LIQUIDITY_LENGTH, normalizeLiquidity } from "@/modules/portfolio/domain/liquidity";
 import { isRedemption } from "@/modules/portfolio/domain/redemption";
 import { readVerifiedTicker } from "@/modules/quotes/application/check-ticker";
+import { readMonthQuoteValues } from "@/modules/quotes/application/month-quote-values";
 import { addMonths, currentReferenceMonth } from "@/modules/quotes/domain/calendar";
 import { isQuoteEditable } from "@/modules/quotes/domain/quote-refresh";
 
@@ -97,14 +98,13 @@ type SnapshotPosition = {
   }[];
 };
 
+/** Cotação digitada à mão pelo usuário (spec 051); as compartilhadas ficam fora. */
 type SnapshotQuote = {
   id: string;
   symbol: string;
   instrumentType: string;
   baseCurrency: string;
   valueBrl: Prisma.Decimal;
-  quoteDate: Date | null;
-  carriedFrom: Date | null;
 };
 
 type MonthSnapshot = { positions: SnapshotPosition[]; quotes: SnapshotQuote[] };
@@ -160,11 +160,8 @@ export async function addPosition(input: { monthId: string; addition: PositionAd
       where: { portfolioMonthId: month.id },
       select: { accountId: true, assetId: true },
     });
-    const quotes = await transaction.marketQuote.findMany({
-      where: { referenceDate: month.referenceDate },
-      select: { symbol: true, valueBrl: true },
-    });
-    const quoteBySymbol = new Map(quotes.map((quote) => [quote.symbol, quote.valueBrl]));
+    const quotes = await readMonthQuoteValues(transaction, month.referenceDate);
+    const quoteBySymbol = new Map([...quotes].map(([symbol, quote]) => [symbol, quote.valueBrl]));
     const batch: AdditionBatch = {
       month,
       isCurrentMonth: month.referenceDate.getTime() === currentReferenceMonth().getTime(),
@@ -569,18 +566,36 @@ async function ensureMonthQuote(
     valueBrl = parsePositive(input.manualPriceBrl, 8);
   }
 
-  await transaction.marketQuote.create({
-    data: {
-      referenceDate: batch.month.referenceDate,
-      symbol,
-      instrumentType,
-      baseCurrency,
-      valueBrl,
-      // A cotação de hoje carrega o dia; a digitada é um fato do mês, como na
-      // edição à mão da página de cotações.
-      quoteDate: useFetched ? verified.quoteDate : null,
-    },
-  });
+  if (useFetched) {
+    // A cotação de hoje é dos provedores e vale para todos (spec 051); outro
+    // usuário pode tê-la gravado no meio-tempo.
+    await transaction.marketQuote.createMany({
+      data: [
+        {
+          referenceDate: batch.month.referenceDate,
+          symbol,
+          instrumentType,
+          baseCurrency,
+          valueBrl,
+          quoteDate: verified.quoteDate,
+        },
+      ],
+      skipDuplicates: true,
+    });
+  } else {
+    // A digitada vale só para o usuário, como a edição à mão da página de
+    // cotações.
+    await transaction.manualQuote.create({
+      data: {
+        userId: SCOPED_USER,
+        referenceDate: batch.month.referenceDate,
+        symbol,
+        instrumentType,
+        baseCurrency,
+        valueBrl,
+      },
+    });
+  }
   batch.quoteBySymbol.set(symbol, valueBrl);
 
   if (verified.status === "found" && verified.priceBrl !== null) {
@@ -634,13 +649,17 @@ async function removeUnusedCreated(transaction: Transaction, created: CreatedEnt
       where: { id: { in: created.dailyQuoteIds } },
       select: { id: true, symbol: true },
     });
+    // O histórico diário é de todos (spec 051): fica se o ativo de qualquer
+    // usuário usa o símbolo. A consulta crua passa por cima do escopo.
+    const symbols = daily.map((entry) => entry.symbol);
     const inUse = new Set(
-      (
-        await transaction.asset.findMany({
-          where: { quoteSymbol: { in: daily.map((entry) => entry.symbol) } },
-          select: { quoteSymbol: true },
-        })
-      ).map((asset) => asset.quoteSymbol),
+      symbols.length > 0
+        ? (
+            await transaction.$queryRaw<{ quote_symbol: string }[]>`
+              SELECT DISTINCT "quote_symbol" FROM "assets" WHERE "quote_symbol" = ANY(${symbols})
+            `
+          ).map((row) => row.quote_symbol)
+        : [],
     );
     const removable = daily.filter((entry) => !inUse.has(entry.symbol)).map((entry) => entry.id);
 
@@ -718,31 +737,35 @@ export async function updateMonthQuotes(input: {
     );
 
     for (const quote of parsed) {
-      const existing = await transaction.marketQuote.findUnique({
-        where: { referenceDate_symbol: { referenceDate: month.referenceDate, symbol: quote.symbol } },
+      // O valor digitado fica com o usuário (spec 051), por cima da cotação
+      // compartilhada, até a próxima busca bem-sucedida do símbolo no mês.
+      const reference =
+        (await transaction.marketQuote.findFirst({
+          where: { symbol: quote.symbol },
+          orderBy: { referenceDate: "desc" },
+          select: { instrumentType: true, baseCurrency: true },
+        })) ??
+        (await transaction.manualQuote.findFirst({
+          where: { symbol: quote.symbol },
+          orderBy: { referenceDate: "desc" },
+          select: { instrumentType: true, baseCurrency: true },
+        }));
+
+      if (!reference) {
+        throw new MonthEditError(`Não há histórico de ${quote.symbol} para identificar o tipo de cotação.`);
+      }
+
+      const existing = await transaction.manualQuote.findFirst({
+        where: { referenceDate: month.referenceDate, symbol: quote.symbol },
         select: { id: true },
       });
 
       if (existing) {
-        // O valor digitado é do próprio mês: deixa de ser repetido e perde o
-        // dia da cotação diária que carregava.
-        await transaction.marketQuote.update({
-          where: { id: existing.id },
-          data: { valueBrl: quote.valueBrl, quoteDate: null, carriedFrom: null },
-        });
+        await transaction.manualQuote.update({ where: { id: existing.id }, data: { valueBrl: quote.valueBrl } });
       } else {
-        const reference = await transaction.marketQuote.findFirst({
-          where: { symbol: quote.symbol },
-          orderBy: { referenceDate: "desc" },
-          select: { instrumentType: true, baseCurrency: true },
-        });
-
-        if (!reference) {
-          throw new MonthEditError(`Não há histórico de ${quote.symbol} para identificar o tipo de cotação.`);
-        }
-
-        await transaction.marketQuote.create({
+        await transaction.manualQuote.create({
           data: {
+            userId: SCOPED_USER,
             referenceDate: month.referenceDate,
             symbol: quote.symbol,
             instrumentType: reference.instrumentType,
@@ -834,29 +857,7 @@ export async function cloneLatestMonth() {
         }
       }
 
-      const quotes = await transaction.marketQuote.findMany({
-        where: { referenceDate: latest.referenceDate },
-        select: {
-          symbol: true,
-          instrumentType: true,
-          baseCurrency: true,
-          valueBrl: true,
-          quoteDate: true,
-          carriedFrom: true,
-        },
-      });
-
-      // As cotações copiadas ficam marcadas como repetidas, como na virada
-      // automática de mês (spec 021).
-      if (quotes.length > 0) {
-        await transaction.marketQuote.createMany({
-          data: quotes.map((quote) => ({
-            ...quote,
-            referenceDate: target,
-            carriedFrom: quote.carriedFrom ?? latest.referenceDate,
-          })),
-        });
-      }
+      await carryMonthQuotes(transaction, latest.referenceDate, target);
 
       const after = await readSnapshot(transaction, { id: month.id, referenceDate: target });
       const token = storeUndo(userId, {
@@ -908,7 +909,9 @@ export async function undoChange(token: string) {
       }
 
       if (entry.kind === "delete-month") {
-        await transaction.marketQuote.deleteMany({ where: { referenceDate: month.referenceDate } });
+        // As cotações compartilhadas do mês ficam: podem servir a outros
+        // usuários (spec 051). Saem só as digitadas por este.
+        await transaction.manualQuote.deleteMany({ where: { referenceDate: month.referenceDate } });
         await transaction.portfolioMonth.delete({ where: { id: month.id } });
         return { referenceDate: month.referenceDate, deleted: true };
       }
@@ -1002,11 +1005,8 @@ export async function setMonthOpen({ monthId, open }: { monthId: string; open: b
  * busca do mês (spec 028); as demais vêm dos provedores.
  */
 async function assertQuotesEditable(transaction: Transaction, referenceDate: Date, symbols: string[]) {
-  const [quotes, lastResults] = await Promise.all([
-    transaction.marketQuote.findMany({
-      where: { referenceDate, symbol: { in: symbols } },
-      select: { symbol: true, carriedFrom: true },
-    }),
+  const [quoteBySymbol, lastResults] = await Promise.all([
+    readMonthQuoteValues(transaction, referenceDate, symbols),
     transaction.quoteRefreshResult.findMany({
       where: {
         symbol: { in: symbols },
@@ -1017,13 +1017,16 @@ async function assertQuotesEditable(transaction: Transaction, referenceDate: Dat
       select: { symbol: true, status: true },
     }),
   ]);
-  const quoteBySymbol = new Map(quotes.map((quote) => [quote.symbol, quote]));
   const failed = new Set(
     lastResults.filter((result) => result.status === QuoteUpdateStatus.FAILED).map((result) => result.symbol),
   );
   const locked = symbols.filter((symbol) => {
     const quote = quoteBySymbol.get(symbol);
-    return !isQuoteEditable({ hasValue: quote !== undefined, carried: Boolean(quote?.carriedFrom), lastFailed: failed.has(symbol) });
+    // A digitada à mão continua editável até a próxima busca bem-sucedida.
+    return (
+      !quote?.manual &&
+      !isQuoteEditable({ hasValue: quote !== undefined, carried: Boolean(quote?.carriedFrom), lastFailed: failed.has(symbol) })
+    );
   });
 
   if (locked.length > 0) {
@@ -1123,18 +1126,10 @@ async function readSnapshot(
         },
       },
     }),
-    transaction.marketQuote.findMany({
+    transaction.manualQuote.findMany({
       where: { referenceDate: month.referenceDate },
       orderBy: { symbol: "asc" },
-      select: {
-        id: true,
-        symbol: true,
-        instrumentType: true,
-        baseCurrency: true,
-        valueBrl: true,
-        quoteDate: true,
-        carriedFrom: true,
-      },
+      select: { id: true, symbol: true, instrumentType: true, baseCurrency: true, valueBrl: true },
     }),
   ]);
 
@@ -1172,16 +1167,54 @@ async function restoreSnapshot(
     }
   }
 
+  // Só as cotações digitadas pelo usuário voltam; as compartilhadas não são
+  // dele para desfazer (spec 051).
   const keepQuoteIds = snapshot.quotes.map((quote) => quote.id);
-  await transaction.marketQuote.deleteMany({
+  await transaction.manualQuote.deleteMany({
     where: { referenceDate: month.referenceDate, id: { notIn: keepQuoteIds } },
   });
 
   for (const quote of snapshot.quotes) {
-    await transaction.marketQuote.upsert({
+    await transaction.manualQuote.upsert({
       where: { id: quote.id },
-      create: { ...quote, referenceDate: month.referenceDate },
-      update: { valueBrl: quote.valueBrl, quoteDate: quote.quoteDate, carriedFrom: quote.carriedFrom },
+      create: { ...quote, userId: SCOPED_USER, referenceDate: month.referenceDate },
+      update: { valueBrl: quote.valueBrl },
+    });
+  }
+}
+
+/**
+ * Repete as cotações de um mês no seguinte, marcadas como repetidas, como na
+ * virada automática (spec 021). As compartilhadas só entram se o mês ainda não
+ * as tiver, porque outro usuário pode tê-las criado (spec 051); uma digitada à
+ * mão sem compartilhada correspondente é repetida como digitada do usuário.
+ */
+async function carryMonthQuotes(transaction: Transaction, source: Date, target: Date) {
+  const [shared, manual] = await Promise.all([
+    transaction.marketQuote.findMany({
+      where: { referenceDate: source },
+      select: { symbol: true, instrumentType: true, baseCurrency: true, valueBrl: true, quoteDate: true, carriedFrom: true },
+    }),
+    transaction.manualQuote.findMany({
+      where: { referenceDate: source },
+      select: { symbol: true, instrumentType: true, baseCurrency: true, valueBrl: true },
+    }),
+  ]);
+
+  if (shared.length > 0) {
+    await transaction.marketQuote.createMany({
+      data: shared.map((quote) => ({ ...quote, referenceDate: target, carriedFrom: quote.carriedFrom ?? source })),
+      skipDuplicates: true,
+    });
+  }
+
+  const sharedSymbols = new Set(shared.map((quote) => quote.symbol));
+  const manualOnly = manual.filter((quote) => !sharedSymbols.has(quote.symbol));
+
+  if (manualOnly.length > 0) {
+    await transaction.manualQuote.createMany({
+      data: manualOnly.map((quote) => ({ ...quote, userId: SCOPED_USER, referenceDate: target })),
+      skipDuplicates: true,
     });
   }
 }

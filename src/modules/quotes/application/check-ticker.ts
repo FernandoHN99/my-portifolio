@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 
+import { getPrismaClient } from "@/lib/prisma";
 import { getUserDb } from "@/lib/user-db";
 import {
   ASSET_KIND_DEFINITIONS,
@@ -10,6 +11,7 @@ import {
   type QuoteProvider,
 } from "@/modules/portfolio/domain/asset-kinds";
 import { getQuoteProviderConfiguration } from "@/modules/quotes/application/fetch-current-quotes";
+import { readMonthQuoteValues } from "@/modules/quotes/application/month-quote-values";
 import { calendarDay, toDateKey } from "@/modules/quotes/domain/calendar";
 import { providerLabel } from "@/modules/quotes/domain/quote-refresh";
 import type { QuoteProviderConfiguration } from "@/modules/quotes/domain/quote-types";
@@ -123,10 +125,8 @@ export async function checkTicker(
 
   const provider = providerForQuote(definition.instrumentType, baseCurrencyOf(input.kind, symbol));
   const [monthQuote, latestQuote, latestDaily] = await Promise.all([
-    prisma.marketQuote.findUnique({
-      where: { referenceDate_symbol: { referenceDate: month.referenceDate, symbol } },
-      select: { valueBrl: true, instrumentType: true, baseCurrency: true },
-    }),
+    // A do usuário: a compartilhada ou a digitada por ele (spec 051).
+    readMonthQuoteValues(prisma, month.referenceDate, [symbol]).then((quotes) => quotes.get(symbol)),
     prisma.marketQuote.findFirst({
       where: { symbol },
       orderBy: { referenceDate: "desc" },
@@ -139,8 +139,8 @@ export async function checkTicker(
     }),
   ]);
 
-  // Um símbolo já cotado na carteira por outro provedor geraria duas regras de
-  // cotação para o mesmo símbolo.
+  // Um símbolo já cotado por outro provedor geraria duas regras de cotação para
+  // o mesmo símbolo, que é compartilhado entre os usuários (spec 051).
   const stored = monthQuote ?? latestQuote ?? latestDaily;
   if (stored && providerForQuote(stored.instrumentType, stored.baseCurrency) !== provider) {
     return {
@@ -161,10 +161,11 @@ export async function checkTicker(
   const cacheSymbol = provider === "coingecko" && input.coinId ? `${symbol}:${input.coinId}` : symbol;
   const { lookup, fetchedAt } = await cachedLookup(provider, cacheSymbol, now, async () => {
     // Um cripto cuja moeda já está guardada num ativo é conferido por ela, sem
-    // nova busca: a cotação é do símbolo, e o símbolo tem uma moeda só.
+    // nova busca: a cotação é do símbolo, e o símbolo tem uma moeda só, a mesma
+    // para todos os usuários (spec 051).
     const stored =
       provider === "coingecko"
-        ? await prisma.asset.findFirst({
+        ? await getPrismaClient()!.asset.findFirst({
             where: { quoteSymbol: symbol, quoteProviderId: { not: null } },
             orderBy: { createdAt: "asc" },
             select: { quoteProviderId: true },

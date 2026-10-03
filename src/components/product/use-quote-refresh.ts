@@ -7,7 +7,6 @@ import {
   getQuoteRefreshServerState,
   getQuoteRefreshState,
   refreshUnlessEditing,
-  runManualRefresh,
   subscribeQuoteRefresh,
 } from "@/components/product/quote-refresh-client";
 import type { QuoteRefreshSummary } from "@/modules/quotes/domain/quote-refresh";
@@ -15,16 +14,14 @@ import { describeRefreshTime } from "@/modules/quotes/presentation/refresh-time"
 
 const CLOCK_STEP_MS = 15_000;
 
-// Estado da atualização de cotações compartilhado pela seta do topo e pela
-// página de cotações: os dois leem o mesmo cliente, então giram juntos, mostram
-// o mesmo horário e disparam a mesma atualização.
+// Estado da checagem de cotações compartilhado pelo indicador do topo e pela
+// página de cotações: os dois leem o mesmo cliente e mostram o mesmo horário.
 export function useQuoteRefresh(serverSummary: QuoteRefreshSummary | null) {
   const router = useRouter();
   const client = useSyncExternalStore(subscribeQuoteRefresh, getQuoteRefreshState, getQuoteRefreshServerState);
   const now = useClock();
   const summary = newestSummary(serverSummary, client.summary);
   const onDataChanged = useCallback(() => refreshUnlessEditing(() => router.refresh()), [router]);
-  const refresh = useCallback(() => runManualRefresh(onDataChanged), [onDataChanged]);
 
   const time = summary?.lastUpdatedAt && now !== null ? describeRefreshTime(summary.lastUpdatedAt, now) : null;
   const lastRun = summary?.lastRun ?? null;
@@ -36,7 +33,7 @@ export function useQuoteRefresh(serverSummary: QuoteRefreshSummary | null) {
       : "A última tentativa falhou"
     : null;
 
-  return { client, now, summary, time, lastRun, hasIssues, issueText, onDataChanged, refresh };
+  return { client, now, summary, time, lastRun, hasIssues, issueText, onDataChanged };
 }
 
 function newestSummary(server: QuoteRefreshSummary | null, client: QuoteRefreshSummary | null) {

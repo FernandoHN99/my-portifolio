@@ -1,11 +1,10 @@
 // Tipos e regras da atualização de cotações compartilhados entre servidor e
 // interface. Sem dependências de banco, para poder ser importado no cliente.
 
-import type { MonthRolloverOutcome } from "@/modules/portfolio/domain/month-rollover";
-
+// Só há atualização automática (spec 051): ao abrir o aplicativo, quando a
+// última tentativa tem mais de uma hora.
 export const QUOTE_REFRESH_INTERVAL_MS = 60 * 60 * 1000;
 
-export type QuoteRefreshTriggerKind = "AUTO" | "MANUAL";
 export type QuoteRefreshRunStatus = "RUNNING" | "COMPLETED" | "COMPLETED_WITH_ISSUES" | "FAILED";
 
 export type QuoteFailureView = {
@@ -16,9 +15,9 @@ export type QuoteFailureView = {
   errorMessage: string;
 };
 
+/** Uma execução vista por um usuário: só os símbolos dele (spec 051). */
 export type QuoteRefreshRunView = {
   id: string;
-  trigger: QuoteRefreshTriggerKind;
   status: QuoteRefreshRunStatus;
   quoteDate: string;
   startedAt: string;
@@ -40,13 +39,6 @@ export type QuoteRefreshOutcome =
   | { state: "busy"; runId: string }
   | { state: "done"; run: QuoteRefreshRunView }
   | { state: "unavailable"; message: string };
-
-export type ManualRefreshResponse = {
-  /** Virada de mês conferida antes da atualização (spec 034). */
-  rollover?: MonthRolloverOutcome;
-  refresh: QuoteRefreshOutcome;
-  summary: QuoteRefreshSummary | null;
-};
 
 /**
  * Cotação que pode ser editada à mão (spec 028). O usuário não pretende editar

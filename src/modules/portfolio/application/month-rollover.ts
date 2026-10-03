@@ -75,7 +75,7 @@ async function copyMonth(
   month: Date,
   today: Date,
 ) {
-  const [positions, sourceQuotes] = await Promise.all([
+  const [positions, sharedQuotes, manualQuotes] = await Promise.all([
     transaction.position.findMany({
       where: { portfolioMonthId: source.id },
       orderBy: { id: "asc" },
@@ -106,6 +106,11 @@ async function copyMonth(
         carriedFrom: true,
       },
     }),
+    transaction.manualQuote.findMany({
+      where: { referenceDate: source.referenceDate },
+      orderBy: { symbol: "asc" },
+      select: { symbol: true, instrumentType: true, baseCurrency: true, valueBrl: true },
+    }),
   ]);
 
   const positionSymbols = new Set(
@@ -113,7 +118,17 @@ async function copyMonth(
       .map((position) => position.asset.quoteSymbol)
       .filter((symbol): symbol is string => Boolean(symbol)),
   );
-  const symbols = [...new Set([...sourceQuotes.map((quote) => quote.symbol), ...positionSymbols])];
+  // As cotações do mês são de todos (spec 051): a virada cuida só das do
+  // usuário, das que ele digitou e do dólar.
+  const relevant = new Set([...positionSymbols, ...manualQuotes.map((quote) => quote.symbol), "USD"]);
+  const sharedSymbols = new Set(sharedQuotes.map((quote) => quote.symbol));
+  const sourceQuotes = [
+    ...sharedQuotes.filter((quote) => relevant.has(quote.symbol)).map((quote) => ({ ...quote, manual: false })),
+    ...manualQuotes
+      .filter((quote) => !sharedSymbols.has(quote.symbol))
+      .map((quote) => ({ ...quote, quoteDate: null, carriedFrom: null, manual: true })),
+  ];
+  const symbols = [...relevant];
   const windowEnd = new Date(Math.min(lastDayOf(month).getTime(), today.getTime()));
   const dailyQuotes = await transaction.dailyQuote.findMany({
     where: { symbol: { in: symbols }, quoteDate: { gte: month, lte: windowEnd } },
@@ -137,6 +152,8 @@ async function copyMonth(
       quoteDate: Date | null;
       carriedFrom: Date | null;
       fromHistory: boolean;
+      /** Repetida de uma digitada à mão: continua só do usuário. */
+      manual: boolean;
     }
   >();
 
@@ -145,10 +162,10 @@ async function copyMonth(
     quotes.set(
       quote.symbol,
       daily
-        ? { ...quote, valueBrl: daily.valueBrl, quoteDate: daily.quoteDate, carriedFrom: null, fromHistory: true }
+        ? { ...quote, valueBrl: daily.valueBrl, quoteDate: daily.quoteDate, carriedFrom: null, fromHistory: true, manual: false }
         : // A repetida aponta para a competência que tem o valor próprio, mesmo
           // depois de vários meses repetidos.
-          { ...quote, carriedFrom: quote.carriedFrom ?? source.referenceDate, fromHistory: false },
+          { ...quote, carriedFrom: quote.manual ? null : (quote.carriedFrom ?? source.referenceDate), fromHistory: false },
     );
   }
 
@@ -161,6 +178,7 @@ async function copyMonth(
         quoteDate: daily.quoteDate,
         carriedFrom: null,
         fromHistory: true,
+        manual: false,
       });
     }
   }
@@ -170,9 +188,13 @@ async function copyMonth(
     select: { id: true, referenceDate: true },
   });
 
-  if (quotes.size > 0) {
+  const shared = [...quotes].filter(([, quote]) => !quote.manual);
+  const manual = [...quotes].filter(([, quote]) => quote.manual);
+
+  // Outro usuário pode já ter criado as cotações do mês; as existentes ficam.
+  if (shared.length > 0) {
     await transaction.marketQuote.createMany({
-      data: [...quotes].map(([symbol, quote]) => ({
+      data: shared.map(([symbol, quote]) => ({
         referenceDate: month,
         symbol,
         instrumentType: quote.instrumentType,
@@ -181,6 +203,21 @@ async function copyMonth(
         quoteDate: quote.quoteDate,
         carriedFrom: quote.carriedFrom,
       })),
+      skipDuplicates: true,
+    });
+  }
+
+  if (manual.length > 0) {
+    await transaction.manualQuote.createMany({
+      data: manual.map(([symbol, quote]) => ({
+        userId: SCOPED_USER,
+        referenceDate: month,
+        symbol,
+        instrumentType: quote.instrumentType,
+        baseCurrency: quote.baseCurrency,
+        valueBrl: quote.valueBrl,
+      })),
+      skipDuplicates: true,
     });
   }
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowClockwiseIcon, ClockCounterClockwiseIcon } from "@phosphor-icons/react/dist/ssr";
+import { ClockCounterClockwiseIcon } from "@phosphor-icons/react/dist/ssr";
 
 import { useQuoteRefresh } from "@/components/product/use-quote-refresh";
 import { cn } from "@/lib/utils";
@@ -9,9 +9,9 @@ import { parseMonthParam } from "@/modules/portfolio/presentation/reference-mont
 import type { QuoteRefreshSummary } from "@/modules/quotes/domain/quote-refresh";
 import { formatRefreshDateTime } from "@/modules/quotes/presentation/refresh-time";
 
-// Última atualização das cotações, com a mesma atualização manual da seta do
-// topo. Os dois usam o mesmo cliente: giram juntos e publicam os mesmos avisos.
-// Aparece só no mês corrente, o único que a atualização muda (spec 038).
+// Última atualização das cotações, que é só automática (spec 051): ao abrir o
+// aplicativo, no máximo uma vez por hora. Usa o mesmo cliente do indicador do
+// topo. Aparece só no mês corrente, o único que a atualização muda (spec 038).
 export function LastRefreshCard({
   summary: serverSummary,
   currentMonth,
@@ -19,7 +19,7 @@ export function LastRefreshCard({
   summary: QuoteRefreshSummary | null;
   currentMonth: string;
 }) {
-  const { client, now, summary, time, lastRun, hasIssues, refresh } = useQuoteRefresh(serverSummary);
+  const { client, now, summary, time, lastRun, hasIssues } = useQuoteRefresh(serverSummary);
   const lastAttemptIsLatestUpdate =
     lastRun !== null && summary?.lastUpdatedAt === (lastRun.finishedAt ?? lastRun.startedAt);
   const failed = lastRun?.failures ?? [];
@@ -62,31 +62,11 @@ export function LastRefreshCard({
           </p>
         ) : null}
         <p className="mt-1.5 text-[11px] leading-5 text-muted-foreground">
-          Busca as cotações de hoje nos provedores e recalcula as posições de {compact(currentMonth)}.
+          As cotações são buscadas automaticamente ao abrir o aplicativo, no máximo uma vez por hora, e recalculam
+          as posições de {compact(currentMonth)}.
         </p>
       </div>
 
-      {/* Sem o atributo disabled, como a seta do topo: o botão continua focado
-          enquanto a atualização roda, e um clique repetido é ignorado. */}
-      <button
-        type="button"
-        onClick={refresh}
-        aria-disabled={client.running || undefined}
-        aria-busy={client.running || undefined}
-        className="group inline-flex h-9 shrink-0 items-center justify-center gap-2 self-start rounded-xl bg-primary px-3.5 text-xs font-semibold text-primary-foreground outline-none transition-[background-color,transform] duration-150 hover:bg-primary/90 focus-visible:ring-3 focus-visible:ring-ring/40 active:scale-[0.98] aria-disabled:cursor-wait aria-disabled:opacity-70 sm:self-center"
-      >
-        <ArrowClockwiseIcon
-          aria-hidden="true"
-          size={14}
-          weight="bold"
-          className={cn(
-            client.spinning
-              ? "animate-spin"
-              : "transition-transform duration-200 ease-out group-hover:rotate-45 motion-reduce:transition-none",
-          )}
-        />
-        {client.running ? "Atualizando…" : "Atualizar cotações"}
-      </button>
     </section>
   );
 }

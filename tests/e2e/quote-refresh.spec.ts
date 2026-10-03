@@ -14,13 +14,13 @@ test("o topo mostra a última atualização das cotações", async ({ page }, te
   });
   await page.goto("/");
 
-  const button = page.getByRole("button", { name: /^Atualizar cotações/ });
-  await expect(button).toHaveAccessibleName("Atualizar cotações. atualizado há 5 min");
+  const indicator = page.getByTestId("quote-refresh");
+  await expect(indicator).toHaveAccessibleName("Atualizado há 5 min");
 
   if (testInfo.project.name.startsWith("mobile")) {
-    await expect(button).toContainText("5 min");
+    await expect(indicator).toContainText("5 min");
   } else {
-    await expect(page.getByTestId("quote-refresh").getByText("Atualizado há 5 min")).toBeVisible();
+    await expect(indicator.getByText("Atualizado há 5 min")).toBeVisible();
   }
 
   await expect(page.getByTestId("quote-refresh-issue")).toHaveCount(0);
@@ -63,9 +63,7 @@ test("cada cotação com falha vira um aviso que indica o ativo", async ({ page 
   await expect(toast).toContainText("VOO");
   await expect(toast).toContainText("Finnhub: O provedor excedeu o tempo limite.");
   await expect(page.getByTestId("quote-refresh-issue")).toBeVisible();
-  await expect(page.getByRole("button", { name: /^Atualizar cotações/ })).toHaveAccessibleName(
-    /Falha na última tentativa: BTC, VOO/,
-  );
+  await expect(page.getByTestId("quote-refresh")).toHaveAccessibleName(/Falha na última tentativa: BTC, VOO/);
 
   // O Base UI só expõe o botão de fechar à acessibilidade com a pilha expandida.
   await toast.locator('button[aria-label="Fechar aviso"]').click();
@@ -73,53 +71,9 @@ test("cada cotação com falha vira um aviso que indica o ativo", async ({ page 
   await expect(page.getByRole("heading", { level: 1, name: "Carteira do mês" })).toBeVisible();
 });
 
-test("o botão do topo atualiza as cotações manualmente", async ({ page }, testInfo) => {
-  const manual = run({
-    id: "00000000-0000-4000-8000-000000000002",
-    trigger: "MANUAL",
-    startedAt: new Date().toISOString(),
-    finishedAt: new Date().toISOString(),
-  });
-  await stubQuoteChecks(page, {
-    refresh: { refresh: { state: "done", run: manual }, summary: summary(manual, manual.finishedAt) },
-    refreshDelayMs: 1200,
-  });
-  // Sem mês na URL, a competência aberta é a do mês corrente, a única com a seta.
-  const hydrated = page.waitForRequest("**/api/quotes/open-check");
-  await page.goto("/");
-  await hydrated;
-
-  // Pelo teclado: o botão continua focado enquanto a atualização roda.
-  const button = page.getByRole("button", { name: /^Atualizar cotações/ });
-  await button.focus();
-  await page.keyboard.press("Enter");
-  await expect(button).toHaveAttribute("aria-disabled", "true");
-  await expect(button).toHaveAttribute("aria-busy", "true");
-  await expect(button).toBeFocused();
-  await expect(button.locator("svg")).toHaveClass(/animate-spin/);
-  if (!testInfo.project.name.startsWith("mobile")) {
-    await expect(page.getByTestId("quote-refresh").getByText("Atualizando cotações…")).toBeVisible();
-  }
-
-  const toast = page.getByTestId("app-toast");
-  await expect(toast).toContainText("Cotações atualizadas");
-  await expect(toast).toContainText("10 cotações gravadas no histórico de hoje e posições de Out/26 recalculadas.");
-  await expect(button).not.toHaveAttribute("aria-disabled");
-  await expect(button).toBeFocused();
-  await expect(button).toHaveAccessibleName("Atualizar cotações. atualizado agora");
-});
-
-test("uma atualização já em andamento é avisada", async ({ page }) => {
-  await stubQuoteChecks(page);
-  const hydrated = page.waitForRequest("**/api/quotes/open-check");
-  await page.goto("/");
-  await hydrated;
-
-  await page.getByRole("button", { name: /^Atualizar cotações/ }).click();
-  await expect(page.getByTestId("app-toast")).toContainText("Já existe uma atualização de cotações em andamento.");
-});
-
-test("fora do mês corrente o topo mostra só o horário, sem a seta", async ({ page }, testInfo) => {
+// Só há atualização automática (spec 051): nenhuma tela oferece atualizar na
+// hora, e a rota da atualização manual não existe mais.
+test("não há atualização manual em nenhum mês", async ({ page }, testInfo) => {
   const lastRun = run();
   await stubQuoteChecks(page, {
     openCheck: {
@@ -127,16 +81,44 @@ test("fora do mês corrente o topo mostra só o horário, sem a seta", async ({ 
       summary: summary(lastRun, lastRun.finishedAt),
     },
   });
-  await page.goto("/?mes=2026-09");
 
-  const indicator = page.getByTestId("quote-refresh");
-  await expect(indicator).toContainText(testInfo.project.name.startsWith("mobile") ? "5 min" : "Atualizado há 5 min");
-  await expect(page.getByRole("button", { name: /^Atualizar cotações/ })).toHaveCount(0);
+  for (const path of ["/", "/?mes=2026-09", "/posicoes/cotacoes"]) {
+    await page.goto(path);
+    const indicator = page.getByTestId("quote-refresh");
+    await expect(indicator).toContainText(testInfo.project.name.startsWith("mobile") ? "5 min" : "Atualizado há 5 min");
+    await expect(page.getByRole("button", { name: /Atualizar cotações/ })).toHaveCount(0);
+  }
 
+  // O card da última atualização só aparece no mês corrente (spec 038).
+  await expect(page.getByRole("region", { name: "Última atualização" })).toContainText(
+    "As cotações são buscadas automaticamente ao abrir o aplicativo",
+  );
   await page.goto("/posicoes/cotacoes?mes=2026-09");
-  // Fora do mês corrente o card da última atualização não aparece (spec 038).
   await expect(page.getByRole("heading", { level: 1, name: "Cotações do mês" })).toBeVisible();
   await expect(page.getByRole("region", { name: "Última atualização" })).toHaveCount(0);
+
+  const response = await page.request.post("/api/quotes/refresh", { data: {} });
+  expect(response.status()).toBe(404);
+});
+
+test("uma checagem demorada mostra que as cotações estão sendo atualizadas", async ({ page }, testInfo) => {
+  const fresh = run({ startedAt: new Date().toISOString(), finishedAt: new Date().toISOString() });
+  await stubQuoteChecks(page, {
+    openCheck: { refresh: { state: "done", run: fresh }, summary: summary(fresh, fresh.finishedAt) },
+    delayMs: 1500,
+  });
+  await page.goto("/");
+
+  const indicator = page.getByTestId("quote-refresh");
+  await expect(indicator).toHaveAttribute("aria-busy", "true");
+  if (!testInfo.project.name.startsWith("mobile")) {
+    await expect(indicator.getByText("Atualizando cotações…")).toBeVisible();
+  }
+
+  await expect(indicator).not.toHaveAttribute("aria-busy");
+  await expect(indicator).toHaveAccessibleName("Atualizado agora");
+  // Uma atualização sem falhas não gera aviso.
+  await expect(page.getByTestId("app-toast")).toHaveCount(0);
 });
 
 test("uma falha ao gravar a atualização indica cada ativo", async ({ page }) => {
@@ -191,7 +173,7 @@ test("o indicador do topo não corta as abas em telas estreitas", async ({ page 
       openCheck: { refresh: { state: "fresh", lastStartedAt: lastUpdatedAt }, summary: summary(lastRun, lastUpdatedAt) },
     });
 
-    // O mês corrente tem a seta; um mês passado, só o horário (spec 028).
+    // O mês corrente e um mês passado, com o mesmo indicador.
     for (const [width, path] of widths.flatMap((width) => ["/posicoes", "/posicoes?mes=2026-09"].map((path) => [width, path] as const))) {
       await page.setViewportSize({ width, height: 760 });
       await page.goto(path);

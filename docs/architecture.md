@@ -45,6 +45,12 @@ disponível no histórico
 ([spec 021](../.ai/specs/021-automatic-month-rollover.md)). Não haverá
 agendamento nem tentativa de atualizar com o aplicativo desligado.
 
+Atualizado em 2026-10-03: só há atualização automática; a seta do topo e o
+botão da página de cotações saíram, a pedido do usuário. As cotações
+automáticas, o histórico diário e as execuções são compartilhados entre os
+usuários, e a cotação digitada à mão, quando a busca falha, fica com quem a
+digitou ([spec 051](../.ai/specs/051-shared-automatic-quotes.md)).
+
 Atualizado em 2026-10-02: cada mês guarda, para cada ativo, a cotação de
 fechamento, a mais recente do mês; gráficos e valorização usam essa cotação,
 e as anteriores não são apagadas. Ao incluir um ativo novo, o fechamento

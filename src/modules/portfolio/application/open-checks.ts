@@ -24,7 +24,7 @@ export async function runOpenChecks({
     }),
   );
   const targetPlan = await ensureDefaultTargetPlan().catch((): TargetPlanCheck => "unavailable");
-  const refresh = await refreshQuotes({ trigger: "AUTO", now, fetchQuotes }).catch(
+  const refresh = await refreshQuotes({ now, fetchQuotes }).catch(
     (error: unknown): QuoteRefreshOutcome => ({
       state: "unavailable",
       message: describeUnexpected(error, "Não foi possível atualizar as cotações."),

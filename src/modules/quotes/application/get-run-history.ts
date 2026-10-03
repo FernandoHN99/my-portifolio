@@ -1,22 +1,19 @@
-import { QuoteUpdateStatus } from "@/generated/prisma/client";
 import { getPrismaClient } from "@/lib/prisma";
+import { getUserDb } from "@/lib/user-db";
+import { readQuoteViewer, runViewFor } from "@/modules/quotes/application/run-views";
 import { addMonths } from "@/modules/quotes/domain/calendar";
-import {
-  type QuoteFailureView,
-  type QuoteRefreshRunStatus,
-  type QuoteRefreshTriggerKind,
-} from "@/modules/quotes/domain/quote-refresh";
+import { type QuoteFailureView, type QuoteRefreshRunStatus } from "@/modules/quotes/domain/quote-refresh";
 
 // Histórico das execuções de cotações da competência (spec 046, que trocou o
 // histórico de todos os meses da spec 028): as execuções que consultaram
-// cotações num dia do mês, da mais recente para a mais antiga, em páginas.
+// cotações num dia do mês, da mais recente para a mais antiga, em páginas. As
+// execuções são de todos os usuários; cada um vê só os próprios símbolos
+// (spec 051).
 
-export type QuoteRunOrigin = QuoteRefreshTriggerKind;
 export type QuoteRunHistoryStatus = QuoteRefreshRunStatus;
 
 export type QuoteRunHistoryEntry = {
   id: string;
-  origin: QuoteRunOrigin;
   status: QuoteRunHistoryStatus;
   /** Início da execução. */
   at: string;
@@ -34,18 +31,11 @@ export type QuoteRunHistoryPage = {
 
 export const RUN_HISTORY_PAGE_SIZE = 30;
 
-type ResultRow = {
-  symbol: string;
-  provider: string;
-  status: QuoteUpdateStatus;
-  errorCode: string | null;
-  errorMessage: string | null;
-};
-
 export async function getRunHistory(referenceDate: Date, before?: string): Promise<QuoteRunHistoryPage | null> {
   const prisma = getPrismaClient();
+  const userDb = await getUserDb();
 
-  if (!prisma) {
+  if (!prisma || !userDb) {
     return null;
   }
 
@@ -56,70 +46,40 @@ export async function getRunHistory(referenceDate: Date, before?: string): Promi
     return null;
   }
 
-  const resultSelect = {
-    orderBy: { symbol: "asc" },
-    select: { symbol: true, provider: true, status: true, errorCode: true, errorMessage: true },
-  } as const;
-
   try {
-    const [runs, total] = await Promise.all([
+    const [viewer, runs, total] = await Promise.all([
+      readQuoteViewer(userDb),
       prisma.quoteRefreshRun.findMany({
         where: { quoteDate: inMonth, ...(cursor ? { startedAt: { lt: cursor } } : {}) },
         orderBy: { startedAt: "desc" },
         take: RUN_HISTORY_PAGE_SIZE + 1,
         select: {
           id: true,
-          trigger: true,
           status: true,
+          quoteDate: true,
+          repricedMonth: true,
           startedAt: true,
+          finishedAt: true,
           errorMessage: true,
-          results: resultSelect,
+          results: {
+            orderBy: { symbol: "asc" },
+            select: { symbol: true, provider: true, status: true, errorCode: true, errorMessage: true },
+          },
         },
       }),
       prisma.quoteRefreshRun.count({ where: { quoteDate: inMonth } }),
     ]);
 
-    const failedSymbols = new Set(
-      runs
-        .flatMap((run) => run.results)
-        .filter((result) => result.status === QuoteUpdateStatus.FAILED)
-        .map((result) => result.symbol),
-    );
-    const assets = failedSymbols.size
-      ? await prisma.asset.findMany({
-          where: { quoteSymbol: { in: [...failedSymbols] } },
-          select: { name: true, quoteSymbol: true },
-        })
-      : [];
-    const assetsOf = (symbol: string) =>
-      assets
-        .filter((asset) => asset.quoteSymbol === symbol)
-        .map((asset) => asset.name)
-        .sort((left, right) => left.localeCompare(right, "pt-BR"));
-    const failuresOf = (results: ResultRow[]) =>
-      results
-        .filter((result) => result.status === QuoteUpdateStatus.FAILED)
-        .map(
-          (result): QuoteFailureView => ({
-            symbol: result.symbol,
-            assets: assetsOf(result.symbol),
-            provider: result.provider,
-            errorCode: result.errorCode ?? "UNKNOWN",
-            errorMessage: result.errorMessage ?? "Falha sem descrição.",
-          }),
-        );
-
     const entries: QuoteRunHistoryEntry[] = runs.map((run) => {
-      const failures = failuresOf(run.results);
+      const view = runViewFor(run, run.results, viewer);
 
       return {
-        id: run.id,
-        origin: run.trigger,
-        status: run.status,
-        at: run.startedAt.toISOString(),
-        succeeded: run.results.length - failures.length,
-        failures,
-        errorMessage: run.errorMessage,
+        id: view.id,
+        status: view.status,
+        at: view.startedAt,
+        succeeded: view.succeeded,
+        failures: view.failures,
+        errorMessage: view.errorMessage,
       };
     });
 

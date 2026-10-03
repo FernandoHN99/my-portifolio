@@ -1,5 +1,6 @@
 import type { PortfolioMonthStatus } from "@/generated/prisma/client";
 import { getUserDb } from "@/lib/user-db";
+import { readMonthQuoteValues, readQuoteSeries } from "@/modules/quotes/application/month-quote-values";
 import type { PortfolioMonthSummary } from "@/modules/portfolio/application/get-portfolio-months";
 import {
   buildHistorySlots,
@@ -167,10 +168,7 @@ export async function getPositionHistory({
 
     const today = calendarDay(new Date());
     const lastDay = lastDayOf(selected.referenceDate);
-    const usdQuote = await prisma.marketQuote.findUnique({
-      where: { referenceDate_symbol: { referenceDate: selected.referenceDate, symbol: "USD" } },
-      select: { valueBrl: true },
-    });
+    const usdQuote = (await readMonthQuoteValues(prisma, selected.referenceDate, ["USD"])).get("USD");
 
     return {
       accountId,
@@ -201,12 +199,9 @@ export async function getPositionHistory({
 async function getPriceHistory(symbol: string, today: string): Promise<PriceHistory> {
   const prisma = (await getUserDb())!;
   const symbols = symbol === "USD" ? ["USD"] : [symbol, "USD"];
+  // Uma cotação digitada pelo usuário vale por cima da compartilhada (spec 051).
   const [monthly, daily] = await Promise.all([
-    prisma.marketQuote.findMany({
-      where: { symbol: { in: symbols } },
-      orderBy: { referenceDate: "asc" },
-      select: { symbol: true, referenceDate: true, valueBrl: true, quoteDate: true, carriedFrom: true },
-    }),
+    readQuoteSeries(prisma, symbols),
     prisma.dailyQuote.findMany({
       where: { symbol: { in: symbols } },
       orderBy: { quoteDate: "asc" },

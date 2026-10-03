@@ -10,6 +10,7 @@ import {
   type AllocationGroup,
 } from "@/modules/portfolio/domain/rebalance";
 import { toMonthParam } from "@/modules/portfolio/presentation/reference-month";
+import { readMonthQuoteValues } from "@/modules/quotes/application/month-quote-values";
 import { addMonths } from "@/modules/quotes/domain/calendar";
 
 /**
@@ -163,12 +164,9 @@ export async function getOverviewData(referenceDate?: Date): Promise<OverviewDat
         ? selectedHistory.totalBrl - firstHistory.totalBrl
         : null;
 
-    const quotes = await prisma.marketQuote.findMany({
-      where: { referenceDate: selected.referenceDate, symbol: { in: ["USD", "BTC"] } },
-      select: { symbol: true, valueBrl: true },
-    });
-    const usdRate = quotes.find((quote) => quote.symbol === "USD")?.valueBrl.toNumber() ?? null;
-    const btcRate = quotes.find((quote) => quote.symbol === "BTC")?.valueBrl.toNumber() ?? null;
+    const quotes = await readMonthQuoteValues(prisma, selected.referenceDate, ["USD", "BTC"]);
+    const usdRate = quotes.get("USD")?.valueBrl.toNumber() ?? null;
+    const btcRate = quotes.get("BTC")?.valueBrl.toNumber() ?? null;
 
     const allocation = await getAllocationOverview(selected.referenceDate);
     const composition = (allocation?.groups ?? [])

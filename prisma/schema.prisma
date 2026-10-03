@@ -34,6 +34,7 @@ model User {
   assets        Asset[]
   months        PortfolioMonth[]
   targetPlans   TargetPlan[]
+  manualQuotes  ManualQuote[]
 
   @@map("users")
 }
@@ -186,7 +187,6 @@ model PortfolioMonth {
   createdAt      DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
   user           User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
   positions      Position[]
-  quoteRefreshes QuoteRefreshRun[]
 
   @@unique([userId, referenceDate])
   @@unique([id, userId])
@@ -220,6 +220,9 @@ model Position {
   @@map("positions")
 }
 
+// Cotação de cada mês, compartilhada entre os usuários (spec 051): vem dos
+// provedores, da virada de mês ou da inclusão de um ativo. A cotação digitada
+// por um usuário fica em ManualQuote e vale só para ele.
 model MarketQuote {
   id             String    @id @default(uuid()) @db.Uuid
   referenceDate  DateTime  @map("reference_date") @db.Date
@@ -228,11 +231,11 @@ model MarketQuote {
   baseCurrency   String    @map("base_currency")
   valueBrl       Decimal   @map("value_brl") @db.Decimal(24, 8)
   // Dia do preço que a cotação do mês carrega, quando conhecido. Nulo nas
-  // cotações importadas do Excel e nas editadas à mão, que são fatos mensais.
+  // cotações importadas do Excel, que são fatos mensais.
   quoteDate      DateTime? @map("quote_date") @db.Date
   // Competência cuja cotação foi repetida, quando o mês não tem valor próprio:
   // virada de mês sem histórico diário no mês ou clone do mês anterior. Nulo
-  // quando o valor é do próprio mês: importado, atualizado ou editado à mão.
+  // quando o valor é do próprio mês: importado ou atualizado.
   carriedFrom    DateTime? @map("carried_from") @db.Date
   createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
 
@@ -241,9 +244,24 @@ model MarketQuote {
   @@map("market_quotes")
 }
 
-enum QuoteRefreshTrigger {
-  AUTO
-  MANUAL
+// Cotação digitada por um usuário (spec 051), só para cotação não encontrada ou
+// com falha na última busca (spec 028). Vale por cima da compartilhada, só para
+// ele, até a próxima atualização bem-sucedida do símbolo no mês corrente.
+model ManualQuote {
+  id             String   @id @default(uuid()) @db.Uuid
+  userId         String   @map("user_id") @db.Uuid
+  referenceDate  DateTime @map("reference_date") @db.Date
+  symbol         String
+  instrumentType String   @map("instrument_type")
+  baseCurrency   String   @map("base_currency")
+  valueBrl       Decimal  @map("value_brl") @db.Decimal(24, 8)
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, referenceDate, symbol])
+  @@index([referenceDate, symbol])
+  @@map("manual_quotes")
 }
 
 enum QuoteRefreshStatus {
@@ -273,17 +291,18 @@ model DailyQuote {
   @@map("daily_quotes")
 }
 
+// Execução da atualização automática de cotações, de todos os usuários
+// (spec 051). Cada um vê só os resultados dos próprios símbolos.
 model QuoteRefreshRun {
-  id               String               @id @default(uuid()) @db.Uuid
-  trigger          QuoteRefreshTrigger
-  status           QuoteRefreshStatus   @default(RUNNING)
-  quoteDate        DateTime             @map("quote_date") @db.Date
-  portfolioMonthId String?              @map("portfolio_month_id") @db.Uuid
-  startedAt        DateTime             @default(now()) @map("started_at") @db.Timestamptz(3)
-  finishedAt       DateTime?            @map("finished_at") @db.Timestamptz(3)
-  errorMessage     String?              @map("error_message")
-  portfolioMonth   PortfolioMonth?      @relation(fields: [portfolioMonthId], references: [id], onDelete: SetNull)
-  results          QuoteRefreshResult[]
+  id            String               @id @default(uuid()) @db.Uuid
+  status        QuoteRefreshStatus   @default(RUNNING)
+  quoteDate     DateTime             @map("quote_date") @db.Date
+  /// Competência reprecificada (o mês corrente), quando algum usuário a tinha.
+  repricedMonth DateTime?            @map("repriced_month") @db.Date
+  startedAt     DateTime             @default(now()) @map("started_at") @db.Timestamptz(3)
+  finishedAt    DateTime?            @map("finished_at") @db.Timestamptz(3)
+  errorMessage  String?              @map("error_message")
+  results       QuoteRefreshResult[]
   dailyQuotes      DailyQuote[]
 
   @@index([startedAt])

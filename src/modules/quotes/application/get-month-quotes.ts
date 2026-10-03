@@ -1,18 +1,21 @@
 import { Prisma, QuoteUpdateStatus, type PortfolioMonthStatus } from "@/generated/prisma/client";
 import { getUserDb } from "@/lib/user-db";
 import { toMonthParam } from "@/modules/portfolio/presentation/reference-month";
+import { readMonthQuoteValues } from "@/modules/quotes/application/month-quote-values";
+import { readQuoteViewer } from "@/modules/quotes/application/run-views";
 import { addMonths, currentReferenceMonth, toDateKey } from "@/modules/quotes/domain/calendar";
-import { isQuoteEditable, type QuoteRefreshTriggerKind } from "@/modules/quotes/domain/quote-refresh";
+import { isQuoteEditable } from "@/modules/quotes/domain/quote-refresh";
 
 // Dados da página de cotações de uma competência: cada cotação com os ativos
 // que a usam, a origem do valor, o último resultado da atualização no mês e se
-// pode ser editada à mão (spec 028). O histórico de execuções é de todos os
-// meses e fica em `get-run-history`.
+// pode ser editada à mão (spec 028). As cotações automáticas são de todos os
+// usuários, e a página mostra só os símbolos do usuário; a digitada à mão vale
+// só para ele (spec 051). O histórico de execuções fica em `get-run-history`.
 
 export type QuoteLastResult = {
   status: "SUCCESS" | "FAILED";
-  /** "INCLUSION": cotação buscada ao incluir a posição, antes de uma atualização. */
-  trigger: QuoteRefreshTriggerKind | "INCLUSION";
+  /** "inclusion": cotação buscada ao incluir a posição, antes de uma atualização. */
+  source: "update" | "inclusion";
   fetchedAt: string;
   provider: string;
   valueBrl: number | null;
@@ -31,12 +34,14 @@ export type MonthQuoteRow = {
   // Competência (AAAA-MM) cuja cotação foi repetida, quando o mês não tem
   // valor próprio (spec 021).
   carriedFrom: string | null;
+  /** Digitada à mão pelo usuário, por cima da automática (spec 051). */
+  manual: boolean;
   assets: string[];
   // Quantidade de cada posição que usa a cotação, para a prévia dos totais.
   quantities: number[];
   totalBrl: number;
   lastResult: QuoteLastResult | null;
-  /** Sem valor no mês, repetida de outro mês ou com falha na última busca. */
+  /** Sem valor no mês, repetida de outro mês, com falha na última busca ou já digitada à mão. */
   editable: boolean;
 };
 
@@ -94,18 +99,9 @@ export async function getMonthQuotes(referenceDate?: Date): Promise<MonthQuotesV
       quoteDate: { gte: month.referenceDate, lt: addMonths(month.referenceDate, 1) },
     } satisfies Prisma.QuoteRefreshRunWhereInput;
 
-    const [storedQuotes, lastResults, inclusions] = await Promise.all([
-      prisma.marketQuote.findMany({
-        where: { referenceDate: month.referenceDate },
-        select: {
-          symbol: true,
-          instrumentType: true,
-          baseCurrency: true,
-          valueBrl: true,
-          quoteDate: true,
-          carriedFrom: true,
-        },
-      }),
+    const [stored, viewer, lastResults, inclusions] = await Promise.all([
+      readMonthQuoteValues(prisma, month.referenceDate),
+      readQuoteViewer(prisma),
       prisma.quoteRefreshResult.findMany({
         where: { run: runsInMonth },
         orderBy: [{ fetchedAt: "desc" }, { id: "desc" }],
@@ -117,7 +113,6 @@ export async function getMonthQuotes(referenceDate?: Date): Promise<MonthQuotesV
           valueBrl: true,
           errorMessage: true,
           fetchedAt: true,
-          run: { select: { trigger: true } },
         },
       }),
       // Cotação buscada pela inclusão de uma posição nova (spec 026): fica no
@@ -146,9 +141,13 @@ export async function getMonthQuotes(referenceDate?: Date): Promise<MonthQuotesV
       usage.set(symbol, entry);
     }
 
-    const stored = new Map(storedQuotes.map((quote) => [quote.symbol, quote]));
     const lastBySymbol = new Map(lastResults.map((result) => [result.symbol, result]));
-    const symbols = [...new Set([...stored.keys(), ...usage.keys()])].sort((left, right) =>
+    // Das cotações do mês, que são de todos, só as dos ativos do usuário, as
+    // digitadas por ele e o dólar, que converte os ativos no exterior.
+    const own = [...stored.values()]
+      .filter((quote) => quote.manual || quote.symbol === "USD" || viewer.symbols.has(quote.symbol))
+      .map((quote) => quote.symbol);
+    const symbols = [...new Set([...own, ...usage.keys()])].sort((left, right) =>
       left === "USD" ? -1 : right === "USD" ? 1 : left.localeCompare(right),
     );
     const assetsOf = (symbol: string) =>
@@ -175,7 +174,7 @@ export async function getMonthQuotes(referenceDate?: Date): Promise<MonthQuotesV
         const lastResult: QuoteLastResult | null = last
           ? {
               status: last.status === QuoteUpdateStatus.SUCCESS ? "SUCCESS" : "FAILED",
-              trigger: last.run.trigger,
+              source: "update",
               fetchedAt: last.fetchedAt.toISOString(),
               provider: last.provider,
               valueBrl: last.valueBrl?.toNumber() ?? null,
@@ -184,7 +183,7 @@ export async function getMonthQuotes(referenceDate?: Date): Promise<MonthQuotesV
           : inclusion
             ? {
                 status: "SUCCESS",
-                trigger: "INCLUSION",
+                source: "inclusion",
                 fetchedAt: inclusion.fetchedAt.toISOString(),
                 provider: inclusion.provider,
                 valueBrl: inclusion.valueBrl.toNumber(),
@@ -200,15 +199,20 @@ export async function getMonthQuotes(referenceDate?: Date): Promise<MonthQuotesV
           valueText: quote?.valueBrl.toString() ?? "",
           quoteDate: quote?.quoteDate ? toDateKey(quote.quoteDate) : null,
           carriedFrom: quote?.carriedFrom ? toMonthParam(quote.carriedFrom) : null,
+          manual: quote?.manual ?? false,
           assets: assetsOf(symbol),
           quantities: used?.quantities ?? [],
           totalBrl: used?.total.toNumber() ?? 0,
           lastResult,
-          editable: isQuoteEditable({
-            hasValue: quote !== undefined,
-            carried: Boolean(quote?.carriedFrom),
-            lastFailed: lastResult?.status === "FAILED",
-          }),
+          // A digitada à mão continua editável até a próxima busca bem-sucedida,
+          // que a substitui (spec 028).
+          editable:
+            quote?.manual === true ||
+            isQuoteEditable({
+              hasValue: quote !== undefined,
+              carried: Boolean(quote?.carriedFrom),
+              lastFailed: lastResult?.status === "FAILED",
+            }),
         };
       }),
     };

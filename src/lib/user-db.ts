@@ -45,7 +45,9 @@ type Args = { where?: object; data?: object | object[]; create?: object };
  * Valor de `userId` nas gravações pelo cliente com escopo: os tipos do Prisma
  * pedem o campo, e a extensão sempre o troca pelo usuário da operação. No
  * cliente comum, o texto vazio não é um UUID e a gravação falha, em vez de
- * criar uma linha sem dono.
+ * criar uma linha sem dono. Só nos dados gravados: dentro de uma chave única
+ * composta (como `userId_referenceDate_symbol`) ele não é trocado; nesses casos,
+ * busque com `findFirst`, que recebe o usuário.
  */
 export const SCOPED_USER = "";
 

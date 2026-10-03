@@ -256,7 +256,8 @@ export function QuotesWorkspace({
         {editMode ? (
           <p className="border-b border-border/60 px-5 py-2.5 text-[11px] text-muted-foreground sm:px-6">
             Só as cotações não encontradas ou com falha na última atualização podem ser editadas; as demais
-            vêm dos provedores. Alterar uma cotação recalcula o total das posições daquele símbolo em {monthLabel}.
+            vêm dos provedores e valem para todos. O valor digitado vale só na sua carteira e recalcula o total das
+            posições daquele símbolo em {monthLabel}.
             {month.isCurrent ? " A próxima atualização bem-sucedida substitui o valor editado." : ""}
           </p>
         ) : null}
@@ -470,6 +471,17 @@ function QuoteOrigin({ row }: { row: MonthQuoteRow }) {
     return <span className="text-[11px] text-muted-foreground">Sem valor no mês</span>;
   }
 
+  if (row.manual) {
+    return (
+      <span
+        title="Valor digitado por você, que vale só na sua carteira até a próxima atualização bem-sucedida."
+        className="text-[11px] whitespace-nowrap text-foreground/85"
+      >
+        Digitada à mão
+      </span>
+    );
+  }
+
   if (row.carriedFrom) {
     const source = parseMonthParam(row.carriedFrom);
     const label = source ? formatMonthCompact(source) : row.carriedFrom;
@@ -490,7 +502,7 @@ function QuoteOrigin({ row }: { row: MonthQuoteRow }) {
 
   return (
     <span
-      title="Valor importado do Excel ou editado à mão, sem um dia do histórico diário."
+      title="Valor do mês sem um dia do histórico diário, como os importados da planilha."
       className="text-[11px] whitespace-nowrap text-muted-foreground"
     >
       Valor do mês
@@ -520,14 +532,14 @@ function LastResult({ row, compact = false }: { row: MonthQuoteRow; compact?: bo
       )}
       <div className="min-w-0 text-[11px] leading-snug">
         <p className={ok ? "text-foreground/85" : "text-destructive"}>
-          {result.trigger === "INCLUSION" ? "Incluída" : ok ? "Atualizada" : "Falhou"} em{" "}
+          {result.source === "inclusion" ? "Incluída" : ok ? "Atualizada" : "Falhou"} em{" "}
           <LocalDateTime iso={result.fetchedAt} />
         </p>
         {/* Motivos com termos longos, como ALPHA_VANTAGE_API_KEY, quebram em
             qualquer ponto para não alargar a coluna no celular. */}
         <p className={cn("text-muted-foreground wrap-anywhere", compact && "max-w-[260px]")}>
           {providerLabel(result.provider)}
-          {result.trigger === "INCLUSION" ? " · ao incluir a posição" : null}
+          {result.source === "inclusion" ? " · ao incluir a posição" : null}
           {ok ? null : `: ${result.errorMessage ?? "falha sem descrição."}`}
         </p>
       </div>

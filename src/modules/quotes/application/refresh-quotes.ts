@@ -1,23 +1,17 @@
 import { cache } from "react";
 
-import {
-  Prisma,
-  QuoteRefreshStatus,
-  QuoteRefreshTrigger,
-  QuoteUpdateStatus,
-  type PrismaClient,
-} from "@/generated/prisma/client";
+import { Prisma, QuoteRefreshStatus, QuoteUpdateStatus, type PrismaClient } from "@/generated/prisma/client";
 import { QUOTE_REFRESH_LOCK_KEY } from "@/lib/advisory-locks";
 import { getPrismaClient } from "@/lib/prisma";
+import { getUserDb } from "@/lib/user-db";
 import { fetchCurrentQuotes } from "@/modules/quotes/application/fetch-current-quotes";
-import { calendarDay, monthOf, toDateKey } from "@/modules/quotes/domain/calendar";
+import { readQuoteViewer, runViewFor, type QuoteViewer } from "@/modules/quotes/application/run-views";
+import { calendarDay, monthOf } from "@/modules/quotes/domain/calendar";
 import {
   isRefreshDue,
-  type QuoteFailureView,
   type QuoteRefreshOutcome,
   type QuoteRefreshRunView,
   type QuoteRefreshSummary,
-  type QuoteRefreshTriggerKind,
 } from "@/modules/quotes/domain/quote-refresh";
 import {
   quoteFailure,
@@ -35,25 +29,27 @@ type Transaction = Prisma.TransactionClient;
 // Uma execução que continua RUNNING depois disso foi interrompida.
 const STALE_RUN_MS = 10 * 60 * 1000;
 
+// Atualização automática (spec 020), a única desde a spec 051: busca os
+// símbolos de todos os usuários e devolve a execução vista pelo usuário da
+// sessão, que a disparou ao abrir o aplicativo.
 export async function refreshQuotes({
-  trigger,
   now = new Date(),
   fetchQuotes = fetchCurrentQuotes,
 }: {
-  trigger: QuoteRefreshTriggerKind;
   now?: Date;
   fetchQuotes?: QuoteFetcher;
-}): Promise<QuoteRefreshOutcome> {
+} = {}): Promise<QuoteRefreshOutcome> {
   const prisma = getPrismaClient();
+  const userDb = await getUserDb();
 
-  if (!prisma) {
+  if (!prisma || !userDb) {
     return { state: "unavailable", message: "O banco de dados não está configurado." };
   }
 
   const startedClock = Date.now();
   const clock = () => new Date(now.getTime() + (Date.now() - startedClock));
   const today = calendarDay(now);
-  const claim = await claimRun(prisma, trigger, now, today);
+  const claim = await claimRun(prisma, now, today);
 
   if (claim.state !== "claimed") {
     return claim;
@@ -139,6 +135,14 @@ export async function refreshQuotes({
           });
         }
 
+        // A cotação buscada substitui as digitadas à mão naquele mês, de todos
+        // os usuários (spec 028): elas valiam só enquanto a busca falhava.
+        if (successes.length > 0) {
+          await transaction.manualQuote.deleteMany({
+            where: { referenceDate, symbol: { in: successes.map((success) => success.symbol) } },
+          });
+        }
+
         if (currentMonthIds.length > 0) {
           await applyToCurrentMonth(transaction, {
             monthIds: currentMonthIds,
@@ -159,6 +163,7 @@ export async function refreshQuotes({
                   ? QuoteRefreshStatus.FAILED
                   : QuoteRefreshStatus.COMPLETED_WITH_ISSUES,
             finishedAt: clock(),
+            repricedMonth: currentMonthIds.length > 0 ? referenceDate : null,
             errorMessage:
               failures.length === 0
                 ? null
@@ -173,7 +178,9 @@ export async function refreshQuotes({
     await recordFailedRun(prisma, claim.runId, results, clock()).catch(() => undefined);
   }
 
-  const run = await readRunView(prisma, claim.runId);
+  const run = await readQuoteViewer(userDb)
+    .then((viewer) => readRunView(prisma, claim.runId, viewer))
+    .catch(() => null);
 
   return run
     ? { state: "done", run }
@@ -182,20 +189,22 @@ export async function refreshQuotes({
 
 export async function getQuoteRefreshSummary(now = new Date()): Promise<QuoteRefreshSummary | null> {
   const prisma = getPrismaClient();
+  const userDb = await getUserDb();
 
-  if (!prisma) {
+  if (!prisma || !userDb) {
     return null;
   }
 
   try {
+    const viewer = await readQuoteViewer(userDb);
     const [lastRun, lastUpdated] = await Promise.all([
       prisma.quoteRefreshRun.findFirst({ orderBy: { startedAt: "desc" }, select: { id: true } }),
-      // Só conta como atualização a execução que gravou alguma cotação; uma
-      // competência sem ativos com ticker termina sem resultados.
+      // Só conta como atualização a execução que gravou alguma cotação do
+      // usuário; uma carteira sem ativos com ticker não tem atualização.
       prisma.quoteRefreshRun.findFirst({
         where: {
           status: { in: [QuoteRefreshStatus.COMPLETED, QuoteRefreshStatus.COMPLETED_WITH_ISSUES] },
-          results: { some: { status: QuoteUpdateStatus.SUCCESS } },
+          results: { some: { status: QuoteUpdateStatus.SUCCESS, symbol: { in: [...viewer.symbols] } } },
         },
         orderBy: { startedAt: "desc" },
         select: { finishedAt: true, startedAt: true },
@@ -205,7 +214,7 @@ export async function getQuoteRefreshSummary(now = new Date()): Promise<QuoteRef
     return {
       generatedAt: now.toISOString(),
       lastUpdatedAt: lastUpdated ? (lastUpdated.finishedAt ?? lastUpdated.startedAt).toISOString() : null,
-      lastRun: lastRun ? await readRunView(prisma, lastRun.id) : null,
+      lastRun: lastRun ? await readRunView(prisma, lastRun.id, viewer) : null,
     };
   } catch {
     return null;
@@ -219,7 +228,6 @@ export const getRequestQuoteRefreshSummary = cache(() => getQuoteRefreshSummary(
 
 async function claimRun(
   prisma: PrismaClient,
-  trigger: QuoteRefreshTriggerKind,
   now: Date,
   today: Date,
 ): Promise<{ state: "claimed"; runId: string } | Exclude<QuoteRefreshOutcome, { state: "done" | "unavailable" }>> {
@@ -246,20 +254,17 @@ async function claimRun(
       return { state: "busy" as const, runId: running.id };
     }
 
-    if (trigger === "AUTO") {
-      const last = await transaction.quoteRefreshRun.findFirst({
-        orderBy: { startedAt: "desc" },
-        select: { startedAt: true },
-      });
+    const last = await transaction.quoteRefreshRun.findFirst({
+      orderBy: { startedAt: "desc" },
+      select: { startedAt: true },
+    });
 
-      if (last && !isRefreshDue(last.startedAt, now)) {
-        return { state: "fresh" as const, lastStartedAt: last.startedAt.toISOString() };
-      }
+    if (last && !isRefreshDue(last.startedAt, now)) {
+      return { state: "fresh" as const, lastStartedAt: last.startedAt.toISOString() };
     }
 
     const run = await transaction.quoteRefreshRun.create({
       data: {
-        trigger: trigger === "AUTO" ? QuoteRefreshTrigger.AUTO : QuoteRefreshTrigger.MANUAL,
         status: QuoteRefreshStatus.RUNNING,
         quoteDate: today,
         startedAt: now,
@@ -503,18 +508,21 @@ async function applyToCurrentMonth(
   }
 }
 
-async function readRunView(prisma: PrismaClient, runId: string): Promise<QuoteRefreshRunView | null> {
+async function readRunView(
+  prisma: PrismaClient,
+  runId: string,
+  viewer: QuoteViewer,
+): Promise<QuoteRefreshRunView | null> {
   const run = await prisma.quoteRefreshRun.findUnique({
     where: { id: runId },
     select: {
       id: true,
-      trigger: true,
       status: true,
       quoteDate: true,
+      repricedMonth: true,
       startedAt: true,
       finishedAt: true,
       errorMessage: true,
-      portfolioMonth: { select: { referenceDate: true } },
       results: {
         orderBy: { symbol: "asc" },
         select: { symbol: true, provider: true, status: true, errorCode: true, errorMessage: true },
@@ -522,68 +530,7 @@ async function readRunView(prisma: PrismaClient, runId: string): Promise<QuoteRe
     },
   });
 
-  if (!run) {
-    return null;
-  }
-
-  const failed = run.results.filter((result) => result.status === QuoteUpdateStatus.FAILED);
-  const assets = await assetNamesBySymbol(
-    prisma,
-    failed.map((result) => result.symbol),
-  );
-  const failures: QuoteFailureView[] = failed.map((result) => ({
-    symbol: result.symbol,
-    assets: assets.get(result.symbol) ?? [],
-    provider: result.provider,
-    errorCode: result.errorCode ?? "UNKNOWN",
-    errorMessage: result.errorMessage ?? "Falha sem descrição.",
-  }));
-
-  return {
-    id: run.id,
-    trigger: run.trigger,
-    status: run.status,
-    quoteDate: toDateKey(run.quoteDate),
-    startedAt: run.startedAt.toISOString(),
-    finishedAt: run.finishedAt?.toISOString() ?? null,
-    succeeded: run.results.length - failed.length,
-    failures,
-    errorMessage: run.errorMessage,
-    repricedMonth: run.portfolioMonth ? run.portfolioMonth.referenceDate.toISOString().slice(0, 7) : null,
-  };
-}
-
-// Nomes dos ativos que usam cada símbolo na competência mais recente, para que
-// os avisos indiquem o ativo e não só o ticker.
-async function assetNamesBySymbol(prisma: PrismaClient, symbols: string[]) {
-  const names = new Map<string, string[]>();
-
-  if (symbols.length === 0) {
-    return names;
-  }
-
-  const latest = await prisma.portfolioMonth.findFirst({
-    orderBy: { referenceDate: "desc" },
-    select: { id: true },
-  });
-  const assets = await prisma.asset.findMany({
-    where: {
-      quoteSymbol: { in: symbols },
-      ...(latest ? { positions: { some: { portfolioMonthId: latest.id } } } : {}),
-    },
-    orderBy: { name: "asc" },
-    select: { name: true, quoteSymbol: true },
-  });
-
-  for (const asset of assets) {
-    if (!asset.quoteSymbol) {
-      continue;
-    }
-
-    names.set(asset.quoteSymbol, [...(names.get(asset.quoteSymbol) ?? []), asset.name]);
-  }
-
-  return names;
+  return run ? runViewFor(run, run.results, viewer) : null;
 }
 
 function toPrice(value: number) {

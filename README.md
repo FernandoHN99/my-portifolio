@@ -99,9 +99,12 @@ ALPHA_VANTAGE_API_KEY=
 
 As chaves são lidas somente no servidor. Ao abrir, o aplicativo cria as
 competências que faltarem até o mês corrente e, se a última tentativa tiver
-mais de uma hora, consulta os provedores; a seta do topo e o botão
-**Atualizar cotações** da página **Cotações**, em Posições, consultam na hora.
-Cada cotação obtida entra no histórico diário e recalcula a competência do mês
-corrente; as que falharem mantêm o valor anterior e são avisadas pelo nome do
-ativo. A página de cotações também permite editar as cotações de qualquer
-competência e mostra o histórico das execuções do mês.
+mais de uma hora, consulta os provedores. Não há atualização manual
+([spec 051](.ai/specs/051-shared-automatic-quotes.md)). As cotações
+automáticas são de todos os usuários: cada atualização busca os símbolos de
+todas as carteiras, grava no histórico diário e recalcula a competência do mês
+corrente de cada usuário; as que falharem mantêm o valor anterior e são
+avisadas, a cada usuário, pelo nome dos ativos dele. Na página **Cotações**, em
+Posições, uma cotação não encontrada ou com falha pode ser digitada à mão; ela
+vale só para quem a digitou, até a próxima atualização bem-sucedida. A página
+também mostra o histórico das execuções do mês.

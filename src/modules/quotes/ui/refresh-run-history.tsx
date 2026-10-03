@@ -16,14 +16,8 @@ import type {
   QuoteRunHistoryEntry,
   QuoteRunHistoryPage,
   QuoteRunHistoryStatus,
-  QuoteRunOrigin,
 } from "@/modules/quotes/application/get-run-history";
 import { providerLabel } from "@/modules/quotes/domain/quote-refresh";
-
-const ORIGIN_LABELS: Record<QuoteRunOrigin, string> = {
-  AUTO: "Automática",
-  MANUAL: "Manual",
-};
 
 const STATUS: Record<QuoteRunHistoryStatus, { label: string; className: string }> = {
   COMPLETED: { label: "Concluída", className: "bg-primary/10 text-primary" },
@@ -131,7 +125,6 @@ function RunRow({ run }: { run: QuoteRunHistoryEntry }) {
       <span className="min-w-0 flex-1">
         <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
           <LocalDateTime iso={run.at} className="font-mono text-xs text-foreground" />
-          <span className="text-[11px] text-muted-foreground">{ORIGIN_LABELS[run.origin]}</span>
         </span>
         <span className="mt-1 block text-xs text-muted-foreground">{describeRun(run)}</span>
       </span>

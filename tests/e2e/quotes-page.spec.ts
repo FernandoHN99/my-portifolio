@@ -102,10 +102,9 @@ test("editar cotações mostra a prévia e bloqueia valor inválido", async ({ p
   await expect(page.getByText(/alteraç(ão|ões) pendente/)).toHaveCount(0);
 });
 
-test("atualizar pela página gira junto com o topo e avisa cada ativo", async ({ page }) => {
-  const manual = stubRun({
+test("a checagem automática gira a página junto com o topo e avisa cada ativo", async ({ page }) => {
+  const automatic = stubRun({
     id: "00000000-0000-4000-8000-000000000003",
-    trigger: "MANUAL",
     status: "COMPLETED_WITH_ISSUES",
     succeeded: 9,
     startedAt: new Date().toISOString(),
@@ -122,27 +121,23 @@ test("atualizar pela página gira junto com o topo e avisa cada ativo", async ({
   });
   await page.unrouteAll();
   await stubQuoteChecks(page, {
-    refresh: { refresh: { state: "done", run: manual }, summary: stubSummary(manual, manual.finishedAt) },
-    refreshDelayMs: 1200,
+    openCheck: { refresh: { state: "done", run: automatic }, summary: stubSummary(automatic, automatic.finishedAt) },
+    delayMs: 1500,
   });
-  // A atualização só aparece no mês corrente, aberto sem mês na URL.
-  const hydrated = page.waitForRequest("**/api/quotes/open-check");
+  // O card da última atualização só aparece no mês corrente, aberto sem mês na URL.
   await page.goto("/posicoes/cotacoes");
-  await hydrated;
 
   const card = page.getByRole("region", { name: "Última atualização" });
-  const button = card.getByRole("button");
-  const header = page.getByTestId("quote-refresh").getByRole("button");
-  await button.click();
-  await expect(button).toHaveAttribute("aria-busy", "true");
+  const header = page.getByTestId("quote-refresh");
   await expect(header).toHaveAttribute("aria-busy", "true");
   await expect(card).toContainText("Atualizando cotações…");
+  // Só há atualização automática (spec 051): o card não tem botão.
+  await expect(card.getByRole("button")).toHaveCount(0);
 
   const toast = page.getByTestId("app-toast");
   await expect(toast).toContainText("Cotação de BTC não atualizada");
   await expect(toast).toContainText("Bitcoin 01, Bitcoin 02");
   await expect(toast).toContainText("CoinGecko: Não foi possível conectar ao provedor.");
-  await expect(button).not.toHaveAttribute("aria-busy");
   await expect(header).not.toHaveAttribute("aria-busy");
   await expect(card).toContainText("Atualizado agora");
   await expect(card).toContainText("Nessa atualização: 1 cotação com falha (BTC).");

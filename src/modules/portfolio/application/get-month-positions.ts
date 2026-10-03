@@ -1,5 +1,6 @@
 import { Prisma, type PortfolioMonthStatus } from "@/generated/prisma/client";
 import { getUserDb } from "@/lib/user-db";
+import { readMonthQuoteValues } from "@/modules/quotes/application/month-quote-values";
 import { calendarDay, currentReferenceMonth, lastDayOf, toDateKey } from "@/modules/quotes/domain/calendar";
 
 export type MonthPositionAllocation = {
@@ -111,11 +112,9 @@ export async function getMonthPositions(
       return null;
     }
 
-    const storedQuotes = await prisma.marketQuote.findMany({
-      where: { referenceDate: month.referenceDate },
-      select: { symbol: true, valueBrl: true },
-    });
-    const quoteBySymbol = new Map(storedQuotes.map((quote) => [quote.symbol, quote.valueBrl]));
+    // Cotação do mês para o usuário: a compartilhada ou a digitada por ele (spec 051).
+    const storedQuotes = await readMonthQuoteValues(prisma, month.referenceDate);
+    const quoteBySymbol = new Map([...storedQuotes].map(([symbol, quote]) => [symbol, quote.valueBrl]));
     const usdRate = quoteBySymbol.get("USD")?.toNumber() ?? null;
     const totalBrl = month.positions
       .reduce((total, position) => total.plus(position.totalBrl), new Prisma.Decimal(0))

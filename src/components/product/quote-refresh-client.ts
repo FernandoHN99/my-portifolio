@@ -6,16 +6,14 @@ import { parseMonthParam } from "@/modules/portfolio/presentation/reference-mont
 import {
   providerLabel,
   QUOTE_REFRESH_INTERVAL_MS,
-  type ManualRefreshResponse,
   type QuoteRefreshOutcome,
   type QuoteRefreshRunView,
   type QuoteRefreshSummary,
-  type QuoteRefreshTriggerKind,
 } from "@/modules/quotes/domain/quote-refresh";
 
-// Estado da atualização de cotações no navegador. Fica fora do React para que a
+// Estado da checagem de cotações no navegador. Fica fora do React para que a
 // requisição em andamento e o resultado sobrevivam à troca de abas, que monta
-// um novo cabeçalho em cada página.
+// um novo cabeçalho em cada página. Só há atualização automática (spec 051).
 
 export type QuoteRefreshClientState = {
   running: boolean;
@@ -76,15 +74,7 @@ export function runOpenCheck(onDataChanged: () => void) {
   }
 
   lastOpenCheckAt = Date.now();
-  void execute("/api/quotes/open-check", "AUTO", onDataChanged);
-}
-
-export function runManualRefresh(onDataChanged: () => void) {
-  if (state.running) {
-    return;
-  }
-
-  void execute("/api/quotes/refresh", "MANUAL", onDataChanged);
+  void execute(onDataChanged);
 }
 
 // Recarrega os dados da tela, exceto quando há edições pendentes, que seriam
@@ -102,13 +92,14 @@ export function refreshUnlessEditing(refresh: () => void) {
   });
 }
 
-async function execute(url: string, trigger: QuoteRefreshTriggerKind, onDataChanged: () => void) {
-  setState({ running: true, spinning: trigger === "MANUAL" });
-  const spinTimer =
-    trigger === "AUTO" ? window.setTimeout(() => state.running && setState({ spinning: true }), SPIN_DELAY_MS) : null;
+async function execute(onDataChanged: () => void) {
+  setState({ running: true, spinning: false });
+  // O indicador só mostra "Atualizando" se a checagem demorar: quando as
+  // cotações estão em dia, a resposta chega antes.
+  const spinTimer = window.setTimeout(() => state.running && setState({ spinning: true }), SPIN_DELAY_MS);
 
   try {
-    const response = await fetch(url, {
+    const response = await fetch("/api/quotes/open-check", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: "{}",
@@ -122,7 +113,7 @@ async function execute(url: string, trigger: QuoteRefreshTriggerKind, onDataChan
       throw new Error(`HTTP ${response.status}`);
     }
 
-    const payload = (await response.json()) as Partial<OpenCheckResponse> & ManualRefreshResponse;
+    const payload = (await response.json()) as OpenCheckResponse;
 
     if (payload.summary) {
       setState({ summary: payload.summary });
@@ -141,10 +132,10 @@ async function execute(url: string, trigger: QuoteRefreshTriggerKind, onDataChan
       });
     }
 
-    announceRefresh(payload.refresh, trigger);
+    announceRefresh(payload.refresh);
 
     if (
-      payload.rollover?.state === "created" ||
+      payload.rollover.state === "created" ||
       payload.targetPlan === "created" ||
       refreshChangedData(payload.refresh)
     ) {
@@ -161,16 +152,11 @@ async function execute(url: string, trigger: QuoteRefreshTriggerKind, onDataChan
     showAppToast({
       id: "quotes-unreachable",
       tone: "error",
-      title: trigger === "MANUAL" ? "Não foi possível atualizar as cotações" : "Não foi possível verificar as cotações",
-      description:
-        trigger === "MANUAL"
-          ? "O aplicativo não respondeu. Tente de novo em instantes."
-          : "O aplicativo não respondeu ao abrir. A seta do topo tenta de novo.",
+      title: "Não foi possível verificar as cotações",
+      description: "O aplicativo não respondeu ao abrir. Ele tenta de novo na próxima checagem.",
     });
   } finally {
-    if (spinTimer !== null) {
-      window.clearTimeout(spinTimer);
-    }
+    window.clearTimeout(spinTimer);
     setState({ running: false, spinning: false });
   }
 }
@@ -227,11 +213,8 @@ function refreshChangedData(outcome: QuoteRefreshOutcome) {
   return outcome.state === "done" && outcome.run.succeeded > 0;
 }
 
-function announceRefresh(outcome: QuoteRefreshOutcome, trigger: QuoteRefreshTriggerKind) {
+function announceRefresh(outcome: QuoteRefreshOutcome) {
   if (outcome.state === "busy") {
-    if (trigger === "MANUAL") {
-      showAppToast({ tone: "info", title: "Já existe uma atualização de cotações em andamento." });
-    }
     return;
   }
 
@@ -283,27 +266,5 @@ function announceRefresh(outcome: QuoteRefreshOutcome, trigger: QuoteRefreshTrig
       description: run.errorMessage ?? "A atualização falhou antes de consultar os provedores.",
     });
     return;
-  }
-
-  if (trigger === "MANUAL" && run.succeeded === 0) {
-    showAppToast({
-      id: `quotes-${run.id}`,
-      tone: "info",
-      title: "Nenhuma cotação para atualizar",
-      description: "A competência não tem posições com ticker.",
-    });
-    return;
-  }
-
-  if (trigger === "MANUAL") {
-    const month = run.repricedMonth ? parseMonthParam(run.repricedMonth) : null;
-    showAppToast({
-      id: `quotes-${run.id}`,
-      tone: "success",
-      title: "Cotações atualizadas",
-      description: `${run.succeeded} ${run.succeeded === 1 ? "cotação gravada" : "cotações gravadas"} no histórico de hoje${
-        month ? ` e posições de ${formatMonthCompact(month)} recalculadas` : ""
-      }.`,
-    });
   }
 }
