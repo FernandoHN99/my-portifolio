@@ -132,9 +132,22 @@ async function execute(url: string, trigger: QuoteRefreshTriggerKind, onDataChan
       announceRollover(payload.rollover);
     }
 
+    if (payload.targetPlan === "created") {
+      showAppToast({
+        id: "default-targets",
+        tone: "info",
+        title: "Metas padrão criadas",
+        description: "Cada grupo foi dividido em partes iguais entre as categorias da carteira. Ajuste na Configuração.",
+      });
+    }
+
     announceRefresh(payload.refresh, trigger);
 
-    if (payload.rollover?.state === "created" || refreshChangedData(payload.refresh)) {
+    if (
+      payload.rollover?.state === "created" ||
+      payload.targetPlan === "created" ||
+      refreshChangedData(payload.refresh)
+    ) {
       onDataChanged();
     }
 

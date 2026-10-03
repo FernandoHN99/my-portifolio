@@ -19,13 +19,6 @@
     "db:test-schema": "tsx scripts/db-test-schema.ts",
     "backup:export": "tsx scripts/backup.ts export",
     "backup:restore": "tsx scripts/backup.ts restore",
-    "import:excel": "tsx scripts/import-excel.ts",
-    "normalize:portfolio": "tsx scripts/normalize-portfolio.ts",
-    "normalize:allocations": "tsx scripts/normalize-allocations.ts",
-    "verify:new-position": "tsx scripts/verify-new-position-entities.ts",
-    "history:fetch": "tsx scripts/history/fetch-quotes.ts",
-    "history:build": "tsx scripts/history/build.ts",
-    "history:import": "tsx scripts/history/import.ts",
     "postinstall": "prisma generate"
   },
   "dependencies": {
@@ -39,7 +32,6 @@
     "cn": "^0.4.0",
     "date-fns": "^4.4.0",
     "dotenv": "^18.0.5",
-    "exceljs": "4.4.0",
     "motion": "^13.4.6",
     "next": "16.3.8",
     "nuqs": "^2.10.1",

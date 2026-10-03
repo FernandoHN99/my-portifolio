@@ -1,6 +1,7 @@
 # 002 — Importação auditável do Excel
 
-Estado: concluída em 2026-10-01
+Estado: concluída em 2026-10-01. Removida em 2026-10-03 pela
+[spec 047](047-json-only-data.md): os dados entram só pelo backup em JSON.
 Definida em: 2026-10-01
 
 ## Problema

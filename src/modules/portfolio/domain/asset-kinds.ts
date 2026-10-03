@@ -212,6 +212,26 @@ export function defaultAllocation(kind: AssetKind, symbol: string | null): Alloc
   }
 }
 
+/**
+ * Tipo de um ativo já cadastrado, para leitura no formulário da posição (spec
+ * 043). O cadastro guarda o símbolo e a moeda, não o tipo escolhido na inclusão.
+ */
+export function describeAsset(asset: { quoteSymbol: string | null; baseCurrency: string }) {
+  if (!asset.quoteSymbol) {
+    return "Saldo em reais";
+  }
+
+  if (asset.quoteSymbol === USD_SYMBOL) {
+    return "Saldo em dólar";
+  }
+
+  if (asset.baseCurrency === "BTC" || asset.baseCurrency === ALTCOINS) {
+    return "Cripto";
+  }
+
+  return asset.quoteSymbol.endsWith(B3_SUFFIX) ? "Ativo da B3" : "Ativo dos EUA";
+}
+
 /** Provedor que a atualização de cotações usa para um símbolo já cadastrado. */
 export function providerForQuote(instrumentType: string, baseCurrency: string): QuoteProvider {
   if (instrumentType === "FIAT") {

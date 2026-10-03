@@ -18,7 +18,7 @@ import type {
   QuoteRunHistoryStatus,
   QuoteRunOrigin,
 } from "@/modules/quotes/application/get-run-history";
-import { providerLabel, RUN_HISTORY_MONTHS } from "@/modules/quotes/domain/quote-refresh";
+import { providerLabel } from "@/modules/quotes/domain/quote-refresh";
 
 const ORIGIN_LABELS: Record<QuoteRunOrigin, string> = {
   AUTO: "Automática",
@@ -33,10 +33,19 @@ const STATUS: Record<QuoteRunHistoryStatus, { label: string; className: string }
 };
 
 /**
- * Todas as execuções dos últimos 36 meses, de qualquer competência (spec 028),
- * da mais recente para a mais antiga; "Mostrar mais" busca a página seguinte.
+ * Execuções da competência selecionada (spec 046), da mais recente para a mais
+ * antiga; "Mostrar mais" busca a página seguinte do mesmo mês.
  */
-export function RefreshRunHistory({ initial }: { initial: QuoteRunHistoryPage | null }) {
+export function RefreshRunHistory({
+  initial,
+  month,
+  monthLabel,
+}: {
+  initial: QuoteRunHistoryPage | null;
+  /** AAAA-MM */
+  month: string;
+  monthLabel: string;
+}) {
   const [initialPage, setInitialPage] = useState(initial);
   const [extra, setExtra] = useState<QuoteRunHistoryEntry[]>([]);
   const [cursor, setCursor] = useState(initial?.nextCursor ?? null);
@@ -58,7 +67,7 @@ export function RefreshRunHistory({ initial }: { initial: QuoteRunHistoryPage | 
     }
 
     startLoading(async () => {
-      const page = await loadRunHistoryAction(cursor);
+      const page = await loadRunHistoryAction(month, cursor);
 
       if (page) {
         setExtra((current) => [...current, ...page.runs.filter((run) => !current.some((item) => item.id === run.id))]);
@@ -75,13 +84,13 @@ export function RefreshRunHistory({ initial }: { initial: QuoteRunHistoryPage | 
           Histórico de execuções
         </h2>
         <span data-testid="run-history-count" className="text-[11px] text-muted-foreground">
-          {total} {total === 1 ? "execução" : "execuções"} nos últimos {RUN_HISTORY_MONTHS} meses
+          {total} {total === 1 ? "execução" : "execuções"} em {monthLabel}
         </span>
       </div>
 
       {runs.length === 0 ? (
         <p className="px-5 py-8 text-center text-sm text-muted-foreground sm:px-6">
-          {initial ? "Nenhuma atualização de cotações registrada." : "Não foi possível ler o histórico de execuções."}
+          {initial ? `Nenhuma atualização de cotações em ${monthLabel}.` : "Não foi possível ler o histórico de execuções."}
         </p>
       ) : (
         <ol className="divide-y divide-border/55">

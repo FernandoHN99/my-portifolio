@@ -1,16 +1,15 @@
 import { QuoteUpdateStatus } from "@/generated/prisma/client";
 import { getPrismaClient } from "@/lib/prisma";
+import { addMonths } from "@/modules/quotes/domain/calendar";
 import {
-  RUN_HISTORY_MONTHS,
   type QuoteFailureView,
   type QuoteRefreshRunStatus,
   type QuoteRefreshTriggerKind,
 } from "@/modules/quotes/domain/quote-refresh";
 
-// Histórico das execuções de cotações (spec 028): todas, de qualquer mês, dos
-// últimos 36 meses, da mais recente para a mais antiga, em páginas. As
-// execuções antigas de "Atualizar carteira" (spec 003) saíram do histórico a
-// pedido do usuário (spec 034); continuam guardadas em `monthly_update_runs`.
+// Histórico das execuções de cotações da competência (spec 046, que trocou o
+// histórico de todos os meses da spec 028): as execuções que consultaram
+// cotações num dia do mês, da mais recente para a mais antiga, em páginas.
 
 export type QuoteRunOrigin = QuoteRefreshTriggerKind;
 export type QuoteRunHistoryStatus = QuoteRefreshRunStatus;
@@ -43,15 +42,14 @@ type ResultRow = {
   errorMessage: string | null;
 };
 
-export async function getRunHistory(before?: string): Promise<QuoteRunHistoryPage | null> {
+export async function getRunHistory(referenceDate: Date, before?: string): Promise<QuoteRunHistoryPage | null> {
   const prisma = getPrismaClient();
 
   if (!prisma) {
     return null;
   }
 
-  const now = new Date();
-  const since = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - RUN_HISTORY_MONTHS, now.getUTCDate()));
+  const inMonth = { gte: referenceDate, lt: addMonths(referenceDate, 1) };
   const cursor = before ? new Date(before) : null;
 
   if (cursor && Number.isNaN(cursor.getTime())) {
@@ -66,7 +64,7 @@ export async function getRunHistory(before?: string): Promise<QuoteRunHistoryPag
   try {
     const [runs, total] = await Promise.all([
       prisma.quoteRefreshRun.findMany({
-        where: { startedAt: { gte: since, ...(cursor ? { lt: cursor } : {}) } },
+        where: { quoteDate: inMonth, ...(cursor ? { startedAt: { lt: cursor } } : {}) },
         orderBy: { startedAt: "desc" },
         take: RUN_HISTORY_PAGE_SIZE + 1,
         select: {
@@ -78,7 +76,7 @@ export async function getRunHistory(before?: string): Promise<QuoteRunHistoryPag
           results: resultSelect,
         },
       }),
-      prisma.quoteRefreshRun.count({ where: { startedAt: { gte: since } } }),
+      prisma.quoteRefreshRun.count({ where: { quoteDate: inMonth } }),
     ]);
 
     const failedSymbols = new Set(

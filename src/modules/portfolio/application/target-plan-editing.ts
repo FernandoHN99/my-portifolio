@@ -1,6 +1,9 @@
 import { Prisma } from "@/generated/prisma/client";
+import { DEFAULT_TARGETS_LOCK_KEY } from "@/lib/advisory-locks";
 import { getPrismaClient } from "@/lib/prisma";
-import { MAX_REBALANCE_TOLERANCE } from "@/modules/portfolio/domain/rebalance";
+import { getAllocationOverview } from "@/modules/portfolio/application/get-allocation-overview";
+import { buildDefaultTargets, DEFAULT_TARGET_PLAN_NAME } from "@/modules/portfolio/domain/default-targets";
+import { DEFAULT_REBALANCE_TOLERANCE, MAX_REBALANCE_TOLERANCE } from "@/modules/portfolio/domain/rebalance";
 import { targetGroupKey } from "@/modules/portfolio/presentation/target-groups";
 
 export class TargetPlanError extends Error {
@@ -19,24 +22,17 @@ export async function saveTargetPlan(input: { targets: { key: string; percent: s
     throw new TargetPlanError("O banco de dados não está disponível.");
   }
 
-  const [active, imported] = await Promise.all([
-    prisma.targetPlan.findFirst({
-      where: { isActive: true },
-      orderBy: { createdAt: "desc" },
-      select: {
-        id: true,
-        tolerancePercent: true,
-        targets: {
-          select: { key: true, scope: true, primaryLabel: true, secondaryLabel: true, percentage: true },
-        },
+  const active = await prisma.targetPlan.findFirst({
+    where: { isActive: true },
+    orderBy: { createdAt: "desc" },
+    select: {
+      id: true,
+      tolerancePercent: true,
+      targets: {
+        select: { key: true, scope: true, primaryLabel: true, secondaryLabel: true, percentage: true },
       },
-    }),
-    prisma.targetPlan.findFirst({
-      where: { sourceBatchId: { not: null } },
-      orderBy: { createdAt: "desc" },
-      select: { targets: { select: { key: true, percentage: true, sourceSheet: true, sourceCell: true } } },
-    }),
-  ]);
+    },
+  });
 
   if (!active) {
     throw new TargetPlanError("Não existe um plano de metas ativo para editar.");
@@ -78,7 +74,6 @@ export async function saveTargetPlan(input: { targets: { key: string; percent: s
     throw new TargetPlanError("Nada mudou em relação à versão vigente.");
   }
 
-  const origin = new Map((imported?.targets ?? []).map((target) => [target.key, target]));
   const name = `Metas editadas em ${new Intl.DateTimeFormat("pt-BR", {
     dateStyle: "short",
     timeStyle: "short",
@@ -92,24 +87,72 @@ export async function saveTargetPlan(input: { targets: { key: string; percent: s
     });
 
     await transaction.allocationTarget.createMany({
-      data: parsed.map((target) => {
-        const source = origin.get(target.key);
-        const keepsOrigin = source !== undefined && source.percentage.equals(target.fraction);
-
-        return {
-          planId: plan.id,
-          key: target.key,
-          scope: target.scope,
-          primaryLabel: target.primaryLabel,
-          secondaryLabel: target.secondaryLabel,
-          percentage: target.fraction,
-          sourceSheet: keepsOrigin ? source.sourceSheet : null,
-          sourceCell: keepsOrigin ? source.sourceCell : null,
-        };
-      }),
+      data: parsed.map((target) => ({
+        planId: plan.id,
+        key: target.key,
+        scope: target.scope,
+        primaryLabel: target.primaryLabel,
+        secondaryLabel: target.secondaryLabel,
+        percentage: target.fraction,
+      })),
     });
 
     return plan;
+  });
+}
+
+export type DefaultTargetPlanOutcome = "created" | "existing" | "no-positions";
+
+/**
+ * Sem plano de metas ativo, cria as metas padrão a partir das categorias da
+ * competência mais recente (spec 048), para a configuração e o rebalanceamento
+ * já começarem prontos. Roda na checagem de abertura, ao abrir a configuração e
+ * depois de restaurar um backup; o bloqueio consultivo evita dois planos
+ * criados ao mesmo tempo. Editar as metas depois cria uma versão nova, como
+ * qualquer salvamento, e tudo sai no backup.
+ */
+export async function ensureDefaultTargetPlan(): Promise<DefaultTargetPlanOutcome> {
+  const prisma = getPrismaClient();
+
+  if (!prisma) {
+    throw new TargetPlanError("O banco de dados não está disponível.");
+  }
+
+  if (await prisma.targetPlan.findFirst({ where: { isActive: true }, select: { id: true } })) {
+    return "existing";
+  }
+
+  const overview = await getAllocationOverview();
+  const targets = overview ? buildDefaultTargets(overview.aggregates) : [];
+
+  if (targets.length === 0) {
+    return "no-positions";
+  }
+
+  return prisma.$transaction(async (transaction) => {
+    await transaction.$executeRaw`SELECT pg_advisory_xact_lock(${DEFAULT_TARGETS_LOCK_KEY})`;
+
+    if (await transaction.targetPlan.findFirst({ where: { isActive: true }, select: { id: true } })) {
+      return "existing";
+    }
+
+    const plan = await transaction.targetPlan.create({
+      data: { name: DEFAULT_TARGET_PLAN_NAME, isActive: true, tolerancePercent: DEFAULT_REBALANCE_TOLERANCE },
+      select: { id: true },
+    });
+
+    await transaction.allocationTarget.createMany({
+      data: targets.map((target) => ({
+        planId: plan.id,
+        key: target.key,
+        scope: target.scope,
+        primaryLabel: target.primaryLabel,
+        secondaryLabel: target.secondaryLabel,
+        percentage: new Prisma.Decimal(target.percent).div(100),
+      })),
+    });
+
+    return "created";
   });
 }
 

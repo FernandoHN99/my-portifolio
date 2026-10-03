@@ -82,12 +82,24 @@ cotação de fechamento de cada mês buscada nos provedores e cada unificação 
 ativo confirmada por ele. O Bitcoin de junho de 2023 recebeu, por resposta
 dele, a quantidade de julho.
 
+Atualizado em 2026-10-03: a importação do Excel saiu do aplicativo, com os
+roteiros, as tabelas `import_batches`, `import_source_rows` e `import_issues`
+e os campos de origem das linhas ([spec 047](../.ai/specs/047-json-only-data.md)).
+A planilha continua preservada como referência; os dados entram e saem só
+pelo backup em JSON.
+
 ### Backup dos dados
 
 Decidido em 2026-10-03: o aplicativo exporta todos os dados num arquivo JSON
 versionado e restaura um arquivo desses substituindo tudo, numa transação, só
 depois de mostrar o resumo e pedir confirmação
 ([spec 042](../.ai/specs/042-data-backup.md)).
+
+Atualizado em 2026-10-03: o backup é a forma oficial de carregar e levar os
+dados, inclusive para o banco de produção. Cada restauração fica registrada em
+`data_imports` e aparece nas versões da configuração. O formato e o roteiro
+para mudá-lo junto com o modelo estão em [Formato do backup](backup-format.md)
+([spec 047](../.ai/specs/047-json-only-data.md)).
 
 ### Acesso inicial
 

@@ -42,34 +42,33 @@ pnpm test:e2e
 O teste do Playwright usa o Google Chrome local em desktop e em viewport
 mobile. As specs e seu estado ficam em `.ai/specs/`.
 
-A inclusão de posição com instituição, conta e ativo novos
-([spec 026](.ai/specs/026-new-position-entities.md)) tem uma conferência do
-servidor que checa tickers, grava inclusões e as desfaz, com os provedores de
-cotação simulados. Ela grava no banco e só roda num banco descartável,
-carregado como na importação inicial abaixo, cujo nome se repete em
-`VERIFY_DISPOSABLE_DATABASE`:
+Os testes de interface rodam sobre os dados do banco e não gravam. Para
+testar gravações, use um schema de teste no mesmo PostgreSQL:
 
 ```bash
-DATABASE_URL=postgresql://.../my_portifolio_verify \
-VERIFY_DISPOSABLE_DATABASE=my_portifolio_verify pnpm verify:new-position
+pnpm db:test-schema create teste
 ```
 
-## Importação inicial
+`DATABASE_URL="$(pnpm --silent db:test-schema url teste)"` aponta qualquer
+comando para ele, e `E2E_BASE_URL` leva o Playwright a um servidor já rodando
+nesse schema.
 
-Com o PostgreSQL ativo, importe as três tabelas-base do arquivo de referência:
+## Dados
+
+A forma oficial de carregar, levar e guardar os dados é o backup em JSON:
+**Configuração → Backup dos dados** exporta e restaura tudo, e os comandos
+abaixo fazem o mesmo pelo terminal. Os arquivos ficam em `backups/`, fora do
+Git.
 
 ```bash
-pnpm import:excel
-pnpm normalize:portfolio
-pnpm normalize:allocations
+pnpm backup:export
+pnpm backup:restore backups/<arquivo>.json --apply
 ```
 
-O comando usa o hash do arquivo para não duplicar uma carga já concluída. As
-linhas são preservadas como JSON e os achados ficam vinculados ao mesmo lote.
-O normalizador cria as instituições, contas, ativos, competências, posições e
-cotações usadas pela aplicação. A normalização de alocações vincula as
-classificações por posição e importa as metas do Excel. As três operações são
-idempotentes.
+Sem `--apply`, a restauração só confere o arquivo e mostra o resumo.
+
+O formato do arquivo, as versões e como mudá-lo quando o modelo de dados
+mudar estão em [docs/backup-format.md](docs/backup-format.md).
 
 ## Atualização de cotações
 
@@ -89,4 +88,4 @@ mais de uma hora, consulta os provedores; a seta do topo e o botão
 Cada cotação obtida entra no histórico diário e recalcula a competência do mês
 corrente; as que falharem mantêm o valor anterior e são avisadas pelo nome do
 ativo. A página de cotações também permite editar as cotações de qualquer
-competência e mostra o histórico das execuções.
+competência e mostra o histórico das execuções do mês.

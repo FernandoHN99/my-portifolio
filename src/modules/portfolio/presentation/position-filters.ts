@@ -37,17 +37,6 @@ export const FILTER_DIMENSIONS: FilterDimension[] = [
   "liquidities",
 ];
 
-/** Parâmetro da URL de cada filtro. */
-export const FILTER_PARAMS: Record<FilterDimension, string> = {
-  classes: "classe",
-  subclasses: "subclasse",
-  institutions: "inst",
-  strategies: "estrategia",
-  currencies: "moeda",
-  maturities: "venc",
-  liquidities: "liq",
-};
-
 export type GroupBy = "instituicao" | "classe";
 
 export type GroupedPosition<T extends MonthPosition = MonthPosition> = {
@@ -70,6 +59,16 @@ export function classesOf(position: MonthPosition) {
   return position.allocations.length === 0
     ? [NO_CLASS]
     : [...new Set(position.allocations.map((allocation) => allocation.assetClass))];
+}
+
+/**
+ * Rótulo de uma classificação na tabela (spec 044): classe, subclasse e o
+ * resgate quando há, como "Renda Fixa · IPCA · Curto".
+ */
+export function allocationLabel(allocation: { assetClass: string; subclass: string; duration: string }) {
+  return [allocation.assetClass, allocation.subclass, allocation.duration !== "-" ? allocation.duration : null]
+    .filter(Boolean)
+    .join(" · ");
 }
 
 export function subclassesOf(position: MonthPosition) {
@@ -212,25 +211,22 @@ export function groupPositions<T extends MonthPosition>(
 }
 
 /**
- * Opções de cada filtro em cascata (spec 031). A prioridade é a ordem em que os
- * filtros foram aplicados (`order`): as opções de um filtro aplicado só levam
- * em conta os aplicados antes dele, e as de um filtro ainda vazio levam em
- * conta todos os aplicados. Assim, escolher a classe Caixa limita a subclasse
- * às que existem em Caixa, sem nunca chegar a "nenhuma posição". Os valores
+ * Opções de cada filtro em cascata, da esquerda para a direita (spec 044, que
+ * substituiu a ordem de aplicação da spec 031): as opções de um filtro só levam
+ * em conta os filtros à esquerda dele, na ordem de `FILTER_DIMENSIONS`, a
+ * mesma da tela. Assim, escolher a classe Caixa limita a subclasse às que
+ * existem em Caixa, e escolher uma subclasse não limita a classe. Os valores
  * já escolhidos continuam na lista, para poderem ser desmarcados. A busca
  * vale para todos.
  */
 export function filterOptions(
   positions: MonthPosition[],
   filters: PositionFilters = EMPTY_FILTERS,
-  order: FilterDimension[] = [],
 ): Record<FilterDimension, string[]> {
-  const active = order.filter((dimension) => filters[dimension].length > 0);
   const options = {} as Record<FilterDimension, string[]>;
 
-  for (const dimension of FILTER_DIMENSIONS) {
-    const index = active.indexOf(dimension);
-    const before = index === -1 ? active : active.slice(0, index);
+  for (const [index, dimension] of FILTER_DIMENSIONS.entries()) {
+    const before = FILTER_DIMENSIONS.slice(0, index).filter((other) => filters[other].length > 0);
     const scoped: PositionFilters = { ...EMPTY_FILTERS, search: filters.search };
 
     for (const other of before) {
@@ -285,22 +281,6 @@ function facetValues(position: MonthPosition, dimension: FilterDimension, scoped
     case "liquidities":
       return [liquidityOf(position)];
   }
-}
-
-/** Filtros aplicados na ordem em que aparecem na URL, a ordem de aplicação. */
-export function filterOrder(params: Iterable<string>): FilterDimension[] {
-  const byParam = new Map(FILTER_DIMENSIONS.map((dimension) => [FILTER_PARAMS[dimension], dimension]));
-  const order: FilterDimension[] = [];
-
-  for (const key of params) {
-    const dimension = byParam.get(key);
-
-    if (dimension && !order.includes(dimension)) {
-      order.push(dimension);
-    }
-  }
-
-  return order;
 }
 
 function normalize(value: string) {

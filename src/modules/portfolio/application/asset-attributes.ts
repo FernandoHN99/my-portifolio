@@ -1,126 +1,154 @@
-import { getPrismaClient } from "@/lib/prisma";
-import { MonthEditError } from "@/modules/portfolio/application/month-editing";
-import { cleanName, normalizeKey } from "@/modules/portfolio/domain/asset-kinds";
+import type { Prisma } from "@/generated/prisma/client";
+import { cleanName, normalizeKey, USD_SYMBOL } from "@/modules/portfolio/domain/asset-kinds";
 import { MAX_LIQUIDITY_LENGTH, normalizeLiquidity } from "@/modules/portfolio/domain/liquidity";
 
-// Atributos do ativo editados pela página da posição: vencimento (spec 016),
-// liquidez (spec 039) e nome (spec 040).
+// Atributos do ativo editados pelo formulário da posição (spec 043): nome
+// (spec 040), liquidez (spec 039) e vencimento (spec 026). São do ativo, não
+// da competência, e valem para todos os meses.
 //
-// Vencimento: é do ativo, não da competência, e só existe em ativos sem cotação
-// de mercado (spec 026). Nada é inferido do nome: o usuário informa.
-//
-// A chave do ativo leva o vencimento no fim, para dois títulos de mesmo nome e
-// prazos diferentes serem ativos distintos; ao editar, a chave acompanha o
-// novo vencimento e não pode coincidir com a de outro ativo.
+// A chave do ativo leva o nome e, no fim, o vencimento:
+// `market:<nome>:<TICKER>[:vencimento]` ou
+// `private:<instituição>:<nome>[:vencimento]`. Ao editar, a chave acompanha o
+// nome e o vencimento novos e não pode coincidir com a de outro ativo. Nada é
+// inferido do nome: o vencimento é o que o usuário informa.
 
 const DAY_SUFFIX = /:\d{4}-\d{2}-\d{2}$/;
+export const MAX_ASSET_NAME_LENGTH = 80;
 
-export async function updateAssetMaturity({ assetId, maturityDate }: { assetId: string; maturityDate: string | null }) {
-  const prisma = getPrismaClient();
-
-  if (!prisma) {
-    throw new MonthEditError("Banco de dados indisponível.");
+export class AssetAttributeError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "AssetAttributeError";
   }
+}
 
-  const asset = await prisma.asset.findUnique({
+export type AssetAttributes = {
+  name: string;
+  liquidity: string | null;
+  /** AAAA-MM-DD */
+  maturityDate: string | null;
+};
+
+/** Estado do ativo antes da edição, para o desfazer. */
+export type AssetState = {
+  id: string;
+  name: string;
+  normalizedKey: string;
+  liquidity: string | null;
+  maturityDate: Date | null;
+};
+
+/**
+ * Aplica nome, liquidez e vencimento ao ativo, na transação da edição da
+ * posição. Devolve o estado anterior quando algo mudou, ou nulo.
+ */
+export async function applyAssetAttributes(
+  transaction: Prisma.TransactionClient,
+  assetId: string,
+  next: AssetAttributes,
+): Promise<AssetState | null> {
+  const asset = await transaction.asset.findUnique({
     where: { id: assetId },
-    select: { normalizedKey: true, quoteSymbol: true },
+    select: { id: true, name: true, normalizedKey: true, liquidity: true, maturityDate: true, quoteSymbol: true },
   });
 
   if (!asset) {
-    throw new MonthEditError("Ativo não encontrado.");
+    throw new AssetAttributeError("Ativo não encontrado.");
   }
 
-  if (asset.quoteSymbol) {
-    throw new MonthEditError("Ativos cotados não têm vencimento.");
+  const name = cleanName(next.name);
+  const normalizedName = normalizeKey(name);
+
+  if (!normalizedName || name.length > MAX_ASSET_NAME_LENGTH) {
+    throw new AssetAttributeError(`Informe um nome com até ${MAX_ASSET_NAME_LENGTH} caracteres.`);
   }
 
-  const base = asset.normalizedKey.replace(DAY_SUFFIX, "");
-  const normalizedKey = maturityDate ? `${base}:${maturityDate}` : base;
-  const twin = await prisma.asset.findUnique({ where: { normalizedKey }, select: { id: true } });
+  const liquidity = normalizeLiquidity(next.liquidity);
 
-  if (twin && twin.id !== assetId) {
-    throw new MonthEditError(
-      maturityDate
-        ? "Já existe um ativo com este nome e este vencimento."
-        : "Já existe um ativo com este nome sem vencimento.",
-    );
+  if (liquidity && liquidity.length > MAX_LIQUIDITY_LENGTH) {
+    throw new AssetAttributeError(`A liquidez aceita até ${MAX_LIQUIDITY_LENGTH} caracteres.`);
   }
 
-  await prisma.asset.update({
-    where: { id: assetId },
-    data: { normalizedKey, maturityDate: maturityDate ? new Date(`${maturityDate}T00:00:00.000Z`) : null },
-  });
-}
+  const maturity = next.maturityDate;
 
-/**
- * Prazo de liquidez do ativo (spec 039), opcional e de qualquer tipo de ativo.
- * Vale para todas as competências.
- */
-export async function updateAssetLiquidity({ assetId, liquidity }: { assetId: string; liquidity: string | null }) {
-  const prisma = getPrismaClient();
-
-  if (!prisma) {
-    throw new MonthEditError("Banco de dados indisponível.");
+  // Saldos em dólar, como o Time Deposit, aceitam vencimento (spec 040).
+  if (maturity && asset.quoteSymbol && asset.quoteSymbol !== USD_SYMBOL) {
+    throw new AssetAttributeError("Ativos cotados não têm vencimento.");
   }
 
-  const value = normalizeLiquidity(liquidity);
-
-  if (value && value.length > MAX_LIQUIDITY_LENGTH) {
-    throw new MonthEditError(`A liquidez aceita até ${MAX_LIQUIDITY_LENGTH} caracteres.`);
+  if (maturity && !isValidDay(maturity)) {
+    throw new AssetAttributeError("Informe uma data de vencimento válida.");
   }
 
-  const asset = await prisma.asset.findUnique({ where: { id: assetId }, select: { id: true } });
+  const currentMaturity = asset.maturityDate ? asset.maturityDate.toISOString().slice(0, 10) : null;
 
-  if (!asset) {
-    throw new MonthEditError("Ativo não encontrado.");
+  if (asset.name === name && asset.liquidity === liquidity && currentMaturity === maturity) {
+    return null;
   }
 
-  await prisma.asset.update({ where: { id: assetId }, data: { liquidity: value } });
-}
-
-const MAX_ASSET_NAME_LENGTH = 80;
-
-/**
- * Nome do ativo (spec 040). A chave acompanha o nome novo, mantendo o resto:
- * `market:<nome>:<TICKER>[:vencimento]` ou
- * `private:<instituição>:<nome>[:vencimento]`; não pode coincidir com a de
- * outro ativo.
- */
-export async function updateAssetName({ assetId, name }: { assetId: string; name: string }) {
-  const prisma = getPrismaClient();
-
-  if (!prisma) {
-    throw new MonthEditError("Banco de dados indisponível.");
-  }
-
-  const clean = cleanName(name);
-  const normalized = normalizeKey(clean);
-
-  if (!normalized || clean.length > MAX_ASSET_NAME_LENGTH) {
-    throw new MonthEditError(`Informe um nome com até ${MAX_ASSET_NAME_LENGTH} caracteres.`);
-  }
-
-  const asset = await prisma.asset.findUnique({ where: { id: assetId }, select: { normalizedKey: true } });
-
-  if (!asset) {
-    throw new MonthEditError("Ativo não encontrado.");
-  }
-
-  const parts = asset.normalizedKey.split(":");
+  const parts = asset.normalizedKey.replace(DAY_SUFFIX, "").split(":");
   const nameIndex = parts[0] === "private" ? 2 : 1;
 
   if (parts.length <= nameIndex) {
-    throw new MonthEditError("Não foi possível identificar a chave deste ativo.");
+    throw new AssetAttributeError("Não foi possível identificar a chave deste ativo.");
   }
 
-  parts[nameIndex] = normalized;
-  const normalizedKey = parts.join(":");
-  const twin = await prisma.asset.findUnique({ where: { normalizedKey }, select: { id: true } });
+  parts[nameIndex] = normalizedName;
+  const normalizedKey = `${parts.join(":")}${maturity ? `:${maturity}` : ""}`;
 
-  if (twin && twin.id !== assetId) {
-    throw new MonthEditError("Já existe um ativo com este nome.");
+  if (normalizedKey !== asset.normalizedKey) {
+    const twin = await transaction.asset.findUnique({ where: { normalizedKey }, select: { id: true } });
+
+    if (twin && twin.id !== asset.id) {
+      throw new AssetAttributeError(
+        maturity ? "Já existe um ativo com este nome e este vencimento." : "Já existe um ativo com este nome.",
+      );
+    }
   }
 
-  await prisma.asset.update({ where: { id: assetId }, data: { name: clean, normalizedKey } });
+  await transaction.asset.update({
+    where: { id: asset.id },
+    data: {
+      name,
+      normalizedKey,
+      liquidity,
+      maturityDate: maturity ? new Date(`${maturity}T00:00:00.000Z`) : null,
+    },
+  });
+
+  return {
+    id: asset.id,
+    name: asset.name,
+    normalizedKey: asset.normalizedKey,
+    liquidity: asset.liquidity,
+    maturityDate: asset.maturityDate,
+  };
+}
+
+/** Volta o ativo ao estado de antes da edição, se a chave antiga ainda estiver livre. */
+export async function restoreAssetState(transaction: Prisma.TransactionClient, state: AssetState) {
+  const twin = await transaction.asset.findUnique({ where: { normalizedKey: state.normalizedKey }, select: { id: true } });
+
+  if (twin && twin.id !== state.id) {
+    throw new AssetAttributeError("Outro ativo passou a usar o nome anterior; o desfazer não é possível.");
+  }
+
+  await transaction.asset.updateMany({
+    where: { id: state.id },
+    data: {
+      name: state.name,
+      normalizedKey: state.normalizedKey,
+      liquidity: state.liquidity,
+      maturityDate: state.maturityDate,
+    },
+  });
+}
+
+function isValidDay(day: string) {
+  return (
+    /^\d{4}-\d{2}-\d{2}$/.test(day) &&
+    day >= "2000-01-01" &&
+    day <= "2100-12-31" &&
+    !Number.isNaN(Date.parse(`${day}T00:00:00Z`))
+  );
 }

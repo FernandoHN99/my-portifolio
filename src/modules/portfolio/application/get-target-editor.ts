@@ -8,17 +8,23 @@ export type TargetEditorItem = {
   primaryLabel: string;
   secondaryLabel: string | null;
   percent: number;
-  defaultPercent: number | null;
-  sourceCell: string | null;
 };
 
+/**
+ * Linha do histórico da configuração: uma versão das metas, criada a cada
+ * salvamento, ou uma importação de backup, que troca todos os dados (spec 047).
+ */
 export type TargetPlanVersion = {
   id: string;
+  kind: "plan" | "import";
   name: string;
   createdAt: Date;
   isActive: boolean;
-  isImported: boolean;
+  /** Na importação, quando o arquivo foi exportado. */
+  exportedAt: Date | null;
 };
+
+const VERSION_LIMIT = 12;
 
 export type TargetEditorData = {
   planName: string;
@@ -28,15 +34,24 @@ export type TargetEditorData = {
   preview: { referenceDate: Date; aggregates: AllocationAggregates } | null;
 };
 
-export async function getTargetEditor(referenceDate?: Date): Promise<TargetEditorData | null> {
+/**
+ * Sem plano ativo, `missing`; uma falha ao ler, como uma migração ainda não
+ * aplicada, vira `error` com o motivo, em vez de parecer que não há metas.
+ */
+export type TargetEditorResult =
+  | { state: "ready"; editor: TargetEditorData }
+  | { state: "missing" }
+  | { state: "error"; message: string };
+
+export async function getTargetEditor(referenceDate?: Date): Promise<TargetEditorResult> {
   const prisma = getPrismaClient();
 
   if (!prisma) {
-    return null;
+    return { state: "error", message: "O banco de dados não está configurado." };
   }
 
   try {
-    const [active, imported, versions, overview] = await Promise.all([
+    const [active, versions, imports, overview] = await Promise.all([
       prisma.targetPlan.findFirst({
         where: { isActive: true },
         orderBy: { createdAt: "desc" },
@@ -51,34 +66,28 @@ export async function getTargetEditor(referenceDate?: Date): Promise<TargetEdito
               primaryLabel: true,
               secondaryLabel: true,
               percentage: true,
-              sourceSheet: true,
-              sourceCell: true,
             },
           },
         },
       }),
-      prisma.targetPlan.findFirst({
-        where: { sourceBatchId: { not: null } },
-        orderBy: { createdAt: "desc" },
-        select: { targets: { select: { key: true, percentage: true } } },
-      }),
       prisma.targetPlan.findMany({
         orderBy: { createdAt: "desc" },
-        take: 12,
-        select: { id: true, name: true, createdAt: true, isActive: true, sourceBatchId: true },
+        take: VERSION_LIMIT,
+        select: { id: true, name: true, createdAt: true, isActive: true },
+      }),
+      prisma.dataImport.findMany({
+        orderBy: { importedAt: "desc" },
+        take: VERSION_LIMIT,
+        select: { id: true, importedAt: true, exportedAt: true },
       }),
       getAllocationOverview(referenceDate),
     ]);
 
     if (!active) {
-      return null;
+      return { state: "missing" };
     }
 
-    const defaults = new Map(
-      (imported?.targets ?? []).map((target) => [target.key, target.percentage.mul(100).toNumber()]),
-    );
-
-    return {
+    const editor: TargetEditorData = {
       planName: active.name,
       tolerance: active.tolerancePercent.toNumber(),
       items: active.targets.map((target) => ({
@@ -87,19 +96,32 @@ export async function getTargetEditor(referenceDate?: Date): Promise<TargetEdito
         primaryLabel: target.primaryLabel,
         secondaryLabel: target.secondaryLabel,
         percent: target.percentage.mul(100).toNumber(),
-        defaultPercent: defaults.get(target.key) ?? null,
-        sourceCell: target.sourceSheet && target.sourceCell ? `${target.sourceSheet}!${target.sourceCell}` : null,
       })),
-      versions: versions.map((version) => ({
-        id: version.id,
-        name: version.name,
-        createdAt: version.createdAt,
-        isActive: version.isActive,
-        isImported: version.sourceBatchId !== null,
-      })),
+      versions: [
+        ...versions.map(
+          (version): TargetPlanVersion => ({ ...version, kind: "plan", exportedAt: null }),
+        ),
+        ...imports.map(
+          (entry): TargetPlanVersion => ({
+            id: entry.id,
+            kind: "import",
+            name: "Backup importado",
+            createdAt: entry.importedAt,
+            isActive: false,
+            exportedAt: entry.exportedAt,
+          }),
+        ),
+      ]
+        .sort((left, right) => right.createdAt.getTime() - left.createdAt.getTime())
+        .slice(0, VERSION_LIMIT),
       preview: overview ? { referenceDate: overview.referenceDate, aggregates: overview.aggregates } : null,
     };
-  } catch {
-    return null;
+
+    return { state: "ready", editor };
+  } catch (error) {
+    // O Prisma começa a mensagem pela chamada que falhou; a última linha diz o
+    // motivo, como uma tabela que ainda não existe.
+    const reason = error instanceof Error ? error.message.trim().split("\n").filter(Boolean).at(-1) : undefined;
+    return { state: "error", message: reason ? reason.slice(0, 240) : "Erro desconhecido." };
   }
 }

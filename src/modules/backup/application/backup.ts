@@ -1,5 +1,5 @@
 import { Prisma } from "@/generated/prisma/client";
-import { MONTH_ROLLOVER_LOCK_KEY, QUOTE_REFRESH_LOCK_KEY } from "@/lib/advisory-locks";
+import { DEFAULT_TARGETS_LOCK_KEY, MONTH_ROLLOVER_LOCK_KEY, QUOTE_REFRESH_LOCK_KEY } from "@/lib/advisory-locks";
 import { getPrismaClient } from "@/lib/prisma";
 import {
   BACKUP_FORMAT,
@@ -11,6 +11,7 @@ import {
   type BackupRow,
   type BackupTableKey,
 } from "@/modules/backup/domain/backup-format";
+import { ensureDefaultTargetPlan } from "@/modules/portfolio/application/target-plan-editing";
 
 // Backup completo do aplicativo (spec 042). A exportação lê todas as tabelas
 // numa transação de leitura consistente; a restauração apaga tudo e grava o
@@ -19,6 +20,8 @@ import {
 //
 // Datas e decimais vão como texto, que o Prisma aceita de volta; os inteiros
 // grandes (BigInt) vão como texto e voltam a BigInt pela lista `bigints`.
+// Arquivos de versões anteriores passam por `UPGRADES` antes da conferência.
+// Mudanças no schema seguem o roteiro de docs/backup-format.md.
 
 type Transaction = Prisma.TransactionClient;
 
@@ -41,31 +44,14 @@ type TableSpec = {
 };
 
 const TABLE_SPECS: Record<BackupTableKey, TableSpec> = {
-  importBatches: { model: "importBatch", fields: Prisma.ImportBatchScalarFieldEnum },
-  importSourceRows: {
-    model: "importSourceRow",
-    fields: Prisma.ImportSourceRowScalarFieldEnum,
-    bigints: ["id"],
-    serial: "import_source_rows",
-  },
-  importIssues: {
-    model: "importIssue",
-    fields: Prisma.ImportIssueScalarFieldEnum,
-    bigints: ["id"],
-    nullableJson: ["rawValue"],
-    serial: "import_issues",
-  },
+  dataImports: { model: "dataImport", fields: Prisma.DataImportScalarFieldEnum },
   institutions: { model: "institution", fields: Prisma.InstitutionScalarFieldEnum },
   accounts: { model: "account", fields: Prisma.AccountScalarFieldEnum },
   assets: { model: "asset", fields: Prisma.AssetScalarFieldEnum },
   portfolioMonths: { model: "portfolioMonth", fields: Prisma.PortfolioMonthScalarFieldEnum },
-  positions: { model: "position", fields: Prisma.PositionScalarFieldEnum, bigints: ["sourceRowId"] },
-  positionAllocations: {
-    model: "positionAllocation",
-    fields: Prisma.PositionAllocationScalarFieldEnum,
-    bigints: ["sourceRowId"],
-  },
-  marketQuotes: { model: "marketQuote", fields: Prisma.MarketQuoteScalarFieldEnum, bigints: ["sourceRowId"] },
+  positions: { model: "position", fields: Prisma.PositionScalarFieldEnum },
+  positionAllocations: { model: "positionAllocation", fields: Prisma.PositionAllocationScalarFieldEnum },
+  marketQuotes: { model: "marketQuote", fields: Prisma.MarketQuoteScalarFieldEnum },
   targetPlans: { model: "targetPlan", fields: Prisma.TargetPlanScalarFieldEnum },
   allocationTargets: { model: "allocationTarget", fields: Prisma.AllocationTargetScalarFieldEnum },
   quoteRefreshRuns: { model: "quoteRefreshRun", fields: Prisma.QuoteRefreshRunScalarFieldEnum },
@@ -86,6 +72,44 @@ const TABLE_SPECS: Record<BackupTableKey, TableSpec> = {
 };
 
 const INSERT_CHUNK = 1_000;
+
+type RawTables = Record<string, unknown>;
+
+/**
+ * Conversões de arquivos antigos, da versão da chave para a seguinte. Cada
+ * mudança de formato acrescenta um passo aqui (docs/backup-format.md).
+ */
+const UPGRADES: Record<number, (tables: RawTables) => RawTables> = {
+  // 1 → 2 (spec 047): saem as tabelas e as colunas da importação do Excel e
+  // entra o registro das importações de backup, vazio.
+  1: (tables) => {
+    const drop = (key: string, fields: string[]) => {
+      const rows = tables[key];
+      return Array.isArray(rows)
+        ? rows.map((row) =>
+            row && typeof row === "object"
+              ? Object.fromEntries(Object.entries(row as BackupRow).filter(([field]) => !fields.includes(field)))
+              : row,
+          )
+        : rows;
+    };
+    const { importBatches: _batches, importSourceRows: _rows, importIssues: _issues, ...rest } = tables;
+    void _batches;
+    void _rows;
+    void _issues;
+
+    return {
+      ...rest,
+      dataImports: [],
+      portfolioMonths: drop("portfolioMonths", ["sourceBatchId"]),
+      targetPlans: drop("targetPlans", ["sourceBatchId"]),
+      positions: drop("positions", ["sourceRowId"]),
+      positionAllocations: drop("positionAllocations", ["sourceRowId"]),
+      marketQuotes: drop("marketQuotes", ["sourceRowId"]),
+      allocationTargets: drop("allocationTargets", ["sourceSheet", "sourceCell"]),
+    };
+  },
+};
 
 export class BackupValidationError extends Error {}
 
@@ -136,11 +160,15 @@ export async function exportBackup(now = new Date()): Promise<BackupFile | null>
 }
 
 /**
- * Confere o arquivo e devolve as linhas prontas para gravar. Recusa outro
- * formato, versão mais nova e tabelas ou campos que este app não conhece;
- * tabelas ausentes, de backups mais antigos, ficam vazias.
+ * Confere o arquivo e devolve as linhas prontas para gravar. Converte versões
+ * anteriores; recusa outro formato, versão mais nova e tabelas ou campos que
+ * este app não conhece. Tabelas ausentes ficam vazias.
  */
-export function parseBackup(input: unknown): { file: BackupFile; rows: Record<BackupTableKey, BackupRow[]> } {
+export function parseBackup(input: unknown): {
+  file: BackupFile;
+  rows: Record<BackupTableKey, BackupRow[]>;
+  sourceVersion: number;
+} {
   if (!input || typeof input !== "object" || Array.isArray(input)) {
     throw new BackupValidationError("O arquivo não é um backup deste aplicativo.");
   }
@@ -151,7 +179,13 @@ export function parseBackup(input: unknown): { file: BackupFile; rows: Record<Ba
     throw new BackupValidationError("O arquivo não é um backup deste aplicativo.");
   }
 
-  if (typeof candidate.version !== "number" || candidate.version > BACKUP_VERSION) {
+  const sourceVersion = candidate.version;
+
+  if (typeof sourceVersion !== "number" || !Number.isInteger(sourceVersion) || sourceVersion < 1) {
+    throw new BackupValidationError("O backup não informa a versão do formato.");
+  }
+
+  if (sourceVersion > BACKUP_VERSION) {
     throw new BackupValidationError("O backup é de uma versão mais nova do aplicativo.");
   }
 
@@ -159,10 +193,14 @@ export function parseBackup(input: unknown): { file: BackupFile; rows: Record<Ba
     throw new BackupValidationError("O backup não informa quando foi exportado.");
   }
 
-  const tables = candidate.tables;
-
-  if (!tables || typeof tables !== "object" || Array.isArray(tables)) {
+  if (!candidate.tables || typeof candidate.tables !== "object" || Array.isArray(candidate.tables)) {
     throw new BackupValidationError("O backup não tem as tabelas de dados.");
+  }
+
+  let tables = candidate.tables as RawTables;
+
+  for (let version = sourceVersion; version < BACKUP_VERSION; version += 1) {
+    tables = UPGRADES[version](tables);
   }
 
   const known = new Set<string>(BACKUP_TABLES.map((table) => table.key));
@@ -216,6 +254,7 @@ export function parseBackup(input: unknown): { file: BackupFile; rows: Record<Ba
   return {
     file: { format: BACKUP_FORMAT, version: BACKUP_VERSION, exportedAt: candidate.exportedAt, tables: file },
     rows,
+    sourceVersion,
   };
 }
 
@@ -239,7 +278,7 @@ export async function previewBackup(input: unknown): Promise<BackupPreview | nul
     return null;
   }
 
-  const { file } = parseBackup(input);
+  const { file, sourceVersion } = parseBackup(input);
   const months = file.tables.portfolioMonths
     .map((month) => (typeof month.referenceDate === "string" ? month.referenceDate.slice(0, 7) : null))
     .filter((month): month is string => month !== null)
@@ -247,6 +286,7 @@ export async function previewBackup(input: unknown): Promise<BackupPreview | nul
 
   return {
     exportedAt: file.exportedAt,
+    version: sourceVersion,
     firstMonth: months[0] ?? null,
     lastMonth: months.at(-1) ?? null,
     file: countsOf(file.tables),
@@ -254,7 +294,10 @@ export async function previewBackup(input: unknown): Promise<BackupPreview | nul
   };
 }
 
-/** Substitui todos os dados pelos do backup, numa transação. */
+/**
+ * Substitui todos os dados pelos do backup, numa transação, e registra a
+ * importação, que a configuração mostra ao lado das versões das metas.
+ */
 export async function restoreBackup(input: unknown): Promise<BackupCounts | null> {
   const prisma = getPrismaClient();
 
@@ -262,13 +305,15 @@ export async function restoreBackup(input: unknown): Promise<BackupCounts | null
     return null;
   }
 
-  const { rows } = parseBackup(input);
+  const { file, rows, sourceVersion } = parseBackup(input);
 
-  return prisma.$transaction(
+  const counts = await prisma.$transaction(
     async (transaction) => {
-      // Nenhuma virada de mês nem atualização de cotações no meio da troca.
+      // Nenhuma virada de mês, atualização de cotações ou criação das metas
+      // padrão no meio da troca.
       await transaction.$executeRaw`SELECT pg_advisory_xact_lock(${MONTH_ROLLOVER_LOCK_KEY})`;
       await transaction.$executeRaw`SELECT pg_advisory_xact_lock(${QUOTE_REFRESH_LOCK_KEY})`;
+      await transaction.$executeRaw`SELECT pg_advisory_xact_lock(${DEFAULT_TARGETS_LOCK_KEY})`;
 
       for (const { key } of [...BACKUP_TABLES].reverse()) {
         await delegate(transaction, key).deleteMany();
@@ -299,8 +344,21 @@ export async function restoreBackup(input: unknown): Promise<BackupCounts | null
         throw new Error(`A restauração gravou ${counts[mismatch.key]} linhas em ${mismatch.key}, e o backup tem ${expected[mismatch.key]}.`);
       }
 
-      return counts;
+      await transaction.dataImport.create({
+        data: { exportedAt: new Date(file.exportedAt), formatVersion: sourceVersion },
+      });
+
+      return { ...counts, dataImports: counts.dataImports + 1 };
     },
     { maxWait: 15_000, timeout: 120_000 },
   );
+
+  // Um backup sem metas ganha as metas padrão (spec 048), como um banco novo.
+  // Uma falha aqui não desfaz a restauração: a checagem de abertura tenta de
+  // novo.
+  if (counts.targetPlans === 0 && (await ensureDefaultTargetPlan().catch(() => null)) === "created") {
+    return currentCounts(prisma as unknown as Transaction);
+  }
+
+  return counts;
 }

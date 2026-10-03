@@ -11,8 +11,9 @@ e Claude Code consultando a mesma base de conhecimento.
 
 ## Trabalho em andamento
 
-Estado em 2026-10-03: specs 016 e 028 a 042 concluídas e no `main`;
-detalhes em `.ai/specs/README.md`.
+Estado em 2026-10-03: specs 016 e 028 a 042 concluídas e no `main`; specs
+043 a 048 concluídas, aguardando a aprovação do commit; detalhes em
+`.ai/specs/README.md`. O próximo assunto, pedido pelo usuário, é o deploy.
 
 - o banco local tem o histórico preparado no passo pré-produção
   ([spec 041](.ai/specs/041-history-preparation.md)), importado pelo usuário em
@@ -20,15 +21,23 @@ detalhes em `.ai/specs/README.md`.
   fechamento de cada mês. Os testes de interface usam os valores dele;
 - o backup dos dados ([spec 042](.ai/specs/042-data-backup.md)) exporta e
   restaura tudo pela Configuração ou por `pnpm backup:export` e
-  `pnpm backup:restore`; os arquivos ficam em `backups/`, fora do Git. É o
-  caminho para levar os dados a outro banco, como o de produção;
+  `pnpm backup:restore`; os arquivos ficam em `backups/`, fora do Git. É a
+  única forma de carregar dados e o caminho para outro banco, como o de
+  produção. A importação do Excel saiu ([spec 047](.ai/specs/047-json-only-data.md));
+- sem plano de metas, o app cria as "Metas padrão" a partir das categorias da
+  carteira ([spec 048](.ai/specs/048-default-targets-and-quotes-button.md));
+- toda mudança no modelo de dados (como as transações) segue o roteiro de
+  [docs/backup-format.md](docs/backup-format.md), que mantém o formato do
+  backup e as conversões de versões antigas;
+- o banco local já tem a migração da spec 047; o backup v2 dos dados reais
+  para carregar a produção está em `backups/` (fora do Git);
 - transações dentro das posições e a previdência, que o usuário indicou como
   próximo assunto, estão no backlog, em `.ai/context/backlog.md`;
 - as respostas do usuário, o backlog e o que ainda aguarda resposta estão em
   `.ai/context/ux-restructure.md`, nas seções de respostas de 2026-10-02
-  (segunda, terceira e quarta rodadas);
-- só um mês aberto (rascunho) aceita edição; os testes que editam usam a
-  competência mais recente, e abrir um mês grava no banco;
+  (segunda, terceira e quarta rodadas) e nos ajustes de 2026-10-03;
+- só um mês aberto (rascunho) aceita edição; os testes que editam procuram a
+  competência aberta mais recente, e abrir um mês grava no banco;
 - depois de `pnpm db:generate`, o `pnpm dev` precisa reiniciar para usar o
   cliente Prisma novo; tocar o `next.config.ts` reinicia o servidor sem
   fechar o processo.
@@ -50,8 +59,10 @@ a um servidor já rodando nesse schema.
 
 Testes de interface rodam sobre os dados reais e não podem gravar: todo
 arquivo em `tests/e2e/` substitui a checagem de abertura com
-`stubQuoteChecks` (`tests/e2e/support/quote-checks.ts`) e entra em edição
-com `enterEditMode` (`tests/e2e/support/edit-mode.ts`). Os provedores de
+`stubQuoteChecks` (`tests/e2e/support/quote-checks.ts`); os que editam
+procuram um mês aberto com `openEditableMonth`
+(`tests/e2e/support/position-form.ts`) e conferem o formulário sem salvar
+([spec 043](.ai/specs/043-position-form.md)). Os provedores de
 cotação não são alcançáveis em ambientes de nuvem; nesses casos, verifique
 com respostas simuladas e registre na spec. Os cenários de edição de cotação
 só rodam quando a competência aberta tem uma cotação editável (spec 028).

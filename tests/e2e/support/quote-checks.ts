@@ -15,6 +15,7 @@ import type {
 
 export const IDLE_OPEN_CHECK: OpenCheckResponse = {
   rollover: { state: "up-to-date", latestMonth: null },
+  targetPlan: "existing",
   refresh: { state: "fresh", lastStartedAt: "2026-10-02T12:00:00.000Z" },
   summary: null,
 };

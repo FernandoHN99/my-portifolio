@@ -22,14 +22,18 @@ async function enterQuoteEditMode(page: Page) {
   await expect(page.locator('[data-quote-cell="value"]').first()).toBeVisible();
 }
 
-test("o ícone de cotações abre as cotações do mês", async ({ page }) => {
+test("o botão de Posições abre as cotações do mês", async ({ page }) => {
   await page.goto("/posicoes?mes=2026-09");
   await expect(page.getByRole("heading", { level: 1, name: "Carteira do mês" })).toBeVisible();
 
-  // No computador o ícone fica no topo, ao lado da última atualização; no
-  // celular, no cabeçalho de Posições. Só um aparece de cada vez.
+  // O botão fica só no cabeçalho de Posições, não no topo (spec 048).
   const icon = page.getByRole("link", { name: "Cotações do mês" });
   await expect(icon).toHaveCount(1);
+  const topBar = page.locator("header").filter({
+    has: page.getByRole("navigation", { name: "Navegação principal" }),
+  });
+  await expect(topBar.getByRole("link", { name: "Configuração da carteira" })).toBeVisible();
+  await expect(topBar.getByRole("link", { name: "Cotações do mês" })).toHaveCount(0);
   await icon.click();
   await expect(page).toHaveURL(/\/posicoes\/cotacoes\?mes=2026-09$/);
   await expect(page.getByRole("heading", { level: 1, name: "Cotações do mês" })).toBeVisible();
@@ -43,7 +47,8 @@ test("o ícone de cotações abre as cotações do mês", async ({ page }) => {
   await expect(btc).toContainText("R$");
   await expect(page.getByRole("region", { name: "Última atualização" })).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "Histórico de execuções" })).toBeVisible();
-  await expect(page.getByTestId("run-history-count")).toContainText("nos últimos 36 meses");
+  // O histórico de execuções é o da competência (spec 046).
+  await expect(page.getByTestId("run-history-count")).toContainText(/execuç(ão|ões) em Set\/26$/);
   await expect(page.locator("[data-quote-cell]")).toHaveCount(0);
 
   // Setembro vem inteiro da planilha e dos provedores: nada para editar à mão.

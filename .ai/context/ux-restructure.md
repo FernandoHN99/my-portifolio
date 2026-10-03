@@ -166,7 +166,9 @@ supunham setembro como competência mais recente. Todos os testes de
 interface passaram a substituir a checagem de abertura por uma resposta fixa
 (`tests/e2e/support/quote-checks.ts`), para nunca gravar nos dados reais, e a
 entrar em edição pelo auxiliar `tests/e2e/support/edit-mode.ts`, que confirma
-o histórico quando a competência não é a mais recente.
+o histórico quando a competência não é a mais recente. Desde a
+[spec 043](../specs/043-position-form.md), sem modo de edição, o auxiliar é
+`tests/e2e/support/position-form.ts`.
 
 Cada fatia termina com `pnpm check`, `pnpm build` e os testes do Playwright.
 
@@ -491,6 +493,38 @@ quinta rodada, o tipo primeiro na inclusão e a cor invertida da diferença em
 
 **Backlog**, junto da previdência: transações dentro das posições, descritas
 em [Backlog](backlog.md).
+
+## Ajustes pedidos em 2026-10-03, depois do histórico e do backup
+
+Feitos nas specs 043 a 047, sem commit até a aprovação do usuário:
+
+- formulário único para incluir e editar, num diálogo com as abas Geral,
+  Ativo e Rateio; lápis e lixeira no hover de cada linha; "Editar posição" na
+  página da posição; tudo só com o mês aberto
+  ([spec 043](../specs/043-position-form.md));
+- tabela sem Cotação, Moeda e Liquidez (os filtros ficam), Classes com
+  "Classe · Subclasse · Resgate" e "…+N", seta de expansão e filtros que
+  limitam da esquerda para a direita
+  ([spec 044](../specs/044-compact-positions-table.md));
+- rateio de 100% como selo discreto na página da posição, configuração sem
+  "Restaurar padrão do Excel" e sem "Fora da meta", versões com as
+  importações de backup
+  ([spec 045](../specs/045-position-page-and-settings-cleanup.md));
+- histórico de execuções só do mês e ilha do topo na posição, nas cotações e
+  na configuração ([spec 046](../specs/046-run-history-and-nav-island.md));
+- fim da importação do Excel e das tabelas dela; dados só pelo backup em
+  JSON, mantido em [docs/backup-format.md](../../docs/backup-format.md)
+  ([spec 047](../specs/047-json-only-data.md)).
+
+Depois, no mesmo dia ([spec 048](../specs/048-default-targets-and-quotes-button.md)):
+o botão de cotações saiu do topo para o cabeçalho de Posições; sem metas, o
+app cria as "Metas padrão", divididas em partes iguais, para o usuário ajustar
+com base no Excel; Ativo e Rateio ficam com cadeado até o tipo ser escolhido.
+O usuário pediu, em seguida, para partir para o deploy.
+
+Quando um assunto novo, como as transações, mudar o modelo de dados, o
+roteiro de [docs/backup-format.md](../../docs/backup-format.md) diz como
+levar a mudança ao backup.
 
 ## Critérios de aceite da iniciativa
 

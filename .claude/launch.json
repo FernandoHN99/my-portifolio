@@ -14,7 +14,7 @@
       "runtimeExecutable": "sh",
       "runtimeArgs": [
         "-c",
-        "DATABASE_URL=\"$(pnpm --silent db:test-schema url teste_backup)\" exec pnpm exec next start -p 3100"
+        "DATABASE_URL=\"$(pnpm --silent db:test-schema url teste)\" exec pnpm exec next start -p 3100"
       ],
       "port": 3100
     }

@@ -30,13 +30,16 @@ test("a classe escolhida primeiro limita as subclasses", async ({ page }) => {
   );
 });
 
-test("a ordem de aplicação decide quem limita quem", async ({ page }) => {
-  // Subclasse aplicada antes da classe: a classe só oferece as que têm Pós-fixado.
+test("os filtros limitam da esquerda para a direita, não pela ordem de aplicação", async ({ page }) => {
+  // Mesmo com a subclasse aplicada antes, a classe fica à esquerda: ela não
+  // encolhe, e a subclasse só oferece as de Caixa (spec 044).
   await page.goto("/posicoes?mes=2026-09&subclasse=P%C3%B3s-fixado&classe=Caixa");
   await expect(page.getByRole("heading", { level: 1, name: "Carteira do mês" })).toBeVisible();
 
-  expect(await optionsOf(page, "Classe")).toEqual(["Caixa", "Renda Fixa"]);
-  expect(await optionsOf(page, "Subclasse")).toEqual(expect.arrayContaining(["BTC", "IPCA", "Pós-fixado"]));
+  expect(await optionsOf(page, "Classe")).toEqual(
+    expect.arrayContaining(["Caixa", "Cripto", "Renda Fixa", "Renda Variável"]),
+  );
+  expect(await optionsOf(page, "Subclasse")).toEqual(["Pós-fixado", "Stablecoin"]);
 });
 
 test("o vencimento tem coluna e filtro", async ({ page }, testInfo) => {
@@ -54,22 +57,28 @@ test("o vencimento tem coluna e filtro", async ({ page }, testInfo) => {
   await expect(page.getByTestId("position-row").first()).toBeVisible();
 });
 
-test("pela tela, o filtro aplicado depois fica depois na URL", async ({ page }) => {
+test("pela tela, a instituição só oferece as que têm a classe escolhida", async ({ page }) => {
   await page.goto("/posicoes?mes=2026-09");
   await expect(page.getByRole("heading", { level: 1, name: "Carteira do mês" })).toBeVisible();
 
   await page.getByRole("combobox", { name: /^Instituição/ }).click();
   await page.getByRole("option", { name: "Inter" }).click();
-  await page.keyboard.press("Escape");
+  // Fecha a lista só depois de a escolha chegar à URL: um Escape no meio da
+  // atualização pode se perder e deixar a lista aberta.
   await expect(page).toHaveURL(/inst=Inter/);
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("listbox")).toHaveCount(0);
 
+  // A classe fica à esquerda da instituição: escolher Inter não a encolhe.
+  expect(await optionsOf(page, "Classe")).toContain("Cripto");
+
+  // Com Caixa, a instituição só oferece as que têm caixa: a Ledger, só com
+  // Bitcoin, sai da lista.
   await page.getByRole("button", { name: "Caixa", exact: true }).click();
-  await expect(page).toHaveURL(/inst=Inter&classe=Caixa/);
-
-  // A classe veio depois da instituição: só as classes que existem no Inter.
-  const classes = await optionsOf(page, "Classe");
-  expect(classes).toContain("Caixa");
-  expect(classes).not.toContain("Cripto");
+  await expect(page).toHaveURL(/classe=Caixa/);
+  const institutions = await optionsOf(page, "Instituição");
+  expect(institutions).toContain("Inter");
+  expect(institutions).not.toContain("Ledger");
 });
 
 test("em tela de toque os campos usam 16 px para o Safari não ampliar", async ({ page }, testInfo) => {
@@ -82,13 +91,11 @@ test("em tela de toque os campos usam 16 px para o Safari não ampliar", async (
   expect(size).toBe(coarse ? "16px" : "12px");
 });
 
-test("a liquidez tem coluna e filtro", async ({ page }, testInfo) => {
+test("a liquidez fica no filtro, sem coluna", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/posicoes?mes=2026-09");
   await expect(page.getByRole("heading", { level: 1, name: "Carteira do mês" })).toBeVisible();
   expect(await optionsOf(page, "Liquidez")).toContain("Sem liquidez informada");
-
-  if (!testInfo.project.name.startsWith("mobile")) {
-    await page.setViewportSize({ width: 1440, height: 900 });
-    await expect(page.getByRole("columnheader", { name: "Liquidez" })).toBeVisible();
-  }
+  // A coluna saiu para compactar a tabela (spec 044); o filtro continua.
+  await expect(page.getByRole("columnheader", { name: "Liquidez" })).toHaveCount(0);
 });

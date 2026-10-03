@@ -1,6 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
 
-import { enterEditMode } from "./support/edit-mode";
 import { stubQuoteChecks } from "./support/quote-checks";
 
 // A página da posição só lê dados. A checagem de abertura grava no banco e
@@ -62,7 +61,10 @@ test("a página de um ativo cotado decompõe a variação em preço e aportes", 
   await expect(page.getByRole("heading", { name: "Cotação de BTC" })).toBeVisible();
   await expect(page.getByTestId("asset-price-chart")).toBeVisible();
   await expect(page.getByTestId("position-evolution-chart")).toBeVisible();
-  await expect(page.getByTestId("position-allocation")).toContainText("Cripto");
+  // Rateio de 100% numa classificação: um selo discreto, e a cotação ocupa a
+  // largura toda (spec 045).
+  await expect(page.getByTestId("position-single-allocation")).toContainText("Cripto · BTC");
+  await expect(page.getByTestId("position-allocation")).toHaveCount(0);
   await expect(page.getByTestId("position-maturity")).toHaveCount(0);
 
   // A Carteira Cripto virou a Ledger: o Bitcoin 01 tem uma conta só, desde a
@@ -136,49 +138,23 @@ test("a linha inteira abre a posição de um saldo sem cotação", async ({ page
   await expect(page.getByText(/rendimentos, aportes e\s+resgates aparecem juntos/)).toBeVisible();
   await expect(page.getByRole("button", { name: "Todas as contas" })).toHaveCount(0);
 
-  // Saldos sem cotação têm vencimento editável; o teste abre e cancela, sem
-  // gravar nos dados reais.
-  const maturity = page.getByTestId("position-maturity");
-  await expect(maturity).toContainText("Não informado");
-  await maturity.getByRole("button", { name: "Informar vencimento" }).click();
-  await expect(maturity.getByRole("textbox", { name: "Vencimento", exact: true })).toBeVisible();
-  await expect(maturity.getByRole("button", { name: "Salvar vencimento" })).toBeDisabled();
-  await maturity.getByRole("button", { name: "Cancelar edição do vencimento" }).click();
-  await expect(maturity).toContainText("Não informado");
-
-  // O nome do ativo é renomeável pelo lápis; abre e cancela sem gravar (spec 040).
-  await page.getByRole("button", { name: "Renomear ativo" }).click();
-  await expect(page.getByRole("textbox", { name: "Nome do ativo" })).toHaveValue("Porquinho");
-  await expect(page.getByRole("button", { name: "Salvar nome" })).toBeDisabled();
-  await page.getByRole("button", { name: "Cancelar renomeação" }).click();
-  await expect(page.getByRole("heading", { level: 1, name: "Porquinho" })).toBeVisible();
-
-  // A liquidez vale para qualquer ativo; abre e cancela sem gravar (spec 039).
-  const liquidity = page.getByTestId("position-liquidity");
-  await liquidity.getByRole("button", { name: /^(Informar|Editar) liquidez$/ }).click();
-  await liquidity.getByRole("combobox", { name: "Liquidez" }).click();
-  await expect(page.getByRole("option", { name: "D+0", exact: true })).toBeVisible();
-  await expect(page.getByRole("option", { name: "No vencimento" })).toBeVisible();
-  await page.keyboard.press("Escape");
-  await liquidity.getByRole("button", { name: "Cancelar edição da liquidez" }).click();
-  await expect(liquidity.getByRole("combobox")).toHaveCount(0);
+  // Vencimento e liquidez aparecem nos destaques; a edição passa pelo
+  // formulário da posição (spec 043), sem lápis espalhados.
+  await expect(page.getByTestId("position-maturity")).toContainText("Não informado");
+  await expect(page.getByTestId("position-liquidity")).toContainText("Liquidez");
+  await expect(page.getByRole("button", { name: "Renomear ativo" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Editar posição" })).toBeVisible();
 });
 
-test("no modo de edição a linha não abre a posição", async ({ page }) => {
-  // Só o mês aberto, o mais recente, aceita edição (spec 034).
-  await page.goto("/posicoes");
+test("os botões da linha não abrem a posição", async ({ page }) => {
+  await page.goto("/posicoes?mes=2026-09");
+  await expect(page.getByRole("navigation", { name: "Competências" })).toHaveAttribute("data-hydrated");
   // O Bitcoin 01 pode estar em mais de uma conta; o cenário usa o da Ledger.
   const ledger = row(page, "Bitcoin 01").filter({ hasText: "Ledger" });
-  await expect(ledger.getByRole("link", { name: "Bitcoin 01" })).toBeVisible();
 
-  await enterEditMode(page);
-  await expect(ledger.getByRole("link")).toHaveCount(0);
-  await ledger.getByText("Ledger", { exact: true }).filter({ visible: true }).first().click();
-  await ledger.getByText("Bitcoin 01", { exact: true }).click();
-  await expect(page).toHaveURL(/\/posicoes$/);
-
-  await page.getByRole("button", { name: "Sair da edição" }).click();
-  await expect(ledger.getByRole("link", { name: "Bitcoin 01" })).toBeVisible();
+  await ledger.getByRole("button", { name: "Expandir Bitcoin 01" }).click();
+  await expect(page.getByTestId("position-details")).toBeVisible();
+  await expect(page).toHaveURL(/\/posicoes\?mes=2026-09$/);
 });
 
 test("o seletor global troca a competência da posição e mostra a ausência", async ({ page }) => {

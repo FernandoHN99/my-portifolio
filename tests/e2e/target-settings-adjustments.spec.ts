@@ -168,25 +168,17 @@ test("editar uma meta não troca a aba da prévia", async ({ page }) => {
   await expect(moeda).toHaveAttribute("aria-pressed", "true");
 });
 
-test("restaurar o padrão do Excel volta as metas e a tolerância", async ({ page }) => {
+test("sem Excel: nada de restaurar o padrão da planilha nem de contar o que está fora da meta", async ({ page }) => {
   await openSettings(page);
 
-  const restore = page.getByRole("button", { name: "Restaurar padrão do Excel" });
-  const tolerance = page.getByRole("textbox", { name: "Tolerância em pontos percentuais" });
-  await tolerance.fill("5");
-  await page.getByRole("textbox", { name: "Percentual de Caixa" }).fill("12,5");
-  await expect(restore).toBeEnabled();
-
-  await restore.click();
-
-  await expect(tolerance).toHaveValue("2");
-  await expect(page.getByRole("slider", { name: "Faixa de tolerância" })).toHaveAttribute("aria-valuenow", "2");
-  const moeda = page.getByRole("region", { name: "Moeda", exact: true });
-  await expect(moeda.getByRole("textbox", { name: "Percentual de BTC" })).toHaveValue("32,5");
-  await expect(moeda.getByRole("slider", { name: "Meta de BTC" })).toHaveAttribute("aria-valuenow", "32.5");
-  await expect(restore).toBeDisabled();
-
-  await discardIfPending(page);
+  // A importação do Excel saiu (spec 047); a prévia não conta mais o que está
+  // fora da meta, e as versões seguem listadas.
+  await expect(page.getByRole("button", { name: "Restaurar padrão do Excel" })).toHaveCount(0);
+  await expect(page.getByText("Fora da meta")).toHaveCount(0);
+  await expect(page.getByText("origem: Excel")).toHaveCount(0);
+  const versions = page.getByRole("region", { name: "Versões das metas" });
+  await expect(versions.locator("[data-version-kind]").first()).toBeVisible();
+  await expect(versions.getByText("vigente", { exact: true })).toHaveCount(1);
 });
 
 test("no toque, rolar sobre o deslizante rola a página e não muda a meta", async ({ page, isMobile }) => {

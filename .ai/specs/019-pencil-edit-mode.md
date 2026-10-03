@@ -1,6 +1,8 @@
 # 019 — Modo de edição com lápis
 
-Estado: concluída em 2026-10-02
+Estado: concluída em 2026-10-02. Substituída em 2026-10-03 pela
+[spec 043](043-position-form.md): lápis e lixeira em cada linha abrem o
+formulário único, sem modo de edição.
 Definida em: 2026-10-02
 
 ## Problema

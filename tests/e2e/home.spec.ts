@@ -1,6 +1,5 @@
 import { expect, test } from "@playwright/test";
 
-import { enterEditMode } from "./support/edit-mode";
 import { stubQuoteChecks } from "./support/quote-checks";
 
 // A checagem de abertura grava no banco; aqui ela é substituída por uma
@@ -76,34 +75,43 @@ test("os filtros de posições combinam e somam o recorte", async ({ page }) => 
   await expect(page.getByRole("combobox", { name: /Classe\s*1/ })).toBeVisible();
 });
 
-test("o lápis coloca as posições em edição até salvar ou descartar", async ({ page }) => {
-  await page.goto("/posicoes");
-  await expect(page.locator("[data-edit-cell]")).toHaveCount(0);
+test("a tabela mostra classe, subclasse e resgate e a seta expande a linha", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/posicoes?mes=2026-09");
 
-  await enterEditMode(page);
-  await expect(page.getByText("Modo de edição")).toBeVisible();
-  const inputs = page.getByRole("textbox", { name: /^(Quantidade|Saldo) de / });
-  expect(await inputs.count()).toBeGreaterThan(1);
-  await expect(inputs.first()).toBeVisible();
+  // Cotação, moeda e liquidez saíram das colunas e ficaram nos filtros (spec 044).
+  const headers = page.getByRole("columnheader");
+  await expect(headers.filter({ hasText: /^Classes$/ })).toHaveCount(1);
+  for (const removed of [/Cotação/, /^Moeda$/, /^Liquidez$/]) {
+    await expect(headers.filter({ hasText: removed })).toHaveCount(0);
+  }
+  await expect(page.getByRole("combobox", { name: "Moeda", exact: true })).toBeVisible();
+  await expect(page.getByRole("combobox", { name: "Liquidez", exact: true })).toBeVisible();
 
-  await inputs.first().fill("1");
-  await expect(page.getByText("1 alteração pendente")).toBeVisible();
-  await inputs.nth(1).fill("abc");
-  await expect(page.getByText("1 valor inválido")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Salvar", exact: true })).toBeDisabled();
+  const row = (asset: string) => page.getByTestId("position-row").filter({ hasText: asset }).first();
+  await expect(row("LCD BNDES LIQUIDEZ").getByTestId("position-classes")).toHaveText("Caixa · Pós-fixado · Curto");
+  await expect(row("Bitcoin 01").getByTestId("position-classes")).toHaveText("Cripto · BTC");
 
-  await page.getByRole("button", { name: "Descartar" }).click();
-  await expect(page.getByText(/alteraç(ão|ões) pendente/)).toHaveCount(0);
-  await expect(page.locator("[data-edit-cell]")).toHaveCount(0);
+  // A previdência tem seis classificações: a linha mostra a maior e "…+5".
+  const pension = row("Previdência - Grão FIM");
+  await expect(pension.getByTestId("position-classes")).toContainText("…+5");
+  await pension.getByRole("button", { name: "Expandir Previdência - Grão FIM" }).click();
+  const details = page.getByTestId("position-details");
+  await expect(details).toBeVisible();
+  await expect(details.getByTestId("position-details-allocations").getByRole("listitem")).toHaveCount(6);
+  await expect(details).toContainText("Saldo, sem cotação");
+  await expect(details).toContainText("BRL");
+  await pension.getByRole("button", { name: "Recolher Previdência - Grão FIM" }).click();
+  await expect(details).toHaveCount(0);
 });
 
 test("um mês fechado não oferece edição", async ({ page }) => {
   await page.goto("/posicoes?mes=2026-08");
 
   await expect(page.getByTestId("month-locked")).toContainText("Ago/26 está fechado");
-  await expect(page.locator("[data-edit-cell]")).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Editar posições" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Adicionar posição" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /^Editar / })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /^Remover / })).toHaveCount(0);
 });
 
 test("a configuração simula metas antes de salvar", async ({ page }) => {
@@ -129,15 +137,15 @@ test("a tolerância muda a prévia antes de salvar", async ({ page }) => {
 
   const tolerance = page.getByRole("textbox", { name: "Tolerância em pontos percentuais" });
   await expect(tolerance).toHaveValue("2");
-  const offTarget = page
+  // Com a faixa mais larga, menos linhas da prévia pedem comprar ou vender.
+  const actions = page
     .getByRole("complementary", { name: "Prévia do rebalanceamento" })
-    .getByText("Fora da meta")
-    .locator("xpath=following-sibling::p[1]");
-  const before = Number((await offTarget.innerText()).trim());
+    .getByText(/^(Comprar|Vender)$/);
+  const before = await actions.count();
 
   await tolerance.fill("20");
   await expect(page.getByText("1 alteração")).toBeVisible();
-  await expect(offTarget).not.toHaveText(String(before));
+  await expect.poll(() => actions.count()).toBeLessThan(before);
   await expect(page.getByRole("button", { name: "Salvar metas" })).toBeEnabled();
 
   await tolerance.fill("25");
@@ -146,7 +154,7 @@ test("a tolerância muda a prévia antes de salvar", async ({ page }) => {
 
   await page.getByRole("button", { name: "Descartar" }).click();
   await expect(tolerance).toHaveValue("2");
-  await expect(offTarget).toHaveText(String(before));
+  await expect.poll(() => actions.count()).toBe(before);
 });
 
 test("o rebalanceamento troca de recorte", async ({ page }) => {

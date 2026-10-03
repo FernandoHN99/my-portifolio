@@ -5,9 +5,6 @@ import type { MonthRolloverOutcome } from "@/modules/portfolio/domain/month-roll
 
 export const QUOTE_REFRESH_INTERVAL_MS = 60 * 60 * 1000;
 
-/** Janela do histórico de execuções da página de cotações (spec 028). */
-export const RUN_HISTORY_MONTHS = 36;
-
 export type QuoteRefreshTriggerKind = "AUTO" | "MANUAL";
 export type QuoteRefreshRunStatus = "RUNNING" | "COMPLETED" | "COMPLETED_WITH_ISSUES" | "FAILED";
 

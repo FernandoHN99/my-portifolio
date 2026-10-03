@@ -7,23 +7,29 @@ import {
   CoinsIcon,
   InfoIcon,
   MagnifyingGlassIcon,
+  PencilSimpleIcon,
   TrendDownIcon,
   TrendUpIcon,
 } from "@phosphor-icons/react/dist/ssr";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { parseAsStringLiteral, useQueryState } from "nuqs";
+import { useCallback, useRef, useState, useTransition } from "react";
 
+import { undoChangeAction, type EditActionResult } from "@/app/actions/edit-month";
 import { cn } from "@/lib/utils";
+import type { EditingCatalog } from "@/modules/portfolio/application/get-editing-catalog";
+import type { MonthPosition } from "@/modules/portfolio/application/get-month-positions";
 import type { PositionHistoryView } from "@/modules/portfolio/application/get-position-history";
 import type { HistorySlot, PositionSummary, PresentSlot } from "@/modules/portfolio/domain/position-history";
 import { categoryColor } from "@/modules/portfolio/presentation/category-colors";
+import { formatDay, maturityStatus } from "@/modules/portfolio/presentation/maturity";
 import {
   formatBrl,
   formatPercent,
   formatPriceBrl,
 } from "@/modules/portfolio/presentation/portfolio-format";
-import { NO_STRATEGY } from "@/modules/portfolio/presentation/position-filters";
+import { allocationLabel, NO_STRATEGY } from "@/modules/portfolio/presentation/position-filters";
 import {
   formatEstimatedPrice,
   formatPoints,
@@ -37,14 +43,13 @@ import {
 } from "@/modules/portfolio/presentation/position-page";
 import { AssetPriceChart } from "@/modules/portfolio/ui/asset-price-chart";
 import { BalanceChangeChart } from "@/modules/portfolio/ui/balance-change-chart";
+import { EditToast, type EditToastState } from "@/modules/portfolio/ui/edit-toast";
 import { ChangeKpiCard, KpiCard } from "@/modules/portfolio/ui/kpi-card";
 import { MaturityBadge } from "@/modules/portfolio/ui/maturity-badge";
-import { AssetNameEditor } from "@/modules/portfolio/ui/asset-name-editor";
-import { LiquidityEditor } from "@/modules/portfolio/ui/liquidity-editor";
-import { MaturityEditor } from "@/modules/portfolio/ui/maturity-editor";
 import { HighlightRow, PositionAttribution } from "@/modules/portfolio/ui/position-attribution";
 import { PositionAllocation } from "@/modules/portfolio/ui/position-allocation";
 import { PositionEvolutionChart } from "@/modules/portfolio/ui/position-evolution-chart";
+import { PositionFormDialog, type PositionFormMonth } from "@/modules/portfolio/ui/position-form-dialog";
 import { PositionMonthsTable } from "@/modules/portfolio/ui/position-months-table";
 
 const SCOPES = ["todas"] as const;
@@ -61,10 +66,50 @@ const sharePercent = new Intl.NumberFormat("pt-BR", {
   maximumFractionDigits: 1,
 });
 
-export function PositionDetail({ history }: { history: PositionHistoryView | null }) {
+/**
+ * Edição da posição a partir da página dela (spec 043), com o mesmo formulário
+ * da tabela: a posição da competência selecionada, se houver, e o mês, que
+ * precisa estar aberto.
+ */
+export type PositionEditing = {
+  position: MonthPosition | null;
+  month: PositionFormMonth & { isLocked: boolean };
+  occupied: string[];
+  catalog: EditingCatalog;
+};
+
+export function PositionDetail({
+  history,
+  editing,
+}: {
+  history: PositionHistoryView | null;
+  editing: PositionEditing | null;
+}) {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const [scopeParam, setScopeParam] = useQueryState("contas", parseAsStringLiteral(SCOPES));
+  const [form, setForm] = useState({ open: false, key: 0 });
+  const [toast, setToast] = useState<EditToastState | null>(null);
+  const [isUndoing, startUndo] = useTransition();
+  const sequence = useRef(0);
+  const dismissToast = useCallback(() => setToast(null), []);
   const backHref = positionsTableHref(searchParams);
+
+  const notify = (result: EditActionResult) =>
+    setToast({
+      id: ++sequence.current,
+      tone: result.ok ? "success" : "error",
+      message: result.message,
+      undoToken: result.ok ? result.undoToken : undefined,
+    });
+  const undo = (token: string) =>
+    startUndo(async () => {
+      const result = await undoChangeAction(token);
+      notify(result);
+      if (result.ok) {
+        router.refresh();
+      }
+    });
 
   if (!history) {
     return (
@@ -90,7 +135,19 @@ export function PositionDetail({ history }: { history: PositionHistoryView | nul
   const snapshot = current ?? lastPresentUpTo(slots, history.selectedMonth) ?? firstPresent(slots);
   const selectedLabel = monthLabel(history.selectedMonth);
   const firstEver = firstPresent(slots)?.month ?? null;
-  const classes = snapshot ? [...new Set(snapshot.allocations.map((slice) => slice.assetClass))] : [];
+  const allocations = snapshot?.allocations ?? [];
+  // Uma classificação só, de 100%, aparece como um selo discreto no cabeçalho,
+  // e a cotação ocupa a largura toda (spec 045).
+  const singleAllocation = allocations.length === 1 ? allocations[0] : null;
+  const classes = singleAllocation ? [] : [...new Set(allocations.map((slice) => slice.assetClass))];
+  const editPosition = editing?.position ?? null;
+  const editBlocked = !editing
+    ? "Indisponível."
+    : editing.month.isLocked
+      ? `${selectedLabel} está fechado. Abra o mês pelo cadeado para editar.`
+      : !editPosition
+        ? `Sem a posição em ${selectedLabel}.`
+        : null;
   const strategy = snapshot ? (snapshot.strategy ?? NO_STRATEGY) : null;
   const usdValue = current && history.usdRate ? current.valueBrl / history.usdRate : null;
 
@@ -101,7 +158,9 @@ export function PositionDetail({ history }: { history: PositionHistoryView | nul
       <header className="flex flex-col gap-6 border-b border-border/70 pb-8 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0">
           <BackLink href={backHref} />
-          <AssetNameEditor assetId={history.assetId} name={history.assetName} />
+          <h1 className="mt-3 text-3xl font-semibold tracking-[-0.05em] break-words sm:text-[2.65rem]">
+            {history.assetName}
+          </h1>
           <p className="mt-3 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-sm text-muted-foreground">
             <span className="rounded-md bg-white/[0.05] px-1.5 py-0.5 font-mono text-[11px] text-foreground/85">
               {history.ticker ?? "SALDO"}
@@ -113,6 +172,17 @@ export function PositionDetail({ history }: { history: PositionHistoryView | nul
             </span>
           </p>
           <div className="mt-3 flex flex-wrap items-center gap-1.5" data-testid="position-chips">
+            {singleAllocation ? (
+              <span
+                title="Rateio: 100% nesta classificação"
+                data-testid="position-single-allocation"
+                className="inline-flex items-center gap-1.5 rounded-full bg-white/[0.04] px-2.5 py-1 text-[11px] text-muted-foreground"
+              >
+                <span className="size-1.5 rounded-full" style={{ backgroundColor: categoryColor(singleAllocation.assetClass) }} />
+                {allocationLabel(singleAllocation)}
+                <span className="font-mono text-[10px] text-muted-foreground/70">100%</span>
+              </span>
+            ) : null}
             {classes.map((assetClass) => (
               <span
                 key={assetClass}
@@ -143,6 +213,16 @@ export function PositionDetail({ history }: { history: PositionHistoryView | nul
               ? `${formatBrl(current.valueBrl)}${usdValue !== null ? ` · US$ ${formatUsd(usdValue)}` : ""}`
               : `Sem a posição em ${selectedLabel}`}
           </p>
+          <button
+            type="button"
+            onClick={() => setForm((value) => ({ open: true, key: value.key + 1 }))}
+            disabled={editBlocked !== null}
+            title={editBlocked ?? `Editar a posição em ${selectedLabel}`}
+            className="inline-flex h-9 items-center gap-2 rounded-xl border border-border bg-card/70 px-3.5 text-xs font-semibold text-foreground outline-none transition-colors hover:bg-white/[0.05] focus-visible:ring-2 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-45"
+          >
+            <PencilSimpleIcon aria-hidden="true" size={14} weight="bold" />
+            Editar posição
+          </button>
         </div>
       </header>
 
@@ -249,14 +329,18 @@ export function PositionDetail({ history }: { history: PositionHistoryView | nul
           summary={summary}
           quoted={quoted}
           dollarBalance={dollarBalance}
-          assetId={history.assetId}
           liquidity={history.liquidity}
           maturityDate={history.maturityDate}
           referenceDay={history.referenceDay}
         />
       </div>
 
-      <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.6fr)_minmax(320px,0.9fr)] [&>*]:min-w-0">
+      <div
+        className={cn(
+          "mt-6 grid grid-cols-1 gap-6 [&>*]:min-w-0",
+          !singleAllocation && "xl:grid-cols-[minmax(0,1.6fr)_minmax(320px,0.9fr)]",
+        )}
+      >
         <section className="premium-panel rounded-[24px] p-5 sm:p-7" aria-labelledby="asset-price-title">
           <h2 id="asset-price-title" className="text-base font-semibold tracking-[-0.025em]">
             {history.quoteSymbol === "USD"
@@ -291,7 +375,9 @@ export function PositionDetail({ history }: { history: PositionHistoryView | nul
           ) : null}
         </section>
 
-        <PositionAllocation slot={snapshot} selectedMonth={history.selectedMonth} classTotals={history.classTotals} />
+        {singleAllocation ? null : (
+          <PositionAllocation slot={snapshot} selectedMonth={history.selectedMonth} classTotals={history.classTotals} />
+        )}
       </div>
 
       <PositionMonthsTable
@@ -302,6 +388,20 @@ export function PositionDetail({ history }: { history: PositionHistoryView | nul
         ticker={history.ticker}
         scope={scope}
       />
+
+      {editing ? (
+        <PositionFormDialog
+          open={form.open}
+          onOpenChange={(open) => setForm((value) => ({ ...value, open }))}
+          target={editPosition ? { mode: "edit", position: editPosition } : null}
+          formKey={form.key}
+          catalog={editing.catalog}
+          month={editing.month}
+          occupied={new Set(editing.occupied)}
+          onSaved={notify}
+        />
+      ) : null}
+      <EditToast toast={toast} onDismiss={dismissToast} onUndo={undo} undoing={isUndoing} />
     </div>
   );
 }
@@ -446,7 +546,6 @@ function PositionHighlights({
   summary,
   quoted,
   dollarBalance,
-  assetId,
   liquidity,
   maturityDate,
   referenceDay,
@@ -454,7 +553,6 @@ function PositionHighlights({
   summary: PositionSummary;
   quoted: boolean;
   dollarBalance: boolean;
-  assetId: string;
   liquidity: string | null;
   maturityDate: string | null;
   referenceDay: string;
@@ -521,9 +619,19 @@ function PositionHighlights({
               : "A posição ainda não existia"
           }
         />
-        <LiquidityEditor assetId={assetId} liquidity={liquidity} />
-        {!quoted ? (
-          <MaturityEditor assetId={assetId} maturityDate={maturityDate} referenceDay={referenceDay} />
+        <HighlightRow
+          testId="position-liquidity"
+          label="Liquidez"
+          value={liquidity ?? "—"}
+          detail={liquidity ? "Prazo para o dinheiro ficar disponível no resgate" : "Não informada"}
+        />
+        {!quoted || dollarBalance ? (
+          <HighlightRow
+            testId="position-maturity"
+            label="Vencimento"
+            value={maturityDate ? formatDay(parseDay(maturityDate)) : "—"}
+            detail={maturityDate ? maturityStatus(maturityDate, referenceDay).title : "Não informado"}
+          />
         ) : null}
       </div>
     </section>
@@ -582,4 +690,9 @@ function allAccountLabels(history: PositionHistoryView) {
 
 function formatUnsignedPercent(value: number) {
   return new Intl.NumberFormat("pt-BR", { style: "percent", maximumFractionDigits: 2 }).format(Math.abs(value) / 100);
+}
+
+function parseDay(value: string) {
+  const [year, month, day] = value.split("-").map(Number);
+  return new Date(Date.UTC(year, month - 1, day));
 }

@@ -5,7 +5,7 @@ Esta pasta organiza a implementação em fatias pequenas e revisáveis.
 ## Índice
 
 - [001 — Fundação da aplicação](001-foundation.md): concluída.
-- [002 — Importação auditável do Excel](002-excel-import.md): concluída.
+- [002 — Importação auditável do Excel](002-excel-import.md): concluída; removida pela 047.
 - [003 — Atualização mensal manual](003-manual-monthly-update.md): concluída.
 - [004 — Shell visual dark e revisão](004-dark-product-shell.md): concluída.
 - [005 — Domínio inicial da carteira](005-portfolio-domain.md): concluída.
@@ -22,7 +22,7 @@ Esta pasta organiza a implementação em fatias pequenas e revisáveis.
 - [016 — Histórico de uma posição e de um ativo](016-position-history.md): concluída.
 - [017 — Posições: edição](017-positions-editing.md): concluída.
 - [018 — Faixa de tolerância ajustável](018-adjustable-tolerance.md): concluída.
-- [019 — Modo de edição com lápis](019-pencil-edit-mode.md): concluída.
+- [019 — Modo de edição com lápis](019-pencil-edit-mode.md): concluída; substituída pela 043.
 - [020 — Cotações diárias e atualização ao abrir](020-daily-quotes.md): concluída.
 - [021 — Virada de mês automática](021-automatic-month-rollover.md): concluída.
 - [022 — Página de cotações em Posições](022-quotes-page.md): concluída.
@@ -46,6 +46,12 @@ Esta pasta organiza a implementação em fatias pequenas e revisáveis.
 - [040 — Inclusão pelo tipo, nome livre, renomear ativo, sem conta, e cor da diferença](040-simpler-position-entry.md): concluída.
 - [041 — Histórico completo para a importação (passo pré-produção)](041-history-preparation.md): concluída.
 - [042 — Backup dos dados: exportar e restaurar](042-data-backup.md): concluída.
+- [043 — Formulário único da posição, lápis e lixeira na linha](043-position-form.md): concluída.
+- [044 — Tabela de Posições enxuta, classes, expansão e filtros da esquerda para a direita](044-compact-positions-table.md): concluída.
+- [045 — Página da posição com rateio discreto e configuração sem Excel](045-position-page-and-settings-cleanup.md): concluída.
+- [046 — Histórico de execuções do mês e ilha do topo](046-run-history-and-nav-island.md): concluída.
+- [047 — Fim da importação do Excel: dados só pelo backup em JSON](047-json-only-data.md): concluída.
+- [048 — Metas padrão, cotações em Posições e abas com cadeado](048-default-targets-and-quotes-button.md): concluída.
 
 As specs 010 a 017 formam a reestruturação da UX pedida pelo usuário. O
 propósito, as restrições e as regras de cálculo comuns a elas estão em

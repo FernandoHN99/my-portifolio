@@ -2,6 +2,8 @@
 
 Estado: concluída em 2026-10-03. O modo automático do agente bloqueou o
 `--apply` no schema `public`; o usuário rodou a importação no banco local.
+Os roteiros e os arquivos desta spec saíram do repositório na
+[spec 047](047-json-only-data.md); ficam no commit `82b502b`.
 Definida em: 2026-10-03
 
 ## Problema

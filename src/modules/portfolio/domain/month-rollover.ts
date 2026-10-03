@@ -20,8 +20,15 @@ export type MonthRolloverOutcome =
   | { state: "created"; months: GeneratedMonthView[] }
   | { state: "unavailable"; message: string };
 
+/**
+ * Metas padrão na abertura (spec 048): criadas agora, já existentes, sem
+ * posições para tirar as categorias ou indisponíveis por uma falha.
+ */
+export type TargetPlanCheck = "created" | "existing" | "no-positions" | "unavailable";
+
 export type OpenCheckResponse = {
   rollover: MonthRolloverOutcome;
+  targetPlan: TargetPlanCheck;
   refresh: QuoteRefreshOutcome;
   summary: QuoteRefreshSummary | null;
 };

@@ -108,6 +108,9 @@ Em 2026-10-01, a implementação foi iniciada conforme as specs:
   instituição permanecem como achados, sem escolha automática; novos
   rascunhos recebem as classificações do mês anterior por identidade de
   conta e ativo.
+- em 2026-10-03 a [spec 047](../specs/047-json-only-data.md) removeu a
+  importação do Excel, suas tabelas e os campos de origem; os dados entram e
+  saem só pelo backup em JSON ([formato](../../docs/backup-format.md)).
 
 ## Questões em aberto
 

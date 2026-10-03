@@ -299,7 +299,7 @@ export function QuotesWorkspace({
         </div>
       </section>
 
-      <RefreshRunHistory initial={history} />
+      <RefreshRunHistory initial={history} month={month.month} monthLabel={monthLabel} />
 
       {editMode ? (
         <div className="fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom,0px)+16px)] z-40 flex justify-center px-4">

@@ -1,10 +1,9 @@
 "use client";
 
 import {
-  ArrowCounterClockwiseIcon,
-  ArrowRightIcon,
   CheckCircleIcon,
   ClockCounterClockwiseIcon,
+  DownloadSimpleIcon,
   WarningCircleIcon,
 } from "@phosphor-icons/react/dist/ssr";
 import {
@@ -25,8 +24,6 @@ import { cn } from "@/lib/utils";
 import type { TargetEditorData, TargetEditorItem } from "@/modules/portfolio/application/get-target-editor";
 import {
   buildAllocationGroups,
-  countOffTarget,
-  DEFAULT_REBALANCE_TOLERANCE,
   MAX_REBALANCE_TOLERANCE,
   type AllocationGroupKey,
   type AllocationRow,
@@ -105,16 +102,6 @@ export function TargetEditor({ editor, children }: { editor: TargetEditorData; c
     setDraft((current) => ({ ...current, [item.key]: text }));
   }, []);
 
-  const restoreDefaults = () => {
-    const next: Record<string, string> = {};
-    // Categorias que a planilha não tinha, como Altcoins (spec 036), voltam a 0%.
-    for (const item of editor.items) {
-      next[item.key] = formatInput(item.defaultPercent ?? 0);
-    }
-    setDraft(next);
-    setToleranceDraft(formatInput(DEFAULT_REBALANCE_TOLERANCE));
-  };
-
   const discard = () => {
     setDraft({});
     setToleranceDraft(null);
@@ -155,11 +142,6 @@ export function TargetEditor({ editor, children }: { editor: TargetEditorData; c
       isValidTolerance(tolerance) ? tolerance : editor.tolerance,
     );
   }, [preview, editor.items, editor.tolerance, deferredDraft, deferredToleranceDraft]);
-  const differsFromDefault =
-    Math.abs(toleranceValue - DEFAULT_REBALANCE_TOLERANCE) > 1e-9 ||
-    editor.items.some(
-      (item) => Math.abs(valueOf(item) - (item.defaultPercent ?? 0)) > 1e-9,
-    );
 
   return (
     <div className="relative mx-auto w-full max-w-[1472px] px-5 py-8 pb-32 sm:px-7 sm:py-10 sm:pb-32 xl:px-12 xl:py-12 xl:pb-32">
@@ -174,15 +156,6 @@ export function TargetEditor({ editor, children }: { editor: TargetEditorData; c
             <span className="text-foreground">{editor.planName}</span>.
           </p>
         </div>
-        <button
-          type="button"
-          disabled={!differsFromDefault}
-          onClick={restoreDefaults}
-          className="inline-flex h-9 w-fit items-center gap-2 rounded-xl border border-border px-3.5 text-xs font-medium text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50 disabled:opacity-40"
-        >
-          <ArrowCounterClockwiseIcon aria-hidden="true" size={14} weight="bold" />
-          Restaurar padrão do Excel
-        </button>
       </header>
 
       <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(420px,0.85fr)]">
@@ -259,18 +232,27 @@ export function TargetEditor({ editor, children }: { editor: TargetEditorData; c
               <h2 className="text-base font-semibold tracking-[-0.025em]">Versões</h2>
             </div>
             <p className="mt-1 text-[11px] text-muted-foreground">
-              Cada salvamento cria uma versão. Só a vigente vale para as análises.
+              Cada salvamento cria uma versão, e só a vigente vale para as análises. Uma importação de backup
+              troca todos os dados e aparece aqui também.
             </p>
             <ol className="mt-4 space-y-2">
               {editor.versions.map((version) => (
-                <li key={version.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
-                  <span className={cn("size-1.5 rounded-full", version.isActive ? "bg-primary" : "bg-border")} />
-                  <span className={version.isActive ? "text-foreground" : "text-muted-foreground"}>
+                <li
+                  key={`${version.kind}-${version.id}`}
+                  data-version-kind={version.kind}
+                  className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs"
+                >
+                  {version.kind === "import" ? (
+                    <DownloadSimpleIcon aria-hidden="true" className="-mx-px text-chart-up" size={12} weight="bold" />
+                  ) : (
+                    <span className={cn("size-1.5 rounded-full", version.isActive ? "bg-primary" : "bg-border")} />
+                  )}
+                  <span className={version.isActive || version.kind === "import" ? "text-foreground" : "text-muted-foreground"}>
                     {version.name}
                   </span>
-                  {version.isImported ? (
+                  {version.kind === "import" && version.exportedAt ? (
                     <span className="rounded-full bg-white/[0.05] px-2 py-0.5 text-[10px] text-muted-foreground">
-                      origem: Excel
+                      exportado em {VERSION_DATE_FORMAT.format(version.exportedAt)}
                     </span>
                   ) : null}
                   {version.isActive ? (
@@ -295,9 +277,6 @@ export function TargetEditor({ editor, children }: { editor: TargetEditorData; c
             monthLabel={preview ? formatMonthCompact(preview.referenceDate) : null}
             beforeRows={before.find((group) => group.key === previewScope)?.rows ?? EMPTY_ROWS}
             afterRows={after.find((group) => group.key === previewScope)?.rows ?? EMPTY_ROWS}
-            offTargetBefore={countOffTarget(before)}
-            offTargetAfter={countOffTarget(after)}
-            hasChanges={pendingCount > 0}
           />
         </aside>
       </div>
@@ -424,7 +403,7 @@ const TargetRow = memo(function TargetRow({
     <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_84px] items-center gap-3">
       <span className="flex min-w-0 items-center gap-2">
         <span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: categoryColor(label) }} />
-        <span className="truncate text-xs text-foreground/85" title={item.sourceCell ? `Origem: ${item.sourceCell}` : undefined}>
+        <span className="truncate text-xs text-foreground/85">
           {label}
         </span>
       </span>
@@ -595,18 +574,12 @@ const PreviewPanel = memo(function PreviewPanel({
   monthLabel,
   beforeRows,
   afterRows,
-  offTargetBefore,
-  offTargetAfter,
-  hasChanges,
 }: {
   scope: AllocationGroupKey;
   onScopeChange: (scope: AllocationGroupKey) => void;
   monthLabel: string | null;
   beforeRows: AllocationRow[];
   afterRows: AllocationRow[];
-  offTargetBefore: number;
-  offTargetAfter: number;
-  hasChanges: boolean;
 }) {
   const beforeByKey = new Map(beforeRows.map((row) => [row.key, row]));
   const rows = [...afterRows]
@@ -615,26 +588,11 @@ const PreviewPanel = memo(function PreviewPanel({
 
   return (
     <section className="premium-panel rounded-[24px] p-5 sm:p-6">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <h2 className="text-base font-semibold tracking-[-0.025em]">Prévia de comprar e vender</h2>
-          <p className="mt-1 text-[11px] text-muted-foreground">
-            {monthLabel ? `Carteira de ${monthLabel}, com as metas em edição.` : "Sem competência para simular."}
-          </p>
-        </div>
-        <div className="text-right">
-          <p className="text-[10px] tracking-[0.08em] text-muted-foreground uppercase">Fora da meta</p>
-          <p className="mt-0.5 font-mono text-sm text-foreground">
-            {hasChanges && offTargetAfter !== offTargetBefore ? (
-              <>
-                <span className="text-muted-foreground line-through">{offTargetBefore}</span>{" "}
-                <ArrowRightIcon aria-hidden="true" className="inline" size={10} /> {offTargetAfter}
-              </>
-            ) : (
-              offTargetAfter
-            )}
-          </p>
-        </div>
+      <div>
+        <h2 className="text-base font-semibold tracking-[-0.025em]">Prévia de comprar e vender</h2>
+        <p className="mt-1 text-[11px] text-muted-foreground">
+          {monthLabel ? `Carteira de ${monthLabel}, com as metas em edição.` : "Sem competência para simular."}
+        </p>
       </div>
 
       <div className="mt-4 flex flex-wrap gap-0.5 rounded-lg border border-border bg-card/60 p-0.5">

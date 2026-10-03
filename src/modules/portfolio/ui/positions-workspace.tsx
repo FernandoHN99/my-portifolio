@@ -1,11 +1,10 @@
 "use client";
 
-import type { BaseUIEvent } from "@base-ui/react/types";
+import { Dialog } from "@base-ui/react/dialog";
 import {
-  ArrowCounterClockwiseIcon,
   ArrowDownIcon,
   ArrowUpIcon,
-  ChartPieSliceIcon,
+  CaretRightIcon,
   CopyIcon,
   CurrencyCircleDollarIcon,
   LockKeyIcon,
@@ -27,68 +26,48 @@ import {
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { parseAsArrayOf, parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
-import {
-  Fragment,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  useTransition,
-  type KeyboardEvent,
-  type MouseEvent,
-  type ReactNode,
-} from "react";
+import { Fragment, useCallback, useRef, useState, useTransition, type MouseEvent, type ReactNode } from "react";
 
 import {
   cloneLatestMonthAction,
-  saveAllocationsAction,
-  savePositionChangesAction,
+  removePositionAction,
   undoChangeAction,
   type EditActionResult,
 } from "@/app/actions/edit-month";
-import { setPendingChanges } from "@/components/product/unsaved-changes";
-import { Picker, type PickerOption } from "@/components/ui/picker";
 import { cn } from "@/lib/utils";
 import type { EditingCatalog } from "@/modules/portfolio/application/get-editing-catalog";
-import type { MonthPositions } from "@/modules/portfolio/application/get-month-positions";
+import type { MonthPosition, MonthPositions } from "@/modules/portfolio/application/get-month-positions";
 import { categoryColor } from "@/modules/portfolio/presentation/category-colors";
 import { formatDay } from "@/modules/portfolio/presentation/maturity";
 import {
+  allocationLabel,
   classesOf,
   filterOptions,
-  filterOrder,
   filterPositions,
   groupPositions,
   hasClassFilter,
   matchedValueBrl,
-  NO_STRATEGY,
   strategyOf,
   type PositionFilters,
 } from "@/modules/portfolio/presentation/position-filters";
 import {
-  buildDisplayPositions,
-  countChanges,
-  editableValueText,
-  isQuoted,
-  sameValue,
-  type AddedDraft,
-  type DisplayPosition,
-  type NewPositionDraft,
-  type PendingEdit,
-} from "@/modules/portfolio/presentation/position-drafts";
-import {
   formatBrl,
   formatMonthCompact,
+  formatPriceBrl,
   formatSharePercent,
-  parseLocaleNumber,
 } from "@/modules/portfolio/presentation/portfolio-format";
 import { positionHref } from "@/modules/portfolio/presentation/position-page";
 import { parseMonthParam, toMonthParam } from "@/modules/portfolio/presentation/reference-month";
-import { AddPositionDialog } from "@/modules/portfolio/ui/add-position-dialog";
-import { AllocationDrawer, headerPrimaryButtonClass } from "@/modules/portfolio/ui/edit-dialogs";
+import {
+  backdropClass,
+  centeredPopupClass,
+  headerPrimaryButtonClass,
+  secondaryButtonClass,
+} from "@/modules/portfolio/ui/edit-dialogs";
 import { EditToast, type EditToastState } from "@/modules/portfolio/ui/edit-toast";
 import { MaturityBadge } from "@/modules/portfolio/ui/maturity-badge";
 import { MultiSelectFilter } from "@/modules/portfolio/ui/multi-select-filter";
+import { PositionFormDialog, type PositionFormTarget } from "@/modules/portfolio/ui/position-form-dialog";
 
 const QUICK_CLASSES = ["Caixa", "Cripto", "Renda Fixa", "Renda Variável", "Reserva"];
 const GROUP_OPTIONS = ["instituicao", "classe"] as const;
@@ -98,20 +77,19 @@ const features = tableFeatures({
   rowSortingFeature,
   sortedRowModel: createSortedRowModel(),
 });
-const helper = createColumnHelper<typeof features, DisplayPosition>();
+const helper = createColumnHelper<typeof features, MonthPosition>();
 
 type ColumnMeta = { align: "left" | "right"; calculated: boolean; hide: string };
 
+// Cotação, moeda e liquidez saíram da tabela para compactá-la (spec 044); ficam
+// na linha expandida e nos filtros.
 const COLUMN_META: Record<string, ColumnMeta> = {
   assetName: { align: "left", calculated: false, hide: "" },
   institutionName: { align: "left", calculated: false, hide: "hidden sm:table-cell" },
   strategy: { align: "left", calculated: false, hide: "hidden xl:table-cell" },
   classes: { align: "left", calculated: false, hide: "hidden lg:table-cell" },
-  baseCurrency: { align: "left", calculated: false, hide: "hidden md:table-cell" },
   maturityDate: { align: "left", calculated: false, hide: "hidden xl:table-cell" },
-  liquidity: { align: "left", calculated: false, hide: "hidden xl:table-cell" },
   quantity: { align: "right", calculated: false, hide: "hidden md:table-cell" },
-  unitPriceBrl: { align: "right", calculated: true, hide: "hidden lg:table-cell" },
   totalBrl: { align: "right", calculated: true, hide: "" },
   totalUsd: { align: "right", calculated: true, hide: "hidden xl:table-cell" },
   share: { align: "right", calculated: true, hide: "hidden md:table-cell" },
@@ -122,20 +100,22 @@ const columns = helper.columns([
   helper.accessor("institutionName", { header: "Instituição" }),
   helper.accessor((row) => strategyOf(row), { id: "strategy", header: "Estratégia" }),
   helper.accessor((row) => classesOf(row).join(", "), { id: "classes", header: "Classes" }),
-  helper.accessor("baseCurrency", { header: "Moeda" }),
   // Sem vencimento ordena depois de qualquer data, nos dois sentidos de ordem.
   helper.accessor((row) => row.maturityDate ?? undefined, {
     id: "maturityDate",
     header: "Vencimento",
     sortUndefined: "last",
   }),
-  helper.accessor((row) => row.liquidity ?? undefined, { id: "liquidity", header: "Liquidez", sortUndefined: "last" }),
   helper.accessor("quantity", { header: "Quantidade" }),
-  helper.accessor((row) => row.unitPriceBrl ?? -1, { id: "unitPriceBrl", header: "Cotação" }),
   helper.accessor("totalBrl", { header: "Total R$" }),
   helper.accessor((row) => row.totalUsd ?? -1, { id: "totalUsd", header: "Total US$" }),
   helper.accessor("share", { header: "%" }),
 ]);
+
+// Seta de expansão, colunas e ações.
+const COLUMN_COUNT = columns.length + 2;
+
+type FormState = { open: boolean; target: PositionFormTarget | null; key: number };
 
 export function PositionsWorkspace({
   month,
@@ -162,58 +142,18 @@ export function PositionsWorkspace({
     { clearOnDefault: true },
   );
 
-  const [stateMonthId, setStateMonthId] = useState(month?.id);
-  const [pending, setPending] = useState<Record<string, PendingEdit>>({});
-  const [removed, setRemoved] = useState<string[]>([]);
-  const [added, setAdded] = useState<AddedDraft[]>([]);
-  const [editMode, setEditMode] = useState(false);
-  const [drawerId, setDrawerId] = useState<string | null>(null);
-  const [addOpen, setAddOpen] = useState(false);
+  const [form, setForm] = useState<FormState>({ open: false, target: null, key: 0 });
+  const [removal, setRemoval] = useState<{ open: boolean; position: MonthPosition | null }>({
+    open: false,
+    position: null,
+  });
+  const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
   const [toast, setToast] = useState<EditToastState | null>(null);
   const [isSaving, startSaving] = useTransition();
   const [isUndoing, startUndo] = useTransition();
   const [isOpening, startOpening] = useTransition();
   const [openingId, setOpeningId] = useState<string | null>(null);
   const sequence = useRef(0);
-  // Botão "Adicionar posição" do modo de edição, que recebe o foco quando o
-  // diálogo fecha mesmo se ele abriu pela confirmação de histórico.
-  const addButtonRef = useRef<HTMLButtonElement>(null);
-
-  // Um mês fechado pelo cadeado da linha do tempo sai do modo de edição.
-  if (editMode && month?.isLocked) {
-    setEditMode(false);
-  }
-
-  if (month?.id !== stateMonthId) {
-    setStateMonthId(month?.id);
-    setPending({});
-    setRemoved([]);
-    setAdded([]);
-    setEditMode(false);
-    setDrawerId(null);
-    setAddOpen(false);
-  }
-
-  const changeCount = countChanges(pending, removed, added);
-  const invalidCount =
-    Object.entries(pending).filter(
-      ([positionId, edit]) =>
-        edit.value !== undefined && !removed.includes(positionId) && parseLocaleNumber(edit.value) === null,
-    ).length + added.filter((draft) => parseLocaleNumber(draft.value) === null).length;
-
-  useEffect(() => {
-    setPendingChanges(changeCount);
-
-    if (changeCount === 0) {
-      return;
-    }
-
-    const warn = (event: BeforeUnloadEvent) => event.preventDefault();
-    window.addEventListener("beforeunload", warn);
-    return () => window.removeEventListener("beforeunload", warn);
-  }, [changeCount]);
-
-  useEffect(() => () => setPendingChanges(0), []);
 
   const dismissToast = useCallback(() => setToast(null), []);
 
@@ -227,12 +167,11 @@ export function PositionsWorkspace({
     liquidities: query.liq,
     search: query.q,
   };
-  const display = month ? buildDisplayPositions({ month, catalog, pending, removed, added }) : [];
-  const filtered = filterPositions(display, filters);
-  // Filtros em cascata (spec 031): a ordem dos parâmetros na URL é a ordem em
-  // que os filtros foram aplicados; um filtro limpo sai da URL e, aplicado de
-  // novo, volta para o fim.
-  const options = filterOptions(display, filters, filterOrder(searchParams.keys()));
+  const positions = month?.positions ?? [];
+  const filtered = filterPositions(positions, filters);
+  // Filtros em cascata da esquerda para a direita (spec 044): cada filtro só
+  // oferece o que existe com os filtros à esquerda dele.
+  const options = filterOptions(positions, filters);
   const sorting = parseSorting(query.ordem);
 
   const table = useTable({
@@ -260,15 +199,13 @@ export function PositionsWorkspace({
     );
   }
 
-  const canEdit = editMode;
+  const canEdit = !month.isLocked;
   const monthLabel = formatMonthCompact(month.referenceDate);
   const sortedPositions = table.getRowModel().rows.map((row) => row.original);
-  const activePositions = sortedPositions.filter((position) => !position.isRemoved);
   const groups = query.agrupar ? groupPositions(sortedPositions, query.agrupar, filters) : null;
-  const filteredTotal = activePositions.reduce((total, position) => total + position.totalBrl, 0);
-  const displayTotal = display.reduce((total, position) => total + (position.isRemoved ? 0 : position.totalBrl), 0);
+  const filteredTotal = sortedPositions.reduce((total, position) => total + position.totalBrl, 0);
   const matchedTotal = hasClassFilter(filters)
-    ? activePositions.reduce((total, position) => total + matchedValueBrl(position, filters), 0)
+    ? sortedPositions.reduce((total, position) => total + matchedValueBrl(position, filters), 0)
     : null;
   const activeFilterCount =
     filters.classes.length +
@@ -279,14 +216,7 @@ export function PositionsWorkspace({
     filters.maturities.length +
     filters.liquidities.length +
     (filters.search ? 1 : 0);
-  const occupied = new Set(
-    display.filter((position) => !position.isRemoved).map((position) => `${position.accountId}:${position.assetId}`),
-  );
-  const drawerPosition = display.find((position) => position.id === drawerId) ?? null;
-  const strategyOptions: PickerOption[] = [
-    { value: "", label: NO_STRATEGY },
-    ...catalog.strategies.map((strategy) => ({ value: strategy, label: strategy })),
-  ];
+  const occupied = new Set(month.positions.map((position) => `${position.accountId}:${position.assetId}`));
 
   const notify = (result: EditActionResult) =>
     setToast({
@@ -296,155 +226,19 @@ export function PositionsWorkspace({
       undoToken: result.ok ? result.undoToken : undefined,
     });
 
-  const valueTextOf = (position: DisplayPosition) => {
-    if (position.isAdded) {
-      return position.quantityText;
-    }
+  const openForm = (target: PositionFormTarget) =>
+    setForm((current) => ({ open: true, target, key: current.key + 1 }));
 
-    const original = month.positions.find((entry) => entry.id === position.id);
-    return pending[position.id]?.value ?? (original ? editableValueText(original) : position.quantityText).replace(".", ",");
-  };
+  const confirmRemoval = () => {
+    const position = removal.position;
 
-  const commitValue = (position: DisplayPosition, text: string) => {
-    if (position.isAdded) {
-      setAdded((current) =>
-        current.map((draft) => (draft.tempId === position.id ? { ...draft, value: text } : draft)),
-      );
-      return;
-    }
-
-    const original = month.positions.find((entry) => entry.id === position.id);
-    setPending((current) => {
-      const next = { ...current };
-      const edit = { ...next[position.id] };
-
-      if (original && sameValue(original, text)) {
-        delete edit.value;
-      } else {
-        edit.value = text;
-      }
-
-      if (Object.keys(edit).length === 0) {
-        delete next[position.id];
-      } else {
-        next[position.id] = edit;
-      }
-
-      return next;
-    });
-  };
-
-  const commitStrategy = (position: DisplayPosition, strategy: string | null) => {
-    if (position.isAdded) {
-      setAdded((current) =>
-        current.map((draft) => (draft.tempId === position.id ? { ...draft, strategy } : draft)),
-      );
-      return;
-    }
-
-    const original = month.positions.find((entry) => entry.id === position.id);
-    setPending((current) => {
-      const next = { ...current };
-      const edit = { ...next[position.id] };
-
-      if ((original?.strategy ?? null) === strategy) {
-        delete edit.strategy;
-      } else {
-        edit.strategy = strategy;
-      }
-
-      if (Object.keys(edit).length === 0) {
-        delete next[position.id];
-      } else {
-        next[position.id] = edit;
-      }
-
-      return next;
-    });
-  };
-
-  const toggleRemoval = (position: DisplayPosition) => {
-    if (position.isAdded) {
-      setAdded((current) => current.filter((draft) => draft.tempId !== position.id));
-      return;
-    }
-
-    setRemoved((current) =>
-      current.includes(position.id) ? current.filter((id) => id !== position.id) : [...current, position.id],
-    );
-  };
-
-  const discard = () => {
-    setPending({});
-    setRemoved([]);
-    setAdded([]);
-  };
-
-  const exitEditMode = () => {
-    discard();
-    setEditMode(false);
-  };
-
-  const save = () =>
-    startSaving(async () => {
-      const result = await savePositionChangesAction({
-        monthId: month.id,
-        updates: Object.entries(pending)
-          .filter(([positionId]) => !removed.includes(positionId))
-          .map(([positionId, edit]) => ({ positionId, ...edit })),
-        removals: removed,
-        additions: added.map((draft) => ({
-          ...(draft.accountId
-            ? { accountId: draft.accountId }
-            : {
-                newAccount: draft.newAccount && {
-                  institutionId: draft.newAccount.institutionId,
-                  institutionName: draft.newAccount.institutionId ? null : draft.newAccount.institutionName,
-                  name: draft.newAccount.name,
-                },
-              }),
-          ...(draft.assetId
-            ? { assetId: draft.assetId }
-            : {
-                newAsset: draft.newAsset && {
-                  name: draft.newAsset.name,
-                  kind: draft.newAsset.kind,
-                  ticker: draft.newAsset.ticker,
-                  maturityDate: draft.newAsset.maturityDate,
-                  liquidity: draft.newAsset.liquidity,
-                  allocation: draft.newAsset.allocation,
-                  quoteCheckToken: draft.newAsset.quoteCheckToken,
-                  manualPriceBrl: draft.newAsset.manualPriceBrl,
-                },
-              }),
-          value: draft.value,
-          strategy: draft.strategy,
-        })),
-      });
-
-      if (result.ok) {
-        exitEditMode();
-      }
-      notify(result);
-    });
-
-  const saveAllocations = (
-    allocations: { assetClass: string; subclass: string; duration: string; weightPercent: string }[],
-  ) => {
-    if (!drawerPosition) {
+    if (!position) {
       return;
     }
 
     startSaving(async () => {
-      const result = await saveAllocationsAction({
-        monthId: month.id,
-        positionId: drawerPosition.id,
-        allocations,
-      });
-
-      if (result.ok) {
-        setDrawerId(null);
-      }
+      const result = await removePositionAction({ monthId: month.id, positionId: position.id });
+      setRemoval((current) => ({ ...current, open: false }));
       notify(result);
     });
   };
@@ -469,8 +263,18 @@ export function PositionsWorkspace({
       }
     });
 
-  const addDraft = (draft: NewPositionDraft) =>
-    setAdded((current) => [...current, { ...draft, tempId: `novo-${++sequence.current}` }]);
+  const toggleExpanded = (position: MonthPosition) =>
+    setExpanded((current) => {
+      const next = new Set(current);
+
+      if (next.has(position.id)) {
+        next.delete(position.id);
+      } else {
+        next.add(position.id);
+      }
+
+      return next;
+    });
 
   const toggleQuickClass = (assetClass: string) =>
     void setQuery({
@@ -482,44 +286,35 @@ export function PositionsWorkspace({
   const clearFilters = () =>
     void setQuery({ classe: null, subclasse: null, inst: null, estrategia: null, moeda: null, venc: null, liq: null, q: null });
 
-  // Fora do modo de edição, a linha abre a página da posição (spec 016), com a
-  // query da tabela para a volta reabrir os mesmos filtros.
-  const openPosition = (position: DisplayPosition, href: string) => {
+  // A linha abre a página da posição (spec 016), com a query da tabela para a
+  // volta reabrir os mesmos filtros.
+  const openPosition = (position: MonthPosition, href: string) => {
     setOpeningId(position.id);
     startOpening(() => router.push(href));
   };
 
-  let rowIndex = 0;
-  const renderRow = (position: DisplayPosition, rowKey: string, valueBrl: number) => {
-    const index = rowIndex++;
-
-    return (
-      <PositionRow
-        key={rowKey}
-        position={position}
-        rowIndex={index}
-        referenceDay={month.referenceDay}
-        valueBrl={valueBrl}
-        canEdit={canEdit}
-        href={
-          canEdit || position.isAdded ? null : positionHref(position.accountId, position.assetId, searchParams)
-        }
-        opening={isOpening && openingId === position.id}
-        onOpen={openPosition}
-        valueText={valueTextOf(position)}
-        strategyOptions={strategyOptions}
-        onCommitValue={commitValue}
-        onCommitStrategy={commitStrategy}
-        onToggleRemoval={toggleRemoval}
-        onOpenAllocations={(target) => setDrawerId(target.id)}
-      />
-    );
-  };
+  const renderRow = (position: MonthPosition, rowKey: string, valueBrl: number) => (
+    <PositionRow
+      key={rowKey}
+      position={position}
+      referenceDay={month.referenceDay}
+      valueBrl={valueBrl}
+      usdRate={month.usdRate}
+      href={positionHref(position.accountId, position.assetId, searchParams)}
+      expanded={expanded.has(position.id)}
+      canEdit={canEdit}
+      opening={isOpening && openingId === position.id}
+      onOpen={openPosition}
+      onToggle={toggleExpanded}
+      onEdit={(target) => openForm({ mode: "edit", position: target })}
+      onRemove={(target) => setRemoval({ open: true, position: target })}
+    />
+  );
 
   const cloneTarget = parseMonthParam(catalog.clone.targetMonth ?? undefined);
 
   return (
-    <div className="relative mx-auto w-full max-w-[1472px] px-5 py-8 pb-32 sm:px-7 sm:py-10 sm:pb-32 xl:px-12 xl:py-12 xl:pb-32">
+    <div className="relative mx-auto w-full max-w-[1472px] px-5 py-8 pb-24 sm:px-7 sm:py-10 xl:px-12 xl:py-12">
       <div className="ambient-glow pointer-events-none absolute top-0 right-0 -z-10 h-[460px] w-[460px]" />
 
       <header className="flex flex-col gap-6 border-b border-border/70 pb-8 sm:flex-row sm:items-end sm:justify-between">
@@ -527,59 +322,35 @@ export function PositionsWorkspace({
           <p className="text-[11px] font-semibold tracking-[0.16em] text-primary uppercase">Posições</p>
           <h1 className="mt-3 text-3xl font-semibold tracking-[-0.05em] sm:text-[2.65rem]">Carteira do mês</h1>
           <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground">
-            {month.positions.length} posições separadas por conta e instituição.
+            {month.positions.length} posições separadas por instituição.
           </p>
         </div>
         <div className="flex flex-col items-start gap-3 sm:items-end">
           <p className="font-mono text-xs text-muted-foreground">
-            {formatBrl(displayTotal)}
-            {month.usdRate ? ` · US$ ${formatUsd(displayTotal / month.usdRate)}` : ""}
+            {formatBrl(month.totalBrl)}
+            {month.usdRate ? ` · US$ ${formatUsd(month.totalBrl / month.usdRate)}` : ""}
           </p>
           <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-            {/* As cotações ficam no topo, ao lado da última atualização; no
-                celular, onde não cabem lá, ficam aqui como ícone (spec 034). */}
+            {/* As cotações do mês ficam só aqui, em Posições, e não no topo: a
+                ilha do topo mostra o caminho Posições → Cotações (spec 048). */}
             <Link
               href={`/posicoes/cotacoes?mes=${toMonthParam(month.referenceDate)}`}
               aria-label="Cotações do mês"
-              className="grid size-9 place-items-center rounded-xl border border-border bg-card/70 text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50 sm:hidden"
+              className="inline-flex h-9 items-center gap-2 rounded-xl border border-border bg-card/70 px-3.5 text-xs font-semibold text-foreground outline-none transition-colors hover:bg-white/[0.05] focus-visible:ring-2 focus-visible:ring-ring/50"
             >
-              <CurrencyCircleDollarIcon aria-hidden="true" size={16} weight="duotone" />
+              <CurrencyCircleDollarIcon aria-hidden="true" className="text-primary" size={16} weight="duotone" />
+              Cotações
             </Link>
             {/* Só o mês aberto aceita edição (spec 034); um mês fechado é aberto
                 pelo cadeado da linha do tempo. */}
-            {editMode || month.isLocked ? null : (
-              <button
-                type="button"
-                onClick={() => setEditMode(true)}
-                className="inline-flex h-9 items-center gap-2 rounded-xl border border-border bg-card/70 px-3.5 text-xs font-semibold text-foreground outline-none transition-colors hover:bg-white/[0.05] focus-visible:ring-2 focus-visible:ring-ring/50"
-              >
-                <PencilSimpleIcon aria-hidden="true" size={14} weight="bold" />
-                Editar posições
-              </button>
-            )}
-            {/* Adicionar posição fica em evidência dentro e fora do modo de
-                edição; fora dele, entra em edição antes de abrir o diálogo. */}
-            {month.isLocked ? null : (
-              <button
-                ref={addButtonRef}
-                type="button"
-                onClick={() => {
-                  setEditMode(true);
-                  setAddOpen(true);
-                }}
-                className={headerPrimaryButtonClass}
-              >
+            {canEdit ? (
+              <button type="button" onClick={() => openForm({ mode: "add" })} className={headerPrimaryButtonClass}>
                 <PlusIcon aria-hidden="true" size={14} weight="bold" />
                 Adicionar posição
               </button>
-            )}
-            {month.isLatest && !editMode && catalog.clone.allowed && cloneTarget ? (
-              <button
-                type="button"
-                disabled={isSaving || changeCount > 0}
-                onClick={cloneMonth}
-                className={headerPrimaryButtonClass}
-              >
+            ) : null}
+            {month.isLatest && catalog.clone.allowed && cloneTarget ? (
+              <button type="button" disabled={isSaving} onClick={cloneMonth} className={headerPrimaryButtonClass}>
                 <CopyIcon aria-hidden="true" size={14} weight="bold" />
                 Criar {formatMonthCompact(cloneTarget)} a partir de {monthLabel}
               </button>
@@ -691,6 +462,9 @@ export function PositionsWorkspace({
                   key={headerGroup.id}
                   className="border-b border-border/60 text-[9px] font-semibold tracking-[0.13em] text-muted-foreground uppercase"
                 >
+                  <th className="w-9 py-3 pr-0 pl-3 sm:pl-4">
+                    <span className="sr-only">Expandir</span>
+                  </th>
                   {headerGroup.headers.map((header) => {
                     const meta = COLUMN_META[header.column.id];
                     const sorted = header.column.getIsSorted();
@@ -699,7 +473,7 @@ export function PositionsWorkspace({
                       <th
                         key={header.id}
                         aria-sort={sorted === "asc" ? "ascending" : sorted === "desc" ? "descending" : "none"}
-                        className={cn("px-4 py-3 first:pl-5 sm:first:pl-6", columnHide(header.column.id, canEdit))}
+                        className={cn("px-4 py-3", meta.hide)}
                       >
                         <button
                           type="button"
@@ -725,18 +499,16 @@ export function PositionsWorkspace({
                       </th>
                     );
                   })}
-                  {canEdit ? (
-                    <th className="w-[88px] px-4 py-3 pr-5 text-right">
-                      <span className="sr-only">Ações</span>
-                    </th>
-                  ) : null}
+                  <th className={cn("py-3 pr-3 pl-0 sm:pr-4", canEdit ? "w-[66px]" : "w-2")}>
+                    <span className="sr-only">Ações</span>
+                  </th>
                 </tr>
               ))}
             </thead>
             <tbody className="divide-y divide-border/55">
               {sortedPositions.length === 0 ? (
                 <tr>
-                  <td colSpan={columns.length + 1} className="px-6 py-10 text-center text-sm text-muted-foreground">
+                  <td colSpan={COLUMN_COUNT} className="px-6 py-10 text-center text-sm text-muted-foreground">
                     Nenhuma posição corresponde aos filtros.
                   </td>
                 </tr>
@@ -744,7 +516,7 @@ export function PositionsWorkspace({
                 groups.map((group) => (
                   <Fragment key={group.key}>
                     <tr className="bg-white/[0.02]">
-                      <td colSpan={columns.length + 1} className="px-5 py-2.5 sm:px-6">
+                      <td colSpan={COLUMN_COUNT} className="px-5 py-2.5 sm:px-6">
                         <div className="flex items-center gap-2.5">
                           {query.agrupar === "classe" ? (
                             <span className="size-2 rounded-full" style={{ backgroundColor: categoryColor(group.label) }} />
@@ -755,9 +527,7 @@ export function PositionsWorkspace({
                         </div>
                       </td>
                     </tr>
-                    {group.items.map((item) =>
-                      renderRow(item.position, `${group.key}-${item.position.id}`, item.valueBrl),
-                    )}
+                    {group.items.map((item) => renderRow(item.position, `${group.key}-${item.position.id}`, item.valueBrl))}
                   </Fragment>
                 ))
               ) : (
@@ -766,10 +536,10 @@ export function PositionsWorkspace({
             </tbody>
             <tfoot>
               <tr className="border-t border-border/70 text-xs">
-                <td colSpan={columns.length + 1} className="px-5 py-4 sm:px-6">
+                <td colSpan={COLUMN_COUNT} className="px-5 py-4 sm:px-6">
                   <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
                     <span className="text-muted-foreground">
-                      {activePositions.length} de {display.filter((position) => !position.isRemoved).length} posições
+                      {sortedPositions.length} de {month.positions.length} posições
                     </span>
                     <FooterValue label="Total filtrado" value={formatBrl(filteredTotal)} />
                     {month.usdRate ? (
@@ -777,7 +547,7 @@ export function PositionsWorkspace({
                     ) : null}
                     <FooterValue
                       label="Da carteira"
-                      value={formatSharePercent(displayTotal === 0 ? 0 : (filteredTotal / displayTotal) * 100)}
+                      value={formatSharePercent(month.totalBrl === 0 ? 0 : (filteredTotal / month.totalBrl) * 100)}
                     />
                     {matchedTotal !== null ? (
                       <FooterValue label="Parcela nas classes selecionadas" value={formatBrl(matchedTotal)} emphasis />
@@ -790,70 +560,48 @@ export function PositionsWorkspace({
         </div>
       </section>
 
-      {editMode ? (
-        <div className="fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom,0px)+16px)] z-40 flex justify-center px-4">
-          <div
-            className={cn(
-              "flex w-full max-w-xl items-center gap-3 rounded-2xl border bg-card/95 px-4 py-3 shadow-2xl backdrop-blur-xl",
-              invalidCount > 0 ? "border-destructive/40" : changeCount > 0 ? "border-warning-border" : "border-border",
-            )}
-          >
-            <PencilSimpleIcon
-              aria-hidden="true"
-              className={cn("shrink-0", invalidCount > 0 ? "text-destructive" : "text-warning-foreground")}
-              size={14}
-              weight="bold"
-            />
-            <p className="text-xs text-foreground" aria-live="polite">
-              {invalidCount > 0
-                ? `${invalidCount} ${invalidCount === 1 ? "valor inválido" : "valores inválidos"}`
-                : changeCount === 0
-                  ? "Modo de edição"
-                  : `${changeCount} ${changeCount === 1 ? "alteração pendente" : "alterações pendentes"}`}
-            </p>
-            <button
-              type="button"
-              onClick={exitEditMode}
-              disabled={isSaving}
-              className="ml-auto h-8 rounded-lg px-3 text-xs font-medium text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50"
-            >
-              {changeCount > 0 ? "Descartar" : "Sair da edição"}
-            </button>
-            <button
-              type="button"
-              onClick={save}
-              disabled={isSaving || changeCount === 0 || invalidCount > 0}
-              className="inline-flex h-8 items-center rounded-lg bg-primary px-3.5 text-xs font-semibold text-primary-foreground outline-none transition-[background-color,transform] duration-150 hover:bg-primary/90 focus-visible:ring-3 focus-visible:ring-ring/40 active:scale-[0.98] disabled:opacity-50"
-            >
-              {isSaving ? "Salvando…" : "Salvar"}
-            </button>
-          </div>
-        </div>
-      ) : null}
-
-      <AddPositionDialog
-        open={addOpen && editMode}
-        onOpenChange={setAddOpen}
+      <PositionFormDialog
+        open={form.open}
+        onOpenChange={(open) => setForm((current) => ({ ...current, open }))}
+        target={form.target}
+        formKey={form.key}
         catalog={catalog}
         month={{ id: month.id, label: monthLabel, isCurrent: month.isCurrent, quotes: month.quotes }}
-        drafts={added}
         occupied={occupied}
-        onAdd={addDraft}
-        finalFocus={addButtonRef}
+        onSaved={notify}
       />
 
-      <AllocationDrawer
-        position={drawerPosition}
-        catalog={catalog}
-        open={drawerPosition !== null}
-        saving={isSaving}
-        onOpenChange={(open) => {
-          if (!open) {
-            setDrawerId(null);
-          }
-        }}
-        onSave={saveAllocations}
-      />
+      <Dialog.Root
+        open={removal.open}
+        onOpenChange={(open) => !isSaving && setRemoval((current) => ({ ...current, open }))}
+      >
+        <Dialog.Portal>
+          <Dialog.Backdrop className={backdropClass} />
+          <Dialog.Popup className={centeredPopupClass}>
+            <Dialog.Title className="text-base font-semibold tracking-[-0.02em]">
+              Remover {removal.position?.assetName ?? "posição"}?
+            </Dialog.Title>
+            <Dialog.Description className="mt-2 text-sm leading-6 text-muted-foreground">
+              A posição em {removal.position?.institutionName} sai de {monthLabel}. As outras competências não
+              mudam, e dá para desfazer logo depois.
+            </Dialog.Description>
+            <div className="mt-6 flex justify-end gap-2">
+              <Dialog.Close className={secondaryButtonClass} disabled={isSaving}>
+                Cancelar
+              </Dialog.Close>
+              <button
+                type="button"
+                onClick={confirmRemoval}
+                disabled={isSaving}
+                className="inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-destructive px-3.5 text-xs font-semibold text-white outline-none transition-[background-color,transform] duration-150 hover:bg-destructive/90 focus-visible:ring-3 focus-visible:ring-destructive/40 active:scale-[0.98] disabled:opacity-50"
+              >
+                <TrashIcon aria-hidden="true" size={14} />
+                {isSaving ? "Removendo…" : "Remover"}
+              </button>
+            </div>
+          </Dialog.Popup>
+        </Dialog.Portal>
+      </Dialog.Root>
 
       <EditToast toast={toast} onDismiss={dismissToast} onUndo={undo} undoing={isUndoing} />
     </div>
@@ -862,43 +610,39 @@ export function PositionsWorkspace({
 
 function PositionRow({
   position,
-  rowIndex,
   referenceDay,
   valueBrl,
-  canEdit,
+  usdRate,
   href,
+  expanded,
+  canEdit,
   opening,
   onOpen,
-  valueText,
-  strategyOptions,
-  onCommitValue,
-  onCommitStrategy,
-  onToggleRemoval,
-  onOpenAllocations,
+  onToggle,
+  onEdit,
+  onRemove,
 }: {
-  position: DisplayPosition;
-  rowIndex: number;
+  position: MonthPosition;
   referenceDay: string;
   valueBrl: number;
+  usdRate: number | null;
+  href: string;
+  expanded: boolean;
   canEdit: boolean;
-  /** Página da posição; nula no modo de edição e em posições ainda não salvas. */
-  href: string | null;
   opening: boolean;
-  onOpen: (position: DisplayPosition, href: string) => void;
-  valueText: string;
-  strategyOptions: PickerOption[];
-  onCommitValue: (position: DisplayPosition, text: string) => void;
-  onCommitStrategy: (position: DisplayPosition, strategy: string | null) => void;
-  onToggleRemoval: (position: DisplayPosition) => void;
-  onOpenAllocations: (position: DisplayPosition) => void;
+  onOpen: (position: MonthPosition, href: string) => void;
+  onToggle: (position: MonthPosition) => void;
+  onEdit: (position: MonthPosition) => void;
+  onRemove: (position: MonthPosition) => void;
 }) {
   const isPartial = Math.abs(valueBrl - position.totalBrl) > 0.005;
-  const editable = canEdit && !position.isRemoved;
+  const [first, ...others] = [...position.allocations].sort((left, right) => right.weight - left.weight);
+  const detailsId = `detalhes-${position.id}`;
 
   // A linha inteira abre a posição; o nome do ativo é o link real, para o
   // teclado, o leitor de tela e o clique com Ctrl ou Cmd.
   const openFromRow = (event: MouseEvent<HTMLTableRowElement>) => {
-    if (!href || event.defaultPrevented || event.button !== 0) {
+    if (event.defaultPrevented || event.button !== 0) {
       return;
     }
 
@@ -919,20 +663,35 @@ function PositionRow({
   };
 
   return (
-    <tr
-      data-testid="position-row"
-      onClick={href ? openFromRow : undefined}
-      aria-busy={opening || undefined}
-      className={cn(
-        "transition-[background-color,opacity] duration-150 hover:bg-white/[0.018]",
-        href && "cursor-pointer",
-        opening && "bg-primary/[0.04] opacity-70",
-        position.isRemoved && "opacity-45 [&_td]:line-through",
-        position.isAdded && "bg-primary/[0.04]",
-      )}
-    >
-      <Cell id="assetName">
-        {href ? (
+    <>
+      <tr
+        data-testid="position-row"
+        onClick={openFromRow}
+        aria-busy={opening || undefined}
+        className={cn(
+          "group cursor-pointer transition-[background-color,opacity] duration-150 hover:bg-white/[0.018]",
+          expanded && "bg-white/[0.018]",
+          opening && "bg-primary/[0.04] opacity-70",
+        )}
+      >
+        <td className="py-4 pr-0 pl-3 align-top sm:pl-4">
+          <button
+            type="button"
+            aria-expanded={expanded}
+            aria-controls={detailsId}
+            aria-label={`${expanded ? "Recolher" : "Expandir"} ${position.assetName}`}
+            onClick={() => onToggle(position)}
+            className="grid size-6 place-items-center rounded-md text-muted-foreground outline-none transition-colors hover:bg-white/[0.06] hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50"
+          >
+            <CaretRightIcon
+              aria-hidden="true"
+              size={12}
+              weight="bold"
+              className={cn("transition-transform duration-200", expanded && "rotate-90")}
+            />
+          </button>
+        </td>
+        <Cell id="assetName">
           <Link
             href={href}
             onClick={(event) => {
@@ -947,196 +706,194 @@ function PositionRow({
           >
             {position.assetName}
           </Link>
-        ) : (
-          <p className="text-sm font-medium text-foreground/90">{position.assetName}</p>
-        )}
-        <p className="mt-1 font-mono text-[9px] text-muted-foreground">
-          {position.ticker ?? "SALDO"}
-          {position.isAdded ? <span className="ml-1.5 text-primary no-underline">· nova</span> : null}
-        </p>
-        {position.maturityDate ? (
-          <MaturityBadge maturityDate={position.maturityDate} referenceDay={referenceDay} className="mt-1.5 xl:hidden" />
-        ) : null}
-        <p className="mt-1 text-[10px] text-muted-foreground sm:hidden">{position.institutionName}</p>
-      </Cell>
-      <Cell id="institutionName">
-        <p className="text-xs text-foreground/80">{position.institutionName}</p>
-      </Cell>
-      <Cell id="strategy" editMode={canEdit} changed={position.strategyChanged && !position.isAdded}>
-        {editable ? (
-          <Picker
-            data-edit-cell="strategy"
-            data-row={rowIndex}
-            aria-label={`Estratégia de ${position.assetName}`}
-            size="sm"
-            changed={position.strategyChanged && !position.isAdded}
-            options={strategyOptions}
-            value={position.strategy ?? ""}
-            onValueChange={(strategy) => onCommitStrategy(position, strategy || null)}
-            onKeyDown={(event) => moveStrategyFocus(event, rowIndex)}
-            className="min-w-[140px]"
-          />
-        ) : (
-          <span className="text-xs text-foreground/80">{strategyOf(position)}</span>
-        )}
-      </Cell>
-      <Cell id="classes">
-        <div className="flex max-w-[260px] flex-wrap gap-1">
-          {position.allocations.length === 0 ? (
-            <span className="text-[10px] text-muted-foreground">{position.isAdded ? "herda ao salvar" : "—"}</span>
-          ) : (
-            position.allocations.map((allocation) => (
-              <span
-                key={`${allocation.assetClass}-${allocation.subclass}-${allocation.duration}`}
-                title={allocation.assetClass}
-                className="inline-flex items-center gap-1 rounded-full bg-white/[0.04] px-2 py-0.5 text-[10px] text-muted-foreground"
-              >
-                <span className="size-1.5 rounded-full" style={{ backgroundColor: categoryColor(allocation.assetClass) }} />
-                {position.allocations.length > 1
-                  ? `${allocation.subclass}${allocation.duration !== "-" ? ` · ${allocation.duration}` : ""} ${allocation.weight.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}%`
-                  : allocation.assetClass}
+          <p className="mt-1 font-mono text-[9px] text-muted-foreground">{position.ticker ?? "SALDO"}</p>
+          {position.maturityDate ? (
+            <MaturityBadge maturityDate={position.maturityDate} referenceDay={referenceDay} className="mt-1.5 xl:hidden" />
+          ) : null}
+          <p className="mt-1 text-[10px] text-muted-foreground sm:hidden">{position.institutionName}</p>
+        </Cell>
+        <Cell id="institutionName">
+          <p className="text-xs text-foreground/80">{position.institutionName}</p>
+        </Cell>
+        <Cell id="strategy">
+          <span className="text-xs whitespace-nowrap text-foreground/80">{strategyOf(position)}</span>
+        </Cell>
+        <Cell id="classes">
+          {first ? (
+            <div className="flex max-w-[300px] items-center gap-1.5" data-testid="position-classes">
+              <span className="size-1.5 shrink-0 rounded-full" style={{ backgroundColor: categoryColor(first.assetClass) }} />
+              <span className="truncate text-xs text-foreground/80" title={allocationLabel(first)}>
+                {allocationLabel(first)}
+                {others.length > 0 ? (
+                  <span className="text-muted-foreground"> {formatWeightPercent(first.weight)}</span>
+                ) : null}
               </span>
-            ))
+              {others.length > 0 ? (
+                <button
+                  type="button"
+                  onClick={() => onToggle(position)}
+                  aria-label={`Ver as ${others.length + 1} classificações de ${position.assetName}`}
+                  title={`Mais ${others.length} ${others.length === 1 ? "classificação" : "classificações"}`}
+                  className="shrink-0 rounded-md bg-white/[0.05] px-1.5 font-mono text-[10px] leading-4 text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50"
+                >
+                  …+{others.length}
+                </button>
+              ) : null}
+            </div>
+          ) : (
+            <span className="text-[10px] text-muted-foreground">—</span>
           )}
-        </div>
-      </Cell>
-      <Cell id="baseCurrency">
-        <span className="font-mono text-xs text-muted-foreground">{position.baseCurrency}</span>
-      </Cell>
-      <Cell id="maturityDate">
-        {position.maturityDate ? (
-          <>
-            <p className="font-mono text-xs text-foreground/80">{formatDay(parseDay(position.maturityDate))}</p>
-            <MaturityBadge maturityDate={position.maturityDate} referenceDay={referenceDay} className="mt-1" />
-          </>
-        ) : (
-          <span className="text-[10px] text-muted-foreground">—</span>
-        )}
-      </Cell>
-      <Cell id="liquidity">
-        <span className={cn("text-xs", position.liquidity ? "font-mono text-foreground/80" : "text-[10px] text-muted-foreground")}>
-          {position.liquidity ?? "—"}
-        </span>
-      </Cell>
-      <Cell id="quantity" editMode={canEdit} changed={position.valueChanged && !position.isAdded}>
-        {editable ? (
-          <ValueField
-            position={position}
-            rowIndex={rowIndex}
-            text={valueText}
-            onChange={(text) => onCommitValue(position, text)}
-          />
-        ) : (
+        </Cell>
+        <Cell id="maturityDate">
+          {position.maturityDate ? (
+            <>
+              <p className="font-mono text-xs text-foreground/80">{formatDay(parseDay(position.maturityDate))}</p>
+              <MaturityBadge maturityDate={position.maturityDate} referenceDay={referenceDay} className="mt-1" />
+            </>
+          ) : (
+            <span className="text-[10px] text-muted-foreground">—</span>
+          )}
+        </Cell>
+        <Cell id="quantity">
           <QuantityText position={position} />
-        )}
-      </Cell>
-      <Cell id="unitPriceBrl">
-        <span className="font-mono text-xs text-muted-foreground">
-          {position.unitPriceBrl === null ? "—" : formatBrl(position.unitPriceBrl)}
-        </span>
-      </Cell>
-      <Cell id="totalBrl" changed={position.valueChanged && !position.isAdded}>
-        <span className="font-mono text-xs font-medium whitespace-nowrap text-foreground sm:text-sm">
-          {formatBrl(valueBrl)}
-        </span>
-        {isPartial ? (
-          <p className="mt-0.5 font-mono text-[9px] whitespace-nowrap text-muted-foreground">
-            de {formatBrl(position.totalBrl)}
-          </p>
-        ) : null}
-      </Cell>
-      <Cell id="totalUsd">
-        <span className="font-mono text-xs text-muted-foreground">
-          {position.totalUsd === null ? "—" : `US$ ${formatUsd(position.totalUsd)}`}
-        </span>
-      </Cell>
-      <Cell id="share">
-        <span className="font-mono text-xs text-muted-foreground">{formatSharePercent(position.share)}</span>
-      </Cell>
-      {canEdit ? (
-        <td className="px-4 py-4 pr-5 align-top no-underline">
-          <div className="flex justify-end gap-1">
-            <IconButton
-              label={`Rateio de ${position.assetName}`}
-              disabled={position.isAdded || position.isRemoved}
-              onClick={() => onOpenAllocations(position)}
-            >
-              <ChartPieSliceIcon aria-hidden="true" size={14} weight="duotone" />
-            </IconButton>
-            <IconButton
-              label={position.isRemoved ? `Restaurar ${position.assetName}` : `Remover ${position.assetName}`}
-              tone={position.isRemoved ? "neutral" : "danger"}
-              onClick={() => onToggleRemoval(position)}
-            >
-              {position.isRemoved ? (
-                <ArrowCounterClockwiseIcon aria-hidden="true" size={14} weight="bold" />
-              ) : (
+        </Cell>
+        <Cell id="totalBrl">
+          <span className="font-mono text-xs font-medium whitespace-nowrap text-foreground sm:text-sm">
+            {formatBrl(valueBrl)}
+          </span>
+          {isPartial ? (
+            <p className="mt-0.5 font-mono text-[9px] whitespace-nowrap text-muted-foreground">
+              de {formatBrl(position.totalBrl)}
+            </p>
+          ) : null}
+        </Cell>
+        <Cell id="totalUsd">
+          <span className="font-mono text-xs whitespace-nowrap text-muted-foreground">
+            {position.totalUsd === null ? "—" : `US$ ${formatUsd(position.totalUsd)}`}
+          </span>
+        </Cell>
+        <Cell id="share">
+          <span className="font-mono text-xs text-muted-foreground">{formatSharePercent(position.share)}</span>
+        </Cell>
+        <td className="py-3.5 pr-3 pl-0 align-top sm:pr-4">
+          {canEdit ? (
+            // Lápis e lixeira aparecem ao passar o mouse, ao focar e sempre em
+            // telas de toque, sem hover (spec 043).
+            <div className="flex justify-end gap-0.5 opacity-0 transition-opacity duration-150 group-focus-within:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100">
+              <IconButton label={`Editar ${position.assetName}`} onClick={() => onEdit(position)}>
+                <PencilSimpleIcon aria-hidden="true" size={14} weight="bold" />
+              </IconButton>
+              <IconButton label={`Remover ${position.assetName}`} tone="danger" onClick={() => onRemove(position)}>
                 <TrashIcon aria-hidden="true" size={14} />
-              )}
-            </IconButton>
-          </div>
+              </IconButton>
+            </div>
+          ) : null}
         </td>
+      </tr>
+      {expanded ? (
+        <tr id={detailsId} data-testid="position-details" className="bg-white/[0.012]">
+          <td colSpan={COLUMN_COUNT} className="px-5 pt-1 pb-5 sm:pl-[3.25rem] sm:pr-6">
+            <PositionDetails position={position} usdRate={usdRate} referenceDay={referenceDay} />
+          </td>
+        </tr>
       ) : null}
-    </tr>
+    </>
   );
 }
 
-function QuantityText({ position }: { position: DisplayPosition }) {
+/** Linha expandida: o rateio completo e os dados que não cabem nas colunas. */
+function PositionDetails({
+  position,
+  usdRate,
+  referenceDay,
+}: {
+  position: MonthPosition;
+  usdRate: number | null;
+  referenceDay: string;
+}) {
+  const allocations = [...position.allocations].sort((left, right) => right.weight - left.weight);
+  const details: { label: string; value: ReactNode }[] = [
+    { label: "Instituição", value: position.institutionName },
+    { label: "Estratégia", value: strategyOf(position) },
+    { label: "Moeda", value: <span className="font-mono">{position.baseCurrency}</span> },
+    {
+      label: "Cotação",
+      value: (
+        <span className="font-mono">{position.unitPriceBrl === null ? "Saldo, sem cotação" : formatPriceBrl(position.unitPriceBrl)}</span>
+      ),
+    },
+    { label: "Quantidade", value: <QuantityText position={position} /> },
+    { label: "Liquidez", value: position.liquidity ?? "Não informada" },
+    {
+      label: "Vencimento",
+      value: position.maturityDate ? (
+        <span className="inline-flex items-center gap-2">
+          <span className="font-mono">{formatDay(parseDay(position.maturityDate))}</span>
+          <MaturityBadge maturityDate={position.maturityDate} referenceDay={referenceDay} />
+        </span>
+      ) : (
+        "Não informado"
+      ),
+    },
+    {
+      label: "Total em dólar",
+      value: <span className="font-mono">{usdRate ? `US$ ${formatUsd(position.totalBrl / usdRate)}` : "—"}</span>,
+    },
+  ];
+
+  return (
+    <div className="grid gap-5 rounded-2xl border border-border/60 bg-background/30 p-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
+      <div>
+        <p className="text-[10px] tracking-[0.1em] text-muted-foreground uppercase">Rateio</p>
+        {allocations.length === 0 ? (
+          <p className="mt-2 text-xs text-muted-foreground">Sem rateio.</p>
+        ) : (
+          <ul className="mt-2.5 space-y-2" data-testid="position-details-allocations">
+            {allocations.map((allocation) => (
+              <li key={allocationLabel(allocation)} className="flex items-center gap-2.5 text-xs">
+                <span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: categoryColor(allocation.assetClass) }} />
+                <span className="min-w-0 truncate text-foreground/85">{allocationLabel(allocation)}</span>
+                <span className="ml-auto shrink-0 font-mono text-muted-foreground">
+                  {formatWeightPercent(allocation.weight)}
+                </span>
+                <span className="w-24 shrink-0 text-right font-mono text-foreground/80">
+                  {formatBrl((position.totalBrl * allocation.weight) / 100)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+      <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-xs sm:grid-cols-4">
+        {details.map((detail) => (
+          <div key={detail.label} className="min-w-0">
+            <dt className="text-[10px] tracking-[0.08em] text-muted-foreground uppercase">{detail.label}</dt>
+            <dd className="mt-1 truncate text-foreground/85">{detail.value}</dd>
+          </div>
+        ))}
+      </dl>
+    </div>
+  );
+}
+
+function QuantityText({ position }: { position: MonthPosition }) {
   return (
     <span className="font-mono text-xs text-foreground/85">
-      {isQuoted(position)
+      {position.quoteSymbol
         ? position.quantity.toLocaleString("pt-BR", { maximumFractionDigits: 8 })
         : formatBrl(position.quantity)}
     </span>
   );
 }
 
-function ValueField({
-  position,
-  rowIndex,
-  text,
-  onChange,
-}: {
-  position: DisplayPosition;
-  rowIndex: number;
-  text: string;
-  onChange: (text: string) => void;
-}) {
-  const invalid = parseLocaleNumber(text) === null;
-
-  return (
-    <input
-      data-edit-cell="value"
-      data-row={rowIndex}
-      inputMode="decimal"
-      aria-label={`${isQuoted(position) ? "Quantidade" : "Saldo"} de ${position.assetName}`}
-      aria-invalid={invalid}
-      value={text}
-      onChange={(event) => onChange(event.target.value)}
-      onFocus={(event) => event.currentTarget.select()}
-      onKeyDown={(event) => moveFocus(event, "value", rowIndex)}
-      className={cn(
-        "h-8 w-full min-w-[104px] rounded-md border bg-background/60 px-2 text-right font-mono text-xs text-foreground outline-none focus-visible:ring-2 sm:min-w-[120px]",
-        invalid
-          ? "border-destructive focus-visible:ring-destructive/40"
-          : position.valueChanged && !position.isAdded
-            ? "border-warning-border focus-visible:ring-ring/50"
-            : "border-border focus-visible:border-primary/60 focus-visible:ring-ring/50",
-      )}
-    />
-  );
-}
-
 function IconButton({
   label,
   tone = "neutral",
-  disabled = false,
   onClick,
   children,
 }: {
   label: string;
   tone?: "neutral" | "danger";
-  disabled?: boolean;
   onClick: () => void;
   children: ReactNode;
 }) {
@@ -1145,10 +902,9 @@ function IconButton({
       type="button"
       aria-label={label}
       title={label}
-      disabled={disabled}
       onClick={onClick}
       className={cn(
-        "grid size-7 place-items-center rounded-md text-muted-foreground outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-30",
+        "grid size-7 place-items-center rounded-md text-muted-foreground outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring/50",
         tone === "danger" ? "hover:bg-destructive/10 hover:text-destructive" : "hover:bg-white/[0.06] hover:text-foreground",
       )}
     >
@@ -1157,27 +913,16 @@ function IconButton({
   );
 }
 
-function Cell({
-  id,
-  editMode = false,
-  changed = false,
-  children,
-}: {
-  id: string;
-  editMode?: boolean;
-  changed?: boolean;
-  children: ReactNode;
-}) {
+function Cell({ id, children }: { id: string; children: ReactNode }) {
   const meta = COLUMN_META[id];
 
   return (
     <td
       className={cn(
-        "px-4 py-4 align-top first:pl-5 sm:first:pl-6",
+        "px-4 py-4 align-top",
         meta.align === "right" && "text-right",
         meta.calculated && "bg-white/[0.012]",
-        changed && "bg-warning/25 shadow-[inset_2px_0_0_var(--warning-border)]",
-        columnHide(id, editMode),
+        meta.hide,
       )}
     >
       {children}
@@ -1194,45 +939,6 @@ function FooterValue({ label, value, emphasis = false }: { label: string; value:
   );
 }
 
-const EDIT_MODE_HIDE: Record<string, string> = { quantity: "", strategy: "hidden sm:table-cell" };
-
-function columnHide(id: string, editMode: boolean) {
-  return editMode && id in EDIT_MODE_HIDE ? EDIT_MODE_HIDE[id] : COLUMN_META[id].hide;
-}
-
-/**
- * Com a lista fechada, Enter e as setas trocam de linha como no campo de valor;
- * com a lista aberta, as setas percorrem as opções e Enter escolhe. Alt+seta
- * para baixo abre a lista.
- */
-function moveStrategyFocus(event: BaseUIEvent<KeyboardEvent<HTMLInputElement>>, rowIndex: number) {
-  if (event.altKey || event.currentTarget.getAttribute("aria-expanded") === "true") {
-    return;
-  }
-
-  if (moveFocus(event, "strategy", rowIndex)) {
-    event.preventBaseUIHandler();
-  }
-}
-
-function moveFocus(event: KeyboardEvent<HTMLInputElement>, field: "value" | "strategy", rowIndex: number) {
-  const step = event.key === "ArrowDown" || event.key === "Enter" ? 1 : event.key === "ArrowUp" ? -1 : 0;
-
-  if (step === 0) {
-    return false;
-  }
-
-  const target = document.querySelector<HTMLElement>(`[data-edit-cell="${field}"][data-row="${rowIndex + step}"]`);
-
-  if (!target) {
-    return false;
-  }
-
-  event.preventDefault();
-  target.focus();
-  return true;
-}
-
 function parseSorting(value: string): SortingState {
   const [id, direction] = value.split(".");
 
@@ -1241,6 +947,10 @@ function parseSorting(value: string): SortingState {
 
 function formatUsd(value: number) {
   return value.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function formatWeightPercent(weight: number) {
+  return `${weight.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`;
 }
 
 function parseDay(value: string) {

@@ -119,13 +119,6 @@ export function buildAllocationGroups(
   ];
 }
 
-export function countOffTarget(groups: AllocationGroup[]) {
-  return groups.reduce(
-    (total, group) => total + group.rows.filter((row) => row.direction === "BUY" || row.direction === "SELL").length,
-    0,
-  );
-}
-
 function buildFlatRows(
   totals: FlatTotal[],
   totalBrl: number,

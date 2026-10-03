@@ -1,9 +1,11 @@
 // Formato do arquivo de backup (spec 042): todos os dados do aplicativo num
 // JSON versionado, que a restauração grava de volta com os mesmos
 // identificadores. Sem dependências de banco, para servir também à interface.
+// Como evoluir o formato: docs/backup-format.md.
 
 export const BACKUP_FORMAT = "meu-portfolio-backup";
-export const BACKUP_VERSION = 1;
+/** Versão 2 (spec 047): sem as tabelas da importação do Excel, com `dataImports`. */
+export const BACKUP_VERSION = 2;
 
 /**
  * Tabelas do backup, na ordem em que a restauração as grava: cada uma depois
@@ -11,9 +13,7 @@ export const BACKUP_VERSION = 1;
  * resumo da restauração; as auxiliares ficam fora do resumo.
  */
 export const BACKUP_TABLES = [
-  { key: "importBatches", label: null },
-  { key: "importSourceRows", label: null },
-  { key: "importIssues", label: null },
+  { key: "dataImports", label: null },
   { key: "institutions", label: "Instituições" },
   { key: "accounts", label: null },
   { key: "assets", label: "Ativos" },
@@ -45,6 +45,8 @@ export type BackupCounts = Record<BackupTableKey, number>;
 
 export type BackupPreview = {
   exportedAt: string;
+  /** Versão do arquivo; as anteriores são convertidas na leitura. */
+  version: number;
   /** Primeira e última competência do arquivo, AAAA-MM. */
   firstMonth: string | null;
   lastMonth: string | null;

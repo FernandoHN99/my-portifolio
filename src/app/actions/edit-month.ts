@@ -5,15 +5,11 @@ import { after } from "next/server";
 import { z } from "zod";
 
 import {
-  updateAssetLiquidity,
-  updateAssetMaturity,
-  updateAssetName,
-} from "@/modules/portfolio/application/asset-attributes";
-import {
-  applyPositionChanges,
+  addPosition,
   cloneLatestMonth,
+  editPosition,
   MonthEditError,
-  replaceAllocations,
+  removePosition,
   setMonthOpen,
   undoChange,
   updateMonthQuotes,
@@ -30,9 +26,27 @@ const value = z.string().trim().min(1).max(40);
 const strategy = z.string().trim().max(60).nullable();
 const monthScope = { monthId: z.string().uuid() };
 const label = (max: number) => z.string().trim().min(1).max(max);
+const day = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/)
+  .refine((entry) => entry >= "2000-01-01" && entry <= "2100-12-31" && !Number.isNaN(Date.parse(`${entry}T00:00:00Z`)));
 
-// Conta e ativo novos da inclusão de posição (spec 026). O servidor ainda
-// confere duplicados, o ticker pelo token da checagem e o vencimento.
+// Rateio completo do formulário da posição (spec 043); o servidor confere a
+// soma, as classes cadastradas e o resgate.
+const allocationsSchema = z
+  .array(
+    z.object({
+      assetClass: z.string().max(80),
+      subclass: z.string().max(80),
+      duration: z.string().max(80),
+      weightPercent: value,
+    }),
+  )
+  .min(1)
+  .max(20);
+
+// Conta e ativo novos da inclusão (spec 026). O servidor ainda confere
+// duplicados, o ticker pelo token da checagem e o vencimento.
 const newAccountSchema = z
   .object({
     institutionId: z.string().uuid().nullable(),
@@ -45,53 +59,41 @@ const newAssetSchema = z.object({
   name: label(80),
   kind: z.enum(ASSET_KINDS),
   ticker: z.string().trim().max(20).nullable(),
-  maturityDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(),
+  maturityDate: day.nullable(),
   liquidity: z.string().trim().max(30).nullable().optional(),
-  allocation: z.object({ assetClass: label(80), subclass: label(80), duration: label(80) }),
   quoteCheckToken: z.string().uuid().nullable(),
   manualPriceBrl: value.nullable(),
 });
 
-const additionSchema = z
-  .object({
-    accountId: z.string().uuid().optional(),
-    newAccount: newAccountSchema.optional(),
-    assetId: z.string().uuid().optional(),
-    newAsset: newAssetSchema.optional(),
+const addSchema = z.object({
+  ...monthScope,
+  addition: z
+    .object({
+      accountId: z.string().uuid().optional(),
+      newAccount: newAccountSchema.optional(),
+      assetId: z.string().uuid().optional(),
+      newAsset: newAssetSchema.optional(),
+      value,
+      strategy,
+      allocations: allocationsSchema,
+    })
+    .refine((addition) => (addition.accountId === undefined) !== (addition.newAccount === undefined))
+    .refine((addition) => (addition.assetId === undefined) !== (addition.newAsset === undefined)),
+});
+
+const editSchema = z.object({
+  ...monthScope,
+  edit: z.object({
+    positionId: z.string().uuid(),
     value,
     strategy,
-  })
-  .refine((addition) => (addition.accountId === undefined) !== (addition.newAccount === undefined))
-  .refine((addition) => (addition.assetId === undefined) !== (addition.newAsset === undefined));
-
-const positionChangesSchema = z
-  .object({
-    ...monthScope,
-    updates: z
-      .array(
-        z
-          .object({ positionId: z.string().uuid(), value: value.optional(), strategy: strategy.optional() })
-          .refine((update) => update.value !== undefined || update.strategy !== undefined),
-      )
-      .max(500),
-    removals: z.array(z.string().uuid()).max(500),
-    additions: z.array(additionSchema).max(100),
-  });
-
-const allocationsSchema = z.object({
-  ...monthScope,
-  positionId: z.string().uuid(),
-  allocations: z
-    .array(
-      z.object({
-        assetClass: z.string().max(80),
-        subclass: z.string().max(80),
-        duration: z.string().max(80),
-        weightPercent: value,
-      }),
-    )
-    .min(1)
-    .max(20),
+    allocations: allocationsSchema,
+    asset: z.object({
+      name: label(120),
+      liquidity: z.string().trim().max(60).nullable(),
+      maturityDate: day.nullable(),
+    }),
+  }),
 });
 
 const quotesSchema = z.object({
@@ -99,36 +101,49 @@ const quotesSchema = z.object({
   quotes: z.array(z.object({ symbol: z.string().trim().min(1).max(20), valueBrl: value })).min(1).max(100),
 });
 
-export async function savePositionChangesAction(input: unknown): Promise<EditActionResult> {
-  const parsed = positionChangesSchema.safeParse(input);
+export async function addPositionAction(input: unknown): Promise<EditActionResult> {
+  const parsed = addSchema.safeParse(input);
 
   if (!parsed.success) {
-    return { ok: false, message: "Revise os valores informados e tente novamente." };
+    return { ok: false, message: "Revise os campos da posição e tente novamente." };
   }
 
   return run(async () => {
-    const result = await applyPositionChanges(parsed.data);
+    const result = await addPosition(parsed.data);
 
     // Ativo novo com ticker: o histórico de fechamento mensal é buscado depois
     // da resposta, sem atrasar o salvamento (spec 029).
-    if (parsed.data.additions.some((addition) => addition.newAsset?.ticker)) {
+    if (parsed.data.addition.newAsset?.ticker) {
       after(() => backfillNewAssetHistories().catch((error) => console.error("Histórico de cotações não buscado.", error)));
     }
 
-    return { ok: true, message: "Alterações salvas.", undoToken: result.undoToken };
+    return { ok: true, message: "Posição incluída.", undoToken: result.undoToken };
   });
 }
 
-export async function saveAllocationsAction(input: unknown): Promise<EditActionResult> {
-  const parsed = allocationsSchema.safeParse(input);
+export async function editPositionAction(input: unknown): Promise<EditActionResult> {
+  const parsed = editSchema.safeParse(input);
 
   if (!parsed.success) {
-    return { ok: false, message: "Revise as classificações informadas." };
+    return { ok: false, message: "Revise os campos da posição e tente novamente." };
   }
 
   return run(async () => {
-    const result = await replaceAllocations(parsed.data);
-    return { ok: true, message: "Rateio salvo.", undoToken: result.undoToken };
+    const result = await editPosition(parsed.data);
+    return { ok: true, message: "Posição salva.", undoToken: result.undoToken };
+  });
+}
+
+export async function removePositionAction(input: unknown): Promise<EditActionResult> {
+  const parsed = z.object({ ...monthScope, positionId: z.string().uuid() }).safeParse(input);
+
+  if (!parsed.success) {
+    return { ok: false, message: "Posição inválida." };
+  }
+
+  return run(async () => {
+    const result = await removePosition(parsed.data);
+    return { ok: true, message: "Posição removida.", undoToken: result.undoToken };
   });
 }
 
@@ -142,56 +157,6 @@ export async function saveQuotesAction(input: unknown): Promise<EditActionResult
   return run(async () => {
     const result = await updateMonthQuotes(parsed.data);
     return { ok: true, message: "Cotações salvas e posições recalculadas.", undoToken: result.undoToken };
-  });
-}
-
-const maturitySchema = z.object({
-  assetId: z.string().uuid(),
-  maturityDate: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/)
-    .refine((day) => day >= "2000-01-01" && day <= "2100-12-31" && !Number.isNaN(Date.parse(`${day}T00:00:00Z`)))
-    .nullable(),
-});
-
-export async function saveAssetMaturityAction(input: unknown): Promise<EditActionResult> {
-  const parsed = maturitySchema.safeParse(input);
-
-  if (!parsed.success) {
-    return { ok: false, message: "Informe uma data de vencimento válida." };
-  }
-
-  return run(async () => {
-    await updateAssetMaturity(parsed.data);
-    return { ok: true, message: parsed.data.maturityDate ? "Vencimento salvo." : "Vencimento removido." };
-  });
-}
-
-export async function saveAssetLiquidityAction(input: unknown): Promise<EditActionResult> {
-  const parsed = z
-    .object({ assetId: z.string().uuid(), liquidity: z.string().trim().max(60).nullable() })
-    .safeParse(input);
-
-  if (!parsed.success) {
-    return { ok: false, message: "Informe uma liquidez válida." };
-  }
-
-  return run(async () => {
-    await updateAssetLiquidity(parsed.data);
-    return { ok: true, message: parsed.data.liquidity ? "Liquidez salva." : "Liquidez removida." };
-  });
-}
-
-export async function saveAssetNameAction(input: unknown): Promise<EditActionResult> {
-  const parsed = z.object({ assetId: z.string().uuid(), name: z.string().trim().min(1).max(120) }).safeParse(input);
-
-  if (!parsed.success) {
-    return { ok: false, message: "Informe o nome do ativo." };
-  }
-
-  return run(async () => {
-    await updateAssetName(parsed.data);
-    return { ok: true, message: "Nome do ativo salvo." };
   });
 }
 

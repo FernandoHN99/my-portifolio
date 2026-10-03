@@ -1,11 +1,12 @@
-import { ChartDonutIcon, CurrencyCircleDollarIcon, GearSixIcon } from "@phosphor-icons/react/dist/ssr";
+import { ChartDonutIcon, GearSixIcon } from "@phosphor-icons/react/dist/ssr";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
-import { MainTabs, type TabKey } from "@/components/product/main-tabs";
+import { MainTabs, type NavContext, type TabKey } from "@/components/product/main-tabs";
 import { MonthTimeline } from "@/components/product/month-timeline";
 import { QuoteRefreshIndicator } from "@/components/product/quote-refresh-indicator";
 import { TabViewport } from "@/components/product/tab-viewport";
+import { cn } from "@/lib/utils";
 import type { PortfolioMonthSummary } from "@/modules/portfolio/application/get-portfolio-months";
 import { toMonthParam } from "@/modules/portfolio/presentation/reference-month";
 import { getRequestQuoteRefreshSummary } from "@/modules/quotes/application/refresh-quotes";
@@ -15,10 +16,12 @@ type AppShellProps = {
   active: TabKey | "none";
   months: PortfolioMonthSummary[];
   selectedMonth: string | null;
+  /** Onde o usuário está dentro da aba, para a ilha do topo (spec 046). */
+  context?: NavContext;
   children: ReactNode;
 };
 
-export async function AppShell({ active, months, selectedMonth, children }: AppShellProps) {
+export async function AppShell({ active, months, selectedMonth, context, children }: AppShellProps) {
   const quoteRefresh = await getRequestQuoteRefreshSummary();
   // A seta de atualizar só aparece no mês corrente (spec 028): as cotações
   // buscadas só reprecificam a competência do mês corrente. Telas sem mês
@@ -30,11 +33,15 @@ export async function AppShell({ active, months, selectedMonth, children }: AppS
       <header className="sticky top-0 z-30 border-b border-border/70 bg-background/88 backdrop-blur-xl">
         {/* Abaixo de 360 px a marca sai para as abas, a hora das cotações e a
             configuração caberem sem cortar "Posições"; a aba Visão Geral
-            leva ao mesmo endereço. */}
+            leva ao mesmo endereço. Com a ilha do topo (spec 046), ela sai já
+            abaixo de 420 px, para a ilha caber ao lado das abas. */}
         <div className="flex h-16 items-center justify-between gap-2 px-4 sm:gap-3 sm:px-6">
           <Link
             href="/"
-            className="inline-flex shrink-0 items-center gap-3 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring/50 max-[359px]:hidden"
+            className={cn(
+              "inline-flex shrink-0 items-center gap-3 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring/50 max-[359px]:hidden",
+              context ? "max-[419px]:hidden" : null,
+            )}
           >
             <span className="brand-mark grid size-9 place-items-center rounded-xl text-primary-foreground">
               <ChartDonutIcon aria-hidden="true" size={18} weight="bold" />
@@ -50,21 +57,12 @@ export async function AppShell({ active, months, selectedMonth, children }: AppS
           </Link>
 
           <div className="min-w-0 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            <MainTabs active={active} />
+            <MainTabs active={active} context={context} />
           </div>
 
           <div className="flex shrink-0 items-center gap-2">
+            {/* As cotações do mês saíram daqui e ficam em Posições (spec 048). */}
             <QuoteRefreshIndicator summary={quoteRefresh} canRefresh={canRefresh} />
-            {/* Cotações do mês ao lado da última atualização (spec 034). No
-                celular não cabe sem cortar as abas e fica em Posições. */}
-            <Link
-              href={selectedMonth ? `/posicoes/cotacoes?mes=${selectedMonth}` : "/posicoes/cotacoes"}
-              aria-label="Cotações do mês"
-              title="Cotações do mês"
-              className="hidden size-9 shrink-0 place-items-center rounded-xl border border-border text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50 sm:grid"
-            >
-              <CurrencyCircleDollarIcon aria-hidden="true" size={17} weight="duotone" />
-            </Link>
             <Link
               href="/configuracao"
               aria-label="Configuração da carteira"

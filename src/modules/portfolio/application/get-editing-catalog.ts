@@ -15,6 +15,11 @@ export type EditingCatalog = {
     baseCurrency: string;
     maturityDate: string | null;
     liquidity: string | null;
+    /**
+     * Rateio da posição mais recente do ativo, em %, para a inclusão de uma
+     * posição dele já vir preenchida (spec 043).
+     */
+    allocations: { assetClass: string; subclass: string; duration: string; weight: number }[];
   }[];
   strategies: string[];
   allocation: { classes: string[]; subclasses: string[] };
@@ -38,7 +43,7 @@ export async function getEditingCatalog(): Promise<EditingCatalog> {
   }
 
   try {
-    const [institutions, accounts, assets, strategies, allocations, targets, latest] = await Promise.all([
+    const [institutions, accounts, assets, strategies, allocations, targets, latest, assetPositions] = await Promise.all([
       prisma.institution.findMany({ select: { id: true, name: true } }),
       prisma.account.findMany({
         select: { id: true, name: true, institutionId: true, institution: { select: { name: true } } },
@@ -73,7 +78,28 @@ export async function getEditingCatalog(): Promise<EditingCatalog> {
         orderBy: { referenceDate: "desc" },
         select: { referenceDate: true },
       }),
+      prisma.position.findMany({
+        where: { allocations: { some: {} } },
+        orderBy: { portfolioMonth: { referenceDate: "desc" } },
+        select: {
+          assetId: true,
+          allocations: {
+            orderBy: { weight: "desc" },
+            select: { assetClass: true, subclass: true, duration: true, weight: true },
+          },
+        },
+      }),
     ]);
+
+    const latestAllocations = new Map<string, EditingCatalog["assets"][number]["allocations"]>();
+    for (const position of assetPositions) {
+      if (!latestAllocations.has(position.assetId)) {
+        latestAllocations.set(
+          position.assetId,
+          position.allocations.map((allocation) => ({ ...allocation, weight: allocation.weight.mul(100).toNumber() })),
+        );
+      }
+    }
 
     const sorted = (values: Iterable<string>) =>
       [...new Set(values)].sort((left, right) => left.localeCompare(right, "pt-BR"));
@@ -94,6 +120,7 @@ export async function getEditingCatalog(): Promise<EditingCatalog> {
       assets: assets.map((asset) => ({
         ...asset,
         maturityDate: asset.maturityDate ? toDateKey(asset.maturityDate) : null,
+        allocations: latestAllocations.get(asset.id) ?? [],
       })),
       strategies: sorted([
         ...strategies.flatMap((entry) => (entry.strategy ? [entry.strategy] : [])),

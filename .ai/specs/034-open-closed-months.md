@@ -1,6 +1,8 @@
 # 034 — Mês aberto ou fechado na linha do tempo
 
-Estado: concluída em 2026-10-02.
+Estado: concluída em 2026-10-02. Em 2026-10-03, o ícone de cotações do topo
+foi para o cabeçalho de Posições na
+[spec 048](048-default-targets-and-quotes-button.md).
 Definida em: 2026-10-02
 
 ## Problema

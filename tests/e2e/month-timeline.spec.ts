@@ -1,6 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
 
-import { enterEditMode } from "./support/edit-mode";
 import { stubQuoteChecks } from "./support/quote-checks";
 
 // A checagem de abertura grava no banco e pode criar competências; os
@@ -83,18 +82,17 @@ test("consultar outro ano não o reabre quando a competência volta", async ({ p
 });
 
 test("o cadeado mostra se o mês está aberto ou fechado", async ({ page }) => {
-  // Setembro de 2026 veio da planilha e está fechado: abrir pede confirmação.
-  await openTimeline(page, "/posicoes?mes=2026-09");
+  // Agosto de 2026 veio da planilha e está fechado: abrir pede confirmação.
+  await openTimeline(page, "/posicoes?mes=2026-08");
   const lock = page.getByTestId("month-lock");
   await expect(lock).toHaveAttribute("data-state", "closed");
   await expect(lock).toContainText("Fechado");
-  await expect(page.getByRole("button", { name: "Editar posições" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Adicionar posição" })).toHaveCount(0);
-  await expect(page.getByTestId("month-locked")).toContainText("Set/26 está fechado");
+  await expect(page.getByTestId("month-locked")).toContainText("Ago/26 está fechado");
 
   await lock.click();
   const dialog = page.getByRole("dialog");
-  await expect(dialog).toContainText("Abrir Set/26?");
+  await expect(dialog).toContainText("Abrir Ago/26?");
   await dialog.getByRole("button", { name: "Cancelar" }).click();
   await expect(lock).toHaveAttribute("data-state", "closed");
 
@@ -103,7 +101,7 @@ test("o cadeado mostra se o mês está aberto ou fechado", async ({ page }) => {
   const latest = page.getByTestId("month-lock");
   test.skip((await latest.getAttribute("data-state")) !== "open", "O mês mais recente está fechado nos dados reais.");
   await expect(latest.getByRole("button", { name: /^Fechar / })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Editar posições" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Adicionar posição" })).toBeVisible();
 });
 
 test("o foco segue para o ano que abre mesmo com toques seguidos", async ({ page }) => {
@@ -158,31 +156,27 @@ test("alterações pendentes seguram a troca de mês, mas não a de ano", async 
     void dialog.dismiss();
   });
 
-  await openTimeline(page, "/posicoes");
-  await enterEditMode(page);
-  await page
-    .getByRole("textbox", { name: /^(Quantidade|Saldo) de / })
-    .first()
-    .fill("1");
-  await expect(page.getByText("1 alteração pendente")).toBeVisible();
+  // As posições salvam pelo formulário, na hora (spec 043); a configuração das
+  // metas continua com alterações pendentes até salvar.
+  await openTimeline(page, "/configuracao?mes=2026-09");
+  await page.getByRole("textbox", { name: "Tolerância em pontos percentuais" }).fill("3");
+  await expect(page.getByText("1 alteração", { exact: true })).toBeVisible();
 
   const active = timeline(page).locator("[aria-current='date']");
   const activeLabel = await active.getAttribute("aria-label");
 
-  // Outro mês do ano aberto; com o foco no campo, as setas movem o cursor.
   await timeline(page).locator("[data-expanded] [role='group'] button:not([aria-current])").first().click();
   await expect.poll(() => dialogs.length).toBe(1);
   expect(dialogs[0]).toContain("alteração não salva");
-  await expect(page).not.toHaveURL(/mes=/);
+  await expect(page).toHaveURL(/mes=2026-09/);
   await expect(active).toHaveAttribute("aria-label", activeLabel!);
 
   await year(page, 2024).click();
   await expect(year(page, 2024)).toHaveAttribute("aria-expanded", "true");
   expect(dialogs).toHaveLength(1);
-  await expect(page.getByText("1 alteração pendente")).toBeVisible();
 
   await page.getByRole("button", { name: "Descartar" }).click();
-  await expect(page.getByText(/alteraç(ão|ões) pendente/)).toHaveCount(0);
+  await expect(page.getByText("1 alteração", { exact: true })).toHaveCount(0);
 });
 
 test.describe("com movimento reduzido", () => {

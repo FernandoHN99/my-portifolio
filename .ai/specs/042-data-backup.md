@@ -1,6 +1,9 @@
 # 042 — Backup dos dados: exportar e restaurar
 
-Estado: concluída em 2026-10-03.
+Estado: concluída em 2026-10-03. Na [spec 047](047-json-only-data.md) o
+formato passou à versão 2, sem as tabelas da importação do Excel e com o
+registro das importações; o formato é mantido em
+[docs/backup-format.md](../../docs/backup-format.md).
 Definida em: 2026-10-03
 
 ## Problema
@@ -70,7 +73,8 @@ volta pela lista `bigints` de cada tabela.
   migrações, mostra a URL dele ou o apaga, sem nunca aceitar `public`;
 - `E2E_BASE_URL` aponta o Playwright para um servidor já rodando, sem subir o
   dev; a configuração `teste-schema` do `.claude/launch.json` sobe o build na
-  porta 3100 ligado ao schema `teste_backup`.
+  porta 3100 ligado ao schema `teste_backup` (desde a
+  [spec 047](047-json-only-data.md), ao schema `teste`).
 
 ## Verificação
 

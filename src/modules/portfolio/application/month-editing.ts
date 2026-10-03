@@ -3,6 +3,13 @@ import { createHash, randomUUID } from "node:crypto";
 import { PortfolioMonthStatus, Prisma, QuoteUpdateStatus } from "@/generated/prisma/client";
 import { getPrismaClient } from "@/lib/prisma";
 import {
+  applyAssetAttributes,
+  AssetAttributeError,
+  restoreAssetState,
+  type AssetAttributes,
+  type AssetState,
+} from "@/modules/portfolio/application/asset-attributes";
+import {
   ASSET_KIND_DEFINITIONS,
   baseCurrencyOf,
   buildAssetKey,
@@ -29,14 +36,13 @@ export class MonthEditError extends Error {
   }
 }
 
-export type PositionUpdate = { positionId: string; value?: string; strategy?: string | null };
 /** Conta nova, numa instituição existente ou também nova (spec 026). */
 export type NewAccountInput = {
   institutionId: string | null;
   institutionName: string | null;
   name: string;
 };
-/** Ativo novo com o rateio inicial e a conferência do ticker (spec 026). */
+/** Ativo novo com a conferência do ticker (spec 026). */
 export type NewAssetInput = {
   name: string;
   kind: AssetKind;
@@ -44,10 +50,10 @@ export type NewAssetInput = {
   maturityDate: string | null;
   /** Prazo de liquidez, opcional (spec 039). */
   liquidity?: string | null;
-  allocation: { assetClass: string; subclass: string; duration: string };
   quoteCheckToken: string | null;
   manualPriceBrl: string | null;
 };
+/** Inclusão pelo formulário da posição (spec 043), já com o rateio completo. */
 export type PositionAddition = {
   accountId?: string;
   newAccount?: NewAccountInput;
@@ -55,6 +61,15 @@ export type PositionAddition = {
   newAsset?: NewAssetInput;
   value: string;
   strategy: string | null;
+  allocations: AllocationInput[];
+};
+/** Edição pelo formulário da posição (spec 043): a posição, o rateio e o ativo. */
+export type PositionEdit = {
+  positionId: string;
+  value: string;
+  strategy: string | null;
+  allocations: AllocationInput[];
+  asset: AssetAttributes;
 };
 export type AllocationInput = {
   assetClass: string;
@@ -68,7 +83,6 @@ type SnapshotPosition = {
   id: string;
   accountId: string;
   assetId: string;
-  sourceRowId: bigint | null;
   quantity: Prisma.Decimal;
   unitPriceBrl: Prisma.Decimal | null;
   exchangeRateBrl: Prisma.Decimal | null;
@@ -76,7 +90,6 @@ type SnapshotPosition = {
   strategy: string | null;
   allocations: {
     id: string;
-    sourceRowId: bigint | null;
     assetClass: string;
     subclass: string;
     duration: string;
@@ -86,7 +99,6 @@ type SnapshotPosition = {
 
 type SnapshotQuote = {
   id: string;
-  sourceRowId: bigint | null;
   symbol: string;
   instrumentType: string;
   baseCurrency: string;
@@ -117,6 +129,8 @@ type UndoEntry =
       fingerprint: string;
       expiresAt: number;
       created?: CreatedEntities;
+      /** Ativos editados junto, no estado anterior. */
+      assets?: AssetState[];
     }
   | { kind: "delete-month"; monthId: string; fingerprint: string; expiresAt: number };
 
@@ -129,85 +143,23 @@ const MAX_ASSET_NAME_LENGTH = 80;
 const globalForUndo = globalThis as unknown as { monthUndoStore?: Map<string, UndoEntry> };
 const undoStore = (globalForUndo.monthUndoStore ??= new Map<string, UndoEntry>());
 
-export async function applyPositionChanges(input: {
-  monthId: string;
-  updates: PositionUpdate[];
-  removals: string[];
-  additions: PositionAddition[];
-}) {
-  if (input.updates.length + input.removals.length + input.additions.length === 0) {
-    throw new MonthEditError("Não há alterações para salvar.");
-  }
+/**
+ * Inclui uma posição pelo formulário (spec 043): conta e ativo existentes ou
+ * novos, com o rateio informado. Um ativo que já existe é reaproveitado.
+ */
+export async function addPosition(input: { monthId: string; addition: PositionAddition }) {
+  const allocations = parseAllocations(input.addition.allocations);
 
   return withUndo(input.monthId, async (transaction, month) => {
     const positions = await transaction.position.findMany({
       where: { portfolioMonthId: month.id },
-      select: {
-        id: true,
-        accountId: true,
-        assetId: true,
-        unitPriceBrl: true,
-        asset: { select: { quoteSymbol: true } },
-      },
+      select: { accountId: true, assetId: true },
     });
-    const byId = new Map(positions.map((position) => [position.id, position]));
-    const removals = new Set(input.removals);
-    const touched = new Set<string>();
-
-    for (const positionId of removals) {
-      if (!byId.has(positionId)) {
-        throw new MonthEditError("Uma das posições removidas não pertence a esta competência.");
-      }
-    }
-
-    for (const update of input.updates) {
-      const position = byId.get(update.positionId);
-
-      if (!position || removals.has(update.positionId) || touched.has(update.positionId)) {
-        throw new MonthEditError("Uma das posições alteradas é inválida ou está repetida.");
-      }
-      touched.add(update.positionId);
-
-      const data: Prisma.PositionUpdateInput = {};
-
-      if (update.value !== undefined) {
-        const value = parseNonNegative(update.value);
-
-        if (position.asset.quoteSymbol) {
-          if (!position.unitPriceBrl) {
-            throw new MonthEditError("Uma posição cotada está sem preço e não pode ser recalculada.");
-          }
-          data.quantity = value;
-          data.totalBrl = value.mul(position.unitPriceBrl).toDecimalPlaces(2);
-        } else {
-          const balance = value.toDecimalPlaces(2);
-          data.quantity = balance;
-          data.totalBrl = balance;
-        }
-      }
-
-      if (update.strategy !== undefined) {
-        data.strategy = normalizeStrategy(update.strategy);
-      }
-
-      await transaction.position.update({ where: { id: update.positionId }, data });
-    }
-
-    if (removals.size > 0) {
-      await transaction.position.deleteMany({ where: { id: { in: [...removals] } } });
-    }
-
-    const occupied = new Set(
-      positions
-        .filter((position) => !removals.has(position.id))
-        .map((position) => `${position.accountId}:${position.assetId}`),
-    );
     const quotes = await transaction.marketQuote.findMany({
       where: { referenceDate: month.referenceDate },
       select: { symbol: true, valueBrl: true },
     });
     const quoteBySymbol = new Map(quotes.map((quote) => [quote.symbol, quote.valueBrl]));
-    const usdRate = quoteBySymbol.get(USD_SYMBOL) ?? null;
     const batch: AdditionBatch = {
       month,
       isCurrentMonth: month.referenceDate.getTime() === currentReferenceMonth().getTime(),
@@ -217,72 +169,131 @@ export async function applyPositionChanges(input: {
       assets: new Map(),
       created: { institutionIds: [], accountIds: [], assetIds: [], dailyQuoteIds: [] },
     };
+    const addition = input.addition;
+    const account = await resolveAdditionAccount(transaction, addition, batch);
+    const asset = await resolveAdditionAsset(transaction, addition, account, batch);
 
-    for (const addition of input.additions) {
-      const account = await resolveAdditionAccount(transaction, addition, batch);
-      const asset = await resolveAdditionAsset(transaction, addition, account, batch);
-      const identity = `${account.id}:${asset.id}`;
-
-      if (occupied.has(identity)) {
-        throw new MonthEditError("Este ativo já possui posição nesta conta e competência.");
-      }
-      occupied.add(identity);
-
-      const value = parseNonNegative(addition.value);
-      let unitPriceBrl: Prisma.Decimal | null = null;
-      let quantity = value.toDecimalPlaces(2);
-      let totalBrl = quantity;
-
-      if (asset.quoteSymbol) {
-        const price = quoteBySymbol.get(asset.quoteSymbol);
-
-        if (!price) {
-          throw new MonthEditError(
-            `Não há cotação de ${asset.quoteSymbol} nesta competência. Informe-a na página de cotações.`,
-          );
-        }
-        unitPriceBrl = price;
-        quantity = value;
-        totalBrl = value.mul(price).toDecimalPlaces(2);
-      }
-
-      const created = await transaction.position.create({
-        data: {
-          portfolioMonthId: month.id,
-          accountId: account.id,
-          assetId: asset.id,
-          quantity,
-          unitPriceBrl,
-          exchangeRateBrl: asset.quoteSymbol ? usdRate : null,
-          totalBrl,
-          strategy: normalizeStrategy(addition.strategy),
-        },
-        select: { id: true },
-      });
-
-      // Um ativo novo recebe o rateio escolhido no diálogo; um existente herda o
-      // da posição mais recente do mesmo ativo, como antes.
-      if (asset.allocation) {
-        await transaction.positionAllocation.create({
-          data: { ...asset.allocation, weight: new Prisma.Decimal(1), positionId: created.id },
-        });
-        continue;
-      }
-
-      const template = await transaction.position.findFirst({
-        where: { assetId: asset.id, id: { not: created.id }, allocations: { some: {} } },
-        orderBy: { portfolioMonth: { referenceDate: "desc" } },
-        select: { allocations: { select: { assetClass: true, subclass: true, duration: true, weight: true } } },
-      });
-
-      if (template) {
-        await transaction.positionAllocation.createMany({
-          data: template.allocations.map((allocation) => ({ ...allocation, positionId: created.id })),
-        });
-      }
+    if (positions.some((position) => position.accountId === account.id && position.assetId === asset.id)) {
+      throw new MonthEditError("Este ativo já possui posição nesta instituição e competência.");
     }
 
+    const value = parseNonNegative(addition.value);
+    let unitPriceBrl: Prisma.Decimal | null = null;
+    let quantity = value.toDecimalPlaces(2);
+    let totalBrl = quantity;
+
+    if (asset.quoteSymbol) {
+      const price = quoteBySymbol.get(asset.quoteSymbol);
+
+      if (!price) {
+        throw new MonthEditError(
+          `Não há cotação de ${asset.quoteSymbol} nesta competência. Informe-a na página de cotações.`,
+        );
+      }
+      unitPriceBrl = price;
+      quantity = value;
+      totalBrl = value.mul(price).toDecimalPlaces(2);
+    }
+
+    await assertAllocationRules(transaction, allocations);
+    const created = await transaction.position.create({
+      data: {
+        portfolioMonthId: month.id,
+        accountId: account.id,
+        assetId: asset.id,
+        quantity,
+        unitPriceBrl,
+        exchangeRateBrl: asset.quoteSymbol ? (quoteBySymbol.get(USD_SYMBOL) ?? null) : null,
+        totalBrl,
+        strategy: normalizeStrategy(addition.strategy),
+      },
+      select: { id: true },
+    });
+    await transaction.positionAllocation.createMany({
+      data: allocations.map((allocation) => ({ ...allocation, positionId: created.id })),
+    });
+
     return hasCreated(batch.created) ? { created: batch.created } : undefined;
+  });
+}
+
+/**
+ * Edita uma posição pelo formulário (spec 043): quantidade ou saldo,
+ * estratégia, rateio e os atributos do ativo, que valem para todos os meses.
+ * Tudo numa transação, com desfazer que também volta o ativo.
+ */
+export async function editPosition(input: { monthId: string; edit: PositionEdit }) {
+  const allocations = parseAllocations(input.edit.allocations);
+
+  return withUndo(input.monthId, async (transaction, month) => {
+    const position = await transaction.position.findFirst({
+      where: { id: input.edit.positionId, portfolioMonthId: month.id },
+      select: {
+        id: true,
+        assetId: true,
+        unitPriceBrl: true,
+        asset: { select: { quoteSymbol: true } },
+        allocations: { select: { duration: true } },
+      },
+    });
+
+    if (!position) {
+      throw new MonthEditError("A posição não pertence a esta competência.");
+    }
+
+    const value = parseNonNegative(input.edit.value);
+    const data: Prisma.PositionUpdateInput = { strategy: normalizeStrategy(input.edit.strategy) };
+
+    if (position.asset.quoteSymbol) {
+      if (!position.unitPriceBrl) {
+        throw new MonthEditError("Uma posição cotada está sem preço e não pode ser recalculada.");
+      }
+      data.quantity = value;
+      data.totalBrl = value.mul(position.unitPriceBrl).toDecimalPlaces(2);
+    } else {
+      const balance = value.toDecimalPlaces(2);
+      data.quantity = balance;
+      data.totalBrl = balance;
+    }
+
+    await transaction.position.update({ where: { id: position.id }, data });
+
+    // Um prazo antigo, como D+0, só continua se a posição já o tinha.
+    await assertAllocationRules(
+      transaction,
+      allocations,
+      new Set(position.allocations.map((allocation) => allocation.duration)),
+    );
+    await transaction.positionAllocation.deleteMany({ where: { positionId: position.id } });
+    await transaction.positionAllocation.createMany({
+      data: allocations.map((allocation) => ({ ...allocation, positionId: position.id })),
+    });
+
+    let previous: AssetState | null;
+
+    try {
+      previous = await applyAssetAttributes(transaction, position.assetId, input.edit.asset);
+    } catch (error) {
+      if (error instanceof AssetAttributeError) {
+        throw new MonthEditError(error.message);
+      }
+      throw error;
+    }
+
+    return previous ? { assets: [previous] } : undefined;
+  });
+}
+
+/** Remove uma posição da competência (spec 043), com desfazer. */
+export async function removePosition(input: { monthId: string; positionId: string }) {
+  return withUndo(input.monthId, async (transaction, month) => {
+    const removed = await transaction.position.deleteMany({
+      where: { id: input.positionId, portfolioMonthId: month.id },
+    });
+
+    if (removed.count === 0) {
+      throw new MonthEditError("A posição não pertence a esta competência.");
+    }
   });
 }
 
@@ -294,11 +305,9 @@ type AdditionBatch = {
   // novas na mesma instituição nova criam a instituição uma vez só.
   institutions: Map<string, { id: string; name: string }>;
   accounts: Map<string, string>;
-  assets: Map<string, { id: string; signature: string; quoteSymbol: string | null; allocation: AllocationSeed }>;
+  assets: Map<string, { id: string; signature: string; quoteSymbol: string | null }>;
   created: CreatedEntities;
 };
-
-type AllocationSeed = { assetClass: string; subclass: string; duration: string };
 
 async function resolveAdditionAccount(
   transaction: Transaction,
@@ -399,7 +408,7 @@ async function resolveAdditionAsset(
   addition: PositionAddition,
   account: { institutionName: string },
   batch: AdditionBatch,
-): Promise<{ id: string; quoteSymbol: string | null; allocation: AllocationSeed | null }> {
+): Promise<{ id: string; quoteSymbol: string | null }> {
   if (addition.assetId) {
     const asset = await transaction.asset.findUnique({
       where: { id: addition.assetId },
@@ -410,7 +419,7 @@ async function resolveAdditionAsset(
       throw new MonthEditError("O ativo escolhido não existe.");
     }
 
-    return { ...asset, allocation: null };
+    return asset;
   }
 
   const input = addition.newAsset;
@@ -433,12 +442,6 @@ async function resolveAdditionAsset(
     throw new MonthEditError("Só ativos sem ticker de mercado têm vencimento.");
   }
 
-  const allocation: AllocationSeed = {
-    assetClass: normalizeLabel(input.allocation.assetClass, "classe"),
-    subclass: normalizeLabel(input.allocation.subclass, "subclasse"),
-    duration: normalizeLabel(input.allocation.duration, "resgate"),
-  };
-  await assertAllocationRules(transaction, [allocation]);
   const maturityKey = maturityDate ? maturityDate.toISOString().slice(0, 10) : null;
   const normalizedKey = buildAssetKey({
     name,
@@ -446,7 +449,7 @@ async function resolveAdditionAsset(
     institutionName: account.institutionName,
     maturityDate: maturityKey,
   });
-  const signature = JSON.stringify([input.kind, symbol, maturityKey, allocation]);
+  const signature = JSON.stringify([input.kind, symbol, maturityKey]);
   const reused = batch.assets.get(normalizedKey);
 
   if (reused) {
@@ -454,7 +457,7 @@ async function resolveAdditionAsset(
       throw new MonthEditError(`Duas posições novas criam o ativo ${name} com dados diferentes.`);
     }
 
-    return { id: reused.id, quoteSymbol: reused.quoteSymbol, allocation: reused.allocation };
+    return { id: reused.id, quoteSymbol: reused.quoteSymbol };
   }
 
   const existing = await transaction.asset.findUnique({ where: { normalizedKey }, select: { name: true } });
@@ -493,10 +496,10 @@ async function resolveAdditionAsset(
     },
     select: { id: true },
   });
-  batch.assets.set(normalizedKey, { id: asset.id, signature, quoteSymbol: symbol, allocation });
+  batch.assets.set(normalizedKey, { id: asset.id, signature, quoteSymbol: symbol });
   batch.created.assetIds.push(asset.id);
 
-  return { id: asset.id, quoteSymbol: symbol, allocation };
+  return { id: asset.id, quoteSymbol: symbol };
 }
 
 /**
@@ -650,12 +653,12 @@ async function removeUnusedCreated(transaction: Transaction, created: CreatedEnt
   }
 }
 
-export async function replaceAllocations(input: {
-  monthId: string;
-  positionId: string;
-  allocations: AllocationInput[];
-}) {
-  const parsed = input.allocations.map((allocation) => ({
+/**
+ * Rateio do formulário: classe, subclasse e resgate preenchidos, sem
+ * repetições, com pesos positivos que somam 100%. Devolve os pesos em fração.
+ */
+function parseAllocations(inputs: AllocationInput[]) {
+  const parsed = inputs.map((allocation) => ({
     assetClass: normalizeLabel(allocation.assetClass, "classe"),
     subclass: normalizeLabel(allocation.subclass, "subclasse"),
     duration: normalizeLabel(allocation.duration, "resgate"),
@@ -680,28 +683,7 @@ export async function replaceAllocations(input: {
     throw new MonthEditError("Nenhum peso pode ultrapassar 100%.");
   }
 
-  return withUndo(input.monthId, async (transaction, month) => {
-    const position = await transaction.position.findFirst({
-      where: { id: input.positionId, portfolioMonthId: month.id },
-      select: { id: true },
-    });
-
-    if (!position) {
-      throw new MonthEditError("A posição não pertence a esta competência.");
-    }
-
-    // Um prazo antigo, como D+0, só continua se a posição já o tinha.
-    const current = await transaction.positionAllocation.findMany({
-      where: { positionId: position.id },
-      select: { duration: true },
-    });
-    await assertAllocationRules(transaction, parsed, new Set(current.map((entry) => entry.duration)));
-
-    await transaction.positionAllocation.deleteMany({ where: { positionId: position.id } });
-    await transaction.positionAllocation.createMany({
-      data: parsed.map((entry) => ({ ...entry, positionId: position.id })),
-    });
-  });
+  return parsed;
 }
 
 export async function updateMonthQuotes(input: {
@@ -923,6 +905,17 @@ export async function undoChange(token: string) {
 
       await restoreSnapshot(transaction, month, entry.snapshot);
 
+      for (const asset of entry.assets ?? []) {
+        try {
+          await restoreAssetState(transaction, asset);
+        } catch (error) {
+          if (error instanceof AssetAttributeError) {
+            throw new MonthEditError(error.message);
+          }
+          throw error;
+        }
+      }
+
       if (entry.created) {
         await removeUnusedCreated(transaction, entry.created);
       }
@@ -1037,7 +1030,7 @@ async function withUndo(
   mutate: (
     transaction: Transaction,
     month: { id: string; referenceDate: Date },
-  ) => Promise<{ created?: CreatedEntities } | void>,
+  ) => Promise<{ created?: CreatedEntities; assets?: AssetState[] } | void>,
 ) {
   const prisma = requirePrisma();
 
@@ -1055,6 +1048,7 @@ async function withUndo(
           fingerprint: fingerprint(after),
           expiresAt: Date.now() + UNDO_TTL_MS,
           created: extras?.created,
+          assets: extras?.assets,
         });
 
         return { referenceDate: month.referenceDate, undoToken };
@@ -1101,7 +1095,6 @@ async function readSnapshot(
         id: true,
         accountId: true,
         assetId: true,
-        sourceRowId: true,
         quantity: true,
         unitPriceBrl: true,
         exchangeRateBrl: true,
@@ -1111,7 +1104,6 @@ async function readSnapshot(
           orderBy: { id: "asc" },
           select: {
             id: true,
-            sourceRowId: true,
             assetClass: true,
             subclass: true,
             duration: true,
@@ -1125,7 +1117,6 @@ async function readSnapshot(
       orderBy: { symbol: "asc" },
       select: {
         id: true,
-        sourceRowId: true,
         symbol: true,
         instrumentType: true,
         baseCurrency: true,
@@ -1187,9 +1178,7 @@ async function restoreSnapshot(
 function fingerprint(snapshot: MonthSnapshot) {
   return createHash("sha256")
     .update(
-      JSON.stringify(snapshot, (_key, value: unknown) =>
-        typeof value === "bigint" ? value.toString() : value instanceof Prisma.Decimal ? value.toString() : value,
-      ),
+      JSON.stringify(snapshot, (_key, value: unknown) => (value instanceof Prisma.Decimal ? value.toString() : value)),
     )
     .digest("hex");
 }

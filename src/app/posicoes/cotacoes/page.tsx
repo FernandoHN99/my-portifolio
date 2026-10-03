@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import { AppShell } from "@/components/product/app-shell";
 import { getMonthContext } from "@/modules/portfolio/application/get-month-context";
+import { formatMonthCompact } from "@/modules/portfolio/presentation/portfolio-format";
 import { getMonthQuotes } from "@/modules/quotes/application/get-month-quotes";
 import { getRunHistory } from "@/modules/quotes/application/get-run-history";
 import { getRequestQuoteRefreshSummary } from "@/modules/quotes/application/refresh-quotes";
@@ -23,11 +24,16 @@ export default async function QuotesPage({
   const [month, summary, history] = await Promise.all([
     getMonthQuotes(selected?.referenceDate),
     getRequestQuoteRefreshSummary(),
-    getRunHistory(),
+    selected ? getRunHistory(selected.referenceDate) : Promise.resolve(null),
   ]);
 
   return (
-    <AppShell active="positions" months={months} selectedMonth={selected?.month ?? null}>
+    <AppShell
+      active="positions"
+      months={months}
+      selectedMonth={selected?.month ?? null}
+      context={{ kind: "quotes", label: selected ? `Cotações · ${formatMonthCompact(selected.referenceDate)}` : "Cotações" }}
+    >
       <QuotesWorkspace month={month} summary={summary} history={history} />
     </AppShell>
   );

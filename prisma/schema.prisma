@@ -1,5 +1,5 @@
-// Os primeiros modelos preservam a origem da importação. Entidades
-// financeiras normalizadas serão adicionadas somente depois da revisão.
+// Os dados entram e saem do aplicativo pelo backup em JSON (spec 042); o
+// formato acompanha este schema e é mantido conforme docs/backup-format.md.
 
 generator client {
   provider = "prisma-client"
@@ -10,70 +10,17 @@ datasource db {
   provider = "postgresql"
 }
 
-enum ImportStatus {
-  PENDING
-  RUNNING
-  COMPLETED
-  COMPLETED_WITH_ISSUES
-  FAILED
-}
+/// Importação de um backup (spec 047): a configuração mostra cada uma ao lado
+/// das versões das metas.
+model DataImport {
+  id            String   @id @default(uuid()) @db.Uuid
+  importedAt    DateTime @default(now()) @map("imported_at") @db.Timestamptz(3)
+  /// Quando o arquivo importado foi exportado.
+  exportedAt    DateTime @map("exported_at") @db.Timestamptz(3)
+  formatVersion Int      @map("format_version")
 
-enum ImportIssueSeverity {
-  INFO
-  WARNING
-  ERROR
-}
-
-model ImportBatch {
-  id          String            @id @default(uuid()) @db.Uuid
-  sourcePath  String            @map("source_path")
-  sourceHash  String            @map("source_hash")
-  status      ImportStatus      @default(PENDING)
-  rowsRead    Int               @default(0) @map("rows_read")
-  startedAt   DateTime          @default(now()) @map("started_at") @db.Timestamptz(3)
-  completedAt DateTime?         @map("completed_at") @db.Timestamptz(3)
-  sourceRows  ImportSourceRow[]
-  issues      ImportIssue[]
-  months      PortfolioMonth[]
-  targetPlans TargetPlan[]
-
-  @@unique([sourceHash])
-  @@map("import_batches")
-}
-
-model ImportSourceRow {
-  id                 BigInt              @id @default(autoincrement())
-  batchId            String              @map("batch_id") @db.Uuid
-  sourceSheet        String              @map("source_sheet")
-  sourceTable        String              @map("source_table")
-  sourceRow          Int                 @map("source_row")
-  content            Json
-  batch              ImportBatch         @relation(fields: [batchId], references: [id], onDelete: Cascade)
-  position           Position?
-  marketQuote        MarketQuote?
-  positionAllocation PositionAllocation?
-
-  @@unique([batchId, sourceTable, sourceRow])
-  @@index([sourceSheet, sourceTable])
-  @@map("import_source_rows")
-}
-
-model ImportIssue {
-  id          BigInt              @id @default(autoincrement())
-  batchId     String              @map("batch_id") @db.Uuid
-  severity    ImportIssueSeverity
-  code        String
-  message     String
-  sourceSheet String?             @map("source_sheet")
-  sourceTable String?             @map("source_table")
-  sourceRow   Int?                @map("source_row")
-  sourceField String?             @map("source_field")
-  rawValue    Json?               @map("raw_value")
-  createdAt   DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
-  batch       ImportBatch         @relation(fields: [batchId], references: [id], onDelete: Cascade)
-
-  @@index([batchId, severity])
-  @@map("import_issues")
+  @@index([importedAt])
+  @@map("data_imports")
 }
 
 enum PortfolioMonthStatus {
@@ -132,11 +79,9 @@ model Asset {
 
 model PortfolioMonth {
   id             String               @id @default(uuid()) @db.Uuid
-  sourceBatchId  String?              @map("source_batch_id") @db.Uuid
   referenceDate  DateTime             @unique @map("reference_date") @db.Date
   status         PortfolioMonthStatus @default(IMPORTED)
   createdAt      DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
-  sourceBatch    ImportBatch?         @relation(fields: [sourceBatchId], references: [id], onDelete: SetNull)
   positions      Position[]
   sourceUpdates  MonthlyUpdateRun[]   @relation("MonthlyUpdateSource")
   targetUpdate   MonthlyUpdateRun?    @relation("MonthlyUpdateTarget")
@@ -150,7 +95,6 @@ model Position {
   portfolioMonthId String               @map("portfolio_month_id") @db.Uuid
   accountId        String               @map("account_id") @db.Uuid
   assetId          String               @map("asset_id") @db.Uuid
-  sourceRowId      BigInt?              @unique @map("source_row_id")
   quantity         Decimal              @db.Decimal(30, 12)
   unitPriceBrl     Decimal?             @map("unit_price_brl") @db.Decimal(24, 8)
   exchangeRateBrl  Decimal?             @map("exchange_rate_brl") @db.Decimal(20, 8)
@@ -161,7 +105,6 @@ model Position {
   portfolioMonth   PortfolioMonth       @relation(fields: [portfolioMonthId], references: [id], onDelete: Cascade)
   account          Account              @relation(fields: [accountId], references: [id], onDelete: Restrict)
   asset            Asset                @relation(fields: [assetId], references: [id], onDelete: Restrict)
-  sourceRow        ImportSourceRow?     @relation(fields: [sourceRowId], references: [id], onDelete: SetNull)
   allocations      PositionAllocation[]
 
   @@unique([portfolioMonthId, accountId, assetId])
@@ -172,22 +115,20 @@ model Position {
 }
 
 model MarketQuote {
-  id             String           @id @default(uuid()) @db.Uuid
-  sourceRowId    BigInt?          @unique @map("source_row_id")
-  referenceDate  DateTime         @map("reference_date") @db.Date
+  id             String    @id @default(uuid()) @db.Uuid
+  referenceDate  DateTime  @map("reference_date") @db.Date
   symbol         String
-  instrumentType String           @map("instrument_type")
-  baseCurrency   String           @map("base_currency")
-  valueBrl       Decimal          @map("value_brl") @db.Decimal(24, 8)
+  instrumentType String    @map("instrument_type")
+  baseCurrency   String    @map("base_currency")
+  valueBrl       Decimal   @map("value_brl") @db.Decimal(24, 8)
   // Dia do preço que a cotação do mês carrega, quando conhecido. Nulo nas
   // cotações importadas do Excel e nas editadas à mão, que são fatos mensais.
-  quoteDate      DateTime?        @map("quote_date") @db.Date
+  quoteDate      DateTime? @map("quote_date") @db.Date
   // Competência cuja cotação foi repetida, quando o mês não tem valor próprio:
   // virada de mês sem histórico diário no mês ou clone do mês anterior. Nulo
   // quando o valor é do próprio mês: importado, atualizado ou editado à mão.
-  carriedFrom    DateTime?        @map("carried_from") @db.Date
-  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
-  sourceRow      ImportSourceRow? @relation(fields: [sourceRowId], references: [id], onDelete: SetNull)
+  carriedFrom    DateTime? @map("carried_from") @db.Date
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
 
   @@unique([referenceDate, symbol])
   @@index([symbol])
@@ -308,17 +249,15 @@ model QuoteUpdateResult {
 }
 
 model PositionAllocation {
-  id          String           @id @default(uuid()) @db.Uuid
-  positionId  String           @map("position_id") @db.Uuid
-  sourceRowId BigInt?          @unique @map("source_row_id")
-  assetClass  String           @map("asset_class")
-  subclass    String
-  duration    String
-  weight      Decimal          @db.Decimal(12, 10)
-  createdAt   DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt   DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
-  position    Position         @relation(fields: [positionId], references: [id], onDelete: Cascade)
-  sourceRow   ImportSourceRow? @relation(fields: [sourceRowId], references: [id], onDelete: SetNull)
+  id         String   @id @default(uuid()) @db.Uuid
+  positionId String   @map("position_id") @db.Uuid
+  assetClass String   @map("asset_class")
+  subclass   String
+  duration   String
+  weight     Decimal  @db.Decimal(12, 10)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  position   Position @relation(fields: [positionId], references: [id], onDelete: Cascade)
 
   @@unique([positionId, assetClass, subclass, duration])
   @@index([positionId])
@@ -336,13 +275,11 @@ enum AllocationTargetScope {
 
 model TargetPlan {
   id               String             @id @default(uuid()) @db.Uuid
-  sourceBatchId    String?            @unique @map("source_batch_id") @db.Uuid
   name             String
   isActive         Boolean            @default(true) @map("is_active")
   tolerancePercent Decimal            @default(2) @map("tolerance_percent") @db.Decimal(5, 2)
   createdAt        DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt        DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
-  sourceBatch      ImportBatch?       @relation(fields: [sourceBatchId], references: [id], onDelete: Cascade)
   targets          AllocationTarget[]
 
   @@map("target_plans")
@@ -356,8 +293,6 @@ model AllocationTarget {
   primaryLabel   String                @map("primary_label")
   secondaryLabel String?               @map("secondary_label")
   percentage     Decimal               @db.Decimal(12, 10)
-  sourceSheet    String?               @map("source_sheet")
-  sourceCell     String?               @map("source_cell")
   plan           TargetPlan            @relation(fields: [planId], references: [id], onDelete: Cascade)
 
   @@unique([planId, key])
