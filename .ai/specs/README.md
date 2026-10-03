@@ -39,6 +39,7 @@ Esta pasta organiza a implementação em fatias pequenas e revisáveis.
 - [033 — Escolha da moeda da CoinGecko na inclusão de cripto](033-coingecko-coin-choice.md): concluída.
 - [034 — Mês aberto ou fechado na linha do tempo](034-open-closed-months.md): concluída.
 - [035 — Resgate fixo e classes existentes no rateio](035-redemption-and-known-classes.md): concluída.
+- [036 — Altcoins como moeda base](036-altcoins-currency.md): concluída.
 
 As specs 010 a 017 formam a reestruturação da UX pedida pelo usuário. O
 propósito, as restrições e as regras de cálculo comuns a elas estão em

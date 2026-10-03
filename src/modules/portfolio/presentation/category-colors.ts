@@ -7,6 +7,8 @@ const CATEGORY_COLORS: Record<string, string> = {
   BRL: "#5ce4a4",
   USD: "#6ea8ff",
   BTC: "#f2a65a",
+  Altcoins: "#b394ff",
+  EUR: "#7fd1e8",
   Core: "#6ea8ff",
   "Core-Satellite": "#f2a65a",
   Hedge: "#9aa4b2",

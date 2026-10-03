@@ -25,7 +25,13 @@ altera os dados antigos importados da planilha.
   - o BTC classificado como renda fixa de outubro a dezembro de 2025;
   - a linha inconsistente de Bitcoin de junho de 2023;
 - vencimentos dos ativos importados, informados pelo usuário. Nada deve ser
-  inferido pelo nome do ativo.
+  inferido pelo nome do ativo;
+- a moeda base das criptos que não são o BTC como "Altcoins"
+  ([spec 036](../specs/036-altcoins-currency.md)), inclusive os ativos antigos
+  de cripto com ticker USD;
+- o resgate de cada classificação como Curto, Médio, Longo ou Nenhum
+  ([spec 035](../specs/035-redemption-and-known-classes.md)), no lugar de D+0
+  e D+1.
 
 ## O que não é funcionalidade do aplicativo
 

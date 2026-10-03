@@ -316,7 +316,7 @@ async function main() {
     ethQuoteSep?.valueBrl.toString() === "12000.5" &&
       ethQuoteSep.quoteDate === null &&
       ethQuoteSep.instrumentType === "CRIPTO" &&
-      ethQuoteSep.baseCurrency === "USD",
+      ethQuoteSep.baseCurrency === "Altcoins",
     ethQuoteSep,
   );
   check(
@@ -329,7 +329,7 @@ async function main() {
       ethPosition.allocations.length === 1 &&
       ethPosition.allocations[0].subclass === "Altcoin" &&
       ethPosition.allocations[0].weight.toString() === "1" &&
-      ethPosition.asset.baseCurrency === "USD",
+      ethPosition.asset.baseCurrency === "Altcoins",
   );
   check(
     "a moeda conferida fica guardada no ativo",

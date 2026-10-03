@@ -117,6 +117,8 @@ export const ASSET_KIND_DEFINITIONS: Record<AssetKind, AssetKindDefinition> = {
 };
 
 export const USD_SYMBOL = "USD";
+/** Moeda base das criptos que não são o BTC (spec 036). */
+export const ALTCOINS = "Altcoins";
 const RESERVED_SYMBOLS = new Set(["USD", "BRL"]);
 const B3_SUFFIX = ".SAO";
 
@@ -182,7 +184,8 @@ export function baseCurrencyOf(kind: AssetKind, symbol: string | null) {
     case "usd-balance":
       return "USD";
     case "crypto":
-      return symbol === "BTC" ? "BTC" : "USD";
+      // Fora o BTC, as criptos contam como altcoins no recorte por moeda (spec 036).
+      return symbol === "BTC" ? "BTC" : ALTCOINS;
     default:
       return "BRL";
   }

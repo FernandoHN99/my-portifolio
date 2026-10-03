@@ -105,10 +105,9 @@ export function TargetEditor({ editor }: { editor: TargetEditorData }) {
 
   const restoreDefaults = () => {
     const next: Record<string, string> = {};
+    // Categorias que a planilha não tinha, como Altcoins (spec 036), voltam a 0%.
     for (const item of editor.items) {
-      if (item.defaultPercent !== null) {
-        next[item.key] = formatInput(item.defaultPercent);
-      }
+      next[item.key] = formatInput(item.defaultPercent ?? 0);
     }
     setDraft(next);
     setToleranceDraft(formatInput(DEFAULT_REBALANCE_TOLERANCE));
@@ -157,7 +156,7 @@ export function TargetEditor({ editor }: { editor: TargetEditorData }) {
   const differsFromDefault =
     Math.abs(toleranceValue - DEFAULT_REBALANCE_TOLERANCE) > 1e-9 ||
     editor.items.some(
-      (item) => item.defaultPercent !== null && Math.abs(valueOf(item) - item.defaultPercent) > 1e-9,
+      (item) => Math.abs(valueOf(item) - (item.defaultPercent ?? 0)) > 1e-9,
     );
 
   return (
