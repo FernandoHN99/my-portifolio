@@ -11,15 +11,11 @@ e Claude Code consultando a mesma base de conhecimento.
 
 ## Trabalho em andamento
 
-Estado em 2026-10-03, quando o usuário pediu para encerrar a sessão e
-continuar depois. Specs 016 e 028 a 039 concluídas e no `main`; detalhes em
-`.ai/specs/README.md`.
+Estado em 2026-10-03: specs 016 e 028 a 040 concluídas e no `main`;
+detalhes em `.ai/specs/README.md`.
 
-- **onde parou**: a próxima fatia, ainda sem spec (seria a 040), reúne três
-  pedidos da quarta rodada: tirar a conta "Principal" da interface, renomear o
-  ativo pela página da posição e trocar a lista de ativos da inclusão por texto
-  livre. Proposta de cada um em `.ai/context/ux-restructure.md`, em
-  "Respostas do usuário, 2026-10-03 (quarta rodada)";
+- **próximo passo**: o usuário quer iniciar o passo pré-produção, a preparação
+  única do histórico para importação, descrito em `.ai/context/pre-deploy.md`;
 - transações dentro das posições e a previdência estão no backlog, em
   `.ai/context/backlog.md`;
 - as respostas do usuário, o backlog e o que ainda aguarda resposta estão em

@@ -4,7 +4,11 @@ import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 import { z } from "zod";
 
-import { updateAssetLiquidity, updateAssetMaturity } from "@/modules/portfolio/application/asset-attributes";
+import {
+  updateAssetLiquidity,
+  updateAssetMaturity,
+  updateAssetName,
+} from "@/modules/portfolio/application/asset-attributes";
 import {
   applyPositionChanges,
   cloneLatestMonth,
@@ -175,6 +179,19 @@ export async function saveAssetLiquidityAction(input: unknown): Promise<EditActi
   return run(async () => {
     await updateAssetLiquidity(parsed.data);
     return { ok: true, message: parsed.data.liquidity ? "Liquidez salva." : "Liquidez removida." };
+  });
+}
+
+export async function saveAssetNameAction(input: unknown): Promise<EditActionResult> {
+  const parsed = z.object({ assetId: z.string().uuid(), name: z.string().trim().min(1).max(120) }).safeParse(input);
+
+  if (!parsed.success) {
+    return { ok: false, message: "Informe o nome do ativo." };
+  }
+
+  return run(async () => {
+    await updateAssetName(parsed.data);
+    return { ok: true, message: "Nome do ativo salvo." };
   });
 }
 

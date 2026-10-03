@@ -21,7 +21,6 @@ import {
   buildAssetKey,
   cleanName,
   defaultAllocation,
-  duplicateAssetMessage,
   normalizeKey,
   normalizeTicker,
   tickerHint,
@@ -30,7 +29,6 @@ import {
   type AssetKind,
 } from "@/modules/portfolio/domain/asset-kinds";
 import { normalizeLiquidity } from "@/modules/portfolio/domain/liquidity";
-import { maturityHint } from "@/modules/portfolio/presentation/maturity";
 import { formatBrl, formatPriceBrl, parseLocaleNumber } from "@/modules/portfolio/presentation/portfolio-format";
 import {
   draftAccountId,
@@ -65,8 +63,6 @@ export type AddPositionMonth = { id: string; label: string; isCurrent: boolean; 
 // neste diálogo usa uma chave fixa até ser incluído.
 const NEW_INSTITUTION = "nova:";
 const NEW_ACCOUNT = "nova:";
-const NEW_ASSET = "novo:";
-const FORM_ASSET = "novo:\u0000este";
 const DEFAULT_ACCOUNT_NAME = "Principal";
 const CHECK_DEBOUNCE_MS = 500;
 
@@ -147,8 +143,9 @@ function AddPositionForm({
   const [createdInstitution, setCreatedInstitution] = useState<NamedEntry | null>(null);
   const [accountValue, setAccountValue] = useState<string | null>(null);
   const [createdAccount, setCreatedAccount] = useState<AccountEntry | null>(null);
-  const [assetValue, setAssetValue] = useState<string | null>(null);
-  const [newAssetName, setNewAssetName] = useState<string | null>(null);
+  // Nome do ativo em texto livre (spec 040): igual a um ativo existente, a
+  // inclusão usa esse ativo; senão, cria um novo.
+  const [assetName, setAssetName] = useState("");
   const [kind, setKind] = useState<AssetKind | null>(null);
   const [tickerText, setTickerText] = useState("");
   const [maturity, setMaturity] = useState("");
@@ -211,63 +208,37 @@ function AddPositionForm({
     return { existing, pending };
   };
   const accounts = accountsOf(institutionValue);
-  const accountOptions: PickerOption[] = [
-    ...accounts.existing.map((account) => ({ value: account.id, label: account.name })),
-    ...accounts.pending.map((account) => ({ value: `${NEW_ACCOUNT}${account.key}`, label: account.name, hint: "nova" })),
-  ];
 
-  // Ativos novos de outras posições ainda não salvas. Um ativo sem ticker é da
-  // instituição em que foi criado, como na importação, e só aparece nela; com
-  // ticker, vale em qualquer instituição.
+  // Ativos novos de outras posições ainda não salvas, para reaproveitar o mesmo
+  // cadastro novo em duas posições.
   const pendingAssets = uniqueByKey(drafts.flatMap((draft) => (draft.newAsset ? [draft.newAsset] : [])));
-  const pendingAssetsAt = (name: string | null) =>
-    pendingAssets.filter((asset) => pendingAssetKeyAt(asset, name) === asset.key);
-  const availablePendingAssets = pendingAssetsAt(institutionName);
-  const assetOptions: PickerOption[] = [
-    ...catalog.assets.map((asset) => ({
-      value: asset.id,
-      label: asset.name,
-      hint: asset.ticker ?? (asset.maturityDate ? maturityHint(asset.maturityDate) : undefined),
-    })),
-    ...availablePendingAssets.map((asset) => ({
-      value: `${NEW_ASSET}${asset.key}`,
-      label: asset.name,
-      hint: asset.maturityDate ? `novo · ${maturityHint(asset.maturityDate)}` : "novo",
-    })),
-    ...(newAssetName ? [{ value: FORM_ASSET, label: newAssetName, hint: "novo" }] : []),
-  ];
   const strategyOptions: PickerOption[] = [
     { value: "", label: "Sem estratégia" },
     ...catalog.strategies.map((entry) => ({ value: entry, label: entry })),
   ];
 
-  const selectInstitution = (next: string, name = institutionNameOf(next)) => {
+  const selectInstitution = (next: string) => {
     if (next === institutionValue) {
       return;
     }
 
     setInstitutionValue(next);
 
-    // Um ativo novo sem ticker de outra posição pertence à instituição dela.
-    if (
-      assetValue?.startsWith(NEW_ASSET) &&
-      assetValue !== FORM_ASSET &&
-      !pendingAssetsAt(name).some((asset) => `${NEW_ASSET}${asset.key}` === assetValue)
-    ) {
-      setAssetValue(null);
-    }
-
+    // A conta não aparece mais na interface (spec 040): vale a conta
+    // "Principal" da instituição, ou a primeira; instituição sem conta começa
+    // com "Principal", como as importadas.
     const { existing, pending } = accountsOf(next);
+    const principal =
+      existing.find((account) => normalizeKey(account.name) === normalizeKey(DEFAULT_ACCOUNT_NAME)) ?? existing[0];
 
-    if (existing.length + pending.length === 1) {
-      setAccountValue(existing[0]?.id ?? `${NEW_ACCOUNT}${pending[0].key}`);
-    } else if (existing.length + pending.length === 0) {
-      // Instituição nova começa com a conta "Principal", como as importadas.
+    if (principal) {
+      setAccountValue(principal.id);
+    } else if (pending.length > 0) {
+      setAccountValue(`${NEW_ACCOUNT}${pending[0].key}`);
+    } else {
       const account = { key: accountKey(next, DEFAULT_ACCOUNT_NAME), name: DEFAULT_ACCOUNT_NAME, institutionRef: next };
       setCreatedAccount(account);
       setAccountValue(`${NEW_ACCOUNT}${account.key}`);
-    } else {
-      setAccountValue(null);
     }
   };
 
@@ -289,38 +260,7 @@ function AddPositionForm({
     if (!newInstitutions.some((institution) => institution.key === key)) {
       setCreatedInstitution({ key, name });
     }
-    selectInstitution(`${NEW_INSTITUTION}${key}`, name);
-  };
-
-  const createAccount = (text: string) => {
-    const name = cleanName(text);
-
-    if (!institutionValue || !normalizeKey(name)) {
-      return;
-    }
-
-    const existing = accounts.existing.find((account) => normalizeKey(account.name) === normalizeKey(name));
-    if (existing) {
-      setAccountValue(existing.id);
-      return;
-    }
-
-    const key = accountKey(institutionValue, name);
-    if (!accounts.pending.some((account) => account.key === key)) {
-      setCreatedAccount({ key, name, institutionRef: institutionValue });
-    }
-    setAccountValue(`${NEW_ACCOUNT}${key}`);
-  };
-
-  const createAsset = (text: string) => {
-    const name = cleanName(text);
-
-    if (!normalizeKey(name)) {
-      return;
-    }
-
-    setNewAssetName(name);
-    setAssetValue(FORM_ASSET);
+    selectInstitution(`${NEW_INSTITUTION}${key}`);
   };
 
   const chooseKind = (next: string) => {
@@ -336,13 +276,8 @@ function AddPositionForm({
   // Conta escolhida, existente ou nova.
   const accountRef = resolveAccount(accountValue, institutionValue, catalog, newInstitutions, accounts.pending);
 
-  // Ativo escolhido: existente, novo de outra posição pendente ou digitado aqui.
-  const catalogAsset = assetValue ? catalog.assets.find((asset) => asset.id === assetValue) : undefined;
-  const pendingAsset = assetValue?.startsWith(NEW_ASSET)
-    ? availablePendingAssets.find((asset) => `${NEW_ASSET}${asset.key}` === assetValue)
-    : undefined;
-  const isFormAsset = assetValue === FORM_ASSET && newAssetName !== null;
-  const definition = isFormAsset && kind ? ASSET_KIND_DEFINITIONS[kind] : null;
+  const definition = kind ? ASSET_KIND_DEFINITIONS[kind] : null;
+  const typedName = cleanName(assetName);
   const symbol =
     definition?.ticker === "usd"
       ? USD_SYMBOL
@@ -363,24 +298,21 @@ function AddPositionForm({
   const allocation = allocationDraft ?? (kind ? defaultAllocation(kind, symbol) : null);
   const maturityDate = definition?.allowsMaturity && maturity ? maturity : null;
 
-  // Identidade do ativo novo, a mesma que o servidor calcula: um ativo igual,
-  // existente ou de outra posição pendente, bloqueia a inclusão aqui em vez de
-  // recusar o salvamento inteiro depois.
+  // Identidade do ativo, a mesma que o servidor calcula. Um ativo existente
+  // ou novo de outra posição pendente com a mesma chave é reaproveitado
+  // (spec 040), em vez de recusar a inclusão.
   const assetKey =
-    isFormAsset && definition && (definition.ticker === null ? institutionName : symbol)
+    definition && normalizeKey(typedName) && (definition.ticker === null ? institutionName : symbol)
       ? buildAssetKey({
-          name: newAssetName,
+          name: typedName,
           ticker: symbol,
           institutionName: institutionName ?? "",
           maturityDate,
         })
       : null;
-  const existingTwin = assetKey ? catalog.assets.find((asset) => asset.normalizedKey === assetKey) : undefined;
-  const twin = existingTwin ?? (assetKey ? pendingAssets.find((asset) => asset.key === assetKey) : undefined);
-  const twinWarning =
-    kind && twin
-      ? duplicateAssetMessage({ name: twin.name, kind, symbol, maturityDate, pending: !existingTwin })
-      : null;
+  const catalogAsset = assetKey ? catalog.assets.find((asset) => asset.normalizedKey === assetKey) : undefined;
+  const pendingAsset = !catalogAsset && assetKey ? pendingAssets.find((asset) => asset.key === assetKey) : undefined;
+  const isFormAsset = assetKey !== null && !catalogAsset && !pendingAsset;
 
   const response = check.state === "done" ? check.response : null;
   const needsManualPrice =
@@ -422,7 +354,7 @@ function AddPositionForm({
     }
 
     const priceReady = definition.ticker === null || price !== null;
-    assetReady = allocationComplete && priceReady && !missingQuoteSymbol && assetKey !== null && !twinWarning;
+    assetReady = allocationComplete && priceReady && !missingQuoteSymbol && assetKey !== null;
   }
 
   const parsedValue = parseLocaleNumber(value);
@@ -438,7 +370,7 @@ function AddPositionForm({
   const canAdd = Boolean(accountRef) && assetReady && validValue && !duplicate;
   // Um ativo cotado pelo USD, novo ou existente, guarda o saldo em dólares.
   const selectedQuoteSymbol = catalogAsset?.quoteSymbol ?? pendingAsset?.ticker ?? symbol;
-  const valueLabel = !assetValue
+  const valueLabel = !kind
     ? "Quantidade ou saldo"
     : selectedQuoteSymbol === USD_SYMBOL
       ? "Saldo (US$)"
@@ -453,10 +385,10 @@ function AddPositionForm({
 
     let newAsset: NewAssetDraft | null = null;
 
-    if (isFormAsset && kind && allocation && newAssetName && assetKey) {
+    if (isFormAsset && kind && allocation && assetKey) {
       newAsset = {
         key: assetKey,
-        name: newAssetName,
+        name: typedName,
         kind,
         ticker: symbol,
         baseCurrency: baseCurrencyOf(kind, symbol),
@@ -483,81 +415,46 @@ function AddPositionForm({
     });
   };
 
+  const market = definition?.ticker === "market";
+
   return (
     <>
       <Dialog.Title className="text-base font-semibold tracking-[-0.02em]">Adicionar posição</Dialog.Title>
       <Dialog.Description className="mt-1 text-xs leading-5 text-muted-foreground">
-        Escolha ou digite instituição, conta e ativo; os novos são criados ao salvar. Um ativo existente copia o
-        rateio da posição mais recente dele.
+        Comece pelo tipo do ativo; os campos dele aparecem em seguida. Instituição e ativo novos são criados ao
+        salvar, e um ativo que já existe é reaproveitado com o rateio da posição mais recente dele.
       </Dialog.Description>
 
       <div className="mt-5 space-y-3">
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Instituição">
-            <Picker
-              aria-label="Instituição"
-              options={institutionOptions}
-              value={institutionValue}
-              onValueChange={selectInstitution}
-              onCreate={createInstitution}
-              placeholder="Selecione ou digite"
-              emptyMessage="Digite para criar uma instituição"
-            />
-          </Field>
-          <Field label="Conta">
-            <Picker
-              aria-label="Conta"
-              options={accountOptions}
-              value={accountValue}
-              onValueChange={setAccountValue}
-              onCreate={createAccount}
-              disabled={!institutionValue}
-              placeholder={institutionValue ? "Selecione ou digite" : "Escolha a instituição"}
-              emptyMessage="Digite para criar uma conta"
-            />
-          </Field>
-        </div>
-
-        <Field label="Ativo">
+        <Field label="Tipo do ativo">
           <Picker
-            aria-label="Ativo"
-            options={assetOptions}
-            value={assetValue}
-            onValueChange={setAssetValue}
-            onCreate={createAsset}
-            createOnMatch
-            placeholder="Selecione ou digite um ativo novo"
-            emptyMessage="Nenhum ativo encontrado"
+            aria-label="Tipo do ativo"
+            options={ASSET_KINDS.map((entry) => ({
+              value: entry,
+              label: ASSET_KIND_DEFINITIONS[entry].label,
+              hint: ASSET_KIND_DEFINITIONS[entry].hint,
+            }))}
+            value={kind}
+            onValueChange={chooseKind}
+            placeholder="Escolha o tipo"
           />
         </Field>
 
-        {isFormAsset ? (
-          <section
-            aria-label="Novo ativo"
-            className="space-y-3 rounded-xl border border-primary/25 bg-primary/[0.03] p-3"
-          >
-            <div className="flex items-center gap-2">
-              <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
-                Novo ativo
-              </span>
-              <span className="min-w-0 truncate text-xs text-foreground/85">{newAssetName}</span>
-            </div>
-
-            <div className={cn("grid gap-3", definition?.ticker === "market" ? "grid-cols-2" : "grid-cols-1")}>
-              <Field label="Tipo">
+        {kind ? (
+          <>
+            <div className={cn("grid gap-3", market ? "grid-cols-2" : "grid-cols-1")}>
+              <Field label="Instituição">
                 <Picker
-                  aria-label="Tipo do ativo"
-                  options={ASSET_KINDS.map((entry) => ({
-                    value: entry,
-                    label: ASSET_KIND_DEFINITIONS[entry].label,
-                    hint: ASSET_KIND_DEFINITIONS[entry].hint,
-                  }))}
-                  value={kind}
-                  onValueChange={chooseKind}
-                  placeholder="Escolha o tipo"
+                  aria-label="Instituição"
+                  options={institutionOptions}
+                  value={institutionValue}
+                  onValueChange={selectInstitution}
+                  onCreate={createInstitution}
+                  placeholder="Selecione ou digite"
+                  emptyMessage="Digite para criar uma instituição"
                 />
               </Field>
-              {definition?.ticker === "market" && kind ? (
+              {market ? (
                 <Field label="Ticker">
                   <input
                     aria-label="Ticker"
@@ -573,7 +470,7 @@ function AddPositionForm({
               ) : null}
             </div>
 
-            {definition?.ticker === "market" && kind ? (
+            {market ? (
               <TickerStatus
                 kind={kind}
                 text={tickerText}
@@ -595,29 +492,19 @@ function AddPositionForm({
               </Field>
             ) : null}
 
-            {needsManualPrice ? (
-              <Field label="Cotação em R$">
-                <input
-                  aria-label="Cotação em R$"
-                  inputMode="decimal"
-                  value={manualPrice}
-                  onChange={(event) => setManualPrice(event.target.value)}
-                  placeholder="0,00"
-                  className={cn(
-                    inputClass,
-                    "text-right font-mono",
-                    manualPrice.trim() !== "" && (manualPriceValue === null || manualPriceValue <= 0) && "border-destructive",
-                  )}
-                />
-              </Field>
-            ) : null}
+            <Field label="Nome do ativo">
+              <input
+                aria-label="Nome do ativo"
+                value={assetName}
+                onChange={(event) => setAssetName(event.target.value)}
+                autoComplete="off"
+                placeholder={market ? "Como ETF - VOO" : "Como CDB Banco X 110%"}
+                className={inputClass}
+              />
+            </Field>
 
-            {definition ? (
-              <Field label="Liquidez (opcional)">
-                <LiquidityPicker value={liquidity} onChange={setLiquidity} />
-              </Field>
-            ) : null}
-
+            {/* O vencimento faz parte da identidade do ativo: com ele, um título
+                de mesmo nome e outro prazo é um ativo novo. */}
             {definition?.allowsMaturity ? (
               <Field label="Vencimento (opcional)">
                 <input
@@ -632,82 +519,124 @@ function AddPositionForm({
               </Field>
             ) : null}
 
-            {twinWarning ? (
-              <div data-asset-duplicate>
-                <StatusLine tone="error">{twinWarning}</StatusLine>
+            {catalogAsset || pendingAsset ? (
+              <div data-asset-existing>
+                <StatusLine tone="success">
+                  {catalogAsset
+                    ? `${catalogAsset.name} já existe: a posição usa este ativo e o rateio da posição mais recente dele.`
+                    : `${pendingAsset!.name} é o ativo novo de outra posição ainda não salva e será reaproveitado.`}
+                </StatusLine>
               </div>
             ) : null}
 
-            {allocation ? (
-              <div>
-                <p className="mb-1.5 text-[10px] tracking-[0.08em] text-muted-foreground uppercase">
-                  Rateio inicial · 100%
-                </p>
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                  <Field label="Classe">
-                    <AllocationPicker
-                      label="Classe"
-                      values={catalog.allocation.classes}
-                      value={allocation.assetClass}
-                      onChange={(next) => setAllocationDraft({ ...allocation, assetClass: next })}
-                      allowCreate={false}
-                    />
-                  </Field>
-                  <Field label="Subclasse">
-                    <AllocationPicker
-                      label="Subclasse"
-                      values={catalog.allocation.subclasses}
-                      value={allocation.subclass}
-                      onChange={(next) => setAllocationDraft({ ...allocation, subclass: next })}
-                    />
-                  </Field>
-                  <Field label="Resgate">
-                    <RedemptionPicker
-                      label="Resgate"
-                      value={allocation.duration}
-                      onChange={(next) => setAllocationDraft({ ...allocation, duration: next })}
-                    />
-                  </Field>
+            {isFormAsset ? (
+              <section
+                aria-label="Novo ativo"
+                className="space-y-3 rounded-xl border border-primary/25 bg-primary/[0.03] p-3"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
+                    Novo ativo
+                  </span>
+                  <span className="min-w-0 truncate text-xs text-foreground/85">{typedName}</span>
                 </div>
-                {!allocation.subclass || !allocation.duration ? (
-                  <p className="mt-1.5 text-[11px] text-muted-foreground">
-                    Escolha a subclasse e o resgate para a posição entrar nas análises.
-                  </p>
-                ) : (
-                  <p className="mt-1.5 text-[11px] text-muted-foreground">
-                    Para dividir entre classes, ajuste depois no rateio da posição.
-                  </p>
-                )}
-              </div>
+
+                {needsManualPrice ? (
+                  <Field label="Cotação em R$">
+                    <input
+                      aria-label="Cotação em R$"
+                      inputMode="decimal"
+                      value={manualPrice}
+                      onChange={(event) => setManualPrice(event.target.value)}
+                      placeholder="0,00"
+                      className={cn(
+                        inputClass,
+                        "text-right font-mono",
+                        manualPrice.trim() !== "" && (manualPriceValue === null || manualPriceValue <= 0) && "border-destructive",
+                      )}
+                    />
+                  </Field>
+                ) : null}
+
+                {definition ? (
+                  <Field label="Liquidez (opcional)">
+                    <LiquidityPicker value={liquidity} onChange={setLiquidity} />
+                  </Field>
+                ) : null}
+
+
+                {allocation ? (
+                  <div>
+                    <p className="mb-1.5 text-[10px] tracking-[0.08em] text-muted-foreground uppercase">
+                      Rateio inicial · 100%
+                    </p>
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                      <Field label="Classe">
+                        <AllocationPicker
+                          label="Classe"
+                          values={catalog.allocation.classes}
+                          value={allocation.assetClass}
+                          onChange={(next) => setAllocationDraft({ ...allocation, assetClass: next })}
+                          allowCreate={false}
+                        />
+                      </Field>
+                      <Field label="Subclasse">
+                        <AllocationPicker
+                          label="Subclasse"
+                          values={catalog.allocation.subclasses}
+                          value={allocation.subclass}
+                          onChange={(next) => setAllocationDraft({ ...allocation, subclass: next })}
+                        />
+                      </Field>
+                      <Field label="Resgate">
+                        <RedemptionPicker
+                          label="Resgate"
+                          value={allocation.duration}
+                          onChange={(next) => setAllocationDraft({ ...allocation, duration: next })}
+                        />
+                      </Field>
+                    </div>
+                    {!allocation.subclass || !allocation.duration ? (
+                      <p className="mt-1.5 text-[11px] text-muted-foreground">
+                        Escolha a subclasse e o resgate para a posição entrar nas análises.
+                      </p>
+                    ) : (
+                      <p className="mt-1.5 text-[11px] text-muted-foreground">
+                        Para dividir entre classes, ajuste depois no rateio da posição.
+                      </p>
+                    )}
+                  </div>
+                ) : null}
+              </section>
             ) : null}
-          </section>
-        ) : null}
 
-        <div className="grid grid-cols-2 gap-3">
-          <Field label={valueLabel}>
-            <input
-              aria-label={valueLabel}
-              inputMode="decimal"
-              value={value}
-              onChange={(event) => setValue(event.target.value)}
-              className={cn(inputClass, "text-right font-mono")}
-            />
-          </Field>
-          <Field label="Estratégia">
-            <Picker aria-label="Estratégia" options={strategyOptions} value={strategy} onValueChange={setStrategy} />
-          </Field>
-        </div>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label={valueLabel}>
+                <input
+                  aria-label={valueLabel}
+                  inputMode="decimal"
+                  value={value}
+                  onChange={(event) => setValue(event.target.value)}
+                  className={cn(inputClass, "text-right font-mono")}
+                />
+              </Field>
+              <Field label="Estratégia">
+                <Picker aria-label="Estratégia" options={strategyOptions} value={strategy} onValueChange={setStrategy} />
+              </Field>
+            </div>
 
-        {missingQuoteSymbol ? (
-          <p className="text-xs text-warning-foreground">
-            Não há cotação de {missingQuoteSymbol} nesta competência. Informe-a na página de cotações antes.
-          </p>
-        ) : null}
-        {duplicate ? <p className="text-xs text-warning-foreground">Este ativo já tem posição nesta conta.</p> : null}
-        {quoted && price !== null && validValue ? (
-          <p className="font-mono text-xs text-muted-foreground">
-            {formatBrl((parsedValue ?? 0) * price)} a {formatPriceBrl(price)}
-          </p>
+            {missingQuoteSymbol ? (
+              <p className="text-xs text-warning-foreground">
+                Não há cotação de {missingQuoteSymbol} nesta competência. Informe-a na página de cotações antes.
+              </p>
+            ) : null}
+            {duplicate ? <p className="text-xs text-warning-foreground">Este ativo já tem posição nesta conta.</p> : null}
+            {quoted && price !== null && validValue ? (
+              <p className="font-mono text-xs text-muted-foreground">
+                {formatBrl((parsedValue ?? 0) * price)} a {formatPriceBrl(price)}
+              </p>
+            ) : null}
+          </>
         ) : null}
       </div>
 
@@ -957,20 +886,6 @@ function resolveAccount(
         },
       }
     : null;
-}
-
-/** Chave que o ativo pendente teria numa posição desta instituição. */
-function pendingAssetKeyAt(asset: NewAssetDraft, institutionName: string | null) {
-  if (!asset.ticker && institutionName === null) {
-    return null;
-  }
-
-  return buildAssetKey({
-    name: asset.name,
-    ticker: asset.ticker,
-    institutionName: institutionName ?? "",
-    maturityDate: asset.maturityDate,
-  });
 }
 
 function institutionRefOf(account: NewAccountDraft) {

@@ -50,7 +50,7 @@ test("o nome do ativo abre a posição e a volta mantém mês e filtros", async 
 test("a página de um ativo cotado decompõe a variação em preço e aportes", async ({ page }) => {
   await openBitcoin01(page);
 
-  await expect(page.getByText("Ledger · Principal")).toBeVisible();
+  await expect(page.getByText("Ledger", { exact: true }).first()).toBeVisible();
   await expect.poll(flowValue(page, "position-value")).toBe("R$ 118.693");
   await expect(page.getByText("0,30045274 BTC × R$ 395.046,00")).toBeVisible();
   await expect.poll(flowValue(page, "position-month-change")).toBe("+19,9%");
@@ -84,10 +84,10 @@ test("meses sem competência e sem a posição aparecem como lacunas", async ({ 
 
   // Nesta conta, a posição esteve na Carteira Cripto de Mar/24 a Jul/25.
   await expect(months.locator("tr[data-gap='absent']").first()).toContainText(
-    "Fora desta conta · em Carteira Cripto · Principal",
+    "Fora desta conta · em Carteira Cripto",
   );
   await expect(months.locator("tr[data-gap='absent']").last()).toContainText("saída -R$ 46.288,76");
-  await expect(months.getByRole("row", { name: /^Ago\/25/ })).toContainText("Volta · de Carteira Cripto · Principal");
+  await expect(months.getByRole("row", { name: /^Ago\/25/ })).toContainText("Volta · de Carteira Cripto");
   await expect(months.getByRole("row", { name: /^Set\/26/ })).toHaveAttribute("aria-current", "date");
 
   // Somando as contas, Jul/24 e Fev/25 a Jun/25 continuam como lacunas, e a
@@ -131,6 +131,13 @@ test("a linha inteira abre a posição de um saldo sem cotação", async ({ page
   await expect(maturity.getByRole("button", { name: "Salvar vencimento" })).toBeDisabled();
   await maturity.getByRole("button", { name: "Cancelar edição do vencimento" }).click();
   await expect(maturity).toContainText("Não informado");
+
+  // O nome do ativo é renomeável pelo lápis; abre e cancela sem gravar (spec 040).
+  await page.getByRole("button", { name: "Renomear ativo" }).click();
+  await expect(page.getByRole("textbox", { name: "Nome do ativo" })).toHaveValue("Porquinho");
+  await expect(page.getByRole("button", { name: "Salvar nome" })).toBeDisabled();
+  await page.getByRole("button", { name: "Cancelar renomeação" }).click();
+  await expect(page.getByRole("heading", { level: 1, name: "Porquinho" })).toBeVisible();
 
   // A liquidez vale para qualquer ativo; abre e cancela sem gravar (spec 039).
   const liquidity = page.getByTestId("position-liquidity");

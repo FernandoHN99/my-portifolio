@@ -52,6 +52,11 @@ async function pick(page: Page, field: ReturnType<Page["getByRole"]>, text: stri
   await page.getByRole("option", { name: option }).click();
 }
 
+// Nome do ativo em texto livre (spec 040).
+async function nameAsset(dialog: ReturnType<Page["getByRole"]>, name: string) {
+  await dialog.getByRole("textbox", { name: "Nome do ativo" }).fill(name);
+}
+
 async function chooseKind(page: Page, dialog: ReturnType<Page["getByRole"]>, kind: RegExp) {
   await dialog.getByRole("combobox", { name: "Tipo do ativo" }).click();
   await page.getByRole("option", { name: kind }).click();
@@ -97,14 +102,19 @@ test("num mês fechado não há adicionar posição", async ({ page }) => {
   await expect(page.getByRole("button", { name: "Adicionar posição" })).toHaveCount(0);
 });
 
-test("instituição e conta aceitam valores novos sem duplicar os existentes", async ({ page }) => {
+test("o tipo vem primeiro e a instituição aceita valor novo, sem conta", async ({ page }) => {
   await page.goto("/posicoes");
   const dialog = await openAddDialog(page);
-  const institution = dialog.getByRole("combobox", { name: "Instituição" });
-  const account = dialog.getByRole("combobox", { name: "Conta" });
-  await expect(account).toBeDisabled();
+
+  // Antes do tipo, só o tipo aparece (spec 040).
+  await expect(dialog.getByRole("combobox", { name: "Instituição" })).toHaveCount(0);
+  await expect(dialog.getByRole("textbox", { name: "Nome do ativo" })).toHaveCount(0);
+  await chooseKind(page, dialog, /Renda fixa/);
+  await expect(dialog.getByRole("textbox", { name: "Ticker" })).toHaveCount(0);
+  await expect(dialog.getByRole("combobox", { name: "Conta" })).toHaveCount(0);
 
   // Um nome existente, sem acento ou maiúscula, não oferece criar.
+  const institution = dialog.getByRole("combobox", { name: "Instituição" });
   await institution.click();
   await page.keyboard.type("itau");
   await expect(page.getByRole("option")).toHaveCount(1);
@@ -113,14 +123,6 @@ test("instituição e conta aceitam valores novos sem duplicar os existentes", a
   await page.keyboard.type("Corretora Teste");
   await page.getByRole("option", { name: "Criar “Corretora Teste”" }).click();
   await expect(institution).toHaveValue("Corretora Teste");
-
-  // A instituição nova começa com a conta Principal, também nova.
-  await expect(account).toHaveValue("Principal");
-  await account.click();
-  await expect(page.getByRole("option", { name: /Principal/ })).toContainText("nova");
-  await page.keyboard.type("Investimentos");
-  await page.getByRole("option", { name: "Criar “Investimentos”" }).click();
-  await expect(account).toHaveValue("Investimentos");
 
   await institution.click();
   await expect(page.getByRole("option", { name: /Corretora Teste/ })).toContainText("nova");
@@ -142,10 +144,6 @@ test("o ticker de um ativo novo é conferido no provedor do tipo", async ({ page
   });
   await page.goto("/posicoes");
   const dialog = await openAddDialog(page);
-  await pick(page, dialog.getByRole("combobox", { name: "Instituição" }), "inter", /^Inter$/);
-  await pick(page, dialog.getByRole("combobox", { name: "Ativo" }), "Ethereum", "Criar “Ethereum”");
-  await expect(dialog.getByRole("region", { name: "Novo ativo" })).toBeVisible();
-
   const add = dialog.getByRole("button", { name: "Adicionar" });
   const kind = dialog.getByRole("combobox", { name: "Tipo do ativo" });
   const ticker = dialog.getByRole("textbox", { name: "Ticker" });
@@ -153,6 +151,8 @@ test("o ticker de um ativo novo é conferido no provedor do tipo", async ({ page
 
   await kind.click();
   await page.getByRole("option", { name: /Cripto/ }).click();
+  await pick(page, dialog.getByRole("combobox", { name: "Instituição" }), "inter", /^Inter$/);
+  await nameAsset(dialog, "Ethereum");
   await ticker.click();
   // A checagem espera a digitação terminar e consulta uma vez só: as teclas
   // seguidas chegam bem antes do meio segundo de espera.
@@ -163,6 +163,7 @@ test("o ticker de um ativo novo é conferido no provedor do tipo", async ({ page
   expect(requests.filter((request) => request.ticker.startsWith("E"))).toEqual([
     expect.objectContaining({ kind: "crypto", ticker: "ETH" }),
   ]);
+  await expect(dialog.getByRole("region", { name: "Novo ativo" })).toBeVisible();
   await expect(dialog.getByRole("combobox", { name: "Classe", exact: true })).toHaveValue("Cripto");
   await expect(dialog.getByRole("combobox", { name: "Subclasse" })).toHaveValue("Altcoin");
   await fillMonthQuoteIfAsked(dialog, "10000");
@@ -205,13 +206,12 @@ test("o ticker de um ativo novo é conferido no provedor do tipo", async ({ page
   await page.getByRole("button", { name: "Sair da edição" }).click();
 });
 
-test("renda fixa pede subclasse e duração e mostra o vencimento", async ({ page }) => {
+test("renda fixa pede subclasse e resgate e mostra o vencimento", async ({ page }) => {
   await page.goto("/posicoes");
   const dialog = await openAddDialog(page);
+  await chooseKind(page, dialog, /Renda fixa/);
   await pick(page, dialog.getByRole("combobox", { name: "Instituição" }), "inter", /^Inter$/);
-  await pick(page, dialog.getByRole("combobox", { name: "Ativo" }), "CDB Teste 2099", "Criar “CDB Teste 2099”");
-  await dialog.getByRole("combobox", { name: "Tipo do ativo" }).click();
-  await page.getByRole("option", { name: /Renda fixa/ }).click();
+  await nameAsset(dialog, "CDB Teste 2099");
 
   await expect(dialog.getByRole("textbox", { name: "Ticker" })).toHaveCount(0);
   await expect(dialog.getByRole("combobox", { name: "Classe", exact: true })).toHaveValue("Renda Fixa");
@@ -248,9 +248,9 @@ test("ticker já cotado no mês e símbolo de outro provedor", async ({ page }) 
   );
   await page.goto("/posicoes");
   const dialog = await openAddDialog(page);
-  await pick(page, dialog.getByRole("combobox", { name: "Instituição" }), "inter", /^Inter$/);
-  await pick(page, dialog.getByRole("combobox", { name: "Ativo" }), "Vanguard Teste", "Criar “Vanguard Teste”");
   await chooseKind(page, dialog, /ETF dos EUA/);
+  await pick(page, dialog.getByRole("combobox", { name: "Instituição" }), "inter", /^Inter$/);
+  await nameAsset(dialog, "Vanguard Teste");
   const ticker = dialog.getByRole("textbox", { name: "Ticker" });
   const status = dialog.locator("[data-ticker-status]");
   const add = dialog.getByRole("button", { name: "Adicionar" });
@@ -281,9 +281,9 @@ test("numa competência passada, o ticker encontrado pede a cotação do mês", 
   await expect(page.getByTestId("month-lock")).toBeVisible();
   test.skip((await page.getByRole("button", { name: "Adicionar posição" }).count()) === 0, "Ago/26 está fechado.");
   const dialog = await openAddDialog(page);
-  await pick(page, dialog.getByRole("combobox", { name: "Instituição" }), "inter", /^Inter$/);
-  await pick(page, dialog.getByRole("combobox", { name: "Ativo" }), "Ethereum", "Criar “Ethereum”");
   await chooseKind(page, dialog, /Cripto/);
+  await pick(page, dialog.getByRole("combobox", { name: "Instituição" }), "inter", /^Inter$/);
+  await nameAsset(dialog, "Ethereum");
   await dialog.getByRole("textbox", { name: "Ticker" }).fill("ETH");
 
   const status = dialog.locator("[data-ticker-status]");
@@ -306,9 +306,9 @@ test("uma falha da checagem oferece tentar de novo", async ({ page }) => {
   );
   await page.goto("/posicoes");
   const dialog = await openAddDialog(page);
-  await pick(page, dialog.getByRole("combobox", { name: "Instituição" }), "inter", /^Inter$/);
-  await pick(page, dialog.getByRole("combobox", { name: "Ativo" }), "Invesco Teste", "Criar “Invesco Teste”");
   await chooseKind(page, dialog, /ETF dos EUA/);
+  await pick(page, dialog.getByRole("combobox", { name: "Instituição" }), "inter", /^Inter$/);
+  await nameAsset(dialog, "Invesco Teste");
   await dialog.getByRole("textbox", { name: "Ticker" }).fill("QQQ");
 
   const status = dialog.locator("[data-ticker-status]");
@@ -324,51 +324,40 @@ test("uma falha da checagem oferece tentar de novo", async ({ page }) => {
   await leaveEditMode(page);
 });
 
-test("saldo em dólar com vencimento e ativo novo de outra posição", async ({ page }) => {
+test("saldo em dólar reaproveita o ativo existente ou o novo de outra posição", async ({ page }) => {
   await page.goto("/posicoes");
   let dialog = await openAddDialog(page);
-  await pick(page, dialog.getByRole("combobox", { name: "Instituição" }), "inter", /^Inter$/);
-  await dialog.getByRole("combobox", { name: "Ativo" }).click();
-  await page.keyboard.type("Time Deposit");
-  // O ativo existente vem primeiro; criar um de mesmo nome continua possível.
-  await expect(page.getByRole("option")).toHaveText([/^Time Deposit/, "Criar “Time Deposit”"]);
-  await page.getByRole("option", { name: "Criar “Time Deposit”" }).click();
   await chooseKind(page, dialog, /Saldo em dólar/);
+  await pick(page, dialog.getByRole("combobox", { name: "Instituição" }), "inter", /^Inter$/);
+  await nameAsset(dialog, "Time Deposit");
 
   await expect(dialog.getByRole("textbox", { name: "Ticker" })).toHaveCount(0);
+  // Sem vencimento é o Time Deposit importado: a inclusão usa o ativo existente
+  // em vez de recusar (spec 040).
+  const existing = dialog.locator("[data-asset-existing]");
+  await expect(existing).toContainText("Time Deposit já existe");
+  await expect(dialog.getByRole("region", { name: "Novo ativo" })).toHaveCount(0);
+
+  // Com vencimento é um ativo novo.
+  await dialog.getByLabel("Vencimento").fill("2027-01-15");
+  await expect(existing).toHaveCount(0);
   await expect(dialog.getByRole("combobox", { name: "Classe", exact: true })).toHaveValue("Caixa");
   await dialog.getByRole("textbox", { name: "Saldo (US$)" }).fill("1000");
   const add = dialog.getByRole("button", { name: "Adicionar" });
-  const duplicate = dialog.locator("[data-asset-duplicate]");
-
-  // Sem vencimento é o Time Deposit importado: a inclusão fica bloqueada aqui,
-  // e não no salvamento.
-  await expect(duplicate).toContainText('"Time Deposit" cotado pelo USD já existe');
-  await expect(duplicate).toContainText("informe um vencimento");
-  await expect(add).toBeDisabled();
-  await dialog.getByLabel("Vencimento").fill("2027-01-15");
-  await expect(duplicate).toHaveCount(0);
   await expect(add).toBeEnabled();
   await add.click();
   await expect(dialog).toHaveCount(0);
 
   // Em outra instituição, o mesmo nome e vencimento é o ativo novo pendente.
   dialog = await openAddDialog(page);
-  await pick(page, dialog.getByRole("combobox", { name: "Instituição" }), "itau", /^Itaú$/);
-  await pick(page, dialog.getByRole("combobox", { name: "Ativo" }), "Time Deposit", "Criar “Time Deposit”");
   await chooseKind(page, dialog, /Saldo em dólar/);
+  await pick(page, dialog.getByRole("combobox", { name: "Instituição" }), "itau", /^Itaú$/);
+  await nameAsset(dialog, "Time Deposit");
   await dialog.getByLabel("Vencimento").fill("2027-01-15");
+  await expect(dialog.locator("[data-asset-existing]")).toContainText("ativo novo de outra posição");
   await dialog.getByRole("textbox", { name: "Saldo (US$)" }).fill("500");
-  await expect(duplicate).toContainText("já é o ativo novo de outra posição");
-  await expect(add).toBeDisabled();
-
-  await dialog.getByRole("combobox", { name: "Ativo", exact: true }).click();
-  await page.keyboard.type("Time Deposit");
-  await page.getByRole("option", { name: /Time Deposit.*novo · vence Jan\/27/ }).click();
-  await expect(dialog.getByRole("region", { name: "Novo ativo" })).toHaveCount(0);
-  await dialog.getByRole("textbox", { name: "Saldo (US$)" }).fill("500");
-  await expect(add).toBeEnabled();
-  await add.click();
+  await expect(dialog.getByRole("button", { name: "Adicionar" })).toBeEnabled();
+  await dialog.getByRole("button", { name: "Adicionar" }).click();
 
   const rows = page.getByRole("row").filter({ hasText: "Time Deposit" }).filter({ hasText: "vence em Jan/27" });
   await expect(rows).toHaveCount(2);
@@ -378,45 +367,24 @@ test("saldo em dólar com vencimento e ativo novo de outra posição", async ({ 
   await expect(page.locator("[data-edit-cell]")).toHaveCount(0);
 });
 
-test("renda fixa de nome existente pede vencimento e fica na instituição dela", async ({ page }) => {
+test("renda fixa de nome existente é reaproveitada só na instituição dela", async ({ page }) => {
   await page.goto("/posicoes");
-  let dialog = await openAddDialog(page);
-  await pick(page, dialog.getByRole("combobox", { name: "Instituição" }), "inter", /^Inter$/);
-  await pick(page, dialog.getByRole("combobox", { name: "Ativo" }), "LCI BRB", "Criar “LCI BRB”");
+  const dialog = await openAddDialog(page);
   await chooseKind(page, dialog, /Renda fixa/);
-  await dialog.getByRole("combobox", { name: "Subclasse" }).click();
-  await page.getByRole("option", { name: "IPCA", exact: true }).click();
-  await dialog.getByRole("combobox", { name: "Resgate" }).click();
-  await page.getByRole("option", { name: "Curto", exact: true }).click();
-  await dialog.getByRole("textbox", { name: "Saldo (R$)" }).fill("1000");
-
-  const add = dialog.getByRole("button", { name: "Adicionar" });
-  const duplicate = dialog.locator("[data-asset-duplicate]");
-  await expect(duplicate).toContainText("já existe nesta instituição");
-  await expect(add).toBeDisabled();
-  await dialog.getByLabel("Vencimento").fill("2099-03-20");
-  await expect(add).toBeEnabled();
-  await add.click();
-  await expect(dialog).toHaveCount(0);
-
-  // O título novo sem ticker aparece como opção no Inter, e não no Itaú.
-  dialog = await openAddDialog(page);
   await pick(page, dialog.getByRole("combobox", { name: "Instituição" }), "inter", /^Inter$/);
-  const asset = dialog.getByRole("combobox", { name: "Ativo" });
-  await asset.click();
-  await page.keyboard.type("LCI BRB");
-  await expect(page.getByRole("option", { name: /LCI BRB.*novo · vence Mar\/99/ })).toBeVisible();
-  await page.keyboard.press("Escape");
-  await pick(page, dialog.getByRole("combobox", { name: "Instituição" }), "itau", /^Itaú$/);
-  await asset.click();
-  await page.keyboard.type("LCI BRB");
-  await expect(page.getByRole("option", { name: /novo/ })).toHaveCount(0);
-  await page.keyboard.press("Escape");
-  await dialog.getByRole("button", { name: "Cancelar" }).click();
+  await nameAsset(dialog, "LCI BRB");
 
-  await page.getByRole("button", { name: "Descartar" }).click();
-  await expect(page.getByRole("row").filter({ hasText: "vence em Mar/99" })).toHaveCount(0);
-  await expect(page.locator("[data-edit-cell]")).toHaveCount(0);
+  // A LCI BRB do Inter já existe: a inclusão usa esse ativo.
+  const existing = dialog.locator("[data-asset-existing]");
+  await expect(existing).toContainText("LCI BRB já existe");
+
+  // Sem ticker, o ativo é da instituição: no Itaú, o mesmo nome é um ativo novo.
+  await pick(page, dialog.getByRole("combobox", { name: "Instituição" }), "itau", /^Itaú$/);
+  await expect(existing).toHaveCount(0);
+  await expect(dialog.getByRole("region", { name: "Novo ativo" })).toBeVisible();
+
+  await dialog.getByRole("button", { name: "Cancelar" }).click();
+  await leaveEditMode(page);
 });
 
 test("um cripto com várias moedas no mesmo símbolo pede a escolha da moeda", async ({ page }) => {
@@ -430,9 +398,9 @@ test("um cripto com várias moedas no mesmo símbolo pede a escolha da moeda", a
   });
   await page.goto("/posicoes");
   const dialog = await openAddDialog(page);
-  await pick(page, dialog.getByRole("combobox", { name: "Instituição" }), "inter", /^Inter$/);
-  await pick(page, dialog.getByRole("combobox", { name: "Ativo" }), "Uni", "Criar “Uni”");
   await chooseKind(page, dialog, /Cripto/);
+  await pick(page, dialog.getByRole("combobox", { name: "Instituição" }), "inter", /^Inter$/);
+  await nameAsset(dialog, "Uni");
   await dialog.getByRole("textbox", { name: "Ticker" }).fill("UNI");
 
   const status = dialog.locator("[data-ticker-status]");

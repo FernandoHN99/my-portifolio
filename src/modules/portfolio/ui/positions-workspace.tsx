@@ -961,7 +961,6 @@ function PositionRow({
       </Cell>
       <Cell id="institutionName">
         <p className="text-xs text-foreground/80">{position.institutionName}</p>
-        <p className="mt-1 text-[10px] text-muted-foreground">{position.accountName}</p>
       </Cell>
       <Cell id="strategy" editMode={canEdit} changed={position.strategyChanged && !position.isAdded}>
         {editable ? (

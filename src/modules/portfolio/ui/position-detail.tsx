@@ -39,6 +39,7 @@ import { AssetPriceChart } from "@/modules/portfolio/ui/asset-price-chart";
 import { BalanceChangeChart } from "@/modules/portfolio/ui/balance-change-chart";
 import { ChangeKpiCard, KpiCard } from "@/modules/portfolio/ui/kpi-card";
 import { MaturityBadge } from "@/modules/portfolio/ui/maturity-badge";
+import { AssetNameEditor } from "@/modules/portfolio/ui/asset-name-editor";
 import { LiquidityEditor } from "@/modules/portfolio/ui/liquidity-editor";
 import { MaturityEditor } from "@/modules/portfolio/ui/maturity-editor";
 import { HighlightRow, PositionAttribution } from "@/modules/portfolio/ui/position-attribution";
@@ -100,9 +101,7 @@ export function PositionDetail({ history }: { history: PositionHistoryView | nul
       <header className="flex flex-col gap-6 border-b border-border/70 pb-8 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0">
           <BackLink href={backHref} />
-          <h1 className="mt-3 text-3xl font-semibold tracking-[-0.05em] break-words sm:text-[2.65rem]">
-            {history.assetName}
-          </h1>
+          <AssetNameEditor assetId={history.assetId} name={history.assetName} />
           <p className="mt-3 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-sm text-muted-foreground">
             <span className="rounded-md bg-white/[0.05] px-1.5 py-0.5 font-mono text-[11px] text-foreground/85">
               {history.ticker ?? "SALDO"}
@@ -110,7 +109,7 @@ export function PositionDetail({ history }: { history: PositionHistoryView | nul
             <span>
               {scope === "all"
                 ? `Todas as contas: ${allAccountLabels(history).join(", ")}`
-                : `${history.institutionName} · ${history.accountName}`}
+                : history.institutionName}
             </span>
           </p>
           <div className="mt-3 flex flex-wrap items-center gap-1.5" data-testid="position-chips">
@@ -578,7 +577,7 @@ function lastPresentUpTo(slots: HistorySlot[], month: string) {
 }
 
 function allAccountLabels(history: PositionHistoryView) {
-  return [`${history.institutionName} · ${history.accountName}`, ...history.otherAccounts.map((other) => other.label)];
+  return [history.institutionName, ...history.otherAccounts.map((other) => other.label)];
 }
 
 function formatUnsignedPercent(value: number) {

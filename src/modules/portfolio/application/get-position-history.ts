@@ -113,7 +113,8 @@ export async function getPositionHistory({
     const observations: PositionObservation[] = positions.map((position) => ({
       month: monthKey(position.portfolioMonth.referenceDate),
       accountId: position.accountId,
-      accountLabel: `${position.account.institution.name} · ${position.account.name}`,
+      // Só a instituição: a conta saiu da interface (spec 040).
+      accountLabel: position.account.institution.name,
       quantity: position.quantity.toNumber(),
       unitPriceBrl: position.unitPriceBrl?.toNumber() ?? null,
       totalBrl: position.totalBrl.toNumber(),

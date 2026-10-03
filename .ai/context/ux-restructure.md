@@ -484,24 +484,10 @@ Concluídos:
 - coluna opcional de liquidez do ativo, como D+0, D+1 e imediata
   ([spec 039](../specs/039-asset-liquidity.md)).
 
-**Pendentes, onde a sessão parou** (a pedido do usuário, a sessão foi
-encerrada aqui para continuar depois). Próxima fatia, a spec 040, ainda não
-criada:
-
-1. **Remover a conta da interface**: o usuário não usa a conta "Principal"
-   que aparece junto da instituição. Proposta: mostrar só a instituição na
-   tabela de Posições, na página da posição e nas listas, e tirar o campo
-   "Conta" da inclusão, que passa a usar a conta da instituição (cada
-   instituição tem hoje uma conta só) ou cria "Principal". A conta continua no
-   banco como parte da identidade da posição.
-2. **Renomear o ativo**: editar o nome na página da posição, como o
-   vencimento e a liquidez. A chave do ativo (`normalized_key`) acompanha o nome
-   novo: `market:<nome>:<TICKER>` ou `private:<instituição>:<nome>[:vencimento]`,
-   e não pode coincidir com a de outro ativo.
-3. **Nome do ativo como texto livre na inclusão**: o campo "Ativo" do diálogo
-   deixa de ser lista de escolha. Se o nome digitado, com tipo e ticker,
-   coincidir com um ativo existente, a inclusão usa esse ativo em vez de criar
-   outro (o diálogo já calcula a chave e acha o "gêmeo").
+Concluídos depois, na [spec 040](../specs/040-simpler-position-entry.md):
+conta fora da interface, renomear o ativo e nome livre na inclusão; e, na
+quinta rodada, o tipo primeiro na inclusão e a cor invertida da diferença em
+"Comprar e vender".
 
 **Backlog**, junto da previdência: transações dentro das posições, descritas
 em [Backlog](backlog.md).

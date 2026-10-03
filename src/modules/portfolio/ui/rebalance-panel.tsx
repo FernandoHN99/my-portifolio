@@ -247,7 +247,7 @@ function RebalanceRow({ row, maxDifference }: { row: AllocationRow; maxDifferenc
               <span
                 className={cn(
                   "absolute inset-y-0 rounded-full",
-                  difference > 0 ? "left-1/2 bg-destructive/70" : "right-1/2 bg-primary/70",
+                  difference > 0 ? "left-1/2 bg-primary/70" : "right-1/2 bg-destructive/70",
                 )}
                 style={{ width: `${width}%` }}
               />
@@ -256,10 +256,13 @@ function RebalanceRow({ row, maxDifference }: { row: AllocationRow; maxDifferenc
           <span
             className={cn(
               "w-28 shrink-0 text-right font-mono text-[11px]",
+              // Diferença positiva (acima do ideal) em verde e negativa em
+              // vermelho, a pedido do usuário (spec 040); os selos Comprar e
+              // Vender não mudam.
               row.direction === "SELL"
-                ? "text-destructive"
+                ? "text-primary"
                 : row.direction === "BUY"
-                  ? "text-primary"
+                  ? "text-destructive"
                   : "text-muted-foreground",
             )}
           >
