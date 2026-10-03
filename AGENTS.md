@@ -11,26 +11,32 @@ e Claude Code consultando a mesma base de conhecimento.
 
 ## Trabalho em andamento
 
-Estado em 2026-10-03: specs 016 e 028 a 048 concluídas e no `main`; detalhes
-em `.ai/specs/README.md`. O próximo assunto, pedido pelo usuário, é o deploy,
-tratado em outra conversa.
+Estado em 2026-10-03: specs 016 e 028 a 052 concluídas e no `main`; detalhes
+em `.ai/specs/README.md`. O app está publicado na Vercel com o banco no Neon
+([Produção](.ai/context/production.md)).
 
-- o banco local tem o histórico preparado no passo pré-produção
-  ([spec 041](.ai/specs/041-history-preparation.md)), importado pelo usuário em
-  2026-10-03: competências de jun/23 em diante, sem lacunas, com a cotação de
-  fechamento de cada mês. Os testes de interface usam os valores dele;
-- o backup dos dados ([spec 042](.ai/specs/042-data-backup.md)) exporta e
-  restaura tudo pela Configuração ou por `pnpm backup:export` e
-  `pnpm backup:restore`; os arquivos ficam em `backups/`, fora do Git. É a
-  única forma de carregar dados e o caminho para outro banco, como o de
+- o app tem login e mais de um usuário ([spec 050](.ai/specs/050-login-and-user-data.md)):
+  as tabelas da carteira têm `user_id`, e o código lê e grava pelo cliente com
+  escopo (`getUserDb`, em `src/lib/user-db.ts`); as cotações automáticas são de
+  todos, e a digitada à mão é do usuário ([spec 051](.ai/specs/051-shared-automatic-quotes.md)).
+  Não há atualização manual de cotações;
+- o banco local foi recriado em 2026-10-03, com a autorização do usuário, e
+  tem o histórico preparado no passo pré-produção ([spec 041](.ai/specs/041-history-preparation.md))
+  restaurado no usuário local de `E2E_USER_EMAIL`, cuja senha está no `.env`.
+  Os testes de interface entram com ele e usam os valores dele;
+- o backup ([spec 052](.ai/specs/052-per-user-backup.md)) exporta e restaura a
+  carteira do usuário pela Configuração ou por `pnpm backup:export --user` e
+  `pnpm backup:restore --user`; os arquivos ficam em `backups/`, fora do Git.
+  É a única forma de carregar dados e o caminho para outro banco, como o de
   produção. A importação do Excel saiu ([spec 047](.ai/specs/047-json-only-data.md));
 - sem plano de metas, o app cria as "Metas padrão" a partir das categorias da
   carteira ([spec 048](.ai/specs/048-default-targets-and-quotes-button.md));
 - toda mudança no modelo de dados (como as transações) segue o roteiro de
   [docs/backup-format.md](docs/backup-format.md), que mantém o formato do
   backup e as conversões de versões antigas;
-- o banco local já tem a migração da spec 047; o backup v2 dos dados reais
-  para carregar a produção está em `backups/` (fora do Git);
+- o backup mais recente dos dados reais é
+  `backups/meu-portfolio-backup-2026-10-03-2016.json` (versão 2, convertido na
+  restauração); a produção começa sem usuários e recebe os dados por ele;
 - transações dentro das posições e a previdência, que o usuário indicou como
   próximo assunto, estão no backlog, em `.ai/context/backlog.md`;
 - as respostas do usuário, o backlog e o que ainda aguarda resposta estão em

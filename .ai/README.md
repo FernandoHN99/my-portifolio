@@ -11,6 +11,8 @@ Os entrypoints indicam como chegar a esse conhecimento.
   evidências e limitações da análise.
 - `context/vba-analysis.md`: funcionamento dos módulos exportados,
   integrações, falhas conhecidas e implicações para a migração.
+- `context/production.md`: onde o app está publicado (Vercel e Neon), a
+  configuração do deploy e o primeiro acesso.
 - `specs/README.md`: finalidade e evolução das futuras specs.
 - [Decisões de arquitetura e funcionamento](../docs/architecture.md):
   escolhas confirmadas e pendências da aplicação.
