@@ -56,12 +56,16 @@ test("as variações comparam com meses do calendário", async ({ page }) => {
   await expect(detail("Variação no mês")).toHaveText(/^R\$\s[\d.]+,\d{2}$/);
   await expect(detail("Variação em 12 meses")).toHaveText(/ desde Set\/25$/);
 
-  // Agosto de 2024: julho de 2024 e agosto de 2023 não existem no histórico.
+  // O histórico preparado (spec 041) não tem lacunas: agosto de 2024 compara
+  // com julho de 2024 e com agosto de 2023, meses que antes faltavam.
   await page.goto("/?mes=2024-08");
-  await expect(page.getByTestId("month-change")).toHaveText("—");
-  await expect(detail("Variação no mês")).toHaveText("Histórico insuficiente: sem Jul/24");
+  await expect(detail("Variação no mês")).toHaveText(/R\$\s[\d.]+,\d{2}$/);
+  await expect(detail("Variação em 12 meses")).toHaveText(/ desde Ago\/23$/);
+
+  // Antes de junho de 2024, doze meses antes fica antes da primeira competência.
+  await page.goto("/?mes=2024-05");
   await expect(page.getByTestId("year-change")).toHaveText("—");
-  await expect(detail("Variação em 12 meses")).toHaveText("Histórico insuficiente: sem Ago/23");
+  await expect(detail("Variação em 12 meses")).toHaveText("Histórico insuficiente");
 
   // Junho de 2024 compara com junho de 2023, exatamente doze meses antes.
   await page.goto("/?mes=2024-06");
@@ -126,14 +130,21 @@ test("renda fixa por resgate mostra o atual em cima e o ideal embaixo na mesma e
 });
 
 test("um prazo fora do padrão ocupa a mesma posição nos dois gráficos", async ({ page }) => {
-  // Em outubro de 2025 há BTC sem prazo só no atual; os dois gráficos mantêm as mesmas séries.
+  // Precisava do BTC classificado como renda fixa em outubro de 2025, que o
+  // histórico preparado (spec 041) corrigiu. O cenário só roda quando os dados
+  // reais voltarem a ter renda fixa sem prazo, por exemplo um rateio com
+  // resgate "Nenhum".
   await page.goto("/?mes=2025-10");
 
   const card = page.getByRole("region", { name: "Renda fixa por resgate" });
   await card.scrollIntoViewIfNeeded();
 
   const legend = card.getByRole("list", { name: "Prazos" });
-  await expect(legend.getByText("Sem prazo", { exact: true })).toBeVisible();
+  await expect(legend.getByText("Curto", { exact: true })).toBeVisible();
+  test.skip(
+    (await legend.getByText("Sem prazo", { exact: true }).count()) === 0,
+    "Nenhuma renda fixa sem prazo em Out/25 nos dados reais.",
+  );
 
   const current = card.getByTestId("duration-current");
   const target = card.getByTestId("duration-target");

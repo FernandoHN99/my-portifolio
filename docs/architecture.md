@@ -75,6 +75,13 @@ Atualizado em 2026-10-02: a tela de revisão dos achados foi removida a
 pedido do usuário ([spec 022](../.ai/specs/022-quotes-page.md)). Os dados de
 origem e os achados continuam preservados nas tabelas da importação.
 
+Atualizado em 2026-10-03: o histórico das posições passa a vir da preparação
+única do [passo pré-produção](../.ai/specs/041-history-preparation.md), feita
+com o usuário a partir das tabelas exportadas da planilha: meses sem lacunas,
+cotação de fechamento de cada mês buscada nos provedores e cada unificação de
+ativo confirmada por ele. O Bitcoin de junho de 2023 recebeu, por resposta
+dele, a quantidade de julho.
+
 ### Backup dos dados
 
 Decidido em 2026-10-03: o aplicativo exporta todos os dados num arquivo JSON

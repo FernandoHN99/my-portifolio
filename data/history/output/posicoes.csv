@@ -1,0 +1,458 @@
+competencia;status_mes;instituicao;conta;ativo_id;chave_ativo;nome;ticker;quantidade;cotacao_brl;dolar_brl;total_brl;estrategia;origem;observacoes;quantidade_planilha;cotacao_planilha;total_planilha
+2023-06;IMPORTED;Binance;Principal;busd;market:busd:USD;BUSD;USD;2527;4,8192;4,8192;12178,12;Core;planilha linha 6;;2527;5,007;12652,689
+2023-06;IMPORTED;Binance;Principal;usdt;market:usdt:USD;USDT;USD;1002;4,8192;4,8192;4828,84;Core;planilha linha 5;;1002;5,007;5017,014
+2023-06;IMPORTED;C6;Principal;cdb-110;private:c6:cdb-110;CDB - 110%;;20017,71;;4,8192;20017,71;Core;planilha linha 4;;20017,71;;20017,71
+2023-06;IMPORTED;Inter;Principal;dolar;market:dolar-inter:USD;Dolar Inter;USD;99,79;4,8192;4,8192;480,91;Core;planilha linha 7;;99,79;5,007;499,64853
+2023-06;IMPORTED;Ledger;Principal;bitcoin-01;market:bitcoin-01:BTC;Bitcoin 01;BTC;0,179195;146889;4,8192;26321,77;Core-Satellite;planilha linha 2;quantidade Core → 0,179195 (P9);Core;Core;Core
+2023-06;IMPORTED;PicPay;Principal;liquidez-diaria;private:picpay:liquidez-diaria;Liquidez Diaria;;3698,14;;4,8192;3698,14;Core;planilha linha 3;;3698,14;;3698,14
+2023-07;IMPORTED;Binance;Principal;busd;market:busd:USD;BUSD;USD;2529;4,7415;4,7415;11991,25;Core;planilha linha 12;;2529;4,89;12366,81
+2023-07;IMPORTED;Binance;Principal;usdt;market:usdt:USD;USDT;USD;1009;4,7415;4,7415;4784,17;Core;planilha linha 11;;1009;4,89;4934,01
+2023-07;IMPORTED;C6;Principal;cdb-110;private:c6:cdb-110;CDB - 110%;;20277,35;;4,7415;20277,35;Core;planilha linha 10;;20277,35;;20277,35
+2023-07;IMPORTED;Inter;Principal;dolar;market:dolar-inter:USD;Dolar Inter;USD;99,79;4,7415;4,7415;473,15;Core;planilha linha 13;;99,79;4,89;487,9731
+2023-07;IMPORTED;Ledger;Principal;bitcoin-01;market:bitcoin-01:BTC;Bitcoin 01;BTC;0,179195;139253;4,7415;24953,44;Core-Satellite;planilha linha 8;;0,179195;151373,22;27125,32416
+2023-07;IMPORTED;PicPay;Principal;liquidez-diaria;private:picpay:liquidez-diaria;Liquidez Diaria;;4238,83;;4,7415;4238,83;Core;planilha linha 9;;4238,83;;4238,83
+2023-08;IMPORTED;Binance;Principal;busd;market:busd:USD;BUSD;USD;2529;4,9219;4,9219;12447,49;Core;copiado de 2023-07;;;;
+2023-08;IMPORTED;Binance;Principal;usdt;market:usdt:USD;USDT;USD;1009;4,9219;4,9219;4966,20;Core;copiado de 2023-07;;;;
+2023-08;IMPORTED;C6;Principal;cdb-110;private:c6:cdb-110;CDB - 110%;;20277,35;;4,9219;20277,35;Core;copiado de 2023-07;;;;
+2023-08;IMPORTED;Inter;Principal;dolar;market:dolar-inter:USD;Dolar Inter;USD;99,79;4,9219;4,9219;491,16;Core;copiado de 2023-07;;;;
+2023-08;IMPORTED;Ledger;Principal;bitcoin-01;market:bitcoin-01:BTC;Bitcoin 01;BTC;0,179195;129220;4,9219;23155,58;Core-Satellite;copiado de 2023-07;;;;
+2023-08;IMPORTED;PicPay;Principal;liquidez-diaria;private:picpay:liquidez-diaria;Liquidez Diaria;;4238,83;;4,9219;4238,83;Core;copiado de 2023-07;;;;
+2023-09;IMPORTED;Binance;Principal;busd;market:busd:USD;BUSD;USD;2529;5,0076;5,0076;12664,22;Core;copiado de 2023-08;;;;
+2023-09;IMPORTED;Binance;Principal;usdt;market:usdt:USD;USDT;USD;1009;5,0076;5,0076;5052,67;Core;copiado de 2023-08;;;;
+2023-09;IMPORTED;C6;Principal;cdb-110;private:c6:cdb-110;CDB - 110%;;20277,35;;5,0076;20277,35;Core;copiado de 2023-08;;;;
+2023-09;IMPORTED;Inter;Principal;dolar;market:dolar-inter:USD;Dolar Inter;USD;99,79;5,0076;5,0076;499,71;Core;copiado de 2023-08;;;;
+2023-09;IMPORTED;Ledger;Principal;bitcoin-01;market:bitcoin-01:BTC;Bitcoin 01;BTC;0,179195;135783;5,0076;24331,63;Core-Satellite;copiado de 2023-08;;;;
+2023-09;IMPORTED;PicPay;Principal;liquidez-diaria;private:picpay:liquidez-diaria;Liquidez Diaria;;4238,83;;5,0076;4238,83;Core;copiado de 2023-08;;;;
+2023-10;IMPORTED;Binance;Principal;bitcoin-02;market:bitcoin-02:BTC;Bitcoin 02;BTC;0,01745788;175093;5,0575;3056,75;Core-Satellite;planilha linha 14;;0,01745788;174262,84;3042,259749
+2023-10;IMPORTED;Binance;Principal;busd;market:busd:USD;BUSD;USD;2531,36;5,0575;5,0575;12802,35;Core;planilha linha 21;;2531,36;5,05;12783,368
+2023-10;IMPORTED;Binance;Principal;usdt;market:usdt:USD;USDT;USD;1017,85;5,0575;5,0575;5147,78;Core;planilha linha 20;;1017,85;5,05;5140,1425
+2023-10;IMPORTED;C6;Principal;c6-cdb-cartao-100;private:c6:c6-cdb-cartao-100;C6 - CDB Cartao 100%;;2500;;5,0575;2500,00;Core;planilha linha 18;;2500;;2500
+2023-10;IMPORTED;C6;Principal;c6-cdb-diario-105;private:c6:c6-cdb-diario-105;C6 - CDB Diario 105%;;975;;5,0575;975,00;Core;planilha linha 17;;975;;975
+2023-10;IMPORTED;C6;Principal;conta-bancaria-c6;private:c6:conta-bancaria;Conta Bancária;;30,62;;5,0575;30,62;Core;planilha linha 22;;30,62;;30,62
+2023-10;IMPORTED;Inter;Principal;dolar;market:dolar-inter:USD;Dolar Inter;USD;39,94;5,0575;5,0575;202,00;Core;planilha linha 23;;39,94;5,05;201,697
+2023-10;IMPORTED;Inter;Principal;inter;private:inter:inter;Inter;;5573,41;;5,0575;5573,41;Core;planilha linha 16;;5573,41;;5573,41
+2023-10;IMPORTED;Inter;Principal;lci-di-180;private:inter:lci-di-180;LCI DI 180;;15748,75;;5,0575;15748,75;Core;planilha linha 19;;15748,75;;15748,75
+2023-10;IMPORTED;Ledger;Principal;bitcoin-01;market:bitcoin-01:BTC;Bitcoin 01;BTC;0,179195;175093;5,0575;31375,79;Core-Satellite;planilha linha 15;;0,179195;174262,84;31227,02961
+2023-11;IMPORTED;Binance;Principal;bitcoin-02;market:bitcoin-02:BTC;Bitcoin 02;BTC;0,01745788;186618;4,9355;3257,95;Core-Satellite;copiado de 2023-10;;;;
+2023-11;IMPORTED;Binance;Principal;busd;market:busd:USD;BUSD;USD;2531,36;4,9355;4,9355;12493,53;Core;copiado de 2023-10;;;;
+2023-11;IMPORTED;Binance;Principal;usdt;market:usdt:USD;USDT;USD;1017,85;4,9355;4,9355;5023,60;Core;copiado de 2023-10;;;;
+2023-11;IMPORTED;C6;Principal;c6-cdb-cartao-100;private:c6:c6-cdb-cartao-100;C6 - CDB Cartao 100%;;2500;;4,9355;2500,00;Core;copiado de 2023-10;;;;
+2023-11;IMPORTED;C6;Principal;c6-cdb-diario-105;private:c6:c6-cdb-diario-105;C6 - CDB Diario 105%;;975;;4,9355;975,00;Core;copiado de 2023-10;;;;
+2023-11;IMPORTED;C6;Principal;conta-bancaria-c6;private:c6:conta-bancaria;Conta Bancária;;30,62;;4,9355;30,62;Core;copiado de 2023-10;;;;
+2023-11;IMPORTED;Inter;Principal;dolar;market:dolar-inter:USD;Dolar Inter;USD;39,94;4,9355;4,9355;197,12;Core;copiado de 2023-10;;;;
+2023-11;IMPORTED;Inter;Principal;inter;private:inter:inter;Inter;;5573,41;;4,9355;5573,41;Core;copiado de 2023-10;;;;
+2023-11;IMPORTED;Inter;Principal;lci-di-180;private:inter:lci-di-180;LCI DI 180;;15748,75;;4,9355;15748,75;Core;copiado de 2023-10;;;;
+2023-11;IMPORTED;Ledger;Principal;bitcoin-01;market:bitcoin-01:BTC;Bitcoin 01;BTC;0,179195;186618;4,9355;33441,01;Core-Satellite;copiado de 2023-10;;;;
+2023-12;IMPORTED;Binance;Principal;bitcoin-02;market:bitcoin-02:BTC;Bitcoin 02;BTC;0,01745788;209177;4,8413;3651,79;Core-Satellite;planilha linha 28;;0,01745788;207740,79;3626,713783
+2023-12;IMPORTED;Binance;Principal;busd;market:busd:USD;BUSD;USD;2539,94;4,8413;4,8413;12296,61;Core;planilha linha 25;;2539,94;4,95;12572,703
+2023-12;IMPORTED;Binance;Principal;usdt;market:usdt:USD;USDT;USD;1025,86;4,8413;4,8413;4966,50;Core;planilha linha 24;;1025,86;4,95;5078,007
+2023-12;IMPORTED;C6;Principal;cdb-cartao-100;private:c6:cdb-cartao-100;CDB Cartao 100%;;2567,31;;4,8413;2567,31;Core;planilha linha 31;;2567,31;;2567,31
+2023-12;IMPORTED;C6;Principal;cdb-diario-105;private:c6:cdb-diario-105;CDB Diario 105%;;11887,95;;4,8413;11887,95;Core;planilha linha 30;;11887,95;;11887,95
+2023-12;IMPORTED;C6;Principal;conta-bancaria-c6;private:c6:conta-bancaria;Conta Bancária;;471,12;;4,8413;471,12;Core;planilha linha 26;;471,12;;471,12
+2023-12;IMPORTED;Inter;Principal;dolar;market:dolar-inter:USD;Dolar Inter;USD;39,94;4,8413;4,8413;193,36;Core;planilha linha 27;;39,94;4,95;197,703
+2023-12;IMPORTED;Inter;Principal;lci-di-180;private:inter:lci-di-180;LCI DI 180;;15900,21;;4,8413;15900,21;Core;planilha linha 32;;15900,21;;15900,21
+2023-12;IMPORTED;Ledger;Principal;bitcoin-01;market:bitcoin-01:BTC;Bitcoin 01;BTC;0,179195;209177;4,8413;37483,47;Core-Satellite;planilha linha 29;;0,179195;207740,79;37226,11086
+2024-01;IMPORTED;Binance;Principal;bitcoin-02;market:bitcoin-02:BTC;Bitcoin 02;BTC;0,01745788;212339;4,9535;3706,99;Core-Satellite;planilha linha 37;quantidade 0,02 → 0,01745788 (P10);0,02;213280;4265,6
+2024-01;IMPORTED;Binance;Principal;busd;market:busd:USD;BUSD;USD;2568,18;4,9535;4,9535;12721,48;Core;planilha linha 34;;2568,18;4,98;12789,5364
+2024-01;IMPORTED;Binance;Principal;usdt;market:usdt:USD;USDT;USD;1044,7;4,9535;4,9535;5174,92;Core;planilha linha 33;;1044,7;4,98;5202,606
+2024-01;IMPORTED;C6;Principal;cdb-cartao-100;private:c6:cdb-cartao-100;CDB Cartao 100%;;2910,35;;4,9535;2910,35;Core;planilha linha 40;;2910,35;;2910,35
+2024-01;IMPORTED;C6;Principal;cdb-diario-105;private:c6:cdb-diario-105;CDB Diario 105%;;29644,52;;4,9535;29644,52;Core;planilha linha 39;;29644,52;;29644,52
+2024-01;IMPORTED;C6;Principal;conta-bancaria-c6;private:c6:conta-bancaria;Conta Bancária;;366,73;;4,9535;366,73;Core;planilha linha 35;;366,73;;366,73
+2024-01;IMPORTED;Inter;Principal;dolar;market:dolar-inter:USD;Dolar Inter;USD;39,94;4,9535;4,9535;197,84;Core;planilha linha 36;;39,94;4,98;198,9012
+2024-01;IMPORTED;Ledger;Principal;bitcoin-01;market:bitcoin-01:BTC;Bitcoin 01;BTC;0,179195;212339;4,9535;38050,09;Core-Satellite;planilha linha 38;quantidade 0,18 → 0,179195 (P10);0,18;213280;38390,4
+2024-02;IMPORTED;Binance;Principal;bitcoin-02;market:bitcoin-02:BTC;Bitcoin 02;BTC;0,01745788;306687;4,9833;5354,10;Core-Satellite;planilha linha 47;;0,01745788;258315;4509,632272
+2024-02;IMPORTED;Binance;Principal;bitcoin-03;market:bitcoin-03:BTC;Bitcoin 03;BTC;0,00769491;306687;4,9833;2359,93;Core-Satellite;planilha linha 48;;0,00769491;258315;1987,710677
+2024-02;IMPORTED;Binance;Principal;usdc;market:usdc:USD;USDC;USD;3620,55;4,9833;4,9833;18042,29;Core;planilha linha 49;;3620,55;4,97;17994,1335
+2024-02;IMPORTED;C6;Principal;cdb-cartao-100;private:c6:cdb-cartao-100;CDB Cartao 100%;;2916,4;;4,9833;2916,40;Core;planilha linha 41;;2916,4;;2916,4
+2024-02;IMPORTED;C6;Principal;cdb-diario-105;private:c6:cdb-diario-105;CDB Diario 105%;;19156,67;;4,9833;19156,67;Core;planilha linha 42;;19156,67;;19156,67
+2024-02;IMPORTED;C6;Principal;conta-bancaria-c6;private:c6:conta-bancaria;Conta Bancária;;470,37;;4,9833;470,37;Core;planilha linha 43;;470,37;;470,37
+2024-02;IMPORTED;Ledger;Principal;bitcoin-01;market:bitcoin-01:BTC;Bitcoin 01;BTC;0,179195;306687;4,9833;54956,78;Core-Satellite;planilha linha 46;;0,179195;258315;46288,75643
+2024-02;IMPORTED;XP;Principal;extra-xp;private:xp:extra-xp;Extra XP;;148,08;;4,9833;148,08;Core;planilha linha 44;;148,08;;148,08
+2024-02;IMPORTED;XP;Principal;lci-xp;private:xp:lci-xp;LCI XP;;9851,92;;4,9833;9851,92;Core;planilha linha 45;;9851,92;;9851,92
+2024-03;IMPORTED;Binance;Principal;usdc;market:usdc:USD;USDC;USD;5282,2;4,9962;4,9962;26390,93;Core;planilha linha 55;;5282,2;4,97;26252,534
+2024-03;IMPORTED;C6;Principal;cdb-cartao-100;private:c6:cdb-cartao-100;CDB Cartao 100%;;39,57;;4,9962;39,57;Core;planilha linha 50;;39,57;;39,57
+2024-03;IMPORTED;C6;Principal;cdb-diario-105;private:c6:cdb-diario-105;CDB Diario 105%;;21231,66;;4,9962;21231,66;Core;planilha linha 51;;21231,66;;21231,66
+2024-03;IMPORTED;C6;Principal;conta-bancaria-c6;private:c6:conta-bancaria;Conta Bancária;;487,27;;4,9962;487,27;Core;planilha linha 52;;487,27;;487,27
+2024-03;IMPORTED;Ledger;Principal;bitcoin-01;market:bitcoin-01:BTC;Bitcoin 01;BTC;0,179195;360273;4,9962;64559,12;Core-Satellite;planilha linha 54;;0,179195;365000;65406,175
+2024-03;IMPORTED;XP;Principal;lci-xp;private:xp:lci-xp;LCI XP;;9933,05;;4,9962;9933,05;Core;planilha linha 53;;9933,05;;9933,05
+2024-04;IMPORTED;Binance;Principal;bitcoin-02;market:bitcoin-02:BTC;Bitcoin 02;BTC;0,04627105;317813;5,1718;14705,54;Core-Satellite;planilha linha 60;;0,04627105;301966;13972,28388
+2024-04;IMPORTED;Binance;Principal;usdc;market:usdc:USD;USDC;USD;3437,1;5,1718;5,1718;17775,99;Core;planilha linha 59;;3437,1;5,1163;17585,23473
+2024-04;IMPORTED;Itaú;Principal;cdb-itau-100;private:itau:cdb-itau-100;CDB Itaú 100%;;30106,64;;5,1718;30106,64;Core;planilha linha 56;;30106,64;;30106,64
+2024-04;IMPORTED;Itaú;Principal;conta-bancaria-itau;private:itau:conta-bancaria;Conta Bancária;;279,34;;5,1718;279,34;Core;planilha linha 57;;279,34;;279,34
+2024-04;IMPORTED;Ledger;Principal;bitcoin-01;market:bitcoin-01:BTC;Bitcoin 01;BTC;0,179195;317813;5,1718;56950,50;Core-Satellite;planilha linha 58;;0,179195;301966;54110,79737
+2024-05;IMPORTED;Binance;Principal;bitcoin-02;market:bitcoin-02:BTC;Bitcoin 02;BTC;0,07912145;356004;5,2416;28167,55;Core-Satellite;planilha linha 64;;0,07912145;355704;28143,81625
+2024-05;IMPORTED;Binance;Principal;usdc;market:usdc:USD;USDC;USD;3444;5,2416;5,2416;18052,07;Core;planilha linha 63;;3444;5,155;17753,82
+2024-05;IMPORTED;Itaú;Principal;cdb-itau-100;private:itau:cdb-itau-100;CDB Itaú 100%;;16611;;5,2416;16611,00;Core;planilha linha 61;;16611;;16611
+2024-05;IMPORTED;Ledger;Principal;bitcoin-01;market:bitcoin-01:BTC;Bitcoin 01;BTC;0,179195;356004;5,2416;63794,14;Core-Satellite;planilha linha 62;;0,179195;355704;63740,37828
+2024-06;IMPORTED;Binance;Principal;bitcoin-02;market:bitcoin-02:BTC;Bitcoin 02;BTC;0,07912145;352059;5,5589;27855,42;Core-Satellite;planilha linha 69;;0,07912145;346000;27376,0217
+2024-06;IMPORTED;Binance;Principal;ethereum;market:ethereum:ETH;Ethereum;ETH;0,15798448;19282,13;5,5589;3046,28;Satellite;planilha linha 70;"US$ 548 na planilha; 0,15798448 ETH = valor ÷ fechamento do mês (P12)";548;5,43;2975,64
+2024-06;IMPORTED;Binance;Principal;solana;market:solana:SOL;Solana;SOL;1,65503767;822,9;5,5589;1361,93;Satellite;planilha linha 71;"US$ 245 na planilha; 1,65503767 SOL = valor ÷ fechamento do mês (P12)";245;5,43;1330,35
+2024-06;IMPORTED;Binance;Principal;usdc;market:usdc:USD;USDC;USD;3458;5,5589;5,5589;19222,68;Core;planilha linha 68;;3458;5,43;18776,94
+2024-06;IMPORTED;Itaú;Principal;cdb-itau-100;private:itau:cdb-itau-100;CDB Itaú 100%;;5331,61;;5,5589;5331,61;Core;planilha linha 66;;5331,61;;5331,61
+2024-06;IMPORTED;Itaú;Principal;fundo-itau;private:itau:fundo-itau;Fundo Itaú;;13103,07;;5,5589;13103,07;Core;planilha linha 65;;13103,07;;13103,07
+2024-06;IMPORTED;Ledger;Principal;bitcoin-01;market:bitcoin-01:BTC;Bitcoin 01;BTC;0,179195;352059;5,5589;63087,21;Core-Satellite;planilha linha 67;;0,179195;346000;62001,47
+2024-07;IMPORTED;Binance;Principal;bitcoin-02;market:bitcoin-02:BTC;Bitcoin 02;BTC;0,07912145;367966;5,6621;29114,00;Core-Satellite;copiado de 2024-06;;;;
+2024-07;IMPORTED;Binance;Principal;ethereum;market:ethereum:ETH;Ethereum;ETH;0,15798448;18399,49;5,6621;2906,83;Satellite;copiado de 2024-06;;;;
+2024-07;IMPORTED;Binance;Principal;solana;market:solana:SOL;Solana;SOL;1,65503767;977;5,6621;1616,97;Satellite;copiado de 2024-06;;;;
+2024-07;IMPORTED;Binance;Principal;usdc;market:usdc:USD;USDC;USD;3458;5,6621;5,6621;19579,54;Core;copiado de 2024-06;;;;
+2024-07;IMPORTED;Itaú;Principal;cdb-itau-100;private:itau:cdb-itau-100;CDB Itaú 100%;;5331,61;;5,6621;5331,61;Core;copiado de 2024-06;;;;
+2024-07;IMPORTED;Itaú;Principal;fundo-itau;private:itau:fundo-itau;Fundo Itaú;;13103,07;;5,6621;13103,07;Core;copiado de 2024-06;;;;
+2024-07;IMPORTED;Ledger;Principal;bitcoin-01;market:bitcoin-01:BTC;Bitcoin 01;BTC;0,179195;367966;5,6621;65937,67;Core-Satellite;copiado de 2024-06;;;;
+2024-08;IMPORTED;Binance;Principal;bitcoin-02;market:bitcoin-02:BTC;Bitcoin 02;BTC;0,01584414;334005;5,6562;5292,02;Core-Satellite;planilha linha 76;;0,01584414;339653,67;5381,520299
+2024-08;IMPORTED;Binance;Principal;ethereum;market:ethereum:ETH;Ethereum;ETH;0,16447802;14233,52;5,6562;2341,10;Satellite;planilha linha 77;"US$ 413,9 na planilha; 0,16447802 ETH = valor ÷ fechamento do mês (P12)";413,9;5,5;2276,45
+2024-08;IMPORTED;Binance;Principal;solana;market:solana:SOL;Solana;SOL;5,30415374;766,7;5,6562;4066,69;Satellite;planilha linha 78;"US$ 718,98 na planilha; 5,30415374 SOL = valor ÷ fechamento do mês (P12)";718,98;5,5;3954,39
+2024-08;IMPORTED;Binance;Principal;usdc;market:usdc:USD;USDC;USD;3412;5,6562;5,6562;19298,95;Core;planilha linha 75;;3412;5,5;18766
+2024-08;IMPORTED;Itaú;Principal;cdb-itau-100;private:itau:cdb-itau-100;CDB Itaú 100%;;3002,8;;5,6562;3002,80;Core;planilha linha 73;;3002,8;;3002,8
+2024-08;IMPORTED;Itaú;Principal;fundo-itau;private:itau:fundo-itau;Fundo Itaú;;11305,1;;5,6562;11305,10;Core;planilha linha 72;;11305,1;;11305,1
+2024-08;IMPORTED;Ledger;Principal;bitcoin-01;market:bitcoin-01:BTC;Bitcoin 01;BTC;0,2582571;334005;5,6562;86259,16;Core-Satellite;planilha linha 74;;0,2582571;339653,67;87717,97182
+2024-09;IMPORTED;Binance;Principal;bitcoin-02;market:bitcoin-02:BTC;Bitcoin 02;BTC;0,01584414;345428;5,4481;5473,01;Core-Satellite;planilha linha 82;;0,01584414;348333,72;5519,048226
+2024-09;IMPORTED;Binance;Principal;bitcoin-03-viagem;market:bitcoin-03-viagem:BTC;Bitcoin 03 - Viagem;BTC;0,01963;345428;5,4481;6780,75;Core-Satellite;planilha linha 83;;0,01963;348333,72;6837,790924
+2024-09;IMPORTED;Binance;Principal;ethereum;market:ethereum:ETH;Ethereum;ETH;0,15869105;14199,16;5,4481;2253,28;Satellite;planilha linha 85;"US$ 413,59 na planilha; 0,15869105 ETH = valor ÷ fechamento do mês (P12)";413,59;5,52;2283,0168
+2024-09;IMPORTED;Binance;Principal;solana;market:solana:SOL;Solana;SOL;4,42540371;832,8;5,4481;3685,48;Satellite;planilha linha 86;"US$ 676,47 na planilha; 4,42540371 SOL = valor ÷ fechamento do mês (P12)";676,47;5,52;3734,1144
+2024-09;IMPORTED;Binance;Principal;usdc;market:usdc:USD;USDC;USD;3418,33;5,4481;5,4481;18623,40;Core;planilha linha 84;;3418,33;5,52;18869,1816
+2024-09;IMPORTED;Inter;Principal;etf-voo;market:etf-voo:VOO;ETF - VOO;VOO;1,74155;2874,798927;5,4481;5006,61;Core;planilha linha 87;"US$ 912,37 na planilha; 1,74155 VOO (quantidade conhecida, P11/P12)";912,37;5,52;5036,2824
+2024-09;IMPORTED;Itaú;Principal;cdb-itau-100;private:itau:cdb-itau-100;CDB Itaú 100%;;950;;5,4481;950,00;Core;planilha linha 80;;950;;950
+2024-09;IMPORTED;Itaú;Principal;fundo-itau;private:itau:fundo-itau;Fundo Itaú;;2355,31;;5,4481;2355,31;Core;planilha linha 79;;2355,31;;2355,31
+2024-09;IMPORTED;Ledger;Principal;bitcoin-01;market:bitcoin-01:BTC;Bitcoin 01;BTC;0,2582571;345428;5,4481;89209,23;Core-Satellite;planilha linha 81;;0,2582571;348333,72;89959,65636
+2024-10;IMPORTED;Binance;Principal;bitcoin-02;market:bitcoin-02:BTC;Bitcoin 02;BTC;0,01584414;409552;5,7779;6489,00;Core-Satellite;planilha linha 91;;0,01584414;418028,58;6623,303346
+2024-10;IMPORTED;Binance;Principal;bitcoin-03-viagem;market:bitcoin-03-viagem:BTC;Bitcoin 03 - Viagem;BTC;0,01963;409552;5,7779;8039,51;Core-Satellite;planilha linha 92;;0,01963;418028,58;8205,901025
+2024-10;IMPORTED;Binance;Principal;ethereum;market:ethereum:ETH;Ethereum;ETH;0,16629466;14675,92;5,7779;2440,53;Satellite;planilha linha 94;"US$ 422,39 na planilha; 0,16629466 ETH = valor ÷ fechamento do mês (P12)";422,39;5,76;2432,9664
+2024-10;IMPORTED;Binance;Principal;solana;market:solana:SOL;Solana;SOL;4,91650719;982,6;5,7779;4830,96;Satellite;planilha linha 95;"US$ 836,11 na planilha; 4,91650719 SOL = valor ÷ fechamento do mês (P12)";836,11;5,76;4815,9936
+2024-10;IMPORTED;Binance;Principal;usdc;market:usdc:USD;USDC;USD;3432;5,7779;5,7779;19829,75;Core;planilha linha 93;;3432;5,76;19768,32
+2024-10;IMPORTED;Inter;Principal;etf-voo;market:etf-voo:VOO;ETF - VOO;VOO;1,74155;3019,934993;5,7779;5259,37;Core;planilha linha 96;"US$ 931,33 na planilha; 1,74155 VOO (quantidade conhecida, P11/P12)";931,33;5,76;5364,4608
+2024-10;IMPORTED;Itaú;Principal;cdb-itau-100;private:itau:cdb-itau-100;CDB Itaú 100%;;2003,1;;5,7779;2003,10;Core;planilha linha 89;;2003,1;;2003,1
+2024-10;IMPORTED;Itaú;Principal;fundo-itau;private:itau:fundo-itau;Fundo Itaú;;1769,97;;5,7779;1769,97;Core;planilha linha 88;;1769,97;;1769,97
+2024-10;IMPORTED;Ledger;Principal;bitcoin-01;market:bitcoin-01:BTC;Bitcoin 01;BTC;0,2582571;409552;5,7779;105769,71;Core-Satellite;planilha linha 90;;0,2582571;418028,58;107958,8488
+2024-11;IMPORTED;Binance;Principal;bitcoin-02;market:bitcoin-02:BTC;Bitcoin 02;BTC;0,01584414;580925;6,0535;9204,26;Core-Satellite;planilha linha 100;;0,01584414;569958,14;9030,496564
+2024-11;IMPORTED;Binance;Principal;solana;market:solana:SOL;Solana;SOL;5,01851131;1431,8;6,0535;7185,50;Satellite;planilha linha 103;"US$ 1187 na planilha; 5,01851131 SOL = valor ÷ fechamento do mês (P12)";1187;5,81;6896,47
+2024-11;IMPORTED;Binance;Principal;usdc;market:usdc:USD;USDC;USD;2911;6,0535;6,0535;17621,74;Core;planilha linha 102;;2911;5,81;16912,91
+2024-11;IMPORTED;Binance;Principal;usdc-viagem;market:usdc-viagem:USD;USDC - Viagem;USD;1719;6,0535;6,0535;10405,97;Core;planilha linha 101;;1719;5,81;9987,39
+2024-11;IMPORTED;Inter;Principal;etf-voo;market:etf-voo:VOO;ETF - VOO;VOO;1,74155;3350,309575;6,0535;5834,73;Core;planilha linha 104;"US$ 947,25 na planilha; 1,74155 VOO (quantidade conhecida, P11/P12)";947,25;5,81;5503,5225
+2024-11;IMPORTED;Itaú;Principal;cdb-itau-100;private:itau:cdb-itau-100;CDB Itaú 100%;;7107,21;;6,0535;7107,21;Core;planilha linha 98;;7107,21;;7107,21
+2024-11;IMPORTED;Itaú;Principal;fundo-itau;private:itau:fundo-itau;Fundo Itaú;;1774,82;;6,0535;1774,82;Core;planilha linha 97;;1774,82;;1774,82
+2024-11;IMPORTED;Ledger;Principal;bitcoin-01;market:bitcoin-01:BTC;Bitcoin 01;BTC;0,2582571;580925;6,0535;150028,01;Core-Satellite;planilha linha 99;;0,2582571;569958,14;147195,7364
+2024-12;IMPORTED;Binance;Principal;bitcoin-02;market:bitcoin-02:BTC;Bitcoin 02;BTC;0,01584414;583222;6,1923;9240,65;Core-Satellite;planilha linha 108;;0,01584414;582401;9227,64298
+2024-12;IMPORTED;Binance;Principal;solana;market:solana:SOL;Solana;SOL;4,57889099;1180;6,1923;5403,09;Satellite;planilha linha 111;"US$ 872,55 na planilha; 4,57889099 SOL = valor ÷ fechamento do mês (P12)";872,55;6,19;5401,0845
+2024-12;IMPORTED;Binance;Principal;usdc;market:usdc:USD;USDC;USD;2943;6,1923;6,1923;18223,94;Core;planilha linha 110;;2943;6,19;18217,17
+2024-12;IMPORTED;Binance;Principal;usdc-viagem;market:usdc-viagem:USD;USDC - Viagem;USD;1719;6,1923;6,1923;10644,56;Core;planilha linha 109;;1719;6,19;10640,61
+2024-12;IMPORTED;Inter;Principal;etf-argt;market:etf-argt:ARGT;ETF - ARGT;ARGT;6,09534;511,917441;6,1923;3120,31;Satellite;planilha linha 114;"US$ 504,2 na planilha; 6,09534 ARGT (quantidade conhecida, P11/P12)";504,2;6,19;3120,998
+2024-12;IMPORTED;Inter;Principal;etf-voo;market:etf-voo:VOO;ETF - VOO;VOO;1,74155;3336,473163;6,1923;5810,63;Core;planilha linha 112;"US$ 952,38 na planilha; 1,74155 VOO (quantidade conhecida, P11/P12)";952,38;6,19;5895,2322
+2024-12;IMPORTED;Inter;Principal;etf-vti;market:etf-vti:VTI;ETF - VTI;VTI;1,68848556;1794,590463;6,1923;3030,14;Core;planilha linha 113;"US$ 489,34 na planilha; 1,68848556 VTI = valor ÷ fechamento do mês (P12)";489,34;6,19;3029,0146
+2024-12;IMPORTED;Itaú;Principal;cdb-itau-100;private:itau:cdb-itau-100;CDB Itaú 100%;;4382;;6,1923;4382,00;Core;planilha linha 106;;4382;;4382
+2024-12;IMPORTED;Itaú;Principal;fundo-itau;private:itau:fundo-itau;Fundo Itaú;;3718,75;;6,1923;3718,75;Core;planilha linha 105;;3718,75;;3718,75
+2024-12;IMPORTED;Ledger;Principal;bitcoin-01;market:bitcoin-01:BTC;Bitcoin 01;BTC;0,2582571;583222;6,1923;150621,22;Core-Satellite;planilha linha 107;;0,2582571;582401;150409,1933
+2025-01;IMPORTED;Binance;Principal;bitcoin-02;market:bitcoin-02:BTC;Bitcoin 02;BTC;0,02111886;599359;5,8301;12657,78;Core-Satellite;planilha linha 118;;0,02111886;596551,43;12598,48613
+2025-01;IMPORTED;Binance;Principal;solana;market:solana:SOL;Solana;SOL;6,73925422;1356,6;5,8301;9142,47;Satellite;planilha linha 121;;6,73925422;1272,72;8577,183631
+2025-01;IMPORTED;Binance;Principal;usdc;market:usdc:USD;USDC;USD;2054,14;5,8301;5,8301;11975,84;Core;planilha linha 120;;2054,14;6,19;12715,1266
+2025-01;IMPORTED;Binance;Principal;usdc-viagem;market:usdc-viagem:USD;USDC - Viagem;USD;1719;5,8301;5,8301;10021,94;Core;planilha linha 119;;1719;6,19;10640,61
+2025-01;IMPORTED;Inter;Principal;etf-argt;market:etf-argt:ARGT;ETF - ARGT;ARGT;6,09534;504,187048;5,8301;3073,19;Satellite;planilha linha 124;"US$ 525,96 na planilha; 6,09534 ARGT (quantidade conhecida, P11/P12)";525,96;6,19;3255,6924
+2025-01;IMPORTED;Inter;Principal;etf-voo;market:etf-voo:VOO;ETF - VOO;VOO;1,74155;3225,969233;5,8301;5618,19;Core;planilha linha 122;"US$ 936,01 na planilha; 1,74155 VOO (quantidade conhecida, P11/P12)";936,01;6,19;5793,9019
+2025-01;IMPORTED;Inter;Principal;etf-vti;market:etf-vti:VTI;ETF - VTI;VTI;1,61286001;1740,86786;5,8301;2807,78;Core;planilha linha 123;"US$ 481,6 na planilha; 1,61286001 VTI = valor ÷ fechamento do mês (P12)";481,6;6,19;2981,104
+2025-01;IMPORTED;Itaú;Principal;cdb-itau-100;private:itau:cdb-itau-100;CDB Itaú 100%;;344,92;;5,8301;344,92;Core;planilha linha 115;;344,92;;344,92
+2025-01;IMPORTED;Ledger;Principal;bitcoin-01;market:bitcoin-01:BTC;Bitcoin 01;BTC;0,2582571;599359;5,8301;154788,72;Core-Satellite;planilha linha 117;;0,2582571;596551,43;154063,6423
+2025-01;IMPORTED;XP;Principal;lci-xp-2025;private:xp:lci-xp-2025;LCI - XP (2025);;5074,8;;5,8301;5074,80;Core;planilha linha 116;;5074,8;;5074,8
+2025-02;IMPORTED;Binance;Principal;bitcoin-02;market:bitcoin-02:BTC;Bitcoin 02;BTC;0,02111886;499672;5,8488;10552,50;Core-Satellite;copiado de 2025-01;;;;
+2025-02;IMPORTED;Binance;Principal;solana;market:solana:SOL;Solana;SOL;6,73925422;877,5;5,8488;5913,70;Satellite;copiado de 2025-01;;;;
+2025-02;IMPORTED;Binance;Principal;usdc;market:usdc:USD;USDC;USD;2054,14;5,8488;5,8488;12014,25;Core;copiado de 2025-01;;;;
+2025-02;IMPORTED;Binance;Principal;usdc-viagem;market:usdc-viagem:USD;USDC - Viagem;USD;1719;5,8488;5,8488;10054,09;Core;copiado de 2025-01;;;;
+2025-02;IMPORTED;Inter;Principal;etf-argt;market:etf-argt:ARGT;ETF - ARGT;ARGT;6,09534;484,163664;5,8488;2951,14;Satellite;copiado de 2025-01;;;;
+2025-02;IMPORTED;Inter;Principal;etf-voo;market:etf-voo:VOO;ETF - VOO;VOO;1,74155;3195,374904;5,8488;5564,91;Core;copiado de 2025-01;;;;
+2025-02;IMPORTED;Inter;Principal;etf-vti;market:etf-vti:VTI;ETF - VTI;VTI;1,61286001;1713,464448;5,8488;2763,58;Core;copiado de 2025-01;;;;
+2025-02;IMPORTED;Itaú;Principal;cdb-itau-100;private:itau:cdb-itau-100;CDB Itaú 100%;;344,92;;5,8488;344,92;Core;copiado de 2025-01;;;;
+2025-02;IMPORTED;Ledger;Principal;bitcoin-01;market:bitcoin-01:BTC;Bitcoin 01;BTC;0,2582571;499672;5,8488;129043,84;Core-Satellite;copiado de 2025-01;;;;
+2025-02;IMPORTED;XP;Principal;lci-xp-2025;private:xp:lci-xp-2025;LCI - XP (2025);;5074,8;;5,8488;5074,80;Core;copiado de 2025-01;;;;
+2025-03;IMPORTED;Binance;Principal;bitcoin-02;market:bitcoin-02:BTC;Bitcoin 02;BTC;0,02111886;472887;5,7422;9986,83;Core-Satellite;copiado de 2025-02;;;;
+2025-03;IMPORTED;Binance;Principal;solana;market:solana:SOL;Solana;SOL;6,73925422;714;5,7422;4811,83;Satellite;copiado de 2025-02;;;;
+2025-03;IMPORTED;Binance;Principal;usdc;market:usdc:USD;USDC;USD;2054,14;5,7422;5,7422;11795,28;Core;copiado de 2025-02;;;;
+2025-03;IMPORTED;Binance;Principal;usdc-viagem;market:usdc-viagem:USD;USDC - Viagem;USD;1719;5,7422;5,7422;9870,84;Core;copiado de 2025-02;;;;
+2025-03;IMPORTED;Inter;Principal;etf-argt;market:etf-argt:ARGT;ETF - ARGT;ARGT;6,09534;463,797494;5,7422;2827,00;Satellite;copiado de 2025-02;;;;
+2025-03;IMPORTED;Inter;Principal;etf-voo;market:etf-voo:VOO;ETF - VOO;VOO;1,74155;2950,974002;5,7422;5139,27;Core;copiado de 2025-02;;;;
+2025-03;IMPORTED;Inter;Principal;etf-vti;market:etf-vti:VTI;ETF - VTI;VTI;1,61286001;1578,186248;5,7422;2545,39;Core;copiado de 2025-02;;;;
+2025-03;IMPORTED;Itaú;Principal;cdb-itau-100;private:itau:cdb-itau-100;CDB Itaú 100%;;344,92;;5,7422;344,92;Core;copiado de 2025-02;;;;
+2025-03;IMPORTED;Ledger;Principal;bitcoin-01;market:bitcoin-01:BTC;Bitcoin 01;BTC;0,2582571;472887;5,7422;122126,43;Core-Satellite;copiado de 2025-02;;;;
+2025-03;IMPORTED;XP;Principal;lci-xp-2025;private:xp:lci-xp-2025;LCI - XP (2025);;5074,8;;5,7422;5074,80;Core;copiado de 2025-02;;;;
+2025-04;IMPORTED;Binance;Principal;bitcoin-02;market:bitcoin-02:BTC;Bitcoin 02;BTC;0,02111886;536632;5,6608;11333,06;Core-Satellite;copiado de 2025-03;;;;
+2025-04;IMPORTED;Binance;Principal;solana;market:solana:SOL;Solana;SOL;6,73925422;840,9;5,6608;5667,04;Satellite;copiado de 2025-03;;;;
+2025-04;IMPORTED;Binance;Principal;usdc;market:usdc:USD;USDC;USD;2054,14;5,6608;5,6608;11628,08;Core;copiado de 2025-03;;;;
+2025-04;IMPORTED;Binance;Principal;usdc-viagem;market:usdc-viagem:USD;USDC - Viagem;USD;1719;5,6608;5,6608;9730,92;Core;copiado de 2025-03;;;;
+2025-04;IMPORTED;Inter;Principal;etf-argt;market:etf-argt:ARGT;ETF - ARGT;ARGT;6,09534;485,13056;5,6608;2957,04;Satellite;copiado de 2025-03;;;;
+2025-04;IMPORTED;Inter;Principal;etf-voo;market:etf-voo:VOO;ETF - VOO;VOO;1,74155;2885,536192;5,6608;5025,31;Core;copiado de 2025-03;;;;
+2025-04;IMPORTED;Inter;Principal;etf-vti;market:etf-vti:VTI;ETF - VTI;VTI;1,61286001;1544,379456;5,6608;2490,87;Core;copiado de 2025-03;;;;
+2025-04;IMPORTED;Itaú;Principal;cdb-itau-100;private:itau:cdb-itau-100;CDB Itaú 100%;;344,92;;5,6608;344,92;Core;copiado de 2025-03;;;;
+2025-04;IMPORTED;Ledger;Principal;bitcoin-01;market:bitcoin-01:BTC;Bitcoin 01;BTC;0,2582571;536632;5,6608;138589,02;Core-Satellite;copiado de 2025-03;;;;
+2025-04;IMPORTED;XP;Principal;lci-xp-2025;private:xp:lci-xp-2025;LCI - XP (2025);;5074,8;;5,6608;5074,80;Core;copiado de 2025-03;;;;
+2025-05;IMPORTED;Binance;Principal;bitcoin-02;market:bitcoin-02:BTC;Bitcoin 02;BTC;0,02111886;603709;5,7087;12749,65;Core-Satellite;copiado de 2025-04;;;;
+2025-05;IMPORTED;Binance;Principal;solana;market:solana:SOL;Solana;SOL;6,73925422;902,8;5,7087;6084,20;Satellite;copiado de 2025-04;;;;
+2025-05;IMPORTED;Binance;Principal;usdc;market:usdc:USD;USDC;USD;2054,14;5,7087;5,7087;11726,47;Core;copiado de 2025-04;;;;
+2025-05;IMPORTED;Binance;Principal;usdc-viagem;market:usdc-viagem:USD;USDC - Viagem;USD;1719;5,7087;5,7087;9813,26;Core;copiado de 2025-04;;;;
+2025-05;IMPORTED;Inter;Principal;etf-argt;market:etf-argt:ARGT;ETF - ARGT;ARGT;6,09534;515,096001;5,7087;3139,69;Satellite;copiado de 2025-04;;;;
+2025-05;IMPORTED;Inter;Principal;etf-voo;market:etf-voo:VOO;ETF - VOO;VOO;1,74155;3092,745312;5,7087;5386,17;Core;copiado de 2025-04;;;;
+2025-05;IMPORTED;Inter;Principal;etf-vti;market:etf-vti:VTI;ETF - VTI;VTI;1,61286001;1654,837956;5,7087;2669,02;Core;copiado de 2025-04;;;;
+2025-05;IMPORTED;Itaú;Principal;cdb-itau-100;private:itau:cdb-itau-100;CDB Itaú 100%;;344,92;;5,7087;344,92;Core;copiado de 2025-04;;;;
+2025-05;IMPORTED;Ledger;Principal;bitcoin-01;market:bitcoin-01:BTC;Bitcoin 01;BTC;0,2582571;603709;5,7087;155912,14;Core-Satellite;copiado de 2025-04;;;;
+2025-05;IMPORTED;XP;Principal;lci-xp-2025;private:xp:lci-xp-2025;LCI - XP (2025);;5074,8;;5,7087;5074,80;Core;copiado de 2025-04;;;;
+2025-06;IMPORTED;Binance;Principal;bitcoin-02;market:bitcoin-02:BTC;Bitcoin 02;BTC;0,02111886;585899;5,4571;12373,52;Core-Satellite;copiado de 2025-05;;;;
+2025-06;IMPORTED;Binance;Principal;solana;market:solana:SOL;Solana;SOL;6,73925422;846,8;5,4571;5706,80;Satellite;copiado de 2025-05;;;;
+2025-06;IMPORTED;Binance;Principal;usdc;market:usdc:USD;USDC;USD;2054,14;5,4571;5,4571;11209,65;Core;copiado de 2025-05;;;;
+2025-06;IMPORTED;Binance;Principal;usdc-viagem;market:usdc-viagem:USD;USDC - Viagem;USD;1719;5,4571;5,4571;9380,75;Core;copiado de 2025-05;;;;
+2025-06;IMPORTED;Inter;Principal;etf-argt;market:etf-argt:ARGT;ETF - ARGT;ARGT;6,09534;462,380083;5,4571;2818,36;Satellite;copiado de 2025-05;;;;
+2025-06;IMPORTED;Inter;Principal;etf-voo;market:etf-voo:VOO;ETF - VOO;VOO;1,74155;3099,796513;5,4571;5398,45;Core;copiado de 2025-05;;;;
+2025-06;IMPORTED;Inter;Principal;etf-vti;market:etf-vti:VTI;ETF - VTI;VTI;1,61286001;1658,576403;5,4571;2675,05;Core;copiado de 2025-05;;;;
+2025-06;IMPORTED;Itaú;Principal;cdb-itau-100;private:itau:cdb-itau-100;CDB Itaú 100%;;344,92;;5,4571;344,92;Core;copiado de 2025-05;;;;
+2025-06;IMPORTED;Ledger;Principal;bitcoin-01;market:bitcoin-01:BTC;Bitcoin 01;BTC;0,2582571;585899;5,4571;151312,58;Core-Satellite;copiado de 2025-05;;;;
+2025-06;IMPORTED;XP;Principal;lci-xp-2025;private:xp:lci-xp-2025;LCI - XP (2025);;5074,8;;5,4571;5074,80;Core;copiado de 2025-05;;;;
+2025-07;IMPORTED;AAVE;Principal;usdc;market:usdc:USD;USDC;USD;1011,36;5,6021;5,6021;5665,74;Core;planilha linha 127;;1011,36;5,54;5602,9344
+2025-07;IMPORTED;Binance;Principal;bitcoin-02;market:bitcoin-02:BTC;Bitcoin 02;BTC;0,00672562;651405;5,6021;4381,10;Core-Satellite;planilha linha 137;;0,00672562;642564;4321,64129
+2025-07;IMPORTED;Binance;Principal;solana;market:solana:SOL;Solana;SOL;5,52854904;969,1;5,6021;5357,72;Satellite;planilha linha 138;;5,52854904;996,08;5506,877128
+2025-07;IMPORTED;Binance;Principal;usdc;market:usdc:USD;USDC;USD;137,36;5,6021;5,6021;769,50;Core;planilha linha 126;;137,36;5,54;760,9744
+2025-07;IMPORTED;Inter;Principal;etf-argt;market:etf-argt:ARGT;ETF - ARGT;ARGT;6,09534;463,349691;5,6021;2824,27;Satellite;planilha linha 134;"US$ 508,9 na planilha; 6,09534 ARGT (quantidade conhecida, P11/P12)";508,9;5,54;2819,306
+2025-07;IMPORTED;Inter;Principal;etf-voo;market:etf-voo:VOO;ETF - VOO;VOO;1,74155;3254,932142;5,6021;5668,63;Core;planilha linha 135;"US$ 1018,2 na planilha; 1,74155 VOO (quantidade conhecida, P11/P12)";1018,2;5,54;5640,828
+2025-07;IMPORTED;Inter;Principal;etf-vti;market:etf-vti:VTI;ETF - VTI;VTI;1,67660587;1741,636869;5,6021;2920,04;Core;planilha linha 136;"US$ 521,24 na planilha; 1,67660587 VTI = valor ÷ fechamento do mês (P12)";521,24;5,54;2887,6696
+2025-07;IMPORTED;Inter;Principal;lca-bocom;private:inter:lca-bocom;LCA BOCOM;;4743,13;;5,6021;4743,13;Core;planilha linha 129;;4743,13;;4743,13
+2025-07;IMPORTED;Inter;Principal;lig-liquidez-01;private:inter:lig-liquidez-01;LIG LIQUIDEZ 01;;1713,72;;5,6021;1713,72;Core;planilha linha 130;;1713,72;;1713,72
+2025-07;IMPORTED;Inter;Principal;lig-liquidez-02;private:inter:lig-liquidez-02;LIG LIQUIDEZ 02;;825,81;;5,6021;825,81;Core;planilha linha 131;;825,81;;825,81
+2025-07;IMPORTED;Inter;Principal;porquinho;private:inter:porquinho;Porquinho;;6474,05;;5,6021;6474,05;Core;planilha linha 125;;6474,05;;6474,05
+2025-07;IMPORTED;Inter;Principal;tesouro-ipca-renda-2065;private:inter:tesouro-ipca-renda-2065;Tesouro IPCA Renda+ 2065;;2503,82;;5,6021;2503,82;Core;planilha linha 133;;2503,82;;2503,82
+2025-07;IMPORTED;Inter;Principal;time-deposit;market:time-deposit:USD;Time Deposit;USD;1010,19;5,6021;5,6021;5659,19;Core;planilha linha 132;;1010,19;5,54;5596,4526
+2025-07;IMPORTED;Ledger;Principal;bitcoin-01;market:bitcoin-01:BTC;Bitcoin 01;BTC;0,27932596;651405;5,6021;181954,33;Core-Satellite;planilha linha 139;;0,27932596;642564;179484,8062
+2025-07;IMPORTED;PicPay;Principal;picpay-confrinho;private:picpay:picpay-confrinho;Picpay - Confrinho;;1612,13;;5,6021;1612,13;Core;planilha linha 128;;1612,13;;1612,13
+2025-08;IMPORTED;AAVE;Principal;usdc;market:usdc:USD;USDC;USD;1657;5,4264;5,4264;8991,54;Core;planilha linha 143;;1657;5,51;9130,07
+2025-08;IMPORTED;Binance;Principal;bitcoin-02;market:bitcoin-02:BTC;Bitcoin 02;BTC;0,00672562;591883;5,4264;3980,78;Core-Satellite;planilha linha 152;;0,00672562;623259;4191,803196
+2025-08;IMPORTED;Binance;Principal;solana;market:solana:SOL;Solana;SOL;5,52854904;1097,9;5,4264;6069,79;Satellite;planilha linha 153;;5,52854904;901;4981,222685
+2025-08;IMPORTED;Binance;Principal;usdc;market:usdc:USD;USDC;USD;100,35;5,4264;5,4264;544,54;Core;planilha linha 142;;100,35;5,51;552,9285
+2025-08;IMPORTED;Binance;Principal;usdt;market:usdt:USD;USDT;USD;100,07;5,4264;5,4264;543,02;Core;planilha linha 141;;100,07;5,51;551,3857
+2025-08;IMPORTED;Inter;Principal;etf-argt;market:etf-argt:ARGT;ETF - ARGT;ARGT;6,09534;434,92596;5,4264;2651,02;Satellite;planilha linha 149;"US$ 508,9 na planilha; 6,09534 ARGT (quantidade conhecida, P11/P12)";508,9;5,51;2804,039
+2025-08;IMPORTED;Inter;Principal;etf-voo;market:etf-voo:VOO;ETF - VOO;VOO;1,74155;3218,289312;5,4264;5604,81;Core;planilha linha 150;"US$ 1018,2 na planilha; 1,74155 VOO (quantidade conhecida, P11/P12)";1018,2;5,51;5610,282
+2025-08;IMPORTED;Inter;Principal;etf-vti;market:etf-vti:VTI;ETF - VTI;VTI;1,63808925;1726,68048;5,4264;2828,46;Core;planilha linha 151;"US$ 521,24 na planilha; 1,63808925 VTI = valor ÷ fechamento do mês (P12)";521,24;5,51;2872,0324
+2025-08;IMPORTED;Inter;Principal;lca-bocom;private:inter:lca-bocom;LCA BOCOM;;4743,13;;5,4264;4743,13;Core;planilha linha 144;;4743,13;;4743,13
+2025-08;IMPORTED;Inter;Principal;lig-liquidez-01;private:inter:lig-liquidez-01;LIG LIQUIDEZ 01;;1713,72;;5,4264;1713,72;Core;planilha linha 145;;1713,72;;1713,72
+2025-08;IMPORTED;Inter;Principal;lig-liquidez-02;private:inter:lig-liquidez-02;LIG LIQUIDEZ 02;;825,81;;5,4264;825,81;Core;planilha linha 146;;825,81;;825,81
+2025-08;IMPORTED;Inter;Principal;porquinho;private:inter:porquinho;Porquinho;;8993,97;;5,4264;8993,97;Core;planilha linha 140;;8993,97;;8993,97
+2025-08;IMPORTED;Inter;Principal;tesouro-ipca-renda-2065;private:inter:tesouro-ipca-renda-2065;Tesouro IPCA Renda+ 2065;;2503,82;;5,4264;2503,82;Core;planilha linha 148;;2503,82;;2503,82
+2025-08;IMPORTED;Inter;Principal;time-deposit;market:time-deposit:USD;Time Deposit;USD;1010,19;5,4264;5,4264;5481,70;Core;planilha linha 147;;1010,19;5,51;5566,1469
+2025-08;IMPORTED;Ledger;Principal;bitcoin-01;market:bitcoin-01:BTC;Bitcoin 01;BTC;0,27932596;591883;5,4264;165328,29;Core-Satellite;planilha linha 154;;0,27932596;623259;174092,4185
+2025-09;IMPORTED;AAVE;Principal;usdc;market:usdc:USD;USDC;USD;1664,37;5,3186;5,3186;8852,12;Core;planilha linha 160;;1664,37;5,41;9004,2417
+2025-09;IMPORTED;Binance;Principal;bitcoin-02;market:bitcoin-02:BTC;Bitcoin 02;BTC;0,00789381;607641;5,3186;4796,60;Core-Satellite;planilha linha 162;;0,00789381;601021,786;4744,351785
+2025-09;IMPORTED;Binance;Principal;solana;market:solana:SOL;Solana;SOL;5,54931655;1112,3;5,3186;6172,50;Satellite;planilha linha 163;;5,54931655;206,47;1145,767388
+2025-09;IMPORTED;Binance;Principal;usdc;market:usdc:USD;USDC;USD;101,11;5,3186;5,3186;537,76;Core;planilha linha 159;;101,11;5,41;547,0051
+2025-09;IMPORTED;Binance;Principal;usdt;market:usdt:USD;USDT;USD;101,45;5,3186;5,3186;539,57;Core;planilha linha 158;;101,45;5,41;548,8445
+2025-09;IMPORTED;Inter;Principal;dolar;market:dolar-inter:USD;Dolar Inter;USD;536,6;5,3186;5,3186;2853,96;Core;planilha linha 157;;536,6;5,41;2903,006
+2025-09;IMPORTED;Inter;Principal;etf-argt;market:etf-argt:ARGT;ETF - ARGT;ARGT;6,09534;371,025536;5,3186;2261,53;Satellite;planilha linha 167;"US$ 486,47 na planilha; 6,09534 ARGT (quantidade conhecida, P11/P12)";486,47;5,41;2631,8027
+2025-09;IMPORTED;Inter;Principal;etf-gldm;market:etf-gldm:GLDM;ETF - GLDM;GLDM;13,87541817;406,60697;5,3186;5641,84;Hedge;planilha linha 169;"US$ 1000 na planilha; 13,87541817 GLDM (quantidade conhecida, P11/P12)";1000;5,41;5410
+2025-09;IMPORTED;Inter;Principal;etf-voo;market:etf-voo:VOO;ETF - VOO;VOO;1,74155;3257,004268;5,3186;5672,24;Core;planilha linha 168;"US$ 1036,15 na planilha; 1,74155 VOO (quantidade conhecida, P11/P12)";1036,15;5,41;5605,5715
+2025-09;IMPORTED;Inter;Principal;lca-bocom;private:inter:lca-bocom;LCA BOCOM;;4811,06;;5,3186;4811,06;Core;planilha linha 156;;4811,06;;4811,06
+2025-09;IMPORTED;Inter;Principal;porquinho;private:inter:porquinho;Porquinho;;8993,97;;5,3186;8993,97;Core;planilha linha 155;;8993,97;;8993,97
+2025-09;IMPORTED;Inter;Principal;previdencia-privada;private:inter:previdencia-grao-fim;Previdência - Grão FIM;;4425,32;;5,3186;4425,32;Core;planilha linha 166;;4425,32;;4425,32
+2025-09;IMPORTED;Inter;Principal;tesouro-ipca-renda-2065;private:inter:tesouro-ipca-renda-2065;Tesouro IPCA Renda+ 2065;;9081,18;;5,3186;9081,18;Core;planilha linha 165;;9081,18;;9081,18
+2025-09;IMPORTED;Ledger;Principal;bitcoin-01;market:bitcoin-01:BTC;Bitcoin 01;BTC;0,27932596;607641;5,3186;169729,91;Core-Satellite;planilha linha 164;;0,27932596;601021,786;167880,9874
+2025-10;IMPORTED;AAVE;Principal;usdc;market:usdc:USD;USDC;USD;1664,37;5,3843;5,3843;8961,47;Core;planilha linha 182;;1664,37;5,3574;8916,695838
+2025-10;IMPORTED;Binance;Principal;bitcoin-02;market:bitcoin-02:BTC;Bitcoin 02;BTC;0,00789381;590311;5,3843;4659,80;Core-Satellite;planilha linha 172;;0,00789381;593261;4683,089614
+2025-10;IMPORTED;Binance;Principal;solana;market:solana:SOL;Solana;SOL;6,04;1008,2;5,3843;6089,53;Satellite;planilha linha 179;;6,04;1055,09;6372,7436
+2025-10;IMPORTED;Binance;Principal;usdt;market:usdt:USD;USDT;USD;102,278;5,3843;5,3843;550,70;Core;planilha linha 183;;102,278;5,3574;547,9441572
+2025-10;IMPORTED;Inter;Principal;etf-argt;market:etf-argt:ARGT;ETF - ARGT;ARGT;6,09534;508,224077;5,3843;3097,80;Satellite;planilha linha 173;;6,09534;491,862894;2998,071572
+2025-10;IMPORTED;Inter;Principal;etf-gldm;market:etf-gldm:GLDM;ETF - GLDM;GLDM;13,87541817;426,382717;5,3843;5916,24;Hedge;planilha linha 174;;13,87541817;418,359366;5804,911149
+2025-10;IMPORTED;Inter;Principal;etf-voo;market:etf-voo:VOO;ETF - VOO;VOO;1,74155;3376,171472;5,3843;5879,77;Core;planilha linha 175;;1,74155;3385,60893;5896,207232
+2025-10;IMPORTED;Inter;Principal;lca-bocom;private:inter:lca-bocom;LCA BOCOM;;4873,03;;5,3843;4873,03;Core;planilha linha 176;;4873,03;;4873,03
+2025-10;IMPORTED;Inter;Principal;porquinho;private:inter:porquinho;Porquinho;;6798,4;;5,3843;6798,40;Core;planilha linha 177;;6798,4;;6798,4
+2025-10;IMPORTED;Inter;Principal;previdencia-privada;private:inter:previdencia-grao-fim;Previdência - Grão FIM;;4425,32;;5,3843;4425,32;Core;planilha linha 178;;4425,32;;4425,32
+2025-10;IMPORTED;Inter;Principal;tesouro-ipca-renda-2065;private:inter:tesouro-ipca-renda-2065;Tesouro IPCA Renda+ 2065;;9560,19;;5,3843;9560,19;Core;planilha linha 180;;9560,19;;9560,19
+2025-10;IMPORTED;Inter;Principal;time-deposit;market:time-deposit:USD;Time Deposit;USD;908,98;5,3843;5,3843;4894,22;Core;planilha linha 181;;908,98;5,3574;4869,769452
+2025-10;IMPORTED;Ledger;Principal;bitcoin-01;market:bitcoin-01:BTC;Bitcoin 01;BTC;0,27932596;590311;5,3843;164889,19;Core-Satellite;planilha linha 171;;0,27932596;593261;165713,1984
+2025-11;IMPORTED;AAVE;Principal;usdc;market:usdc:USD;USDC;USD;1664,37;5,3338;5,3338;8877,42;Core;planilha linha 195;;1664,37;5,3654;8930,010798
+2025-11;IMPORTED;Binance;Principal;bitcoin-02;market:bitcoin-02:BTC;Bitcoin 02;BTC;0,00789381;485456;5,3338;3832,10;Core-Satellite;planilha linha 185;;0,00789381;561947;4435,902848
+2025-11;IMPORTED;Binance;Principal;solana;market:solana:SOL;Solana;SOL;6,04;717,2;5,3338;4331,89;Satellite;planilha linha 192;;6,04;881,87;5326,4948
+2025-11;IMPORTED;Binance;Principal;usdt;market:usdt:USD;USDT;USD;102,278;5,3338;5,3338;545,53;Core;planilha linha 196;;102,278;5,3654;548,7623812
+2025-11;IMPORTED;Inter;Principal;etf-argt;market:etf-argt:ARGT;ETF - ARGT;ARGT;6,09534;497,003484;5,3338;3029,41;Satellite;planilha linha 186;;6,09534;504,240292;3073,516021
+2025-11;IMPORTED;Inter;Principal;etf-gldm;market:etf-gldm:GLDM;ETF - GLDM;GLDM;13,87541817;445,158948;5,3338;6176,77;Hedge;planilha linha 187;;13,87541817;419,198702;5816,557287
+2025-11;IMPORTED;Inter;Principal;etf-voo;market:etf-voo:VOO;ETF - VOO;VOO;1,74155;3351,813258;5,3338;5837,35;Core;planilha linha 188;;1,74155;3351,121532;5836,145704
+2025-11;IMPORTED;Inter;Principal;lcd-bndes-liquidez;private:inter:lcd-bndes-liquidez;LCD BNDES LIQUIDEZ;;11274,25;;5,3338;11274,25;Core;planilha linha 189;;11274,25;;11274,25
+2025-11;IMPORTED;Inter;Principal;porquinho;private:inter:porquinho;Porquinho;;10525,71;;5,3338;10525,71;Core;planilha linha 190;;10525,71;;10525,71
+2025-11;IMPORTED;Inter;Principal;previdencia-privada;private:inter:previdencia-grao-fim;Previdência - Grão FIM;;4566,67;;5,3338;4566,67;Core;planilha linha 191;;4566,67;;4566,67
+2025-11;IMPORTED;Inter;Principal;tesouro-ipca-renda-2065;private:inter:tesouro-ipca-renda-2065;Tesouro IPCA Renda+ 2065;;9879,62;;5,3338;9879,62;Core;planilha linha 193;;9879,62;;9879,62
+2025-11;IMPORTED;Inter;Principal;time-deposit;market:time-deposit:USD;Time Deposit;USD;908,98;5,3338;5,3338;4848,32;Core;planilha linha 194;;908,98;5,3654;4877,041292
+2025-11;IMPORTED;Ledger;Principal;bitcoin-01;market:bitcoin-01:BTC;Bitcoin 01;BTC;0,27932596;485456;5,3338;135600,46;Core-Satellite;planilha linha 184;;0,27932596;561947;156966,3852
+2025-12;IMPORTED;AAVE;Principal;usdc;market:usdc:USD;USDC;USD;1679,25;5,5024;5,5024;9239,91;Core;planilha linha 208;;1679,25;5,3387;8965,011975
+2025-12;IMPORTED;Binance;Principal;bitcoin-02;market:bitcoin-02:BTC;Bitcoin 02;BTC;0,01200282;481993;5,5024;5785,28;Core-Satellite;planilha linha 198;;0,01200282;482135;5786,979621
+2025-12;IMPORTED;Binance;Principal;solana;market:solana:SOL;Solana;SOL;6,055;685,5;5,5024;4150,70;Satellite;planilha linha 205;;6,055;720,79;4364,38345
+2025-12;IMPORTED;Binance;Principal;usdt;market:usdt:USD;USDT;USD;103,45;5,5024;5,5024;569,22;Core;planilha linha 209;;103,45;5,3387;552,288515
+2025-12;IMPORTED;Inter;Principal;etf-argt;market:etf-argt:ARGT;ETF - ARGT;ARGT;6,09534;502,974384;5,5024;3065,80;Satellite;planilha linha 199;;6,09534;504,346989;3074,166376
+2025-12;IMPORTED;Inter;Principal;etf-gldm;market:etf-gldm:GLDM;ETF - GLDM;GLDM;13,87541817;469,739888;5,5024;6517,84;Hedge;planilha linha 200;;13,87541817;448,183865;6218,738544
+2025-12;IMPORTED;Inter;Principal;etf-voo;market:etf-voo:VOO;ETF - VOO;VOO;1,74155;3450,720112;5,5024;6009,60;Core;planilha linha 201;;1,74155;3371,201128;5871,115324
+2025-12;IMPORTED;Inter;Principal;lcd-bndes-liquidez;private:inter:lcd-bndes-liquidez;LCD BNDES LIQUIDEZ;;11392,44;;5,5024;11392,44;Core;planilha linha 202;;11392,44;;11392,44
+2025-12;IMPORTED;Inter;Principal;porquinho;private:inter:porquinho;Porquinho;;5341,55;;5,5024;5341,55;Core;planilha linha 203;;5341,55;;5341,55
+2025-12;IMPORTED;Inter;Principal;previdencia-privada;private:inter:previdencia-grao-fim;Previdência - Grão FIM;;11997,62;;5,5024;11997,62;Core;planilha linha 204;;11997,62;;11997,62
+2025-12;IMPORTED;Inter;Principal;tesouro-ipca-renda-2065;private:inter:tesouro-ipca-renda-2065;Tesouro IPCA Renda+ 2065;;11106,13;;5,5024;11106,13;Core;planilha linha 206;;11106,13;;11106,13
+2025-12;IMPORTED;Inter;Principal;time-deposit;market:time-deposit:USD;Time Deposit;USD;911,85;5,5024;5,5024;5017,36;Core;planilha linha 207;;911,85;5,3387;4868,093595
+2025-12;IMPORTED;Ledger;Principal;bitcoin-01;market:bitcoin-01:BTC;Bitcoin 01;BTC;0,27932596;481993;5,5024;134633,16;Core-Satellite;planilha linha 197;;0,27932596;482135;134672,8217
+2026-01;IMPORTED;AAVE;Principal;usdc;market:usdc:USD;USDC;USD;1683,88;5,2301;5,2301;8806,86;Core;planilha linha 210;;1683,88;5,2144;8780,423872
+2026-01;IMPORTED;Binance;Principal;bitcoin-02;market:bitcoin-02:BTC;Bitcoin 02;BTC;0,01200282;415648;5,2301;4988,95;Core-Satellite;planilha linha 211;;0,01200282;466870;5603,756573
+2026-01;IMPORTED;Binance;Principal;solana;market:solana:SOL;Solana;SOL;6,067;557,6;5,2301;3382,96;Satellite;planilha linha 212;;6,067;656,21;3981,22607
+2026-01;IMPORTED;Binance;Principal;usdt;market:usdt:USD;USDT;USD;104,63;5,2301;5,2301;547,23;Core;planilha linha 213;;104,63;5,2144;545,582672
+2026-01;IMPORTED;Inter;Principal;etf-argt;market:etf-argt:ARGT;ETF - ARGT;ARGT;6,09534;513,59582;5,2301;3130,54;Satellite;planilha linha 214;;6,09534;530,82592;3235,564463
+2026-01;IMPORTED;Inter;Principal;etf-gldm;market:etf-gldm:GLDM;ETF - GLDM;GLDM;13,87541817;502,141901;5,2301;6967,43;Hedge;planilha linha 215;;13,87541817;546,312688;7580,316998
+2026-01;IMPORTED;Inter;Principal;etf-voo;market:etf-voo:VOO;ETF - VOO;VOO;1,74155;3327,494222;5,2301;5795,00;Core;planilha linha 216;;1,74155;3333,04448;5804,663614
+2026-01;IMPORTED;Inter;Principal;lcd-bndes-liquidez;private:inter:lcd-bndes-liquidez;LCD BNDES LIQUIDEZ;;11500,96;;5,2301;11500,96;Core;planilha linha 217;;11500,96;;11500,96
+2026-01;IMPORTED;Inter;Principal;porquinho;private:inter:porquinho;Porquinho;;5757,57;;5,2301;5757,57;Core;planilha linha 218;;5757,57;;5757,57
+2026-01;IMPORTED;Inter;Principal;previdencia-privada;private:inter:previdencia-grao-fim;Previdência - Grão FIM;;11997,62;;5,2301;11997,62;Core;planilha linha 219 + 220;somada à linha 220 (Previdência Privada - RF - 46%) (A8);6478,7148 + 5518,9052;;11997,62
+2026-01;IMPORTED;Inter;Principal;tesouro-ipca-renda-2065;private:inter:tesouro-ipca-renda-2065;Tesouro IPCA Renda+ 2065;;12995,59;;5,2301;12995,59;Core;planilha linha 221;;12995,59;;12995,59
+2026-01;IMPORTED;Inter;Principal;time-deposit;market:time-deposit:USD;Time Deposit;USD;1483,92;5,2301;5,2301;7761,05;Core;planilha linha 222;;1483,92;5,2144;7737,752448
+2026-01;IMPORTED;Ledger;Principal;bitcoin-01;market:bitcoin-01:BTC;Bitcoin 01;BTC;0,27932596;415648;5,2301;116101,28;Core-Satellite;planilha linha 223;;0,27932596;466870;130408,9109
+2026-02;IMPORTED;AAVE;Principal;usdc;market:usdc:USD;USDC;USD;1687,02;5,1495;5,1495;8687,31;Core;planilha linha 224;;1687,02;5,222;8809,61844
+2026-02;IMPORTED;Binance;Principal;bitcoin-02;market:bitcoin-02:BTC;Bitcoin 02;BTC;0,02114178;344745;5,1495;7288,52;Core-Satellite;planilha linha 227;;0,02114178;354230;7489,052729
+2026-02;IMPORTED;Binance;Principal;solana;market:solana:SOL;Solana;SOL;6,067;434,3;5,1495;2634,90;Satellite;planilha linha 228;;6,067;436,27;2646,85009
+2026-02;IMPORTED;Inter;Principal;etf-argt;market:etf-argt:ARGT;ETF - ARGT;ARGT;6,09534;462,21912;5,1495;2817,38;Satellite;planilha linha 233;;6,09534;481,31174;2933,758701
+2026-02;IMPORTED;Inter;Principal;etf-gldm;market:etf-gldm:GLDM;ETF - GLDM;GLDM;13,87541817;536,26893;5,1495;7440,96;Hedge;planilha linha 237;;13,87541817;516,66468;7168,938489
+2026-02;IMPORTED;Inter;Principal;etf-iaum;market:etf-iaum:IAUM;ETF - IAUM;IAUM;14,47;270,194265;5,1495;3909,71;Hedge;planilha linha 238;;14,47;260,16004;3764,515779
+2026-02;IMPORTED;Inter;Principal;etf-sivr;market:etf-sivr:SIVR;ETF - SIVR;SIVR;3,19249442;459,64437;5,1495;1467,41;Satellite;planilha linha 236;quantidade 3,19249 → 3,19249442 (P16);3,19249;386,37578;1233,500814
+2026-02;IMPORTED;Inter;Principal;etf-voo;market:etf-voo:VOO;ETF - VOO;VOO;1,74155;3249,54048;5,1495;5659,24;Core;planilha linha 234;;1,74155;3305,57822;5756,829749
+2026-02;IMPORTED;Inter;Principal;lcd-bndes-liquidez;private:inter:lcd-bndes-liquidez;LCD BNDES LIQUIDEZ;;11605,01;;5,1495;11605,01;Core;planilha linha 225;;11605,01;;11605,01
+2026-02;IMPORTED;Inter;Principal;porquinho;private:inter:porquinho;Porquinho;;8651,25;;5,1495;8651,25;Core;planilha linha 226;;8651,25;;8651,25
+2026-02;IMPORTED;Inter;Principal;previdencia-privada;private:inter:previdencia-grao-fim;Previdência - Grão FIM;;13282,98;;5,1495;13282,98;Core;planilha linha 230 + 235;somada à linha 235 (Previdência - RV - 54%) (A8);6110,1708 + 7172,8092;;13282,98
+2026-02;IMPORTED;Inter;Principal;tesouro-ipca-renda-2065;private:inter:tesouro-ipca-renda-2065;Tesouro IPCA Renda+ 2065;;12704;;5,1495;12704,00;Core;planilha linha 231;;12704;;12704
+2026-02;IMPORTED;Inter;Principal;time-deposit;market:time-deposit:USD;Time Deposit;USD;567,36;5,1495;5,1495;2921,62;Core;planilha linha 232;;567,36;5,222;2962,75392
+2026-02;IMPORTED;Ledger;Principal;bitcoin-01;market:bitcoin-01:BTC;Bitcoin 01;BTC;0,27932596;344745;5,1495;96296,23;Core-Satellite;planilha linha 229;;0,27932596;354230;98945,63481
+2026-03;IMPORTED;AAVE;Principal;usdc;market:usdc:USD;USDC;USD;1690,33;5,2194;5,2194;8822,51;Core;planilha linha 239;;1690,33;5,1884;8770,108172
+2026-03;IMPORTED;Binance;Principal;bitcoin-02;market:bitcoin-02:BTC;Bitcoin 02;BTC;0,00610704;353729;5,2194;2160,24;Core-Satellite;planilha linha 242;;0,00610704;367285;2243,024186
+2026-03;IMPORTED;Binance;Principal;solana;market:solana:SOL;Solana;SOL;6,094;431,1;5,2194;2627,12;Satellite;planilha linha 243;;6,094;450,02;2742,42188
+2026-03;IMPORTED;Inter;Principal;etf-argt;market:etf-argt:ARGT;ETF - ARGT;ARGT;6,09534;487,074408;5,2194;2968,88;Satellite;planilha linha 248;;6,09534;461,560064;2813,365521
+2026-03;IMPORTED;Inter;Principal;etf-gldm;market:etf-gldm:GLDM;ETF - GLDM;GLDM;13,87541817;483,786186;5,2194;6712,74;Hedge;planilha linha 252;;13,87541817;532,226072;7384,85931
+2026-03;IMPORTED;Inter;Principal;etf-iaum;market:etf-iaum:IAUM;ETF - IAUM;IAUM;14,47;243,74598;5,2194;3527,00;Hedge;planilha linha 253;;14,47;268,136512;3879,935329
+2026-03;IMPORTED;Inter;Principal;etf-sivr;market:etf-sivr:SIVR;ETF - SIVR;SIVR;3,19249442;373,761234;5,2194;1193,23;Satellite;planilha linha 251;quantidade 3,19249 → 3,19249442 (P16);3,19249;422,231992;1347,971412
+2026-03;IMPORTED;Inter;Principal;etf-voo;market:etf-voo:VOO;ETF - VOO;VOO;1,74155;3118,85247;5,2194;5431,64;Core;planilha linha 249;;1,74155;3229,623348;5624,550542
+2026-03;IMPORTED;Inter;Principal;lcd-bndes-liquidez;private:inter:lcd-bndes-liquidez;LCD BNDES LIQUIDEZ;;11743,35;;5,2194;11743,35;Core;planilha linha 240;;11743,35;;11743,35
+2026-03;IMPORTED;Inter;Principal;porquinho;private:inter:porquinho;Porquinho;;9347,15;;5,2194;9347,15;Core;planilha linha 241;;9347,15;;9347,15
+2026-03;IMPORTED;Inter;Principal;previdencia-privada;private:inter:previdencia-grao-fim;Previdência - Grão FIM;;17238,83;;5,2194;17238,83;Core;planilha linha 245 + 250;somada à linha 250 (Previdência - RV - 54%) (A8);7929,8618 + 9308,9682;;17238,83
+2026-03;IMPORTED;Inter;Principal;tesouro-ipca-renda-2065;private:inter:tesouro-ipca-renda-2065;Tesouro IPCA Renda+ 2065;;13211,9;;5,2194;13211,90;Core;planilha linha 246;;13211,9;;13211,9
+2026-03;IMPORTED;Inter;Principal;time-deposit;market:time-deposit:USD;Time Deposit;USD;568,97;5,2194;5,2194;2969,68;Core;planilha linha 247;;568,97;5,1884;2952,043948
+2026-03;IMPORTED;Ledger;Principal;bitcoin-01;market:bitcoin-01:BTC;Bitcoin 01;BTC;0,30045274;353729;5,2194;106278,85;Core-Satellite;planilha linha 244;;0,30045274;367285;110351,7846
+2026-04;IMPORTED;AAVE;Principal;usdc;market:usdc:USD;USDC;USD;1692,72;4,9886;4,9886;8444,30;Core;planilha linha 254;;1692,72;4,9703;8413,326216
+2026-04;IMPORTED;Binance;Principal;bitcoin-02;market:bitcoin-02:BTC;Bitcoin 02;BTC;0,00610704;379121;4,9886;2315,31;Core-Satellite;planilha linha 255;;0,00610704;374009;2284,087923
+2026-04;IMPORTED;Binance;Principal;solana;market:solana:SOL;Solana;SOL;6,1093;412,5;4,9886;2520,09;Satellite;planilha linha 256;;6,1093;432,48;2642,150064
+2026-04;IMPORTED;Inter;Principal;etf-argt;market:etf-argt:ARGT;ETF - ARGT;ARGT;6,09534;454,511346;4,9886;2770,40;Satellite;planilha linha 269;;6,09534;476,055334;2901,71912
+2026-04;IMPORTED;Inter;Principal;etf-gldm;market:etf-gldm:GLDM;ETF - GLDM;GLDM;13,87541817;455,808382;4,9886;6324,53;Hedge;planilha linha 268;;13,87541817;471,134737;6537,19149
+2026-04;IMPORTED;Inter;Principal;etf-iaum;market:etf-iaum:IAUM;ETF - IAUM;IAUM;14,47;229,375828;4,9886;3319,07;Hedge;planilha linha 266;;14,47;237,282122;3433,472305
+2026-04;IMPORTED;Inter;Principal;etf-sivr;market:etf-sivr:SIVR;ETF - SIVR;SIVR;3,19249442;349,351658;4,9886;1115,30;Satellite;planilha linha 265;quantidade 3,19249 → 3,19249442 (P16);3,19249;369,044775;1178,171754
+2026-04;IMPORTED;Inter;Principal;etf-voo;market:etf-voo:VOO;ETF - VOO;VOO;1,74155;3295,369388;4,9886;5739,05;Core;planilha linha 264;;1,74155;3150,921685;5487,487661
+2026-04;IMPORTED;Inter;Principal;etf-xle;market:etf-xle:XLE;ETF - XLE;XLE;4,46908199;297,56999;4,9886;1329,86;Satellite;planilha linha 267;;4,46908199;280,15;1252,013319
+2026-04;IMPORTED;Inter;Principal;lcd-bndes-liquidez;private:inter:lcd-bndes-liquidez;LCD BNDES LIQUIDEZ;;11870,58;;4,9886;11870,58;Core;planilha linha 263;;11870,58;;11870,58
+2026-04;IMPORTED;Inter;Principal;lci-brb-set-26;private:inter:lci-brb-set-26;LCI BRB - Set/26;;9594,66;;4,9886;9594,66;Core;planilha linha 262;;9594,66;;9594,66
+2026-04;IMPORTED;Inter;Principal;porquinho;private:inter:porquinho;Porquinho;;2842,03;;4,9886;2842,03;Core;planilha linha 261;;2842,03;;2842,03
+2026-04;IMPORTED;Inter;Principal;previdencia-privada;private:inter:previdencia-grao-fim;Previdência - Grão FIM;;20514,15;;4,9886;20514,15;Core;planilha linha 259 + 260;somada à linha 260 (Previdência - RF - 46%) (A8);11077,641 + 9436,509;;20514,15
+2026-04;IMPORTED;Inter;Principal;tesouro-ipca-renda-2065;private:inter:tesouro-ipca-renda-2065;Tesouro IPCA Renda+ 2065;;14088,77;;4,9886;14088,77;Core;planilha linha 258;;14088,77;;14088,77
+2026-04;IMPORTED;Inter;Principal;time-deposit;market:time-deposit:USD;Time Deposit;USD;322,98;4,9886;4,9886;1611,22;Core;planilha linha 257;;322,98;4,9703;1605,307494
+2026-04;IMPORTED;Ledger;Principal;bitcoin-01;market:bitcoin-01:BTC;Bitcoin 01;BTC;0,30045274;379121;4,9886;113907,94;Core-Satellite;planilha linha 270;;0,30045274;374009;112372,0288
+2026-05;IMPORTED;AAVE;Principal;usdc;market:usdc:USD;USDC;USD;1697,7;5,0569;5,0569;8585,10;Core;planilha linha 271;;1697,7;4,9281;8366,43537
+2026-05;IMPORTED;Binance;Principal;bitcoin-02;market:bitcoin-02:BTC;Bitcoin 02;BTC;0,00610704;372663;5,0569;2275,87;Core-Satellite;planilha linha 272;;0,00610704;401794;2453,77203
+2026-05;IMPORTED;Binance;Principal;solana;market:solana:SOL;Solana;SOL;6,1093;416,9;5,0569;2546,97;Satellite;planilha linha 273;;6,1093;423,54;2587,532922
+2026-05;IMPORTED;Inter;Principal;dolar;market:dolar-inter:USD;Dolar Inter;USD;570,43;5,0569;5,0569;2884,61;Core;planilha linha 286;;570,43;4,9281;2811,136083
+2026-05;IMPORTED;Inter;Principal;etf-gldm;market:etf-gldm:GLDM;ETF - GLDM;GLDM;13,87541817;454,767017;5,0569;6310,08;Hedge;planilha linha 285;;13,87541817;444,268215;6164,407263
+2026-05;IMPORTED;Inter;Principal;etf-iaum;market:etf-iaum:IAUM;ETF - IAUM;IAUM;14,47;229,027001;5,0569;3314,02;Hedge;planilha linha 283;;14,47;223,785021;3238,169254
+2026-05;IMPORTED;Inter;Principal;etf-sivr;market:etf-sivr:SIVR;ETF - SIVR;SIVR;3,19249442;363,034851;5,0569;1158,99;Satellite;planilha linha 282;quantidade 3,19249 → 3,19249442 (P16);3,19249;341,123082;1089,032028
+2026-05;IMPORTED;Inter;Principal;etf-voo;market:etf-voo:VOO;ETF - VOO;VOO;1,74155;3517,023381;5,0569;6125,07;Core;planilha linha 281;;1,74155;3283,839435;5718,970568
+2026-05;IMPORTED;Inter;Principal;etf-xle;market:etf-xle:XLE;ETF - XLE;XLE;4,46908199;284,652901;5,0569;1272,14;Satellite;planilha linha 284;;4,46908199;294,306132;1315,278234
+2026-05;IMPORTED;Inter;Principal;lcd-bndes-liquidez;private:inter:lcd-bndes-liquidez;LCD BNDES LIQUIDEZ;;11942,62;;5,0569;11942,62;Core;planilha linha 280;;11942,62;;11942,62
+2026-05;IMPORTED;Inter;Principal;lci-brb-set-26;private:inter:lci-brb-set-26;LCI BRB - Set/26;;9651,92;;5,0569;9651,92;Core;planilha linha 279;;9651,92;;9651,92
+2026-05;IMPORTED;Inter;Principal;porquinho;private:inter:porquinho;Porquinho;;8555,89;;5,0569;8555,89;Core;planilha linha 278;;8555,89;;8555,89
+2026-05;IMPORTED;Inter;Principal;previdencia-privada;private:inter:previdencia-grao-fim;Previdência - Grão FIM;;20435,69;;5,0569;20435,69;Core;planilha linha 276 + 277;somada à linha 277 (Previdência - RF - 46%) (A8);11035,2726 + 9400,4174;;20435,69
+2026-05;IMPORTED;Inter;Principal;tesouro-ipca-renda-2065;private:inter:tesouro-ipca-renda-2065;Tesouro IPCA Renda+ 2065;;12860,49;;5,0569;12860,49;Core;planilha linha 275;;12860,49;;12860,49
+2026-05;IMPORTED;Inter;Principal;time-deposit;market:time-deposit:USD;Time Deposit;USD;323,47;5,0569;5,0569;1635,76;Core;planilha linha 274;;323,47;4,9281;1594,092507
+2026-05;IMPORTED;Ledger;Principal;bitcoin-01;market:bitcoin-01:BTC;Bitcoin 01;BTC;0,30045274;372663;5,0569;111967,62;Core-Satellite;planilha linha 287;;0,30045274;401794;120720,1082
+2026-06;IMPORTED;AAVE;Principal;usdc;market:usdc:USD;USDC;USD;1702,29;5,1766;5,1766;8812,07;Core;planilha linha 288;;1702,29;5,1824;8821,947696
+2026-06;IMPORTED;Binance;Principal;bitcoin-02;market:bitcoin-02:BTC;Bitcoin 02;BTC;0,00610704;307661;5,1766;1878,90;Core-Satellite;planilha linha 289;;0,00610704;318428;1944,652533
+2026-06;IMPORTED;Binance;Principal;solana;market:solana:SOL;Solana;SOL;6,1093;386,6;5,1766;2361,86;Satellite;planilha linha 290;;6,1093;335,84;2051,747312
+2026-06;IMPORTED;Inter;Principal;etf-gldm;market:etf-gldm:GLDM;ETF - GLDM;GLDM;13,87541817;411,125572;5,1766;5704,54;Hedge;planilha linha 301;;13,87541817;442,110544;6134,468675
+2026-06;IMPORTED;Inter;Principal;etf-iaum;market:etf-iaum:IAUM;ETF - IAUM;IAUM;14,47;207,115766;5,1766;2996,97;Hedge;planilha linha 299;;14,47;222,635904;3221,541531
+2026-06;IMPORTED;Inter;Principal;etf-sivr;market:etf-sivr:SIVR;ETF - SIVR;SIVR;3,19249442;291,028452;5,1766;929,11;Satellite;planilha linha 298;quantidade 3,19249 → 3,19249442 (P16);3,19249;327,52768;1045,628843
+2026-06;IMPORTED;Inter;Principal;etf-voo;market:etf-voo:VOO;ETF - VOO;VOO;2,80601273;3555,340646;5,1766;9976,33;Core;planilha linha 297;quantidade 2,806 → 2,80601273 (P16);2,806;3529,525344;9903,848115
+2026-06;IMPORTED;Inter;Principal;etf-vxus;market:etf-vxus:VXUS;ETF - VXUS;VXUS;4,60935122;442,547534;5,1766;2039,86;Core;planilha linha 303;quantidade 4,609 → 4,60935122 (P16);4,609;430,72;1985,18848
+2026-06;IMPORTED;Inter;Principal;etf-xle;market:etf-xle:XLE;ETF - XLE;XLE;4,46908199;274,929226;5,1766;1228,68;Satellite;planilha linha 300;;4,46908199;296,588752;1325,47945
+2026-06;IMPORTED;Inter;Principal;lcd-bndes-liquidez;private:inter:lcd-bndes-liquidez;LCD BNDES LIQUIDEZ;;12074,95;;5,1766;12074,95;Core;planilha linha 296;;12074,95;;12074,95
+2026-06;IMPORTED;Inter;Principal;lci-brb-jun-27;private:inter:lci-brb-jun-27;LCI BRB - Jun/27;;6000;;5,1766;6000,00;Core;planilha linha 304;;6000;;6000
+2026-06;IMPORTED;Inter;Principal;lci-brb-set-26;private:inter:lci-brb-set-26;LCI BRB - Set/26;;9776,38;;5,1766;9776,38;Core;planilha linha 295;;9776,38;;9776,38
+2026-06;IMPORTED;Inter;Principal;porquinho;private:inter:porquinho;Porquinho;;5202,44;;5,1766;5202,44;Core;planilha linha 294;;5202,44;;5202,44
+2026-06;IMPORTED;Inter;Principal;previdencia-privada;private:inter:previdencia-grao-fim;Previdência - Grão FIM;;21300,04;;5,1766;21300,04;Core;planilha linha 292 + 293;somada à linha 293 (Previdência - RF - 46%) (A8);11502,0216 + 9798,0184;;21300,04
+2026-06;IMPORTED;Inter;Principal;tesouro-ipca-renda-2065;private:inter:tesouro-ipca-renda-2065;Tesouro IPCA Renda+ 2065;;11400,78;;5,1766;11400,78;Core;planilha linha 291;;11400,78;;11400,78
+2026-06;IMPORTED;Ledger;Principal;bitcoin-01;market:bitcoin-01:BTC;Bitcoin 01;BTC;0,30045274;307661;5,1766;92437,59;Core-Satellite;planilha linha 302;;0,30045274;318428;95672,56509
+2026-07;IMPORTED;AAVE;Principal;usdc;market:usdc:USD;USDC;USD;1704,76;5,0773;5,0773;8655,58;Core;planilha linha 305;;1704,76;5,1262;8738,940712
+2026-07;IMPORTED;Binance;Principal;bitcoin-02;market:bitcoin-02:BTC;Bitcoin 02;BTC;0,00610704;320953;5,0773;1960,07;Core-Satellite;planilha linha 306;;0,00610704;323879;1977,942008
+2026-07;IMPORTED;Binance;Principal;solana;market:solana:SOL;Solana;SOL;6,1093;371,8;5,0773;2271,44;Satellite;planilha linha 307;;6,1093;381,43;2330,270299
+2026-07;IMPORTED;Inter;Principal;etf-gldm;market:etf-gldm:GLDM;ETF - GLDM;GLDM;13,87541817;406,894822;5,0773;5645,84;Hedge;planilha linha 310;;13,87541817;407,071542;5648,28787
+2026-07;IMPORTED;Inter;Principal;etf-gpca11;market:etf-gpca11:GPCA11.SAO;ETF - GPCA11;GPCA11.SAO;198;25,5;5,0773;5049,00;Core;planilha linha 311;;198;25,45;5039,1
+2026-07;IMPORTED;Inter;Principal;etf-iaum;market:etf-iaum:IAUM;ETF - IAUM;IAUM;22,43714219;204,970601;5,0773;4598,95;Hedge;planilha linha 313;quantidade 22,437 → 22,43714219 (P16);22,437;205,048;4600,661976
+2026-07;IMPORTED;Inter;Principal;etf-sivr;market:etf-sivr:SIVR;ETF - SIVR;SIVR;3,19249442;279,505365;5,0773;892,32;Satellite;planilha linha 314;quantidade 3,19249 → 3,19249442 (P16);3,19249;273,072674;871,781781
+2026-07;IMPORTED;Inter;Principal;etf-voo;market:etf-voo:VOO;ETF - VOO;VOO;2,80601273;3486,328045;5,0773;9782,68;Core;planilha linha 315;quantidade 2,806 → 2,80601273 (P16);2,806;3511,95962;9854,558694
+2026-07;IMPORTED;Inter;Principal;etf-vxus;market:etf-vxus:VXUS;ETF - VXUS;VXUS;4,60935122;429,488807;5,0773;1979,66;Core;planilha linha 316;quantidade 4,609 → 4,60935122 (P16);4,609;427,627604;1970,935627
+2026-07;IMPORTED;Inter;Principal;etf-xle;market:etf-xle:XLE;ETF - XLE;XLE;4,46908199;302,353215;5,0773;1351,24;Satellite;planilha linha 317;;4,46908199;294,551452;1316,374589
+2026-07;IMPORTED;Inter;Principal;lcd-bndes-liquidez;private:inter:lcd-bndes-liquidez;LCD BNDES LIQUIDEZ;;12174,15;;5,0773;12174,15;Core;planilha linha 318;;12174,15;;12174,15
+2026-07;IMPORTED;Inter;Principal;lci-brb-jun-27;private:inter:lci-brb-jun-27;LCI BRB - Jun/27;;6054,12;;5,0773;6054,12;Core;planilha linha 319;;6054,12;;6054,12
+2026-07;IMPORTED;Inter;Principal;lci-brb-set-26;private:inter:lci-brb-set-26;LCI BRB - Set/26;;9869,83;;5,0773;9869,83;Core;planilha linha 320;;9869,83;;9869,83
+2026-07;IMPORTED;Inter;Principal;porquinho;private:inter:porquinho;Porquinho;;5769,88;;5,0773;5769,88;Core;planilha linha 321;;5769,88;;5769,88
+2026-07;IMPORTED;Inter;Principal;previdencia-privada;private:inter:previdencia-grao-fim;Previdência - Grão FIM;;23518,7;;5,0773;23518,70;Core;planilha linha 322;;23518,7;;23518,7
+2026-07;IMPORTED;Inter;Principal;tesouro-ipca-renda-2065;private:inter:tesouro-ipca-renda-2065;Tesouro IPCA Renda+ 2065;;11955,66;;5,0773;11955,66;Core;planilha linha 324;;11955,66;;11955,66
+2026-07;IMPORTED;Inter;Principal;tesouro-ipca-2032;private:inter:tesouro-ipca-2032;Tesouro IPCA+ 2032;;2986,86;;5,0773;2986,86;Core;planilha linha 312;;2986,86;;2986,86
+2026-07;IMPORTED;Inter;Principal;time-deposit;market:time-deposit:USD;Time Deposit;USD;257,67;5,0773;5,0773;1308,27;Core;planilha linha 308;;257,67;5,1262;1320,867954
+2026-07;IMPORTED;Ledger;Principal;bitcoin-01;market:bitcoin-01:BTC;Bitcoin 01;BTC;0,30045274;320953;5,0773;96431,21;Core-Satellite;planilha linha 323;;0,30045274;323879;97310,33298
+2026-07;IMPORTED;Revolut;Principal;flexible-account;market:flexible-account:USD;Flexible Account;USD;775,25;5,0773;5,0773;3936,18;Core;planilha linha 309;;775,25;5,1262;3974,08655
+2026-08;IMPORTED;AAVE;Principal;usdc;market:usdc:USD;USDC;USD;1708,69;5,1816;5,1816;8853,75;Core;planilha linha 325;;1708,69;5,1253;8757,548857
+2026-08;IMPORTED;Binance;Principal;bitcoin-02;market:bitcoin-02:BTC;Bitcoin 02;BTC;0,00610704;408710;5,1816;2496,01;Core-Satellite;planilha linha 326;;0,00610704;329479;2012,141432
+2026-08;IMPORTED;Binance;Principal;solana;market:solana:SOL;Solana;SOL;6,16;535,9;5,1816;3301,14;Satellite;planilha linha 327;;6,16;380,6;2344,496
+2026-08;IMPORTED;Inter;Principal;etf-gldm;market:etf-gldm:GLDM;ETF - GLDM;GLDM;13,87541817;456,550776;5,1816;6334,83;Hedge;planilha linha 330;;13,87541817;413,61171;5739,035436
+2026-08;IMPORTED;Inter;Principal;etf-gpca11;market:etf-gpca11:GPCA11.SAO;ETF - GPCA11;GPCA11.SAO;198;25,86;5,1816;5120,28;Core;planilha linha 331;;198;25,54;5056,92
+2026-08;IMPORTED;Inter;Principal;etf-iaum;market:etf-iaum:IAUM;ETF - IAUM;IAUM;22,43714219;230,011224;5,1816;5160,79;Hedge;planilha linha 333;quantidade 22,437 → 22,43714219 (P16);22,437;208,343445;4674,601875
+2026-08;IMPORTED;Inter;Principal;etf-sivr;market:etf-sivr:SIVR;ETF - SIVR;SIVR;3,19249442;327,7362;5,1816;1046,30;Satellite;planilha linha 334;quantidade 3,19249 → 3,19249442 (P16);3,19249;290,09198;926,1157452
+2026-08;IMPORTED;Inter;Principal;etf-voo;market:etf-voo:VOO;ETF - VOO;VOO;2,80601273;3652,458024;5,1816;10248,84;Core;planilha linha 335;quantidade 2,806 → 2,80601273 (P16);2,806;3633,735194;10196,26095
+2026-08;IMPORTED;Inter;Principal;etf-vxus;market:etf-vxus:VXUS;ETF - VXUS;VXUS;4,60935122;452,457312;5,1816;2085,53;Core;planilha linha 336;quantidade 4,609 → 4,60935122 (P16);4,609;443,082185;2042,165791
+2026-08;IMPORTED;Inter;Principal;etf-xle;market:etf-xle:XLE;ETF - XLE;XLE;4,46908199;331,415136;5,1816;1481,12;Satellite;planilha linha 337;;4,46908199;299,932556;1340,423184
+2026-08;IMPORTED;Inter;Principal;lcd-bdmg-liquidez;private:inter:lcd-bdmg-liquidez-05-32;LCD BDMG LIQUIDEZ - 05/32;;6434,4;;5,1816;6434,40;Core;planilha linha 345;;6434,4;;6434,4
+2026-08;IMPORTED;Inter;Principal;lcd-bndes-liquidez;private:inter:lcd-bndes-liquidez;LCD BNDES LIQUIDEZ;;12295,73;;5,1816;12295,73;Core;planilha linha 338;;12295,73;;12295,73
+2026-08;IMPORTED;Inter;Principal;lci-brb-jun-27;private:inter:lci-brb-jun-27;LCI BRB - Jun/27;;6124,47;;5,1816;6124,47;Core;planilha linha 339;;6124,47;;6124,47
+2026-08;IMPORTED;Inter;Principal;lci-brb-set-26;private:inter:lci-brb-set-26;LCI BRB - Set/26;;9984,53;;5,1816;9984,53;Core;planilha linha 340;;9984,53;;9984,53
+2026-08;IMPORTED;Inter;Principal;porquinho;private:inter:porquinho;Porquinho;;5066,55;;5,1816;5066,55;Core;planilha linha 341;;5066,55;;5066,55
+2026-08;IMPORTED;Inter;Principal;previdencia-privada;private:inter:previdencia-grao-fim;Previdência - Grão FIM;;23647,48;;5,1816;23647,48;Core;planilha linha 342;;23647,48;;23647,48
+2026-08;IMPORTED;Inter;Principal;tesouro-ipca-renda-2065;private:inter:tesouro-ipca-renda-2065;Tesouro IPCA Renda+ 2065;;12284,56;;5,1816;12284,56;Core;planilha linha 344;;12284,56;;12284,56
+2026-08;IMPORTED;Inter;Principal;tesouro-ipca-2032;private:inter:tesouro-ipca-2032;Tesouro IPCA+ 2032;;3018,98;;5,1816;3018,98;Core;planilha linha 332;;3018,98;;3018,98
+2026-08;IMPORTED;Inter;Principal;time-deposit;market:time-deposit:USD;Time Deposit;USD;258,27;5,1816;5,1816;1338,25;Core;planilha linha 328;;258,27;5,1253;1323,711231
+2026-08;IMPORTED;Ledger;Principal;bitcoin-01;market:bitcoin-01:BTC;Bitcoin 01;BTC;0,30045274;408710;5,1816;122798,04;Core-Satellite;planilha linha 343;;0,30045274;329479;98992,86832
+2026-08;IMPORTED;Revolut;Principal;flexible-account;market:flexible-account:USD;Flexible Account;USD;203,76;5,1816;5,1816;1055,80;Core;planilha linha 329;;203,76;5,1253;1044,331128
+2026-09;IMPORTED;AAVE;Principal;usdc;market:usdc:USD;USDC;USD;1708,69;5,1809;5,1809;8852,55;Core;planilha linha 346;;1708,69;5,1084;8728,671996
+2026-09;IMPORTED;Binance;Principal;bitcoin-02;market:bitcoin-02:BTC;Bitcoin 02;BTC;0,00610704;434201;5,1809;2651,68;Core-Satellite;planilha linha 347;;0,00610704;395046;2412,561724
+2026-09;IMPORTED;Binance;Principal;solana;market:solana:SOL;Solana;SOL;6,16;613,3;5,1809;3777,93;Satellite;planilha linha 348;;6,16;507,92;3128,7872
+2026-09;IMPORTED;Inter;Principal;etf-gldm;market:etf-gldm:GLDM;ETF - GLDM;GLDM;13,87541817;425,766362;5,1809;5907,69;Hedge;planilha linha 351;;13,87541817;442,029852;6133,34904
+2026-09;IMPORTED;Inter;Principal;etf-gpca11;market:etf-gpca11:GPCA11.SAO;ETF - GPCA11;GPCA11.SAO;198;26,37;5,1809;5221,26;Core;planilha linha 352;;198;25,88;5124,24
+2026-09;IMPORTED;Inter;Principal;etf-iaum;market:etf-iaum:IAUM;ETF - IAUM;IAUM;22,43714219;214,592878;5,1809;4814,85;Hedge;planilha linha 354;quantidade 22,437 → 22,43714219 (P16);22,437;222,675156;4996,162475
+2026-09;IMPORTED;Inter;Principal;etf-sivr;market:etf-sivr:SIVR;ETF - SIVR;SIVR;3,19249442;296,917379;5,1809;947,91;Satellite;planilha linha 355;quantidade 3,19249 → 3,19249442 (P16);3,19249;315,801288;1008,192454
+2026-09;IMPORTED;Inter;Principal;etf-voo;market:etf-voo:VOO;ETF - VOO;VOO;2,80601273;3631,085574;5,1809;10188,87;Core;planilha linha 356;quantidade 2,806 → 2,80601273 (P16);2,806;3591,767124;10078,49855
+2026-09;IMPORTED;Inter;Principal;etf-vxus;market:etf-vxus:VXUS;ETF - VXUS;VXUS;4,60935122;440,169264;5,1809;2028,89;Core;planilha linha 357;quantidade 4,609 → 4,60935122 (P16);4,609;444,584052;2049,087896
+2026-09;IMPORTED;Inter;Principal;etf-xle;market:etf-xle:XLE;ETF - XLE;XLE;4,46908199;318,62535;5,1809;1423,96;Satellite;planilha linha 358;;4,46908199;333,016596;1488,278472
+2026-09;IMPORTED;Inter;Principal;lcd-bdmg-liquidez;private:inter:lcd-bdmg-liquidez-05-32;LCD BDMG LIQUIDEZ - 05/32;;6487;;5,1809;6487,00;Core;planilha linha 366;;6487;;6487
+2026-09;IMPORTED;Inter;Principal;lcd-bndes-liquidez;private:inter:lcd-bndes-liquidez;LCD BNDES LIQUIDEZ;;12411,14;;5,1809;12411,14;Core;planilha linha 359;;12411,14;;12411,14
+2026-09;IMPORTED;Inter;Principal;lci-brb-jun-27;private:inter:lci-brb-jun-27;LCI BRB - Jun/27;;6191,37;;5,1809;6191,37;Core;planilha linha 360;;6191,37;;6191,37
+2026-09;IMPORTED;Inter;Principal;lci-brb-set-26;private:inter:lci-brb-set-26;LCI BRB - Set/26;;10093;;5,1809;10093,00;Core;planilha linha 361;;10093;;10093
+2026-09;IMPORTED;Inter;Principal;porquinho;private:inter:porquinho;Porquinho;;2427,12;;5,1809;2427,12;Core;planilha linha 362;;2427,12;;2427,12
+2026-09;IMPORTED;Inter;Principal;previdencia-privada;private:inter:previdencia-grao-fim;Previdência - Grão FIM;;25976,71;;5,1809;25976,71;Core;planilha linha 363;;25976,71;;25976,71
+2026-09;IMPORTED;Inter;Principal;tesouro-ipca-renda-2065;private:inter:tesouro-ipca-renda-2065;Tesouro IPCA Renda+ 2065;;12390,29;;5,1809;12390,29;Core;planilha linha 365;;12390,29;;12390,29
+2026-09;IMPORTED;Inter;Principal;tesouro-ipca-2032;private:inter:tesouro-ipca-2032;Tesouro IPCA+ 2032;;3040,68;;5,1809;3040,68;Core;planilha linha 353;;3040,68;;3040,68
+2026-09;IMPORTED;Inter;Principal;time-deposit;market:time-deposit:USD;Time Deposit;USD;259,11;5,1809;5,1809;1342,42;Core;planilha linha 349;;259,11;5,1084;1323,637524
+2026-09;IMPORTED;Ledger;Principal;bitcoin-01;market:bitcoin-01:BTC;Bitcoin 01;BTC;0,30045274;434201;5,1809;130456,88;Core-Satellite;planilha linha 364;;0,30045274;395046;118692,6531
+2026-09;IMPORTED;Revolut;Principal;flexible-account;market:flexible-account:USD;Flexible Account;USD;1569,08;5,1809;5,1809;8129,25;Core;planilha linha 350;;1569,08;5,1084;8015,488272
+2026-10;DRAFT;AAVE;Principal;usdc;market:usdc:USD;USDC;USD;1708,69;5,1809;5,1809;8852,55;Core;copiado de 2026-09 (P17);;;;
+2026-10;DRAFT;Binance;Principal;bitcoin-02;market:bitcoin-02:BTC;Bitcoin 02;BTC;0,00610704;434201;5,1809;2651,68;Core-Satellite;copiado de 2026-09 (P17);;;;
+2026-10;DRAFT;Binance;Principal;solana;market:solana:SOL;Solana;SOL;6,16;613,3;5,1809;3777,93;Satellite;copiado de 2026-09 (P17);;;;
+2026-10;DRAFT;Inter;Principal;etf-gldm;market:etf-gldm:GLDM;ETF - GLDM;GLDM;13,87541817;425,766362;5,1809;5907,69;Hedge;copiado de 2026-09 (P17);;;;
+2026-10;DRAFT;Inter;Principal;etf-gpca11;market:etf-gpca11:GPCA11.SAO;ETF - GPCA11;GPCA11.SAO;198;26,37;5,1809;5221,26;Core;copiado de 2026-09 (P17);;;;
+2026-10;DRAFT;Inter;Principal;etf-iaum;market:etf-iaum:IAUM;ETF - IAUM;IAUM;22,43714219;214,592878;5,1809;4814,85;Hedge;copiado de 2026-09 (P17);;;;
+2026-10;DRAFT;Inter;Principal;etf-sivr;market:etf-sivr:SIVR;ETF - SIVR;SIVR;3,19249442;296,917379;5,1809;947,91;Satellite;copiado de 2026-09 (P17);;;;
+2026-10;DRAFT;Inter;Principal;etf-voo;market:etf-voo:VOO;ETF - VOO;VOO;2,80601273;3631,085574;5,1809;10188,87;Core;copiado de 2026-09 (P17);;;;
+2026-10;DRAFT;Inter;Principal;etf-vxus;market:etf-vxus:VXUS;ETF - VXUS;VXUS;4,60935122;440,169264;5,1809;2028,89;Core;copiado de 2026-09 (P17);;;;
+2026-10;DRAFT;Inter;Principal;etf-xle;market:etf-xle:XLE;ETF - XLE;XLE;4,46908199;318,62535;5,1809;1423,96;Satellite;copiado de 2026-09 (P17);;;;
+2026-10;DRAFT;Inter;Principal;lcd-bdmg-liquidez;private:inter:lcd-bdmg-liquidez-05-32;LCD BDMG LIQUIDEZ - 05/32;;6487;;5,1809;6487,00;Core;copiado de 2026-09 (P17);;;;
+2026-10;DRAFT;Inter;Principal;lcd-bndes-liquidez;private:inter:lcd-bndes-liquidez;LCD BNDES LIQUIDEZ;;12411,14;;5,1809;12411,14;Core;copiado de 2026-09 (P17);;;;
+2026-10;DRAFT;Inter;Principal;lci-brb-jun-27;private:inter:lci-brb-jun-27;LCI BRB - Jun/27;;6191,37;;5,1809;6191,37;Core;copiado de 2026-09 (P17);;;;
+2026-10;DRAFT;Inter;Principal;lci-brb-set-26;private:inter:lci-brb-set-26;LCI BRB - Set/26;;10093;;5,1809;10093,00;Core;copiado de 2026-09 (P17);;;;
+2026-10;DRAFT;Inter;Principal;porquinho;private:inter:porquinho;Porquinho;;2427,12;;5,1809;2427,12;Core;copiado de 2026-09 (P17);;;;
+2026-10;DRAFT;Inter;Principal;previdencia-privada;private:inter:previdencia-grao-fim;Previdência - Grão FIM;;25976,71;;5,1809;25976,71;Core;copiado de 2026-09 (P17);;;;
+2026-10;DRAFT;Inter;Principal;tesouro-ipca-renda-2065;private:inter:tesouro-ipca-renda-2065;Tesouro IPCA Renda+ 2065;;12390,29;;5,1809;12390,29;Core;copiado de 2026-09 (P17);;;;
+2026-10;DRAFT;Inter;Principal;tesouro-ipca-2032;private:inter:tesouro-ipca-2032;Tesouro IPCA+ 2032;;3040,68;;5,1809;3040,68;Core;copiado de 2026-09 (P17);;;;
+2026-10;DRAFT;Inter;Principal;time-deposit;market:time-deposit:USD;Time Deposit;USD;259,11;5,1809;5,1809;1342,42;Core;copiado de 2026-09 (P17);;;;
+2026-10;DRAFT;Ledger;Principal;bitcoin-01;market:bitcoin-01:BTC;Bitcoin 01;BTC;0,30045274;434201;5,1809;130456,88;Core-Satellite;copiado de 2026-09 (P17);;;;
+2026-10;DRAFT;Revolut;Principal;flexible-account;market:flexible-account:USD;Flexible Account;USD;1569,08;5,1809;5,1809;8129,25;Core;copiado de 2026-09 (P17);;;;

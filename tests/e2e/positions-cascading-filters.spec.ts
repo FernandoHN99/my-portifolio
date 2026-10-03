@@ -22,7 +22,8 @@ test("a classe escolhida primeiro limita as subclasses", async ({ page }) => {
   await page.goto("/posicoes?mes=2026-09&classe=Caixa");
   await expect(page.getByRole("heading", { level: 1, name: "Carteira do mês" })).toBeVisible();
 
-  expect(await optionsOf(page, "Subclasse")).toEqual(["Curto", "Pós-fixado", "Stablecoin"]);
+  // A subclasse "Curto" do caixa virou Pós-fixado no histórico preparado (spec 041).
+  expect(await optionsOf(page, "Subclasse")).toEqual(["Pós-fixado", "Stablecoin"]);
   // A classe é o primeiro filtro: as próprias opções não encolhem.
   expect(await optionsOf(page, "Classe")).toEqual(
     expect.arrayContaining(["Caixa", "Cripto", "Renda Fixa", "Renda Variável"]),

@@ -1,0 +1,384 @@
+﻿Data;Nome;Classe;Subclasse;Duração;Estratégia;Moeda Base;Porcentagem;Total (R$);Total ($)
+45078;Bitcoin;Cripto;BTC;-;D+0;D+0;D+0;D+0;D+0
+45078;Liquidez Diaria;Caixa;Curto;D+0;Core;BRL;1;3698,14;738,5939684
+45078;CDB -  110%;Renda Fixa;Pós-fixado;D+0;Core;BRL;1;20017,71;3997,944877
+45078;USDT;Reserva;Stablecoin;D+0;Core;USD;1;5017,014;1002
+45078;BUSD;Reserva;Stablecoin;D+0;Core;USD;1;12652,689;2527
+45078;Dolar;Reserva;Pós-fixado;D+0;Core;USD;1;499,64853;99,79
+45108;Bitcoin;Cripto;BTC;-;Core-Satellite;BTC;1;27125,32416;5547,101055
+45108;Liquidez Diaria;Caixa;Curto;D+0;Core;BRL;1;4238,83;866,8364008
+45108;CDB -  110%;Renda Fixa;Pós-fixado;D+0;Core;BRL;1;20277,35;4146,697342
+45108;USDT;Caixa;Stablecoin;D+0;Core;USD;1;4934,01;1009
+45108;BUSD;Caixa;Stablecoin;D+0;Core;USD;1;12366,81;2529
+45108;Dolar;Caixa;Pós-fixado;D+0;Core;USD;1;487,9731;99,79
+45200;Bitcoin;Cripto;BTC;-;Core-Satellite;BTC;1;3042,259749;602,4276731
+45200;Bitcoin;Cripto;BTC;-;Core-Satellite;BTC;1;3042,259749;602,4276731
+45200;Inter;Caixa;Pós-fixado;D+0;Core;BRL;1;5573,41;1103,645545
+45200;C6 - CDB Diario 105%;Caixa;Pós-fixado;D+0;Core;BRL;1;975;193,0693069
+45200;C6 - CDB Cartao 100%;Caixa;Pós-fixado;D+0;Core;BRL;1;2500;495,049505
+45200;LCI DI 180;Renda Fixa;Pós-fixado;Médio;Core;BRL;1;15748,75;3118,564356
+45200;USDT;Caixa;Stablecoin;D+0;Core;USD;1;5140,1425;1017,85
+45200;BUSD;Caixa;Stablecoin;D+0;Core;USD;1;12783,368;2531,36
+45200;C6- Parado;Caixa;Pós-fixado;D+0;Core;BRL;1;30,62;6,063366337
+45200;Dolar;Caixa;Pós-fixado;D+0;Core;USD;1;201,697;39,94
+45261;USDT;Reserva;Stablecoin;D+0;Core;USD;1;5078,007;1025,86
+45261;BUSD;Reserva;Stablecoin;D+0;Core;USD;1;12572,703;2539,94
+45261;Conta Bancária;Renda Fixa;Pós-fixado;D+0;Core;BRL;1;471,12;95,17575758
+45261;Dólar;Reserva;Pós-fixado;D+0;Core;USD;1;197,703;39,94
+45261;Bitcoin;Cripto;BTC;-;Core-Satellite;BTC;1;3626,713783;732,6694511
+45261;Bitcoin;Cripto;BTC;-;Core-Satellite;BTC;1;3626,713783;732,6694511
+45261;CDB Diario 105%;Renda Fixa;Pós-fixado;D+0;Core;BRL;1;11887,95;2401,606061
+45261;CDB Cartao 100%;Renda Fixa;Pós-fixado;D+0;Core;BRL;1;2567,31;518,6484848
+45261;LCI DI 180;Renda Fixa;Pós-fixado;Médio;Core;BRL;1;15900,21;3212,163636
+45292;USDT;Reserva;Stablecoin;D+0;Core;USD;1;5202,606;1044,7
+45292;BUSD;Reserva;Stablecoin;D+0;Core;USD;1;12789,5364;2568,18
+45292;Conta Bancária;Renda Fixa;Pós-fixado;D+0;Core;BRL;1;366,73;73,64056225
+45292;Dólar;Reserva;Pós-fixado;D+0;Core;USD;1;198,9012;39,94
+45292;Bitcoin;Renda Variável;BTC;-;Core-Satellite;BTC;1;4265,6;856,5461847
+45292;Bitcoin;Renda Variável;BTC;-;Core-Satellite;BTC;1;4265,6;856,5461847
+45292;CDB Diario 105%;Caixa;Pós-fixado;D+0;Core;BRL;1;29644,52;5952,714859
+45292;CDB Cartao 100%;Caixa;Pós-fixado;D+0;Core;BRL;1;2910,35;584,4076305
+45323;CDB Cartao 100%;Caixa;Pós-fixado;D+0;Core;BRL;1;2916,4;586,8008048
+45323;CDB Diario 105%;Caixa;Pós-fixado;D+0;Core;BRL;1;19156,67;3854,460765
+45323;Conta Bancária;Caixa;Pós-fixado;D+0;Core;BRL;1;470,37;94,64185111
+45323;Extra XP;Renda Fixa;Pós-fixado;D+0;Core;BRL;1;148,08;29,79476861
+45323;LCI XP;Renda Fixa;Pós-fixado;Curto;Core;BRL;1;9851,92;1982,277666
+45323;Bitcoin 01;Cripto;BTC;-;Core-Satellite;BTC;1;46288,75643;9313,633084
+45323;Bitcoin 02;Cripto;BTC;-;Core-Satellite;BTC;1;4509,632272;907,3706785
+45323;Bitcoin 03;Cripto;BTC;-;Core-Satellite;BTC;1;1987,710677;399,941786
+45323;USDC;Cripto;Stablecoin;D+0;Core;USD;1;17994,1335;3620,55
+45352;CDB Cartao 100%;Caixa;Pós-fixado;D+0;Core;BRL;1;39,57;7,961770624
+45352;CDB Diario 105%;Caixa;Pós-fixado;D+0;Core;BRL;1;21231,66;4271,963783
+45352;Conta Bancária;Caixa;Pós-fixado;D+0;Core;BRL;1;487,27;98,04225352
+45352;LCI XP;Renda Fixa;Pós-fixado;Curto;Core;BRL;1;9933,05;1998,60161
+45352;Bitcoin 01;Renda Variável;BTC;-;Core-Satellite;BTC;1;65406,175;13160,19618
+45352;USDC;Reserva;Stablecoin;D+0;Core;USD;1;26252,534;5282,2
+45383;CDB Itaú 100%;Caixa;Pós-fixado;D+0;Core;BRL;1;30106,64;5884,455564
+45383;Conta Bancária;Caixa;Pós-fixado;D+0;Core;BRL;1;279,34;54,59804937
+45383;Bitcoin 01;Renda Variável;BTC;-;Core-Satellite;BTC;1;54110,79737;10576,15804
+45383;USDC;Reserva;Stablecoin;D+0;Core;USD;1;17585,23473;3437,1
+45383;Bitcoin 02;Renda Variável;BTC;-;Core-Satellite;BTC;1;13972,28388;2730,935224
+45413;CDB Itaú 100%;Caixa;Pós-fixado;D+0;Core;BRL;1;16611;3222,308438
+45413;Bitcoin 01;Renda Variável;BTC;-;Core-Satellite;BTC;1;63740,37828;12364,76785
+45413;USDC;Reserva;Stablecoin;D+0;Core;USD;1;17753,82;3444
+45413;Bitcoin 02;Renda Variável;BTC;-;Core-Satellite;BTC;1;28143,81625;5459,518186
+45444;Fundo Itaú;Caixa;Pós-fixado;D+0;Core;BRL;1;13103,07;2413,088398
+45444;CDB Itaú 100%;Caixa;Pós-fixado;D+0;Core;BRL;1;5331,61;981,8802947
+45444;Bitcoin 01;Renda Variável;BTC;-;Core-Satellite;BTC;1;62001,47;11418,3186
+45444;USDC;Reserva;Stablecoin;D+0;Core;USD;1;18776,94;3458
+45444;Bitcoin 02;Renda Variável;BTC;-;Core-Satellite;BTC;1;27376,0217;5041,624622
+45444;Etherium;Renda Variável;Altcoin;-;Satellite;USD;1;2975,64;548
+45444;Solana;Renda Variável;Altcoin;-;Satellite;USD;1;1330,35;245
+45505;Fundo Itaú;Caixa;Pós-fixado;D+0;Core;BRL;1;11305,1;2055,472727
+45505;CDB Itaú 100%;Caixa;Pós-fixado;D+0;Core;BRL;1;3002,8;545,9636364
+45505;Bitcoin 01;Renda Variável;BTC;-;Core-Satellite;BTC;1;87717,97182;15948,72215
+45505;USDC;Reserva;Stablecoin;D+0;Core;USD;1;18766;3412
+45505;Bitcoin 02;Renda Variável;BTC;-;Core-Satellite;BTC;1;5381,520299;978,4582362
+45505;Etherium;Renda Variável;Altcoin;-;Satellite;USD;1;2276,45;413,9
+45505;Solana;Renda Variável;Altcoin;-;Satellite;USD;1;3954,39;718,98
+45536;Fundo Itaú;Renda Fixa;Pós-fixado;D+0;Core;BRL;1;2355,31;426,6865942
+45536;CDB Itaú 100%;Caixa;Pós-fixado;D+0;Core;BRL;1;950;172,1014493
+45536;Bitcoin 01;Renda Variável;BTC;-;Core-Satellite;BTC;1;89959,65636;16297,0392
+45536;Bitcoin 02;Renda Variável;BTC;-;Core-Satellite;BTC;1;5519,048226;999,8275772
+45536;Bitcoin 03 - Viagem;Renda Variável;BTC;-;Core-Satellite;BTC;1;6837,790924;1238,73024
+45536;USDC;Reserva;Stablecoin;D+0;Core;USD;1;18869,1816;3418,33
+45536;Etherium;Renda Variável;Altcoin;-;Satellite;USD;1;2283,0168;413,59
+45536;Solana;Renda Variável;Altcoin;-;Satellite;USD;1;3734,1144;676,47
+45536;ETF - VOO;Renda Variável;Ações EUA;-;Core;USD;1;5036,2824;912,37
+45566;Fundo Itaú;Renda Fixa;Pós-fixado;D+0;Core;BRL;1;1769,97;307,2864583
+45566;CDB Itaú 100%;Caixa;Pós-fixado;D+0;Core;BRL;1;2003,1;347,7604167
+45566;Bitcoin 01;Renda Variável;BTC;-;Core-Satellite;BTC;1;107958,8488;18742,85569
+45566;Bitcoin 02;Renda Variável;BTC;-;Core-Satellite;BTC;1;6623,303346;1149,879053
+45566;Bitcoin 03 - Viagem;Renda Variável;BTC;-;Core-Satellite;BTC;1;8205,901025;1424,635595
+45566;USDC;Reserva;Stablecoin;D+0;Core;USD;1;19768,32;3432
+45566;Etherium;Renda Variável;Altcoin;-;Satellite;USD;1;2432,9664;422,39
+45566;Solana;Renda Variável;Altcoin;-;Satellite;USD;1;4815,9936;836,11
+45566;ETF - VOO;Renda Variável;Ações EUA;-;Core;USD;1;5364,4608;931,33
+45597;Fundo Itaú;Renda Fixa;Pós-fixado;D+0;Core;BRL;1;1774,82;305,4767642
+45597;CDB Itaú 100%;Caixa;Pós-fixado;D+0;Core;BRL;1;7107,21;1223,271945
+45597;Bitcoin 01;Renda Variável;BTC;-;Core-Satellite;BTC;1;147195,7364;25334,89438
+45597;Bitcoin 02;Renda Variável;BTC;-;Core-Satellite;BTC;1;9030,496564;1554,302335
+45597;USDC - Viagem;Reserva;Stablecoin;D+0;Core;USD;1;9987,39;1719
+45597;USDC;Reserva;Stablecoin;D+0;Core;USD;1;16912,91;2911
+45597;Solana;Renda Variável;Altcoin;-;Satellite;USD;1;6896,47;1187
+45597;ETF - VOO;Renda Variável;Ações EUA;-;Core;USD;1;5503,5225;947,25
+45627;Fundo Itaú;Caixa;Pós-fixado;D+0;Core;BRL;1;3718,75;600,7673667
+45627;CDB Itaú 100%;Caixa;Pós-fixado;D+0;Core;BRL;1;4382;707,9159935
+45627;Bitcoin 01;Renda Variável;BTC;-;Core-Satellite;BTC;1;150409,1933;24298,73882
+45627;Bitcoin 02;Renda Variável;BTC;-;Core-Satellite;BTC;1;9227,64298;1490,733922
+45627;USDC - Viagem;Caixa;Stablecoin;D+0;Core;USD;1;10640,61;1719
+45627;USDC;Caixa;Stablecoin;D+0;Core;USD;1;18217,17;2943
+45627;Solana;Renda Variável;Altcoin;-;Satellite;USD;1;5401,0845;872,55
+45627;ETF - VOO;Renda Variável;Ações EUA;-;Core;USD;1;5895,2322;952,38
+45627;ETF - VTI;Renda Variável;Ações EUA;-;Core;USD;1;3029,0146;489,34
+45627;ETF - ARGT;Renda Variável;Ações - Ex: USA;-;Satellite;USD;1;3120,998;504,2
+45658;CDB Itaú 100%;Caixa;Pós-fixado;D+0;Core;BRL;1;344,92;55,72213247
+45658;LCI - XP;Caixa;Pós-fixado;Curto;Core;BRL;1;5074,8;819,8384491
+45658;Bitcoin 01;Renda Variável;BTC;-;Core-Satellite;BTC;1;154063,6423;24889,11831
+45658;Bitcoin 02;Renda Variável;BTC;-;Core-Satellite;BTC;1;12598,48613;2035,296629
+45658;USDC - Viagem;Caixa;Stablecoin;D+0;Core;USD;1;10640,61;1719
+45658;USDC;Caixa;Stablecoin;D+0;Core;USD;1;12715,1266;2054,14
+45658;Solana;Renda Variável;Altcoin;-;Satellite;USD;1;8577,183631;1385,651637
+45658;ETF - VOO;Renda Variável;Ações EUA;-;Core;USD;1;5793,9019;936,01
+45658;ETF - VTI;Renda Variável;Ações EUA;-;Core;USD;1;2981,104;481,6
+45658;ETF - ARGT;Renda Variável;Ações - Ex: USA;-;Satellite;USD;1;3255,6924;525,96
+45839;Porquinho;Caixa;Pós-fixado;D+0;Core;BRL;1;6474,05;1168,601083
+45839;USDC;Caixa;Stablecoin;D+0;Core;USD;1;760,9744;137,36
+45839;USDC;Caixa;Stablecoin;D+0;Core;USD;1;760,9744;137,36
+45839;Picpay - Confrinho;Caixa;Pós-fixado;D+0;Core;BRL;1;1612,13;290,9981949
+45839;LCA BOCOM;Renda Fixa;Pós-fixado;Curto;Core;BRL;1;4743,13;856,1606498
+45839;LIG LIQUIDEZ 01;Renda Fixa;Pós-fixado;D+1;Core;BRL;1;1713,72;309,3357401
+45839;LIG LIQUIDEZ 02;Renda Fixa;Pós-fixado;D+1;Core;BRL;1;825,81;149,0631769
+45839;Time Deposit;Renda Fixa;Pós-fixado;Curto;Core;USD;1;5596,4526;1010,19
+45839;Tesouro Renda+ 2065;Renda Fixa;IPCA;Longo;Core;BRL;1;2503,82;451,9530686
+45839;ETF - ARGT;Renda Variável;Ações - Ex: USA;-;Satellite;USD;1;2819,306;508,9
+45839;ETF - VOO;Renda Variável;Ações EUA;-;Core;USD;1;5640,828;1018,2
+45839;ETF - VTI;Renda Variável;Ações EUA;-;Core;USD;1;2887,6696;521,24
+45839;Bitcoin 02;Renda Variável;BTC;-;Core-Satellite;BTC;1;4321,64129;780,0796552
+45839;Solana;Renda Variável;Altcoin;-;Satellite;USD;1;5506,877128;994,0211422
+45839;Bitcoin 01;Renda Variável;BTC;-;Core-Satellite;BTC;1;179484,8062;32397,97945
+45870;Porquinho;Caixa;Pós-fixado;D+0;Core;BRL;1;8993,97;1632,299456
+45870;USDT;Reserva;Stablecoin;D+0;Core;USD;1;551,3857;100,07
+45870;USDC;Reserva;Stablecoin;D+0;Core;USD;1;552,9285;100,35
+45870;USDC;Reserva;Stablecoin;D+0;Core;USD;1;552,9285;100,35
+45870;LCA BOCOM;Caixa;Pós-fixado;Curto;Core;BRL;1;4743,13;860,8221416
+45870;LIG LIQUIDEZ 01;Caixa;Pós-fixado;D+1;Core;BRL;1;1713,72;311,0199637
+45870;LIG LIQUIDEZ 02;Caixa;Pós-fixado;D+1;Core;BRL;1;825,81;149,8747731
+45870;Time Deposit;Caixa;Pós-fixado;Curto;Core;USD;1;5566,1469;1010,19
+45870;Tesouro Renda+ 2065;Renda Fixa;IPCA;Longo;Core;BRL;1;2503,82;454,4137931
+45870;ETF - ARGT;Renda Variável;Ações - Ex: USA;-;Satellite;USD;1;2804,039;508,9
+45870;ETF - VOO;Renda Variável;Ações EUA;-;Core;USD;1;5610,282;1018,2
+45870;ETF - VTI;Renda Variável;Ações EUA;-;Core;USD;1;2872,0324;521,24
+45870;Bitcoin 02;Cripto;BTC;-;Core-Satellite;BTC;1;4191,803196;760,7628304
+45870;Solana;Cripto;Altcoin;-;Satellite;USD;1;4981,222685;904,0331552
+45870;Bitcoin 01;Cripto;BTC;-;Core-Satellite;BTC;1;174092,4185;31595,72024
+45901;Porquinho;Caixa;Pós-fixado;D+0;Core;BRL;1;8993,97;1662,471349
+45901;LCA BOCOM;Caixa;Pós-fixado;Curto;Core;BRL;1;4811,06;889,2902033
+45901;Conta Global;Caixa;Pós-fixado;D+0;Core;USD;1;2903,006;536,6
+45901;USDT;Caixa;Stablecoin;D+0;Core;USD;1;548,8445;101,45
+45901;USDC;Caixa;Stablecoin;D+0;Core;USD;1;547,0051;101,11
+45901;USDC;Caixa;Stablecoin;D+0;Core;USD;1;547,0051;101,11
+45901;USDC;Caixa;Stablecoin;D+0;Core;USD;1;547,0051;101,11
+45901;Bitcoin 02;Cripto;BTC;-;Core-Satellite;BTC;1;4744,351785;876,9596644
+45901;Solana;Cripto;Altcoin;-;Satellite;USD;1;1145,767388;211,7869479
+45901;Bitcoin 01;Cripto;BTC;-;Core-Satellite;BTC;1;167880,9874;31031,6058
+45901;Tesouro IPCA Renda+ 2065;Renda Fixa;IPCA;Longo;Core;BRL;1;9081,18;1678,591497
+45901;Previdência Privada;Renda Fixa;Pós-fixado;Longo;Core;BRL;1;4425,32;817,9889094
+45901;ETF - ARGT;Renda Variável;Ações - Ex: USA;-;Satellite;USD;1;2631,8027;486,47
+45901;ETF - VOO;Renda Variável;Ações EUA;-;Core;USD;1;5605,5715;1036,15
+45901;ETF - GLDM;Reserva;Commoditie;-;Hedge;USD;1;5410;1000
+45901;ETF - GLDM;Reserva;Commoditie;-;Hedge;USD;1;5410;1000
+45931;Bitcoin 01;Cripto;BTC;-;Core-Satellite;BTC;1;165713,1984;30931,64564
+45931;Bitcoin 02;Renda Fixa;BTC;-;Core-Satellite;BTC;1;4683,089614;874,1347696
+45931;ETF - ARGT;Renda Variável;Ações - Ex: USA;-;Satellite;USD;1;2998,071572;559,6131654
+45931;ETF - GLDM;Reserva;Commoditie;-;Hedge;USD;1;5804,911149;1083,531405
+45931;ETF - VOO;Renda Variável;Ações EUA;-;Core;USD;1;5896,207232;1100,572523
+45931;LCA BOCOM;Caixa;Pós-fixado;Curto;Core;BRL;1;4873,03;909,5886064
+45931;Porquinho;Caixa;Pós-fixado;D+0;Core;BRL;1;6798,4;1268,973756
+45931;Previdência Privada;Renda Fixa;Pós-fixado;Longo;Core;BRL;1;4425,32;826,0200844
+45931;Solana;Cripto;Altcoin;-;Satellite;USD;1;6372,7436;1189,521708
+45931;Tesouro IPCA Renda+ 2065;Renda Fixa;IPCA;Longo;Core;BRL;1;9560,19;1784,483145
+45931;Time Deposit;Caixa;Pós-fixado;Curto;Core;USD;1;4869,769452;908,98
+45931;USDC;Caixa;Stablecoin;D+0;Core;USD;1;8916,695838;1664,37
+45931;USDT;Caixa;Stablecoin;D+0;Core;USD;1;547,9441572;102,278
+45962;Bitcoin 01;Cripto;BTC;-;Core-Satellite;BTC;1;156966,3852;29255,29974
+45962;Bitcoin 02;Renda Fixa;BTC;-;Core-Satellite;BTC;1;4435,902848;826,7608842
+45962;ETF - ARGT;Renda Variável;Ações - Ex: USA;-;Satellite;USD;1;3073,516021;572,8400532
+45962;ETF - GLDM;Reserva;Commoditie;-;Hedge;USD;1;5816,557287;1084,086422
+45962;ETF - VOO;Renda Variável;Ações EUA;-;Core;USD;1;5836,145704;1087,737299
+45962;LCD BNDES LIQUIDEZ;Caixa;Pós-fixado;D+1;Core;BRL;1;11274,25;2101,287882
+45962;Porquinho;Caixa;Pós-fixado;D+0;Core;BRL;1;10525,71;1961,77545
+45962;Previdência Privada;Renda Fixa;Pós-fixado;Longo;Core;BRL;1;4566,67;851,1331867
+45962;Solana;Cripto;Altcoin;-;Satellite;USD;1;5326,4948;992,7488724
+45962;Tesouro IPCA Renda+ 2065;Renda Fixa;IPCA;Longo;Core;BRL;1;9879,62;1841,357588
+45962;Time Deposit;Caixa;Pós-fixado;Curto;Core;USD;1;4877,041292;908,98
+45962;USDC;Caixa;Stablecoin;D+0;Core;USD;1;8930,010798;1664,37
+45962;USDT;Caixa;Stablecoin;D+0;Core;USD;1;548,7623812;102,278
+45992;Bitcoin 01;Cripto;BTC;-;Core-Satellite;BTC;1;134672,8217;25225,77064
+45992;Bitcoin 02;Renda Fixa;BTC;-;Core-Satellite;BTC;1;5786,979621;1083,967936
+45992;ETF - ARGT;Renda Variável;Ações - Ex: USA;-;Satellite;USD;1;3074,166376;575,8267698
+45992;ETF - GLDM;Reserva;Commoditie;-;Hedge;USD;1;6218,738544;1164,841355
+45992;ETF - VOO;Renda Variável;Ações EUA;-;Core;USD;1;5871,115324;1099,727522
+45992;LCD BNDES LIQUIDEZ;Caixa;Pós-fixado;D+1;Core;BRL;1;11392,44;2133,935228
+45992;Porquinho;Caixa;Pós-fixado;D+0;Core;BRL;1;5341,55;1000,533838
+45992;Previdência Privada;Renda Fixa;Pós-fixado;Longo;Core;BRL;1;11997,62;2247,292412
+45992;Solana;Cripto;Altcoin;-;Satellite;USD;1;4364,38345;817,4992882
+45992;Tesouro IPCA Renda+ 2065;Renda Fixa;IPCA;Longo;Core;BRL;1;11106,13;2080,306067
+45992;Time Deposit;Caixa;Pós-fixado;Curto;Core;USD;1;4868,093595;911,85
+45992;USDC;Caixa;Stablecoin;D+0;Core;USD;1;8965,011975;1679,25
+45992;USDT;Caixa;Stablecoin;D+0;Core;USD;1;552,288515;103,45
+46023;USDC;Caixa;Stablecoin;D+0;Core;USD;1;8780,423872;1683,88
+46023;Bitcoin 02;Cripto;BTC;-;Core-Satellite;BTC;1;5603,756573;1074,669487
+46023;Solana;Cripto;Altcoin;-;Satellite;USD;1;3981,22607;763,5060736
+46023;USDT;Caixa;Stablecoin;D+0;Core;USD;1;545,582672;104,63
+46023;ETF - ARGT;Renda Variável;Ações - Ex: USA;-;Satellite;USD;1;3235,564463;620,505612
+46023;ETF - GLDM;Reserva;Commoditie;-;Hedge;USD;1;7580,316998;1453,727562
+46023;ETF - VOO;Renda Variável;Ações EUA;-;Core;USD;1;5804,663614;1113,19876
+46023;LCD BNDES LIQUIDEZ;Caixa;Pós-fixado;D+1;Core;BRL;1;11500,96;2205,615219
+46023;Porquinho;Caixa;Pós-fixado;D+0;Core;BRL;1;5757,57;1104,167306
+46023;Previdência - RV - 54%;Renda Variável;Ações BR;-;Core;BRL;1;6478,7148;1242,466017
+46023;Previdência Privada - RF - 46%;Renda Fixa;Pós-fixado;Longo;Core;BRL;1;5518,9052;1058,396978
+46023;Tesouro IPCA Renda+ 2065;Renda Fixa;IPCA;Longo;Core;BRL;1;12995,59;2492,250307
+46023;Time Deposit;Caixa;Pós-fixado;Curto;Core;USD;1;7737,752448;1483,92
+46023;Bitcoin 01;Cripto;BTC;-;Core-Satellite;BTC;1;130408,9109;25009,37998
+46054;USDC;Caixa;Stablecoin;D+0;Core;USD;1;8809,61844;1687,02
+46054;LCD BNDES LIQUIDEZ;Caixa;Pós-fixado;D+1;Core;BRL;1;11605,01;2222,330525
+46054;Porquinho;Caixa;Pós-fixado;D+0;Core;BRL;1;8651,25;1656,692838
+46054;Bitcoin 02;Cripto;BTC;-;Core-Satellite;BTC;1;7489,052729;1434,134954
+46054;Solana;Cripto;Altcoin;-;Satellite;USD;1;2646,85009;506,865203
+46054;Bitcoin 01;Cripto;BTC;-;Core-Satellite;BTC;1;98945,63481;18947,84274
+46054;Previdência Privada - RF - 46%;Renda Fixa;Pós-fixado;Longo;Core;BRL;1;6110,1708;1170,082497
+46054;Tesouro IPCA Renda+ 2065;Renda Fixa;IPCA;Longo;Core;BRL;1;12704;2432,784374
+46054;Time Deposit;Renda Fixa;Pós-fixado;Curto;Core;USD;1;2962,75392;567,36
+46054;ETF - ARGT;Renda Variável;Ações - Ex: USA;-;Satellite;USD;1;2933,758701;561,8074878
+46054;ETF - VOO;Renda Variável;Ações EUA;-;Core;USD;1;5756,829749;1102,418566
+46054;Previdência - RV - 54%;Renda Variável;Ações BR;-;Core;BRL;1;7172,8092;1373,575105
+46054;ETF - SIVR;Renda Variável;Commoditie;-;Satellite;USD;1;1233,500814;236,2123351
+46054;ETF - GLDM;Reserva;Commoditie;-;Hedge;USD;1;7168,938489;1372,833874
+46054;ETF - IAUM;Reserva;Commoditie;-;Hedge;USD;1;3764,515779;720,8954
+46082;USDC;Caixa;Stablecoin;D+0;Core;USD;1;8770,108172;1690,33
+46082;LCD BNDES LIQUIDEZ;Caixa;Pós-fixado;D+1;Core;BRL;1;11743,35;2263,385629
+46082;Porquinho;Caixa;Pós-fixado;D+0;Core;BRL;1;9347,15;1801,547683
+46082;Bitcoin 02;Cripto;BTC;-;Core-Satellite;BTC;1;2243,024186;432,3152005
+46082;Solana;Cripto;Altcoin;-;Satellite;USD;1;2742,42188;528,5679362
+46082;Bitcoin 01;Cripto;BTC;-;Core-Satellite;BTC;1;110351,7846;21268,94314
+46082;Previdência Privada - RF - 46%;Renda Fixa;Pós-fixado;Longo;Core;BRL;1;7929,8618;1528,382893
+46082;Tesouro IPCA Renda+ 2065;Renda Fixa;IPCA;Longo;Core;BRL;1;13211,9;2546,430499
+46082;Time Deposit;Renda Fixa;Pós-fixado;Curto;Core;USD;1;2952,043948;568,97
+46082;ETF - ARGT;Renda Variável;Ações - Ex: USA;-;Satellite;USD;1;2813,365521;542,2414464
+46082;ETF - VOO;Renda Variável;Ações EUA;-;Core;USD;1;5624,550542;1084,062629
+46082;Previdência - RV - 54%;Renda Variável;Ações BR;-;Core;BRL;1;9308,9682;1794,188613
+46082;ETF - SIVR;Renda Variável;Commoditie;-;Satellite;USD;1;1347,971412;259,8048362
+46082;ETF - GLDM;Reserva;Commoditie;-;Hedge;USD;1;7384,85931;1423,340396
+46082;ETF - IAUM;Reserva;Commoditie;-;Hedge;USD;1;3879,935329;747,8096
+46113;USDC;Caixa;Stablecoin;D+0;Core;USD;1;8413,326216;1692,72
+46113;Bitcoin 02;Cripto;BTC;-;Core-Satellite;BTC;1;2284,087923;459,5472956
+46113;Solana;Cripto;Altcoin;-;Satellite;USD;1;2642,150064;531,5876434
+46113;Time Deposit;Renda Fixa;Pós-fixado;Curto;Core;USD;1;1605,307494;322,98
+46113;Tesouro IPCA Renda+ 2065;Renda Fixa;IPCA;Longo;Core;BRL;1;14088,77;2834,591473
+46113;Previdência - RV - 54%;Renda Variável;Ações BR;-;Core;BRL;1;11077,641;2228,767076
+46113;Previdência - RF - 46%;Renda Fixa;Pós-fixado;Longo;Core;BRL;1;9436,509;1898,579361
+46113;Porquinho;Caixa;Pós-fixado;D+0;Core;BRL;1;2842,03;571,8025069
+46113;LCI BRB;Renda Fixa;Pós-fixado;Médio;Core;BRL;1;9594,66;1930,398567
+46113;LCD BNDES LIQUIDEZ;Caixa;Pós-fixado;D+1;Core;BRL;1;11870,58;2388,302517
+46113;ETF - VOO;Renda Variável;Ações EUA;-;Core;USD;1;5487,487661;1104,055623
+46113;ETF - SIVR;Renda Variável;Commoditie;-;Satellite;USD;1;1178,171754;237,0423825
+46113;ETF - IAUM;Reserva;Commoditie;-;Hedge;USD;1;3433,472305;690,7978
+46113;ETF - XLE;Renda Variável;Ações EUA;-;Satellite;USD;1;1252,013319;251,8989436
+46113;ETF - GLDM;Reserva;Commoditie;-;Hedge;USD;1;6537,19149;1315,250888
+46113;ETF - ARGT;Renda Variável;Ações - Ex: USA;-;Satellite;USD;1;2901,71912;583,8116652
+46113;Bitcoin 01;Cripto;BTC;-;Core-Satellite;BTC;1;112372,0288;22608,70145
+46143;USDC;Caixa;Stablecoin;D+0;Core;USD;1;8366,43537;1697,7
+46143;Bitcoin 02;Cripto;BTC;-;Core-Satellite;BTC;1;2453,77203;497,9144152
+46143;Solana;Cripto;Altcoin;-;Satellite;USD;1;2587,532922;525,0569027
+46143;Time Deposit;Renda Fixa;Pós-fixado;Curto;Core;USD;1;1594,092507;323,47
+46143;Tesouro IPCA Renda+ 2065;Renda Fixa;IPCA;Longo;Core;BRL;1;12860,49;2609,624399
+46143;Previdência - RV - 54%;Renda Variável;Ações BR;-;Core;BRL;1;11035,2726;2239,255007
+46143;Previdência - RF - 46%;Renda Fixa;Pós-fixado;Longo;Core;BRL;1;9400,4174;1907,513524
+46143;Porquinho;Caixa;Pós-fixado;D+0;Core;BRL;1;8555,89;1736,143747
+46143;LCI BRB;Renda Fixa;Pós-fixado;Médio;Core;BRL;1;9651,92;1958,547919
+46143;LCD BNDES LIQUIDEZ;Caixa;Pós-fixado;D+1;Core;BRL;1;11942,62;2423,372091
+46143;ETF - VOO;Renda Variável;Ações EUA;-;Core;USD;1;5718,970568;1160,481843
+46143;ETF - SIVR;Renda Variável;Commoditie;-;Satellite;USD;1;1089,032028;220,9841578
+46143;ETF - IAUM;Reserva;Commoditie;-;Hedge;USD;1;3238,169254;657,0827
+46143;ETF - XLE;Renda Variável;Ações EUA;-;Satellite;USD;1;1315,278234;266,8935764
+46143;ETF - GLDM;Reserva;Commoditie;-;Hedge;USD;1;6164,407263;1250,868948
+46143;Dolar Inter;Caixa;Pós-fixado;D+0;Core;USD;1;2811,136083;570,43
+46143;Bitcoin 01;Cripto;BTC;-;Core-Satellite;BTC;1;120720,1082;24496,27812
+46174;USDC;Caixa;Stablecoin;D+0;Core;USD;1;8821,947696;1702,29
+46174;Bitcoin 02;Cripto;BTC;-;Core-Satellite;BTC;1;1944,652533;375,2416898
+46174;Solana;Cripto;Altcoin;-;Satellite;USD;1;2051,747312;395,906783
+46174;Tesouro IPCA Renda+ 2065;Renda Fixa;IPCA;Longo;Core;BRL;1;11400,78;2199,90352
+46174;Previdência - RV - 54%;Renda Variável;Ações BR;-;Core;BRL;1;11502,0216;2219,439179
+46174;Previdência - RF - 46%;Renda Fixa;Pós-fixado;Longo;Core;BRL;1;9798,0184;1890,633374
+46174;Porquinho;Caixa;Pós-fixado;D+0;Core;BRL;1;5202,44;1003,866934
+46174;LCI BRB - Set/26;Renda Fixa;Pós-fixado;Médio;Core;BRL;1;9776,38;1886,458012
+46174;LCD BNDES LIQUIDEZ;Caixa;Pós-fixado;D+1;Core;BRL;1;12074,95;2329,991896
+46174;ETF - VOO;Renda Variável;Ações EUA;-;Core;USD;1;9903,848115;1911,05436
+46174;ETF - SIVR;Renda Variável;Commoditie;-;Satellite;USD;1;1045,628843;201,765368
+46174;ETF - IAUM;Reserva;Commoditie;-;Hedge;USD;1;3221,541531;621,6312
+46174;ETF - XLE;Renda Variável;Ações EUA;-;Satellite;USD;1;1325,47945;255,7655623
+46174;ETF - GLDM;Reserva;Commoditie;-;Hedge;USD;1;6134,468675;1183,711924
+46174;Bitcoin 01;Cripto;BTC;-;Core-Satellite;BTC;1;95672,56509;18461,05378
+46174;ETF - VXUS;Renda Variável;Ações - Ex: USA;-;Core;USD;1;1985,18848;383,0635381
+46174;LCI BRB - Jun/27;Renda Fixa;Pós-fixado;Curto;Core;BRL;1;6000;1157,764742
+46204;USDC;Caixa;Stablecoin;D+0;Core;USD;1;8738,940712;1704,76
+46204;Bitcoin 02;Cripto;BTC;-;Core-Satellite;BTC;1;1977,942008;385,8495588
+46204;Solana;Cripto;Altcoin;-;Satellite;USD;1;2330,270299;454,5804493
+46204;Time Deposit;Caixa;Pós-fixado;Curto;Core;USD;1;1320,867954;257,67
+46204;Flexible Account;Caixa;Curto;D+0;Core;USD;1;3974,08655;775,25
+46204;ETF - GLDM;Reserva;Commoditie;-;Hedge;USD;1;5648,28787;1101,846957
+46204;ETF - GPCA11;Renda Fixa;IPCA;Curto;Core;BRL;0,6;3023,46;589,8053139
+46204;Tesouro IPCA+ 2032;Renda Fixa;IPCA;Médio;Core;BRL;1;2986,86;582,6655222
+46204;ETF - GPCA11;Renda Fixa;IPCA;Médio;Core;BRL;0,4;2015,64;393,2035426
+46204;ETF - IAUM;Reserva;Commoditie;-;Hedge;USD;1;4600,661976;897,48
+46204;ETF - SIVR;Renda Variável;Commoditie;-;Satellite;USD;1;871,781781;170,0639423
+46204;ETF - VOO;Renda Variável;Ações EUA;-;Core;USD;1;9854,558694;1922,3906
+46204;ETF - VXUS;Renda Variável;Ações - Ex: USA;-;Core;USD;1;1970,935627;384,48278
+46204;ETF - XLE;Renda Variável;Ações EUA;-;Satellite;USD;1;1316,374589;256,7934511
+46204;LCD BNDES LIQUIDEZ;Caixa;Pós-fixado;D+1;Core;BRL;1;12174,15;2374,887831
+46204;LCI BRB - Jun/27;Renda Fixa;Pós-fixado;Curto;Core;BRL;1;6054,12;1181,015177
+46204;LCI BRB - Set/26;Renda Fixa;Pós-fixado;Médio;Core;BRL;1;9869,83;1925,36967
+46204;Porquinho;Caixa;Pós-fixado;D+0;Core;BRL;1;5769,88;1125,566697
+46204;Previdência - Grão FIM;Renda Fixa;Pós-fixado;Curto;Core;BRL;0,16;3762,992;734,0704616
+46204;Previdência - Grão FIM;Renda Fixa;Pós-fixado;Longo;Core;BRL;0,2;4703,74;917,5880769
+46204;Bitcoin 01;Cripto;BTC;-;Core-Satellite;BTC;1;97310,33298;18982,93726
+46204;Previdência - Grão FIM;Renda Fixa;Pós-fixado;Médio;Core;BRL;0,09;2116,683;412,9146346
+46204;Previdência - Grão FIM;Renda Variável;Ações EUA;-;Core;BRL;0,19;4468,553;871,7086731
+46204;Previdência - Grão FIM;Renda Variável;Ações BR;-;Core;BRL;0,28;6585,236;1284,623308
+46204;Previdência - Grão FIM;Renda Variável;Imobiliário BR;-;Core;BRL;0,08;1881,496;367,0352308
+46204;Tesouro IPCA Renda+ 2065;Renda Fixa;IPCA;Longo;Core;BRL;1;11955,66;2332,265616
+46235;USDC;Caixa;Stablecoin;D+0;Core;USD;1;8757,548857;1708,69
+46235;Bitcoin 02;Cripto;BTC;-;Core-Satellite;BTC;1;2012,141432;392,5899815
+46235;Solana;Cripto;Altcoin;-;Satellite;USD;1;2344,496;457,4358574
+46235;Time Deposit;Caixa;Pós-fixado;D+1;Core;USD;1;1323,711231;258,27
+46235;Flexible Account;Caixa;Curto;D+0;Core;USD;1;1044,331128;203,76
+46235;ETF - GLDM;Reserva;Commoditie;-;Hedge;USD;1;5739,035436;1119,746246
+46235;ETF - GPCA11;Renda Fixa;IPCA;Curto;Core;BRL;0,6;3034,152;591,9950052
+46235;Tesouro IPCA+ 2032;Renda Fixa;IPCA;Médio;Core;BRL;1;3018,98;589,0347882
+46235;ETF - GPCA11;Renda Fixa;IPCA;Médio;Core;BRL;0,4;2022,768;394,6633368
+46235;ETF - IAUM;Reserva;Commoditie;-;Hedge;USD;1;4674,601875;912,06405
+46235;ETF - SIVR;Renda Variável;Commoditie;-;Satellite;USD;1;926,1157452;180,694934
+46235;ETF - VOO;Renda Variável;Ações EUA;-;Core;USD;1;10196,26095;1989,39788
+46235;ETF - VXUS;Renda Variável;Ações - Ex: USA;-;Core;USD;1;2042,165791;398,44805
+46235;ETF - XLE;Renda Variável;Ações EUA;-;Satellite;USD;1;1340,423184;261,5306781
+46235;LCD BNDES LIQUIDEZ;Caixa;Pós-fixado;D+1;Core;BRL;1;12295,73;2399,026398
+46235;LCI BRB - Jun/27;Renda Fixa;Pós-fixado;Curto;Core;BRL;1;6124,47;1194,948588
+46235;LCI BRB - Set/26;Renda Fixa;Pós-fixado;Médio;Core;BRL;1;9984,53;1948,086941
+46235;Porquinho;Caixa;Pós-fixado;D+0;Core;BRL;1;5066,55;988,5372564
+46235;Previdência - Grão FIM;Renda Fixa;Pós-fixado;Curto;Core;BRL;0,16;3783,5968;738,2195774
+46235;Previdência - Grão FIM;Renda Fixa;Pós-fixado;Longo;Core;BRL;0,2;4729,496;922,7744717
+46235;Bitcoin 01;Cripto;BTC;-;Core-Satellite;BTC;1;98992,86832;19314,55102
+46235;Previdência - Grão FIM;Renda Fixa;Pós-fixado;Médio;Core;BRL;0,09;2128,2732;415,2485123
+46235;Previdência - Grão FIM;Renda Variável;Ações EUA;-;Core;BRL;0,19;4493,0212;876,6357482
+46235;Previdência - Grão FIM;Renda Variável;Ações BR;-;Core;BRL;0,28;6621,2944;1291,88426
+46235;Previdência - Grão FIM;Renda Variável;Imobiliário BR;-;Core;BRL;0,08;1891,7984;369,1097887
+46235;Tesouro IPCA Renda+ 2065;Renda Fixa;IPCA;Longo;Core;BRL;1;12284,56;2396,847014
+46235;LCD BDMG LIQUIDEZ - 05/32;Caixa;Pós-fixado;D+1;Core;BRL;1;6434,4;1255,419195
+46266;USDC;Caixa;Stablecoin;D+0;Core;USD;1;8728,671996;1708,69
+46266;Bitcoin 02;Cripto;BTC;-;Core-Satellite;BTC;1;2412,561724;472,2734562
+46266;Solana;Cripto;Altcoin;-;Satellite;USD;1;3128,7872;612,4788975
+46266;Time Deposit;Caixa;Pós-fixado;D+1;Core;USD;1;1323,637524;259,11
+46266;Flexible Account;Caixa;Curto;D+0;Core;USD;1;8015,488272;1569,08
+46266;ETF - GLDM;Reserva;Commoditie;-;Hedge;USD;1;6133,34904;1200,639934
+46266;ETF - GPCA11;Renda Fixa;IPCA;Curto;Core;BRL;0,6;3074,544;601,8604651
+46266;Tesouro IPCA+ 2032;Renda Fixa;IPCA;Médio;Core;BRL;1;3040,68;595,2313836
+46266;ETF - GPCA11;Renda Fixa;IPCA;Médio;Core;BRL;0,4;2049,696;401,2403101
+46266;ETF - IAUM;Reserva;Commoditie;-;Hedge;USD;1;4996,162475;978,02883
+46266;ETF - SIVR;Renda Variável;Commoditie;-;Satellite;USD;1;1008,192454;197,3597318
+46266;ETF - VOO;Renda Variável;Ações EUA;-;Core;USD;1;10078,49855;1972,92666
+46266;ETF - VXUS;Renda Variável;Ações - Ex: USA;-;Core;USD;1;2049,087896;401,12127
+46266;ETF - XLE;Renda Variável;Ações EUA;-;Satellite;USD;1;1488,278472;291,3394549
+46266;LCD BNDES LIQUIDEZ;Caixa;Pós-fixado;D+1;Core;BRL;1;12411,14;2429,555242
+46266;LCI BRB - Jun/27;Renda Fixa;Pós-fixado;Curto;Core;BRL;1;6191,37;1211,997886
+46266;LCI BRB - Set/26;Renda Fixa;Pós-fixado;Médio;Core;BRL;1;10093;1975,765406
+46266;Porquinho;Caixa;Pós-fixado;D+0;Core;BRL;1;2427,12;475,1233263
+46266;Previdência - Grão FIM;Renda Fixa;Pós-fixado;Curto;Core;BRL;0,16;4156,2736;813,6155352
+46266;Previdência - Grão FIM;Renda Fixa;Pós-fixado;Longo;Core;BRL;0,2;5195,342;1017,019419
+46266;Bitcoin 01;Cripto;BTC;-;Core-Satellite;BTC;1;118692,6531;23234,80016
+46266;Previdência - Grão FIM;Renda Fixa;Pós-fixado;Médio;Core;BRL;0,09;2337,9039;457,6587385
+46266;Previdência - Grão FIM;Renda Variável;Ações EUA;-;Core;BRL;0,19;4935,5749;966,168448
+46266;Previdência - Grão FIM;Renda Variável;Ações BR;-;Core;BRL;0,28;7273,4788;1423,827187
+46266;Previdência - Grão FIM;Renda Variável;Imobiliário BR;-;Core;BRL;0,08;2078,1368;406,8077676
+46266;Tesouro IPCA Renda+ 2065;Renda Fixa;IPCA;Longo;Core;BRL;1;12390,29;2425,47373
+46266;LCD BDMG LIQUIDEZ - 05/32;Caixa;Pós-fixado;D+1;Core;BRL;1;6487;1269,869235

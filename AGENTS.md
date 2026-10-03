@@ -11,25 +11,24 @@ e Claude Code consultando a mesma base de conhecimento.
 
 ## Trabalho em andamento
 
-Estado em 2026-10-03: specs 016, 028 a 040 e 042 concluídas e no `main`;
+Estado em 2026-10-03: specs 016 e 028 a 042 concluídas e no `main`;
 detalhes em `.ai/specs/README.md`.
 
-- **próximo passo**: o usuário quer iniciar o passo pré-produção, a preparação
-  única do histórico para importação, descrito em `.ai/context/pre-deploy.md`;
+- o banco local tem o histórico preparado no passo pré-produção
+  ([spec 041](.ai/specs/041-history-preparation.md)), importado pelo usuário em
+  2026-10-03: competências de jun/23 em diante, sem lacunas, com a cotação de
+  fechamento de cada mês. Os testes de interface usam os valores dele;
 - o backup dos dados ([spec 042](.ai/specs/042-data-backup.md)) exporta e
   restaura tudo pela Configuração ou por `pnpm backup:export` e
   `pnpm backup:restore`; os arquivos ficam em `backups/`, fora do Git. É o
   caminho para levar os dados a outro banco, como o de produção;
-- transações dentro das posições e a previdência estão no backlog, em
-  `.ai/context/backlog.md`;
+- transações dentro das posições e a previdência, que o usuário indicou como
+  próximo assunto, estão no backlog, em `.ai/context/backlog.md`;
 - as respostas do usuário, o backlog e o que ainda aguarda resposta estão em
   `.ai/context/ux-restructure.md`, nas seções de respostas de 2026-10-02
   (segunda, terceira e quarta rodadas);
 - só um mês aberto (rascunho) aceita edição; os testes que editam usam a
   competência mais recente, e abrir um mês grava no banco;
-- antes de produção há um passo único de preparação do histórico, em
-  `.ai/context/pre-deploy.md`. Não altere os dados antigos importados antes
-  dele;
 - depois de `pnpm db:generate`, o `pnpm dev` precisa reiniciar para usar o
   cliente Prisma novo; tocar o `next.config.ts` reinicia o servidor sem
   fechar o processo.

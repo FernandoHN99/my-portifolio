@@ -1,0 +1,50 @@
+ativo_id;chave;nome;ticker;simbolo_cotacao;moeda_base;tipo_instrumento;instituicao_da_chave;liquidez;vencimento;id_provedor;primeiro_mes;ultimo_mes
+bitcoin-01;market:bitcoin-01:BTC;Bitcoin 01;BTC;BTC;BTC;CRIPTO;;;;;2023-06;2026-10
+bitcoin-02;market:bitcoin-02:BTC;Bitcoin 02;BTC;BTC;BTC;CRIPTO;;;;;2023-10;2026-10
+bitcoin-03;market:bitcoin-03:BTC;Bitcoin 03;BTC;BTC;BTC;CRIPTO;;;;;2024-02;2024-02
+bitcoin-03-viagem;market:bitcoin-03-viagem:BTC;Bitcoin 03 - Viagem;BTC;BTC;BTC;CRIPTO;;;;;2024-09;2024-10
+busd;market:busd:USD;BUSD;USD;USD;USD;FIAT;;D+0;;;2023-06;2024-01
+c6-cdb-cartao-100;private:c6:c6-cdb-cartao-100;C6 - CDB Cartao 100%;;;BRL;;C6;D+0;;;2023-10;2023-11
+c6-cdb-diario-105;private:c6:c6-cdb-diario-105;C6 - CDB Diario 105%;;;BRL;;C6;D+0;;;2023-10;2023-11
+cdb-110;private:c6:cdb-110;CDB - 110%;;;BRL;;C6;D+0;;;2023-06;2023-09
+cdb-cartao-100;private:c6:cdb-cartao-100;CDB Cartao 100%;;;BRL;;C6;D+0;;;2023-12;2024-03
+cdb-diario-105;private:c6:cdb-diario-105;CDB Diario 105%;;;BRL;;C6;D+0;;;2023-12;2024-03
+cdb-itau-100;private:itau:cdb-itau-100;CDB Itaú 100%;;;BRL;;Itaú;D+0;;;2024-04;2025-06
+conta-bancaria-c6;private:c6:conta-bancaria;Conta Bancária;;;BRL;;C6;D+0;;;2023-10;2024-03
+conta-bancaria-itau;private:itau:conta-bancaria;Conta Bancária;;;BRL;;Itaú;D+0;;;2024-04;2024-04
+dolar;market:dolar-inter:USD;Dolar Inter;USD;USD;USD;FIAT;;D+0;;;2023-06;2026-05
+etf-argt;market:etf-argt:ARGT;ETF - ARGT;ARGT;ARGT;USD;ETF;;;;;2024-12;2026-04
+etf-gldm;market:etf-gldm:GLDM;ETF - GLDM;GLDM;GLDM;USD;ETF;;;;;2025-09;2026-10
+etf-gpca11;market:etf-gpca11:GPCA11.SAO;ETF - GPCA11;GPCA11.SAO;GPCA11.SAO;BRL;ETF;;;;;2026-07;2026-10
+etf-iaum;market:etf-iaum:IAUM;ETF - IAUM;IAUM;IAUM;USD;ETF;;;;;2026-02;2026-10
+etf-sivr;market:etf-sivr:SIVR;ETF - SIVR;SIVR;SIVR;USD;ETF;;;;;2026-02;2026-10
+etf-voo;market:etf-voo:VOO;ETF - VOO;VOO;VOO;USD;ETF;;;;;2024-09;2026-10
+etf-vti;market:etf-vti:VTI;ETF - VTI;VTI;VTI;USD;ETF;;;;;2024-12;2025-08
+etf-vxus;market:etf-vxus:VXUS;ETF - VXUS;VXUS;VXUS;USD;ETF;;;;;2026-06;2026-10
+etf-xle;market:etf-xle:XLE;ETF - XLE;XLE;XLE;USD;ETF;;;;;2026-04;2026-10
+ethereum;market:ethereum:ETH;Ethereum;ETH;ETH;Altcoins;CRIPTO;;;;ethereum;2024-06;2024-10
+extra-xp;private:xp:extra-xp;Extra XP;;;BRL;;XP;D+0;;;2024-02;2024-02
+flexible-account;market:flexible-account:USD;Flexible Account;USD;USD;USD;FIAT;;D+0;;;2026-07;2026-10
+fundo-itau;private:itau:fundo-itau;Fundo Itaú;;;BRL;;Itaú;D+0;;;2024-06;2024-12
+inter;private:inter:inter;Inter;;;BRL;;Inter;D+0;;;2023-10;2023-11
+lca-bocom;private:inter:lca-bocom;LCA BOCOM;;;BRL;;Inter;;;;2025-07;2025-10
+lcd-bdmg-liquidez;private:inter:lcd-bdmg-liquidez-05-32;LCD BDMG LIQUIDEZ - 05/32;;;BRL;;Inter;D+1;;;2026-08;2026-10
+lcd-bndes-liquidez;private:inter:lcd-bndes-liquidez;LCD BNDES LIQUIDEZ;;;BRL;;Inter;D+1;;;2025-11;2026-10
+lci-xp-2025;private:xp:lci-xp-2025;LCI - XP (2025);;;BRL;;XP;;;;2025-01;2025-06
+lci-brb-jun-27;private:inter:lci-brb-jun-27;LCI BRB - Jun/27;;;BRL;;Inter;;;;2026-06;2026-10
+lci-brb-set-26;private:inter:lci-brb-set-26;LCI BRB - Set/26;;;BRL;;Inter;;;;2026-04;2026-10
+lci-di-180;private:inter:lci-di-180;LCI DI 180;;;BRL;;Inter;;;;2023-10;2023-12
+lci-xp;private:xp:lci-xp;LCI XP;;;BRL;;XP;;;;2024-02;2024-03
+lig-liquidez-01;private:inter:lig-liquidez-01;LIG LIQUIDEZ 01;;;BRL;;Inter;D+1;;;2025-07;2025-08
+lig-liquidez-02;private:inter:lig-liquidez-02;LIG LIQUIDEZ 02;;;BRL;;Inter;D+1;;;2025-07;2025-08
+liquidez-diaria;private:picpay:liquidez-diaria;Liquidez Diaria;;;BRL;;PicPay;D+0;;;2023-06;2023-09
+picpay-confrinho;private:picpay:picpay-confrinho;Picpay - Confrinho;;;BRL;;PicPay;D+0;;;2025-07;2025-07
+porquinho;private:inter:porquinho;Porquinho;;;BRL;;Inter;D+0;;;2025-07;2026-10
+previdencia-privada;private:inter:previdencia-grao-fim;Previdência - Grão FIM;;;BRL;;Inter;;;;2025-09;2026-10
+solana;market:solana:SOL;Solana;SOL;SOL;Altcoins;CRIPTO;;;;;2024-06;2026-10
+tesouro-ipca-renda-2065;private:inter:tesouro-ipca-renda-2065;Tesouro IPCA Renda+ 2065;;;BRL;;Inter;;;;2025-07;2026-10
+tesouro-ipca-2032;private:inter:tesouro-ipca-2032;Tesouro IPCA+ 2032;;;BRL;;Inter;;;;2026-07;2026-10
+time-deposit;market:time-deposit:USD;Time Deposit;USD;USD;USD;FIAT;;D+1;;;2025-07;2026-10
+usdc;market:usdc:USD;USDC;USD;USD;USD;FIAT;;D+0;;;2024-02;2026-10
+usdc-viagem;market:usdc-viagem:USD;USDC - Viagem;USD;USD;USD;FIAT;;D+0;;;2024-11;2025-06
+usdt;market:usdt:USD;USDT;USD;USD;USD;FIAT;;D+0;;;2023-06;2026-01

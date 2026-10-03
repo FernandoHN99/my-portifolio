@@ -134,8 +134,9 @@ test("o tipo vem primeiro e a instituição aceita valor novo, sem conta", async
 
 test("o ticker de um ativo novo é conferido no provedor do tipo", async ({ page }) => {
   const requests = await stubTickerCheck(page, ({ kind, ticker }) => {
-    if (ticker === "ETH") {
-      return found("ETH", "coingecko", 10000, "Ethereum");
+    // Um cripto que a carteira não tem: o Ethereum já existe desde a spec 041.
+    if (ticker === "LINK") {
+      return found("LINK", "coingecko", 10000, "Chainlink");
     }
     if (ticker === "QQQ") {
       return { status: "unavailable", symbol: "QQQ", provider: "finnhub", code: "NETWORK_ERROR", message: "Não foi possível conectar ao provedor.", token: TOKEN };
@@ -152,16 +153,16 @@ test("o ticker de um ativo novo é conferido no provedor do tipo", async ({ page
   await kind.click();
   await page.getByRole("option", { name: /Cripto/ }).click();
   await pick(page, dialog.getByRole("combobox", { name: "Instituição" }), "inter", /^Inter$/);
-  await nameAsset(dialog, "Ethereum");
+  await nameAsset(dialog, "Chainlink");
   await ticker.click();
   // A checagem espera a digitação terminar e consulta uma vez só: as teclas
   // seguidas chegam bem antes do meio segundo de espera.
-  await page.keyboard.type("eth");
-  await expect(ticker).toHaveValue("ETH");
+  await page.keyboard.type("link");
+  await expect(ticker).toHaveValue("LINK");
   await expect(status).toHaveAttribute("data-ticker-status", "found");
-  await expect(status).toContainText("ETH encontrado (Ethereum)");
-  expect(requests.filter((request) => request.ticker.startsWith("E"))).toEqual([
-    expect.objectContaining({ kind: "crypto", ticker: "ETH" }),
+  await expect(status).toContainText("LINK encontrado (Chainlink)");
+  expect(requests.filter((request) => request.ticker.startsWith("L"))).toEqual([
+    expect.objectContaining({ kind: "crypto", ticker: "LINK" }),
   ]);
   await expect(dialog.getByRole("region", { name: "Novo ativo" })).toBeVisible();
   await expect(dialog.getByRole("combobox", { name: "Classe", exact: true })).toHaveValue("Cripto");
@@ -274,7 +275,7 @@ test("ticker já cotado no mês e símbolo de outro provedor", async ({ page }) 
 });
 
 test("numa competência passada, o ticker encontrado pede a cotação do mês", async ({ page }) => {
-  await stubTickerCheck(page, () => found("ETH", "coingecko", 10000, "Ethereum"));
+  await stubTickerCheck(page, () => found("LINK", "coingecko", 10000, "Chainlink"));
   // Precisa de um mês passado aberto (spec 034); abrir grava no banco, então o
   // cenário só roda quando os dados reais já têm um.
   await page.goto("/posicoes?mes=2026-08");
@@ -283,8 +284,8 @@ test("numa competência passada, o ticker encontrado pede a cotação do mês", 
   const dialog = await openAddDialog(page);
   await chooseKind(page, dialog, /Cripto/);
   await pick(page, dialog.getByRole("combobox", { name: "Instituição" }), "inter", /^Inter$/);
-  await nameAsset(dialog, "Ethereum");
-  await dialog.getByRole("textbox", { name: "Ticker" }).fill("ETH");
+  await nameAsset(dialog, "Chainlink");
+  await dialog.getByRole("textbox", { name: "Ticker" }).fill("LINK");
 
   const status = dialog.locator("[data-ticker-status]");
   await expect(status).toHaveAttribute("data-ticker-status", "found");
@@ -372,11 +373,11 @@ test("renda fixa de nome existente é reaproveitada só na instituição dela", 
   const dialog = await openAddDialog(page);
   await chooseKind(page, dialog, /Renda fixa/);
   await pick(page, dialog.getByRole("combobox", { name: "Instituição" }), "inter", /^Inter$/);
-  await nameAsset(dialog, "LCI BRB");
+  await nameAsset(dialog, "LCI BRB - Set/26");
 
-  // A LCI BRB do Inter já existe: a inclusão usa esse ativo.
+  // A LCI BRB - Set/26 do Inter já existe: a inclusão usa esse ativo.
   const existing = dialog.locator("[data-asset-existing]");
-  await expect(existing).toContainText("LCI BRB já existe");
+  await expect(existing).toContainText("LCI BRB - Set/26 já existe");
 
   // Sem ticker, o ativo é da instituição: no Itaú, o mesmo nome é um ativo novo.
   await pick(page, dialog.getByRole("combobox", { name: "Instituição" }), "itau", /^Itaú$/);

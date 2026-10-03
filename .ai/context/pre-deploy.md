@@ -3,7 +3,9 @@
 Registrado em: 2026-10-02
 Origem: respostas do usuário às questões em aberto (segunda rodada), em
 [Reestruturação da UX](ux-restructure.md).
-Estado: planejado; não executado.
+Estado: executado em 2026-10-03 na
+[spec 041](../specs/041-history-preparation.md); o usuário importou o
+histórico preparado no banco local.
 
 Antes de subir o aplicativo para produção, o usuário e o agente vão preparar,
 uma única vez, um histórico completo e correto. Até lá, o aplicativo **não**
@@ -33,6 +35,9 @@ altera os dados antigos importados da planilha.
   ([spec 035](../specs/035-redemption-and-known-classes.md)), no lugar de D+0
   e D+1, que passam para a liquidez do ativo
   ([spec 039](../specs/039-asset-liquidity.md)).
+
+Arquivos, comandos, regras aplicadas e perguntas ao usuário estão na
+[spec 041](../specs/041-history-preparation.md).
 
 ## O que não é funcionalidade do aplicativo
 

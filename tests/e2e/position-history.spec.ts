@@ -20,15 +20,18 @@ const row = (page: Page, asset: string) => page.getByTestId("position-row").filt
 const flowValue = (page: Page, testId: string) => async () =>
   ((await page.getByTestId(testId).getAttribute("data-value")) ?? "").replace(/\s/g, " ");
 
-async function openBitcoin01(page: Page, query = "mes=2026-09") {
+async function openPosition(page: Page, asset: string, query = "mes=2026-09", institution?: string) {
   await page.goto(`/posicoes?${query}`);
   // Espera a hidratação: um clique antes dela segue o link sem a transição. A
   // primeira abertura compila a rota no servidor de desenvolvimento.
   await expect(page.getByRole("navigation", { name: "Competências" })).toHaveAttribute("data-hydrated");
-  await row(page, "Bitcoin 01").getByRole("link", { name: "Bitcoin 01" }).click();
+  const rows = institution ? row(page, asset).filter({ hasText: institution }) : row(page, asset);
+  await rows.getByRole("link", { name: asset, exact: true }).click();
   await expect(page).toHaveURL(POSITION_PATH, { timeout: 15_000 });
-  await expect(page.getByRole("heading", { level: 1, name: "Bitcoin 01" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: asset })).toBeVisible();
 }
+
+const openBitcoin01 = (page: Page, query?: string) => openPosition(page, "Bitcoin 01", query);
 
 test("o nome do ativo abre a posição e a volta mantém mês e filtros", async ({ page }) => {
   await openBitcoin01(page, "mes=2026-09&classe=Cripto&ordem=share.desc");
@@ -50,58 +53,69 @@ test("o nome do ativo abre a posição e a volta mantém mês e filtros", async 
 test("a página de um ativo cotado decompõe a variação em preço e aportes", async ({ page }) => {
   await openBitcoin01(page);
 
+  // Valores do histórico preparado (spec 041): fechamento de 30/09/2026.
   await expect(page.getByText("Ledger", { exact: true }).first()).toBeVisible();
-  await expect.poll(flowValue(page, "position-value")).toBe("R$ 118.693");
-  await expect(page.getByText("0,30045274 BTC × R$ 395.046,00")).toBeVisible();
-  await expect.poll(flowValue(page, "position-month-change")).toBe("+19,9%");
-  await expect.poll(flowValue(page, "position-share")).toBe("47,1%");
+  await expect.poll(flowValue(page, "position-value")).toBe("R$ 130.457");
+  await expect(page.getByText("0,30045274 BTC × R$ 434.201,00")).toBeVisible();
+  await expect.poll(flowValue(page, "position-month-change")).toBe("+6,24%");
+  await expect.poll(flowValue(page, "position-share")).toBe("49,3%");
   await expect(page.getByRole("heading", { name: "Cotação de BTC" })).toBeVisible();
   await expect(page.getByTestId("asset-price-chart")).toBeVisible();
   await expect(page.getByTestId("position-evolution-chart")).toBeVisible();
   await expect(page.getByTestId("position-allocation")).toContainText("Cripto");
   await expect(page.getByTestId("position-maturity")).toHaveCount(0);
 
-  // Todas as contas soma o Bitcoin 01 da Ledger e da Carteira Cripto: a
-  // transferência deixa de aparecer como resgate e aporte.
-  await page.getByRole("button", { name: "Todas as contas" }).click();
-  await expect(page).toHaveURL(/contas=todas/);
-  await expect.poll(flowValue(page, "position-growth")).toBe("+52,93%");
-
+  // A Carteira Cripto virou a Ledger: o Bitcoin 01 tem uma conta só, desde a
+  // entrada em Jun/23.
+  await expect(page.getByRole("button", { name: "Todas as contas" })).toHaveCount(0);
   const values = page.getByTestId("attribution-values");
-  await expect(values).toContainText("Entrada em Fev/24R$ 46.288,76");
-  await expect(values).toContainText("Ganho de preço+R$ 24.252,52");
-  await expect(values).toContainText("Aportes e resgates+R$ 48.151,37");
-  await expect(values).toContainText("Valor em Set/26R$ 118.692,65");
-  await expect(page.getByTestId("position-average-price")).toContainText("R$ 314.326,08");
+  await expect(values).toContainText("Entrada em Jun/23R$ 26.321,77");
+  await expect(values).toContainText("Ganho de preço+R$ 56.530,45");
+  await expect(values).toContainText("Aportes e resgates+R$ 47.604,66");
+  await expect(values).toContainText("Valor em Set/26R$ 130.456,88");
+  await expect(page.getByTestId("position-average-price")).toContainText("R$ 246.050,09");
 
   // A volta para a tabela não leva o parâmetro próprio da página.
   await expect(page.getByRole("link", { name: "Voltar para Posições" })).toHaveAttribute("href", "/posicoes?mes=2026-09");
 });
 
-test("meses sem competência e sem a posição aparecem como lacunas", async ({ page }) => {
-  await openBitcoin01(page);
+test("todas as contas soma o ativo de cada instituição", async ({ page }) => {
+  // O USDC esteve na Binance de Fev/24 a Set/25 e está na AAVE desde Jul/25.
+  await openPosition(page, "USDC", "mes=2025-09", "AAVE");
+  await expect(page.getByText("USDC também esteve em Binance (Fev/24 a Set/25).", { exact: false })).toBeVisible();
+
+  await page.getByRole("button", { name: "Todas as contas" }).click();
+  await expect(page).toHaveURL(/contas=todas/);
+  await expect.poll(flowValue(page, "position-value")).toBe("R$ 9.390");
+  await expect.poll(flowValue(page, "position-growth")).toBe("+6,73%");
+
+  const values = page.getByTestId("attribution-values");
+  await expect(values).toContainText("Entrada em Fev/24R$ 18.042,29");
+  await expect(values).toContainText("Ganho de preço+R$ 2.485,09");
+  await expect(values).toContainText("Aportes e resgates-R$ 11.137,50");
+  await expect(values).toContainText("Valor em Set/25R$ 9.389,88");
+});
+
+test("meses sem a posição aparecem como lacunas", async ({ page }) => {
+  // O Bitcoin 02 saiu da Binance em Mar/24 e voltou em Abr/24.
+  await openPosition(page, "Bitcoin 02");
   const months = page.getByTestId("position-months");
-
-  // Nesta conta, a posição esteve na Carteira Cripto de Mar/24 a Jul/25.
-  await expect(months.locator("tr[data-gap='absent']").first()).toContainText(
-    "Fora desta conta · em Carteira Cripto",
-  );
-  await expect(months.locator("tr[data-gap='absent']").last()).toContainText("saída -R$ 46.288,76");
-  await expect(months.getByRole("row", { name: /^Ago\/25/ })).toContainText("Volta · de Carteira Cripto");
+  const absent = months.locator("tr[data-gap='absent']");
+  await expect(absent).toHaveCount(1);
+  await expect(absent).toContainText("Mar/24");
+  await expect(absent).toContainText("Fora desta conta");
+  await expect(absent).toContainText("saída -R$ 5.354,10");
+  await expect(months.getByRole("row", { name: /^Abr\/24/ })).toContainText("Volta");
   await expect(months.getByRole("row", { name: /^Set\/26/ })).toHaveAttribute("aria-current", "date");
+  // O histórico preparado não tem meses sem competência (spec 041).
+  await expect(months.locator("tr[data-gap='missing']")).toHaveCount(0);
 
-  // Somando as contas, Jul/24 e Fev/25 a Jun/25 continuam como lacunas, e a
-  // variação seguinte compara com a última competência existente.
+  // O USDC da Binance aparece fora da conta, na AAVE, depois de Set/25; somando
+  // as contas, as lacunas somem.
+  await openPosition(page, "USDC", "mes=2025-09", "Binance");
+  await expect(months.locator("tr[data-gap='absent']")).toContainText(/^Out\/25 a .*Fora desta conta · em AAVE/);
   await page.getByRole("button", { name: "Todas as contas" }).click();
   await expect(months.locator("tr[data-gap='absent']")).toHaveCount(0);
-  await expect(months.locator("tr[data-gap='missing']").filter({ hasText: "Jul/24" })).toContainText(
-    "Sem competência no histórico",
-  );
-  await expect(months.locator("tr[data-gap='missing']").filter({ hasText: "Fev/25 a Jun/25" })).toContainText(
-    "5 meses sem competência no histórico",
-  );
-  await expect(months.getByRole("row", { name: /^Jul\/25/ })).toContainText("desde Jan/25");
-  await expect(months.getByRole("row", { name: /^Ago\/24/ })).toContainText("desde Jun/24");
 });
 
 test("a linha inteira abre a posição de um saldo sem cotação", async ({ page }) => {
@@ -175,14 +189,16 @@ test("o seletor global troca a competência da posição e mostra a ausência", 
   await expect(timeline).toHaveAttribute("data-hydrated");
   await timeline.getByRole("button", { name: /^Agosto de 2026/ }).click();
   await expect(page).toHaveURL(new RegExp(`${path}\\?mes=2026-08$`));
-  await expect.poll(flowValue(page, "position-value")).toBe("R$ 98.993");
+  await expect.poll(flowValue(page, "position-value")).toBe("R$ 122.798");
 
-  await page.goto(`${path}?mes=2025-01`);
+  // O Bitcoin 02 não estava na Binance em Mar/24.
+  await openPosition(page, "Bitcoin 02");
+  await page.goto(`${new URL(page.url()).pathname}?mes=2024-03`);
   await expect(page.getByTestId("position-absent")).toHaveText(
-    "Sem a posição em Jan/25 nesta conta. Última competência com ela: Fev/24.",
+    "Sem a posição em Mar/24 nesta conta. Última competência com ela: Fev/24.",
   );
   await expect(page.getByTestId("position-value")).toHaveAttribute("data-value", "—");
-  await expect(page.getByText("Sem a posição em Jan/25", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("Sem a posição em Mar/24", { exact: true }).first()).toBeVisible();
 });
 
 test("uma posição inexistente mostra o aviso e a volta", async ({ page }) => {

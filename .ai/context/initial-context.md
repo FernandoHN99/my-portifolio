@@ -115,8 +115,9 @@ Em 2026-10-01, a implementação foi iniciada conforme as specs:
 - Correspondência dos demais casos ambíguos da importação. A identidade-base
   já foi definida: o mesmo ativo em instituições ou contas diferentes mantém
   posições separadas e só é agregado em relatórios.
-- A posição inconsistente de Bitcoin de junho de 2023 permanece pendente, sem
-  reconstrução automática.
+- A posição inconsistente de Bitcoin de junho de 2023 recebeu, por resposta do
+  usuário em 2026-10-03, a quantidade de julho de 2023 no histórico preparado
+  da [spec 041](../specs/041-history-preparation.md).
 - Instituição e conta são entidades distintas; uma instituição pode ter várias
   contas e cada posição pertence a uma conta.
 - Comportamento pretendido dos percentuais e metas relacionados.
