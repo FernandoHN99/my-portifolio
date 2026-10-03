@@ -13,7 +13,9 @@ Pedido do usuário em 2026-10-03, junto do login ([spec 050](050-login-and-user-
   usuário";
 - "Atualizações manuais não serão mais aceitas! Somente automáticas!"
 
-## Interpretação adotada (a confirmar com o usuário)
+## Interpretação adotada
+
+Confirmada pelo usuário em 2026-10-03 ("sim").
 
 Havia duas coisas "manuais" no app, e o pedido trata cada uma:
 

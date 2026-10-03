@@ -22,7 +22,13 @@ valer.
 Só quem entrou com e-mail e senha usa o aplicativo, e cada usuário vê e altera
 apenas os próprios dados.
 
-## Decisões tomadas pelo agente (a confirmar com o usuário)
+## Decisões tomadas pelo agente
+
+Respostas do usuário em 2026-10-03, depois da entrega: autorizou apagar os
+dados da produção e publicar o login, informou o e-mail da conta dele, que
+passou a ser o único em `AUTH_ALLOWED_EMAILS` na Vercel, e confirmou a
+interpretação de "manual" da [spec 051](051-shared-automatic-quotes.md). As
+demais escolhas abaixo seguem sem objeção dele.
 
 O usuário estava ausente e autorizou seguir até o fim. Escolhas feitas:
 
