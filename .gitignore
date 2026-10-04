@@ -22,6 +22,10 @@
 # next.js
 /.next/
 /.next-test/
+# Pastas de build alternativas (PORTFOLIO_TEST_DIST_DIR), como .next-backupmov:
+# fora do Git e da varredura de classes do Tailwind, que lia o cache binário
+# delas e gerava CSS inválido em todos os servidores de desenvolvimento.
+/.next-*/
 /out/
 
 # production
