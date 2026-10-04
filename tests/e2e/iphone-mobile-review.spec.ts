@@ -1,7 +1,7 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import { SIGNED_OUT } from "./support/auth";
-import { openAddForm, openEditableMonth } from "./support/position-form";
+import { chooseKind, closeForm, continueForm, expectFormStep, openAddForm, openEditableMonth } from "./support/position-form";
 import { stubQuoteChecks } from "./support/quote-checks";
 
 // Spec 062: revisão de layout e roteamento de gestos, sem salvar dados da carteira.
@@ -132,14 +132,21 @@ test("faixa de competências mantém mês ativo visível e alvo de toque", async
 test("formulário da posição continua rolável com viewport reduzida", async ({ page }) => {
   test.skip(!(await openEditableMonth(page)), "Não há competência aberta nos dados de teste.");
   const dialog = await openAddForm(page);
+  await expectFormStep(dialog, "Posição");
+  await chooseKind(page, dialog, /Renda fixa/);
+  const institution = dialog.getByRole("combobox", { name: "Instituição", exact: true });
+  await institution.click();
+  await page.getByRole("option", { name: "C6", exact: true }).click();
+  await continueForm(dialog, "Ativo");
+  await dialog.getByRole("textbox", { name: "Nome do ativo", exact: true }).fill("CDB Teste mobile");
+  await dialog.getByRole("textbox", { name: "Saldo (R$)", exact: true }).fill("1000");
   await page.setViewportSize({ width: 430, height: 420 });
-  const cancel = dialog.getByRole("button", { name: "Cancelar", exact: true });
-  await expect(cancel).toBeInViewport();
+  await expect(dialog.getByRole("button", { name: "Continuar", exact: true })).toBeInViewport();
+  await expect(dialog.getByRole("button", { name: "Voltar", exact: true })).toBeInViewport();
   const box = await dialog.boundingBox();
   expect(box!.height).toBeLessThanOrEqual(420);
   await assertInputSize(dialog);
-  await cancel.click();
-  await expect(dialog).toHaveCount(0);
+  await closeForm(dialog);
 });
 
 test.describe("entrada sem sessão", () => {

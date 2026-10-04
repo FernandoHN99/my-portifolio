@@ -30,6 +30,9 @@ import type { QuoteRunHistoryPage } from "@/modules/quotes/application/get-run-h
 import { providerLabel, type QuoteRefreshSummary } from "@/modules/quotes/domain/quote-refresh";
 import { LastRefreshCard } from "@/modules/quotes/ui/last-refresh-card";
 import { RefreshRunHistory } from "@/modules/quotes/ui/refresh-run-history";
+import type { SelicMonthView } from "@/modules/quotes/application/selic-reference";
+import { describeSelic, formatSelic } from "@/modules/quotes/presentation/selic-format";
+import { DevQuoteSyncButton } from "@/modules/quotes/ui/dev-quote-sync-button";
 
 // O servidor guarda as cotações com até oito casas decimais.
 const MAX_DECIMALS = 8;
@@ -52,10 +55,12 @@ export function QuotesWorkspace({
   month,
   summary,
   history,
+  selic,
 }: {
   month: MonthQuotesView | null;
   summary: QuoteRefreshSummary | null;
   history: QuoteRunHistoryPage | null;
+  selic: SelicMonthView | null;
 }) {
   const router = useRouter();
   const monthParam = useSearchParams().get("mes");
@@ -110,6 +115,7 @@ export function QuotesWorkspace({
           <CurrencyCircleDollarIcon aria-hidden="true" size={22} weight="duotone" />
         </span>
         <h1 className="mt-6 text-2xl font-semibold tracking-[-0.04em]">Nenhuma cotação nesta competência</h1>
+        <DevQuoteSyncButton className="mt-6" />
       </div>
     );
   }
@@ -186,9 +192,15 @@ export function QuotesWorkspace({
           </p>
         </div>
         <div className="flex flex-col items-start gap-3 sm:items-end">
+          <DevQuoteSyncButton />
           <p className="font-mono text-xs text-muted-foreground">
             {formatBrl(previewTotal)}
             {usdRate ? ` · US$ ${formatUsd(previewTotal / usdRate)}` : ""}
+          </p>
+          {/* Meta Selic da competência (spec 067), ao lado do total: informativa. */}
+          <p className="text-xs text-muted-foreground" title={describeSelic(selic)} data-testid="selic-month">
+            Selic no mês <span className="font-mono text-foreground">{formatSelic(selic)}</span>
+            <span className="sr-only"> · {describeSelic(selic)}</span>
           </p>
           {editMode || editableCount === 0 || month.isLocked ? null : (
             <button

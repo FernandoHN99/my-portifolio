@@ -14,6 +14,7 @@ import { calendarDay, lastDayOf, toDateKey } from "@/modules/quotes/domain/calen
 import { buildPriceHistory, type PriceHistory } from "@/modules/quotes/domain/price-history";
 import { projectCdiBalance } from "@/modules/portfolio/domain/cdi-valuation";
 import { emptyRecordedMonth, recordedByMonth } from "@/modules/portfolio/domain/position-transactions";
+import { AUTOMATIC_FIXED_INCOME_ENABLED } from "@/modules/portfolio/domain/fixed-income-policy";
 
 // Dados da página de uma posição (spec 016): a posição é a combinação de conta
 // e ativo, pelos identificadores, em todas as competências. O ativo em outras
@@ -268,7 +269,7 @@ export async function getPositionHistory({
       prices: asset.quoteSymbol ? await getPriceHistory(asset.quoteSymbol, toDateKey(today)) : null,
       history: asset.quoteSymbol ? await readHistoryState(asset.quoteSymbol) : null,
       transactions: transactions.filter((entry) => entry.accountId === accountId),
-      cdi: await readCdi(accountId, assetId, selected.id, asset.maturityDate),
+      cdi: AUTOMATIC_FIXED_INCOME_ENABLED ? await readCdi(accountId, assetId, selected.id, asset.maturityDate) : null,
     };
   } catch {
     return null;

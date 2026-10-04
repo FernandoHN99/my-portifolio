@@ -1,5 +1,6 @@
 import { PortfolioMonthStatus, Prisma, type PrismaClient } from "@/generated/prisma/client";
 import { calculateCdiMonth, type CdiMovement } from "@/modules/portfolio/domain/cdi-valuation";
+import { AUTOMATIC_FIXED_INCOME_ENABLED } from "@/modules/portfolio/domain/fixed-income-policy";
 import { calendarDay, toDateKey } from "@/modules/quotes/domain/calendar";
 import { fetchCdiDaily } from "@/modules/quotes/infrastructure/bcb";
 import { describeProviderError, QuoteHttpError } from "@/modules/quotes/infrastructure/http";
@@ -59,6 +60,10 @@ export async function syncCdiRates(
   prisma: PrismaClient,
   { now = new Date(), fetchRates = fetchCdiDaily, monthIds }: { now?: Date; fetchRates?: CdiRatesFetcher; monthIds: string[] },
 ): Promise<CdiReport["rates"]> {
+  if (!AUTOMATIC_FIXED_INCOME_ENABLED) {
+    return { state: "skipped", inserted: 0, through: null };
+  }
+
   const earliest = await prisma.position.findFirst({
     where: { ...CDI_POSITION_WHERE, portfolioMonthId: { in: monthIds } },
     orderBy: { calculationStartDate: "asc" },
@@ -154,6 +159,10 @@ export async function valueCdiPositions(
   client: Client,
   { where, now = new Date(), asOf }: { where: Prisma.PositionWhereInput; now?: Date; asOf?: string },
 ) {
+  if (!AUTOMATIC_FIXED_INCOME_ENABLED) {
+    return [];
+  }
+
   const positions = await client.position.findMany({ where: { ...where, ...CDI_POSITION_WHERE }, select: CDI_POSITION_SELECT });
   const results: { positionId: string; state: "calculated" | "unavailable"; message?: string }[] = [];
 
@@ -265,6 +274,10 @@ export async function syncCdi(
   prisma: PrismaClient,
   { now = new Date(), fetchRates = fetchCdiDaily }: { now?: Date; fetchRates?: CdiRatesFetcher } = {},
 ): Promise<CdiReport> {
+  if (!AUTOMATIC_FIXED_INCOME_ENABLED) {
+    return { rates: { state: "skipped", inserted: 0, through: null }, valued: 0, failed: [] };
+  }
+
   const currentMonth = new Date(Date.UTC(now.getFullYear(), now.getMonth(), 1));
   const months = await prisma.portfolioMonth.findMany({
     where: { OR: [{ referenceDate: currentMonth }, { status: PortfolioMonthStatus.DRAFT, referenceDate: { lt: currentMonth } }] },

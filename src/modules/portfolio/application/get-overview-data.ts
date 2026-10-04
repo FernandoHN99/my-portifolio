@@ -1,6 +1,7 @@
 import { Prisma, type PortfolioMonthStatus } from "@/generated/prisma/client";
 import { getUserDb } from "@/lib/user-db";
 import { getAllocationOverview } from "@/modules/portfolio/application/get-allocation-overview";
+import { ASSET_TYPE_LABELS, assetTypeOf } from "@/modules/portfolio/domain/classification";
 import {
   buildFixedIncomeDuration,
   type FixedIncomeDuration,
@@ -69,6 +70,8 @@ export type OverviewData = {
   offTargetTolerance: number;
   history: OverviewHistoryPoint[];
   composition: CompositionGroup[];
+  /** Patrimônio por tipo do ativo na competência (spec 068), do maior para o menor. */
+  byType: { label: string; valueBrl: number; share: number }[];
   rebalanceGroups: AllocationGroup[];
   fixedIncomeDuration: FixedIncomeDuration;
   classLabels: string[];
@@ -97,7 +100,7 @@ export async function getOverviewData(referenceDate?: Date): Promise<OverviewDat
         positions: {
           select: {
             totalBrl: true,
-            asset: { select: { baseCurrency: true } },
+            asset: { select: { baseCurrency: true, assetType: true, quoteSymbol: true, name: true, cashAccount: true } },
             account: { select: { institutionId: true } },
             allocations: { select: { assetClass: true, weight: true } },
           },
@@ -164,6 +167,20 @@ export async function getOverviewData(referenceDate?: Date): Promise<OverviewDat
         ? selectedHistory.totalBrl - firstHistory.totalBrl
         : null;
 
+    const typeTotals = new Map<string, number>();
+    for (const position of selected.positions) {
+      const label = ASSET_TYPE_LABELS[assetTypeOf(position.asset)];
+      typeTotals.set(label, (typeTotals.get(label) ?? 0) + position.totalBrl.toNumber());
+    }
+    const byType = [...typeTotals.entries()]
+      .filter(([, valueBrl]) => valueBrl > 0)
+      .map(([label, valueBrl]) => ({
+        label,
+        valueBrl,
+        share: selectedHistory.totalBrl === 0 ? 0 : (valueBrl / selectedHistory.totalBrl) * 100,
+      }))
+      .sort((left, right) => right.valueBrl - left.valueBrl);
+
     const quotes = await readMonthQuoteValues(prisma, selected.referenceDate, ["USD", "BTC"]);
     const usdRate = quotes.get("USD")?.valueBrl.toNumber() ?? null;
     const btcRate = quotes.get("BTC")?.valueBrl.toNumber() ?? null;
@@ -216,6 +233,7 @@ export async function getOverviewData(referenceDate?: Date): Promise<OverviewDat
       offTargetTolerance: allocation?.tolerance ?? DEFAULT_REBALANCE_TOLERANCE,
       history,
       composition,
+      byType,
       rebalanceGroups: allocation?.groups ?? [],
       fixedIncomeDuration: buildFixedIncomeDuration(
         allocation?.aggregates.fixedIncome ?? [],

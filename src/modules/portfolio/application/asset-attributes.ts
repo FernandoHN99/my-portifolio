@@ -1,6 +1,8 @@
 import { Prisma } from "@/generated/prisma/client";
 import { cleanName, normalizeKey, USD_SYMBOL } from "@/modules/portfolio/domain/asset-kinds";
 import { MAX_LIQUIDITY_LENGTH, normalizeLiquidity } from "@/modules/portfolio/domain/liquidity";
+import { AUTOMATIC_FIXED_INCOME_ENABLED } from "@/modules/portfolio/domain/fixed-income-policy";
+import { isAssetType } from "@/modules/portfolio/domain/classification";
 
 // Atributos do ativo editados pelo formulário da posição (spec 043): nome
 // (spec 040), liquidez (spec 039), vencimento (spec 026) e conta corrente
@@ -38,6 +40,8 @@ export type AssetAttributes = {
    * desliga. Ausente, fica como está.
    */
   cdiPercent?: string | null;
+  /** Tipo do ativo (spec 068), uma das chaves de `ASSET_TYPES`. Ausente, fica como está. */
+  assetType?: string;
 };
 
 /** Estado do ativo antes da edição, para o desfazer. */
@@ -49,6 +53,7 @@ export type AssetState = {
   maturityDate: Date | null;
   cashAccount: boolean;
   cdiPercent: Prisma.Decimal | null;
+  assetType: string | null;
 };
 
 /**
@@ -71,6 +76,7 @@ export async function applyAssetAttributes(
       quoteSymbol: true,
       cashAccount: true,
       cdiPercent: true,
+      assetType: true,
     },
   });
 
@@ -113,7 +119,7 @@ export async function applyAssetAttributes(
     throw new AssetAttributeError("Só caixas em reais ou em dólar podem ser conta corrente.");
   }
 
-  const cdiPercent = next.cdiPercent === undefined ? asset.cdiPercent : parseCdiPercent(next.cdiPercent);
+  const cdiPercent = !AUTOMATIC_FIXED_INCOME_ENABLED || next.cdiPercent === undefined ? asset.cdiPercent : parseCdiPercent(next.cdiPercent);
 
   if (cdiPercent && asset.quoteSymbol) {
     throw new AssetAttributeError("Só a renda fixa sem cotação de mercado é calculada pelo CDI.");
@@ -121,12 +127,19 @@ export async function applyAssetAttributes(
 
   const sameCdi = (asset.cdiPercent === null && cdiPercent === null) || Boolean(asset.cdiPercent && cdiPercent?.equals(asset.cdiPercent));
 
+  if (next.assetType !== undefined && !isAssetType(next.assetType)) {
+    throw new AssetAttributeError("Escolha um tipo de ativo da lista.");
+  }
+
+  const assetType = next.assetType ?? asset.assetType;
+
   if (
     asset.name === name &&
     asset.liquidity === liquidity &&
     currentMaturity === maturity &&
     asset.cashAccount === cashAccount &&
-    sameCdi
+    sameCdi &&
+    asset.assetType === assetType
   ) {
     return null;
   }
@@ -160,6 +173,7 @@ export async function applyAssetAttributes(
       maturityDate: maturity ? new Date(`${maturity}T00:00:00.000Z`) : null,
       cashAccount,
       cdiPercent,
+      assetType,
     },
   });
 
@@ -171,6 +185,7 @@ export async function applyAssetAttributes(
     maturityDate: asset.maturityDate,
     cashAccount: asset.cashAccount,
     cdiPercent: asset.cdiPercent,
+    assetType: asset.assetType,
   };
 }
 
@@ -191,6 +206,7 @@ export async function restoreAssetState(transaction: Prisma.TransactionClient, s
       maturityDate: state.maturityDate,
       cashAccount: state.cashAccount,
       cdiPercent: state.cdiPercent,
+      assetType: state.assetType,
     },
   });
 }

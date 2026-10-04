@@ -29,13 +29,16 @@ export async function openEditableMonth(page: Page) {
   await page.goto("/posicoes");
 
   if (await hasOpenMonth(page)) {
+    await page.waitForLoadState("networkidle");
     return true;
   }
 
   const now = new Date();
   const previous = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1)).toISOString().slice(0, 7);
   await page.goto(`/posicoes?mes=${previous}`);
-  return hasOpenMonth(page);
+  const open = await hasOpenMonth(page);
+  await page.waitForLoadState("networkidle");
+  return open;
 }
 
 export async function openAddForm(page: Page) {
@@ -61,6 +64,21 @@ export async function openEditForm(page: Page, asset: string, institution?: stri
 
 export function formTab(dialog: Locator, name: "Geral" | "Ativo" | "Rateio") {
   return dialog.getByRole("tab", { name: new RegExp(`^${name}`) });
+}
+
+/** Inclusão guiada (spec 066): as etapas são informativas, sem atalhos. */
+export async function expectFormStep(dialog: Locator, label: string) {
+  await expect(dialog.getByRole("list", { name: "Etapas do formulário" }).locator('li[aria-current="step"]')).toContainText(label);
+}
+
+export async function continueForm(dialog: Locator, next: "Ativo" | "Rateio" | "Conferir") {
+  await dialog.getByRole("button", { name: "Continuar", exact: true }).click();
+  await expectFormStep(dialog, next);
+}
+
+export async function closeForm(dialog: Locator) {
+  await dialog.getByRole("button", { name: "Fechar", exact: true }).click();
+  await expect(dialog).toHaveCount(0);
 }
 
 /** Pendências que impedem salvar; zero quer dizer pronto, sem precisar salvar. */

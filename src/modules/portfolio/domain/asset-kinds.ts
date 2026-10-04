@@ -217,16 +217,33 @@ export function defaultAllocation(kind: AssetKind, symbol: string | null): Alloc
     case "br-stock":
       return { assetClass: "Renda Variável", subclass: "Ações BR", duration: "-" };
     case "crypto":
-      return { assetClass: "Cripto", subclass: symbol === "BTC" ? "BTC" : "Altcoin", duration: "-" };
+      return {
+        assetClass: "Cripto",
+        subclass: symbol === "BTC" ? "BTC" : symbol && STABLECOINS.has(symbol) ? "Stablecoin" : "Altcoin",
+        duration: "-",
+      };
     case "fixed-income":
       // Subclasse e prazo da renda fixa variam por título e são escolhidos.
       return { assetClass: "Renda Fixa", subclass: "", duration: "" };
     case "treasury":
-      return { assetClass: "Renda Fixa", subclass: "Tesouro Direto", duration: "" };
+      // A subclasse é a da planilha, pelo indexador do título (spec 068); o
+      // prefixado não tem subclasse própria e fica para o usuário escolher.
+      return { assetClass: "Renda Fixa", subclass: treasurySubclass(symbol), duration: "" };
     case "brl-cash":
     case "usd-balance":
       return { assetClass: "Caixa", subclass: "Pós-fixado", duration: "Curto" };
   }
+}
+
+const STABLECOINS = new Set(["USDT", "USDC", "DAI", "BUSD", "FDUSD", "TUSD", "USDE", "PYUSD"]);
+
+/** Subclasse de um título do Tesouro pelo símbolo, como TD:TESOURO-IPCA:2035-05-15. */
+function treasurySubclass(symbol: string | null) {
+  const type = symbol?.split(":")[1] ?? "";
+
+  if (type.includes("SELIC")) return "Pós-fixado";
+  if (type.includes("IPCA") || type.includes("RENDA") || type.includes("EDUCA")) return "IPCA";
+  return "";
 }
 
 /**

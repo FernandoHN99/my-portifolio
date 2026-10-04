@@ -25,27 +25,29 @@ export const headerPrimaryButtonClass =
   "inline-flex h-9 items-center gap-2 rounded-xl bg-primary px-3.5 text-xs font-semibold text-primary-foreground outline-none transition-[background-color,transform] duration-150 hover:bg-primary/90 focus-visible:ring-3 focus-visible:ring-ring/40 active:scale-[0.98] disabled:opacity-40";
 
 /**
- * Classificação do rateio: escolhe entre os valores já usados. A subclasse
- * aceita um valor novo digitado, confirmado em "Usar"; a classe só aceita as
- * cadastradas (spec 035).
+ * Classificação do rateio (spec 068): só as opções da lista fixa, dependentes
+ * da classe. Um valor antigo da posição, fora da lista, aparece marcado até
+ * ser trocado.
  */
 export function AllocationPicker({
   label,
   values,
   value,
   onChange,
-  allowCreate = true,
+  placeholder = "Escolha",
+  disabled = false,
 }: {
   label: string;
-  values: string[];
+  values: readonly string[];
   value: string;
   onChange: (value: string) => void;
-  allowCreate?: boolean;
+  placeholder?: string;
+  disabled?: boolean;
 }) {
-  const options = (value && !values.includes(value) ? [...values, value] : values).map((entry) => ({
-    value: entry,
-    label: entry,
-  }));
+  const options = [
+    ...values.map((entry) => ({ value: entry, label: entry })),
+    ...(value && !values.includes(value) ? [{ value, label: value, hint: "fora da lista" }] : []),
+  ];
 
   return (
     <Picker
@@ -53,37 +55,46 @@ export function AllocationPicker({
       options={options}
       value={value || null}
       onValueChange={onChange}
-      {...(allowCreate
-        ? {
-            onCreate: (text: string) => onChange(text),
-            createLabel: (text: string) => `Usar “${text}”`,
-            emptyMessage: "Digite para usar um valor novo",
-          }
-        : { emptyMessage: "Nenhuma classe com esse nome" })}
+      placeholder={placeholder}
+      disabled={disabled}
+      emptyMessage="Nenhuma opção com esse nome"
     />
   );
 }
 
 /**
- * Prazo de resgate da classificação (spec 035): Curto, Médio, Longo ou
- * Nenhum. Um prazo antigo da posição, como D+0, aparece como opção até ser
- * trocado.
+ * Prazo de resgate da classificação (specs 035 e 068): os prazos que valem
+ * para a classe escolhida. Um prazo antigo da posição, como D+0, aparece como
+ * opção até ser trocado.
  */
 export function RedemptionPicker({
   label,
+  values = REDEMPTION_VALUES,
   value,
   onChange,
+  disabled = false,
 }: {
   label: string;
+  values?: readonly string[];
   value: string;
   onChange: (value: string) => void;
+  disabled?: boolean;
 }) {
   const options = [
-    ...REDEMPTION_VALUES.map((entry) => ({ value: entry, label: redemptionLabel(entry) })),
-    ...(value && !isRedemption(value) ? [{ value, label: value, hint: "da planilha" }] : []),
+    ...values.map((entry) => ({ value: entry, label: redemptionLabel(entry) })),
+    ...(value && !values.includes(value) ? [{ value, label: redemptionLabel(value), hint: isRedemption(value) ? "fora da lista" : "da planilha" }] : []),
   ];
 
-  return <Picker aria-label={label} options={options} value={value || null} onValueChange={onChange} placeholder="Escolha" />;
+  return (
+    <Picker
+      aria-label={label}
+      options={options}
+      value={value || null}
+      onValueChange={onChange}
+      placeholder={disabled ? "Escolha a classe" : "Escolha"}
+      disabled={disabled}
+    />
+  );
 }
 
 const NO_LIQUIDITY_VALUE = "__sem_liquidez__";

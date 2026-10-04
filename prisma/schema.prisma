@@ -176,6 +176,10 @@ model Asset {
   // CDI, e o dia da aplicação, a partir do qual o rendimento bruto é calculado.
   cdiPercent      Decimal?   @map("cdi_percent") @db.Decimal(7, 3)
   appliedOn       DateTime?  @map("applied_on") @db.Date
+  // Tipo do ativo (spec 068), para a visão por tipo, como Tesouro Direto ou
+  // ETF dos EUA. Uma das chaves de `ASSET_TYPES`; nulo nos ativos antigos, cujo
+  // tipo é inferido na leitura até o usuário escolher um.
+  assetType       String?    @map("asset_type")
   createdAt       DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
   user            User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   positions       Position[]
@@ -310,6 +314,32 @@ model RateCoverage {
 
   @@unique([indexer, fromDate, throughDate])
   @@map("rate_coverage")
+}
+
+// Taxas de referência informativas, compartilhadas (spec 064). A meta Selic
+// é percentual ao ano, nunca cotação em reais nem CDI diário.
+model ReferenceRate {
+  key           String    @id
+  percentAnnual Decimal?  @map("percent_annual") @db.Decimal(12, 6)
+  observedOn    DateTime? @map("observed_on") @db.Date
+  source        String?
+  fetchedAt     DateTime? @map("fetched_at") @db.Timestamptz(3)
+  lastAttemptAt DateTime? @map("last_attempt_at") @db.Timestamptz(3)
+  errorMessage  String?   @map("error_message")
+
+  @@map("reference_rates")
+}
+
+// Histórico da meta Selic (spec 067): um ponto a cada mudança da taxa, para
+// mostrar a meta vigente em cada competência. Compartilhado e recarregável
+// pelo job, fora do backup como `reference_rates`.
+model ReferenceRatePoint {
+  key           String
+  effectiveOn   DateTime @map("effective_on") @db.Date
+  percentAnnual Decimal  @map("percent_annual") @db.Decimal(12, 6)
+
+  @@id([key, effectiveOn])
+  @@map("reference_rate_points")
 }
 
 model MarketQuote {

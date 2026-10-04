@@ -23,7 +23,8 @@ import {
   type AssetKind,
 } from "@/modules/portfolio/domain/asset-kinds";
 import { MAX_LIQUIDITY_LENGTH, normalizeLiquidity } from "@/modules/portfolio/domain/liquidity";
-import { isRedemption } from "@/modules/portfolio/domain/redemption";
+import { AUTOMATIC_FIXED_INCOME_ENABLED } from "@/modules/portfolio/domain/fixed-income-policy";
+import { classificationIssue } from "@/modules/portfolio/domain/classification";
 import { valueCdiPositions } from "@/modules/portfolio/application/cdi-positions";
 import { readVerifiedTicker } from "@/modules/quotes/application/check-ticker";
 import { readMonthQuoteValues } from "@/modules/quotes/application/month-quote-values";
@@ -68,6 +69,12 @@ export type PositionAddition = {
   assetId?: string;
   newAsset?: NewAssetInput;
   value: string;
+  /**
+   * O que `value` informa num ativo cotado (spec 070): a quantidade, o padrão,
+   * ou o valor da posição em reais, de que o servidor tira a quantidade pela
+   * cotação do mês. Nos saldos em reais, o valor é sempre o saldo.
+   */
+  valueKind?: "quantity" | "amount";
   /**
    * Como o valor entra (spec 056): saldo que a posição já tinha, sem ser
    * aporte nem custo conhecido, ou aporte de dinheiro novo.
@@ -233,11 +240,19 @@ export async function addPosition(input: { monthId: string; addition: PositionAd
         );
       }
       unitPriceBrl = price;
-      quantity = value;
-      totalBrl = value.mul(price).toDecimalPlaces(2);
+
+      if (addition.valueKind === "amount") {
+        // Valor da posição em reais, como o saldo do Tesouro no banco: o total
+        // fica o digitado, e a quantidade, a que ele compra pela cotação.
+        totalBrl = value.toDecimalPlaces(2);
+        quantity = totalBrl.div(price).toDecimalPlaces(12);
+      } else {
+        quantity = value;
+        totalBrl = value.mul(price).toDecimalPlaces(2);
+      }
     }
 
-    await assertAllocationRules(transaction, allocations);
+    assertAllocationRules(allocations);
     const created = await transaction.position.create({
       data: {
         userId: SCOPED_USER,
@@ -297,7 +312,7 @@ export async function addPosition(input: { monthId: string; addition: PositionAd
 
       // Renda fixa pelo CDI (spec 060): o valor informado é o aplicado no dia da
       // aplicação, e o saldo bruto sai do cálculo até hoje.
-      if (dates?.cdiPercent && dates.appliedOn && !asset.quoteSymbol) {
+      if (AUTOMATIC_FIXED_INCOME_ENABLED && dates?.cdiPercent && dates.appliedOn && !asset.quoteSymbol) {
         await transaction.position.update({ where: { id: created.id }, data: { calculationStartDate: dates.appliedOn } });
         await valueCdiPositions(transaction, { where: { id: created.id } });
       }
@@ -323,7 +338,7 @@ export async function editPosition(input: { monthId: string; edit: PositionEdit 
         assetId: true,
         openingQuantity: true,
         calculationStartDate: true,
-        allocations: { select: { duration: true } },
+        allocations: { select: { assetClass: true, subclass: true, duration: true } },
       },
     });
 
@@ -338,12 +353,8 @@ export async function editPosition(input: { monthId: string; edit: PositionEdit 
       data: { strategy: normalizeStrategy(input.edit.strategy) },
     });
 
-    // Um prazo antigo, como D+0, só continua se a posição já o tinha.
-    await assertAllocationRules(
-      transaction,
-      allocations,
-      new Set(position.allocations.map((allocation) => allocation.duration)),
-    );
+    // Uma classificação fora da lista só continua se a posição já a tinha.
+    assertAllocationRules(allocations, position.allocations);
     await transaction.positionAllocation.deleteMany({ where: { positionId: position.id } });
     await transaction.positionAllocation.createMany({
       data: allocations.map((allocation) => ({ ...allocation, userId: SCOPED_USER, positionId: position.id })),
@@ -379,6 +390,12 @@ async function applyCdiStart(
   position: { id: string; assetId: string; calculationStartDate: Date | null },
   next: string | null | undefined,
 ) {
+  // A pausa global não desliga nem converte os dados existentes: editar
+  // atributos continua sem alterar saldo ou fabricar rendimentos (spec 065).
+  if (!AUTOMATIC_FIXED_INCOME_ENABLED) {
+    return;
+  }
+
   const asset = await transaction.asset.findUniqueOrThrow({
     where: { id: position.assetId },
     select: { cdiPercent: true, quoteSymbol: true },
@@ -456,7 +473,7 @@ function formatDay(day: Date) {
 
 /** Percentual e dia da aplicação de uma renda fixa nova pelo CDI (spec 060). */
 function cdiOfNewAsset(input: NewAssetInput) {
-  if (input.kind !== "fixed-income" || !input.cdiPercent) {
+  if (!AUTOMATIC_FIXED_INCOME_ENABLED || input.kind !== "fixed-income" || !input.cdiPercent) {
     return {};
   }
 
@@ -692,6 +709,8 @@ async function resolveAdditionAsset(
       liquidity: normalizeLiquidity(input.liquidity)?.slice(0, MAX_LIQUIDITY_LENGTH) ?? null,
       quoteProviderId,
       cashAccount: Boolean(input.cashAccount) && (input.kind === "brl-cash" || input.kind === "usd-balance"),
+      // O tipo da inclusão é o tipo do ativo (spec 068).
+      assetType: input.kind,
       ...cdiOfNewAsset(input),
     },
     select: { id: true },
@@ -744,25 +763,28 @@ async function ensureMonthQuote(
     throw new MonthEditError(`Não há cotação de ${symbol} nesta competência. Informe-a na página de cotações.`);
   }
 
-  const verified = input.quoteCheckToken ? readVerifiedTicker(input.quoteCheckToken) : null;
+  const verified = input.quoteCheckToken ? readVerifiedTicker(input.quoteCheckToken, {
+    userId: await currentUserId(), monthId: batch.month.id,
+  }) : null;
 
   if (!verified || verified.symbol !== symbol || verified.kind !== input.kind) {
-    throw new MonthEditError(`A conferência do ticker ${symbol} expirou. Inclua a posição de novo para conferir.`);
+    throw new MonthEditError(`A conferência do ticker ${symbol} expirou. Confira o ticker novamente e tente salvar.`);
   }
 
   const useFetched = verified.status === "found" && verified.priceBrl !== null && batch.isCurrentMonth;
-  let valueBrl: Prisma.Decimal;
+  const official = useFetched ? new Prisma.Decimal(verified.priceBrl!).toDecimalPlaces(8) : null;
+  const typed = input.manualPriceBrl ? parsePositive(input.manualPriceBrl, 8) : null;
 
-  if (useFetched) {
-    valueBrl = new Prisma.Decimal(verified.priceBrl!).toDecimalPlaces(8);
-  } else {
-    if (!input.manualPriceBrl) {
-      throw new MonthEditError(`Informe a cotação de ${symbol} em reais.`);
-    }
-    valueBrl = parsePositive(input.manualPriceBrl, 8);
+  if (!official && !typed) {
+    throw new MonthEditError(`Informe a cotação de ${symbol} em reais.`);
   }
 
-  if (useFetched) {
+  // No Tesouro, o preço digitado vale por cima do oficial, só para o usuário e
+  // só nesta competência (spec 070); nos demais, o oficial do mês corrente.
+  const own = typed && (!official || (input.kind === "treasury" && !typed.equals(official))) ? typed : null;
+  const valueBrl = own ?? official!;
+
+  if (official) {
     // A cotação de hoje é dos provedores e vale para todos (spec 051); outro
     // usuário pode tê-la gravado no meio-tempo.
     await transaction.marketQuote.createMany({
@@ -772,13 +794,15 @@ async function ensureMonthQuote(
           symbol,
           instrumentType,
           baseCurrency,
-          valueBrl,
+          valueBrl: official,
           quoteDate: verified.quoteDate,
         },
       ],
       skipDuplicates: true,
     });
-  } else {
+  }
+
+  if (own) {
     // A digitada vale só para o usuário, como a edição à mão da página de
     // cotações.
     await transaction.manualQuote.create({
@@ -1169,38 +1193,24 @@ export async function undoChange(token: string) {
 }
 
 /**
- * Regras do rateio (spec 035): a classe precisa ser uma das já cadastradas,
- * nos rateios ou nas metas; a subclasse aceita valores novos; o resgate é
- * Curto, Médio, Longo ou Nenhum, além de um prazo antigo que a posição já tinha.
+ * Regras do rateio (spec 068, que substituiu a lista aberta da spec 035):
+ * classe, subclasse e resgate vêm da lista fixa da planilha, dependentes entre
+ * si. Uma classificação antiga que a posição já tinha continua aceita como
+ * está, para editar outros atributos sem reclassificar o passado.
  */
-async function assertAllocationRules(
-  transaction: Transaction,
-  allocations: { assetClass: string; duration: string }[],
-  legacyRedemptions: Set<string> = new Set(),
+function assertAllocationRules(
+  allocations: { assetClass: string; subclass: string; duration: string }[],
+  legacy: { assetClass: string; subclass: string; duration: string }[] = [],
 ) {
-  const classes = [...new Set(allocations.map((entry) => entry.assetClass))];
-  const [used, targeted] = await Promise.all([
-    transaction.positionAllocation.findMany({
-      where: { assetClass: { in: classes } },
-      distinct: ["assetClass"],
-      select: { assetClass: true },
-    }),
-    transaction.allocationTarget.findMany({
-      where: { scope: "ASSET_CLASS", primaryLabel: { in: classes } },
-      select: { primaryLabel: true },
-    }),
-  ]);
-  const known = new Set([...used.map((entry) => entry.assetClass), ...targeted.map((entry) => entry.primaryLabel)]);
-  const unknown = classes.filter((assetClass) => !known.has(assetClass));
+  const sameAs = (left: (typeof allocations)[number], right: (typeof allocations)[number]) =>
+    left.assetClass === right.assetClass && left.subclass === right.subclass && left.duration === right.duration;
 
-  if (unknown.length > 0) {
-    throw new MonthEditError(`A classe ${unknown.join(", ")} não existe. Escolha uma das classes cadastradas.`);
-  }
+  for (const allocation of allocations) {
+    const issue = classificationIssue(allocation);
 
-  const invalid = allocations.find((entry) => !isRedemption(entry.duration) && !legacyRedemptions.has(entry.duration));
-
-  if (invalid) {
-    throw new MonthEditError(`Resgate inválido: ${invalid.duration}. Use Curto, Médio, Longo ou Nenhum.`);
+    if (issue && !legacy.some((entry) => sameAs(entry, allocation))) {
+      throw new MonthEditError(`${issue} Escolha uma opção da lista.`);
+    }
   }
 }
 

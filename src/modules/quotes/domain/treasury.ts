@@ -69,7 +69,19 @@ export function getTreasuryCatalog(book: TreasuryBook, today: string): TreasuryC
     const { points: _points, ...identity } = series;
     void _points;
     return [{ ...identity, quoteDate: point.day, valueBrl: point.value }];
-  }).sort((left, right) => left.type.localeCompare(right.type, "pt-BR") || left.maturityDate.localeCompare(right.maturityDate));
+  }).sort((left, right) =>
+    typeRank(left.type) - typeRank(right.type) ||
+    left.type.localeCompare(right.type, "pt-BR") ||
+    left.maturityDate.localeCompare(right.maturityDate));
+}
+
+// Ordem da lista: os títulos mais procurados primeiro, como na vitrine do
+// Tesouro Direto; os demais, em ordem alfabética depois deles.
+const TYPE_ORDER = ["Tesouro Selic", "Tesouro Prefixado", "Tesouro IPCA+", "Tesouro Renda+", "Tesouro Educa+"];
+
+function typeRank(type: string) {
+  const index = TYPE_ORDER.findIndex((prefix) => type === prefix || type.startsWith(`${prefix} `));
+  return index === -1 ? TYPE_ORDER.length : index;
 }
 
 /** Data financeira estrita: não aceita 31/02 normalizado para março. */

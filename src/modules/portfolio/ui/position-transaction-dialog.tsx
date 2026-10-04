@@ -5,7 +5,10 @@ import { XIcon } from "@phosphor-icons/react/dist/ssr";
 import { useState, useTransition, type ReactNode } from "react";
 
 import { addTransactionAction, updateTransactionAction, type EditActionResult } from "@/app/actions/edit-month";
+import { DatePicker } from "@/components/ui/date-picker";
+import { Picker } from "@/components/ui/picker";
 import { cn } from "@/lib/utils";
+import { FlowHeading, FlowSteps } from "@/modules/portfolio/ui/flow-steps";
 import {
   resolveMovement,
   TRANSACTION_KINDS,
@@ -47,11 +50,6 @@ export type TransactionTarget = {
   /** Cotação do mês da posição. */
   unitPriceBrl: number | null;
   totalBrl: number;
-  /**
-   * Renda fixa calculada pelo CDI (spec 060): o rendimento já é automático, e o
-   * manual fica desligado para não somar duas vezes.
-   */
-  cdi?: boolean;
 };
 
 /** Movimentação existente, para corrigir. */
@@ -72,6 +70,17 @@ export type TransactionMonth = {
   firstDay: string;
   lastDay: string;
 };
+
+const KIND_HINTS: Record<TransactionKind, string> = {
+  CONTRIBUTION: "entrou dinheiro novo",
+  WITHDRAWAL: "saiu dinheiro",
+  INCOME: "retorno do investimento",
+};
+
+const MODE_OPTIONS = [
+  { value: "operation", label: "Pelo valor desta operação" },
+  { value: "total", label: "Pelo novo total da posição" },
+];
 
 const popupClass =
   "fixed top-1/2 left-1/2 z-50 flex max-h-[calc(100dvh-2rem)] w-[min(540px,calc(100vw-1.5rem))] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl outline-none transition-[scale,opacity] duration-150 ease-out data-ending-style:scale-[0.97] data-ending-style:opacity-0 data-starting-style:scale-[0.97] data-starting-style:opacity-0";
@@ -134,6 +143,9 @@ function TransactionForm({
   // Na correção, o "antes" é a posição sem esta movimentação.
   const editDelta = edit ? (edit.kind === "WITHDRAWAL" ? -edit.quantity : edit.quantity) : 0;
   const before = { quantity: target.quantity - editDelta, marketPrice: target.unitPriceBrl };
+  const [step, setStep] = useState(0);
+  const [kindSelected, setKindSelected] = useState(Boolean(edit));
+  const [modeSelected, setModeSelected] = useState(Boolean(edit));
   const [kind, setKind] = useState<StoredTransactionKind>(edit?.kind ?? "CONTRIBUTION");
   const [mode, setMode] = useState<MovementMode>("operation");
   const [totalTarget, setTotalTarget] = useState<TotalTarget>("quantity");
@@ -216,7 +228,7 @@ function TransactionForm({
       }
     });
 
-  const canSave = !plan.issue && plan.amount !== null && plan.amount > 0 && Boolean(day) && !isSaving;
+  const canSave = !plan.issue && plan.amount !== null && plan.amount > 0 && day >= month.firstDay && day <= month.lastDay && !isSaving;
   const showIssue = plan.issue !== null && (order.length > 0 || texts.total.trim() !== "");
 
   return (
@@ -240,59 +252,46 @@ function TransactionForm({
         </Dialog.Close>
       </header>
 
-      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-5 py-4 sm:px-6">
-        {opening ? null : (
-          <Segmented
-            label="Tipo de movimentação"
-            value={plan.kind === "OPENING" ? kind : plan.kind}
-            options={TRANSACTION_KINDS.filter((option) => !(target.cdi && option === "INCOME" && edit?.kind !== "INCOME")).map(
-              (option) => ({ value: option, label: TRANSACTION_LABELS[option] }),
-            )}
-            onChange={(value) => setKind(value as TransactionKind)}
-          />
-        )}
-        {target.cdi ? (
-          <p className="-mt-2 text-[11px] leading-5 text-muted-foreground">
-            O rendimento pelo CDI é calculado automaticamente; o rendimento manual fica de fora para não somar duas vezes.
-          </p>
-        ) : null}
-
-        <Segmented
-          label="Como informar"
-          value={mode}
-          options={[
-            { value: "operation", label: "Valor desta operação" },
-            { value: "total", label: "Novo total da posição" },
-          ]}
-          onChange={(value) => setMode(value as MovementMode)}
-          small
-        />
-
-        <Field label="Dia">
-          <input
-            type="date"
-            aria-label="Dia da movimentação"
-            value={day}
-            min={month.firstDay}
-            max={month.lastDay}
-            onChange={(event) => setDay(event.target.value)}
-            className={cn(inputClass, "font-mono")}
-          />
-        </Field>
-
+      <FlowSteps steps={["Movimento", "Valores", "Conferir"]} current={step} />
+      <div className="min-h-[min(20rem,42dvh)] flex-1 overflow-y-auto overscroll-contain px-5 py-5 sm:px-6">
+        {step === 0 ? <>
+          <FlowHeading title={edit ? "Qual movimento você quer corrigir?" : "O que aconteceu com esta posição?"} description="Escolha o movimento. Os campos da próxima etapa se adaptam à sua escolha." />
+          {opening ? <p className="text-sm text-foreground">Correção do saldo inicial</p> : <Field label="Movimento">
+            <Picker
+              aria-label="Tipo de movimentação"
+              options={TRANSACTION_KINDS.map((option) => ({ value: option, label: TRANSACTION_LABELS[option], hint: KIND_HINTS[option] }))}
+              value={kindSelected ? kind : null}
+              onValueChange={(next) => { setKind(next as TransactionKind); setKindSelected(true); }}
+              placeholder="Escolha o movimento"
+            />
+          </Field>}
+          <div className="mt-6 flex flex-wrap items-center justify-between gap-2 border-t border-border/60 pt-4 text-xs text-muted-foreground"><span>Saldo antes do movimento</span><span className="font-mono text-foreground">{formatBrl(marketBefore)}{quoted ? ` · ${formatNumber(before.quantity, 8)} ${unit}` : ""}</span></div>
+        </> : step === 1 ? <>
+          <FlowHeading title={`Informe os valores ${kind === "WITHDRAWAL" ? "da retirada" : kind === "INCOME" ? "do rendimento" : opening ? "do saldo inicial" : "do aporte"}`} description="Preencha os dados que você tem. O app calcula o restante e sinaliza qualquer diferença." />
+          <Field label="Como você quer informar?">
+            <Picker
+              aria-label="Como informar"
+              options={MODE_OPTIONS}
+              value={modeSelected ? mode : null}
+              onValueChange={(next) => { setMode(next as MovementMode); setModeSelected(true); }}
+              placeholder="Escolha como informar os valores"
+            />
+          </Field>
+          {modeSelected ? <div className="mt-5 space-y-4">
         {mode === "total" ? (
           <div className="space-y-2">
             {quoted ? (
-              <Segmented
-                label="Novo total em"
-                value={totalTarget}
-                options={[
-                  { value: "quantity", label: dollars ? "Dólares" : "Quantidade" },
-                  { value: "marketValue", label: "Valor de mercado (R$)" },
-                ]}
-                onChange={(value) => setTotalTarget(value as TotalTarget)}
-                small
-              />
+              <Field label="Novo total em">
+                <Picker
+                  aria-label="Novo total em"
+                  options={[
+                    { value: "quantity", label: dollars ? "Dólares" : "Quantidade" },
+                    { value: "marketValue", label: "Valor de mercado (R$)" },
+                  ]}
+                  value={totalTarget}
+                  onValueChange={(next) => setTotalTarget(next as TotalTarget)}
+                />
+              </Field>
             ) : null}
             <Field
               label={
@@ -382,25 +381,21 @@ function TransactionForm({
           </p>
         ) : null}
 
-        <Field label="Observação (opcional)">
-          <input
-            value={note}
-            maxLength={200}
-            aria-label="Observação"
-            onChange={(event) => setNote(event.target.value)}
-            className={inputClass}
-          />
-        </Field>
 
+            {plan.kind !== kind ? <p className="text-xs leading-5 text-warning-foreground">O novo total é {plan.kind === "WITHDRAWAL" ? "menor" : "maior"} que o saldo atual. Este movimento será registrado como {TRANSACTION_LABELS[plan.kind].toLocaleLowerCase("pt-BR")}.</p> : null}
+          </div> : null}
+        </> : <>
+          <FlowHeading title="Confira o movimento" description="O dinheiro movimentado e o valor de mercado aparecem separados. Você pode voltar para ajustar os valores antes de registrar." />
         <section
           aria-label="Prévia"
           data-testid="transaction-preview"
-          className="grid grid-cols-3 gap-2 rounded-xl border border-border p-3 text-center"
+          className="grid gap-4 border-y border-border/60 py-5 sm:grid-cols-3"
         >
           <PreviewCell title="Antes" lines={[quoted ? `${formatNumber(before.quantity, 8)} ${unit}` : null, formatBrl(marketBefore)]} />
           <PreviewCell
             title={TRANSACTION_LABELS[plan.kind]}
             tone={plan.kind === "WITHDRAWAL" ? "down" : "up"}
+            note={quoted && plan.quantity && plan.unitPrice ? `${formatPriceBrl(plan.unitPrice)} por ${dollars ? "dólar" : "unidade"}` : undefined}
             lines={[
               quoted && plan.quantity
                 ? `${sign}${formatNumber(plan.quantity, 8)} ${unit}`
@@ -417,70 +412,25 @@ function TransactionForm({
           />
         </section>
 
-        {showIssue ? (
-          <p role="status" data-testid="transaction-issue" className="text-xs text-warning-foreground">
-            {plan.issue}
-          </p>
-        ) : null}
-
-        {error ? (
-          <p role="alert" className="text-xs text-destructive">
-            {error}
-          </p>
-        ) : null}
+          <div className="mt-5 grid gap-4 sm:grid-cols-2">
+            <Field label="Dia da movimentação"><DatePicker aria-label="Dia da movimentação" value={day} min={month.firstDay} max={month.lastDay} onChange={setDay} /></Field>
+            <Field label="Observação (opcional)"><input value={note} maxLength={200} aria-label="Observação" onChange={(event) => setNote(event.target.value)} className={inputClass} /></Field>
+          </div>
+        </>}
+        {step === 1 && showIssue ? <p role="status" data-testid="transaction-issue" className="mt-4 text-xs leading-5 text-warning-foreground">{plan.issue}</p> : null}
+        {error ? <p role="alert" className="mt-4 text-xs text-destructive">{error}</p> : null}
       </div>
 
-      <footer className="flex items-center justify-end gap-2 border-t border-border/70 px-5 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-6">
-        <Dialog.Close className={secondaryButtonClass}>Cancelar</Dialog.Close>
-        <button type="button" onClick={save} disabled={!canSave} className={primaryButtonClass}>
-          {isSaving
-            ? "Salvando…"
-            : edit
-              ? "Salvar correção"
-              : `Registrar ${TRANSACTION_LABELS[plan.kind].toLocaleLowerCase("pt-BR")}`}
-        </button>
+      <footer className="flex items-center gap-2 border-t border-border/70 bg-background/30 px-5 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-6">
+        <span className="mr-auto hidden text-[11px] text-muted-foreground sm:inline">Etapa {step + 1} de 3</span>
+        {step === 0 ? <Dialog.Close className={secondaryButtonClass}>Cancelar</Dialog.Close> : <button type="button" onClick={() => setStep(step - 1)} disabled={isSaving} className={secondaryButtonClass}>Voltar</button>}
+        {step < 2 ? <button type="button" onClick={() => setStep(step + 1)} disabled={step === 0 ? !kindSelected && !opening : !modeSelected || !canSave} className={cn(primaryButtonClass, "ml-auto")}>
+          {step === 1 ? "Conferir movimento" : "Continuar"}
+        </button> : <button type="button" onClick={save} disabled={!canSave} className={cn(primaryButtonClass, "ml-auto")}>
+          {isSaving ? "Salvando…" : edit ? "Salvar correção" : `Registrar ${TRANSACTION_LABELS[plan.kind].toLocaleLowerCase("pt-BR")}`}
+        </button>}
       </footer>
     </>
-  );
-}
-
-function Segmented({
-  label,
-  value,
-  options,
-  onChange,
-  small = false,
-}: {
-  label: string;
-  value: string;
-  options: { value: string; label: string }[];
-  onChange: (value: string) => void;
-  small?: boolean;
-}) {
-  return (
-    <div
-      role="radiogroup"
-      aria-label={label}
-      className="grid rounded-xl border border-border bg-background/40 p-1"
-      style={{ gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))` }}
-    >
-      {options.map((option) => (
-        <button
-          key={option.value}
-          type="button"
-          role="radio"
-          aria-checked={value === option.value}
-          onClick={() => onChange(option.value)}
-          className={cn(
-            "rounded-lg px-1 font-semibold outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring/50",
-            small ? "h-8 text-[11px]" : "h-9 text-xs",
-            value === option.value ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
-          )}
-        >
-          {option.label}
-        </button>
-      ))}
-    </div>
   );
 }
 
@@ -587,7 +537,7 @@ function PreviewCell({
       {lines
         .filter((line): line is string => line !== null)
         .map((line) => (
-          <p key={line} className="mt-0.5 truncate font-mono text-[11px] text-foreground">
+          <p key={line} className="mt-1 break-words font-mono text-sm text-foreground">
             {line}
           </p>
         ))}

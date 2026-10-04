@@ -5,6 +5,7 @@ import { XIcon } from "@phosphor-icons/react/dist/ssr";
 import { useState, useTransition } from "react";
 
 import { liquidatePositionAction, type EditActionResult } from "@/app/actions/edit-month";
+import { DatePicker } from "@/components/ui/date-picker";
 import { cn } from "@/lib/utils";
 import { formatBrl, parseLocaleNumber } from "@/modules/portfolio/presentation/portfolio-format";
 import {
@@ -185,14 +186,12 @@ function LiquidationForm({
 
         <div className="grid grid-cols-2 gap-3">
           <Field label="Dia">
-            <input
-              type="date"
+            <DatePicker
               aria-label="Dia da liquidação"
               value={day}
               min={month.firstDay}
               max={month.lastDay}
-              onChange={(event) => setDay(event.target.value)}
-              className={cn(inputClass, "font-mono")}
+              onChange={setDay}
             />
           </Field>
           <Field label="Valor recebido (R$)">

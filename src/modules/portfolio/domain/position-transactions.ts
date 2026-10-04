@@ -190,6 +190,35 @@ export function resolveMovement(input: MovementInput): MovementPlan {
   let suggestedPrice = false;
   let issue: string | null = null;
   const positive = (value: number | null) => value !== null && Number.isFinite(value) && value > 0;
+  const nonNegative = (value: number | null) => value !== null && Number.isFinite(value) && value >= 0;
+
+  // `order` distingue um campo digitado de um campo vazio/calculado. Nunca
+  // substitua um número inválido digitado por uma conta dos outros campos.
+  // Ao trocar o modo, os campos que ficaram ocultos não bloqueiam o fluxo.
+  const activeFields = input.order.filter((field) =>
+    input.mode === "total"
+      ? quoted && kind !== "OPENING" && field === "unitPrice"
+      : quoted || field === "amount",
+  );
+  const invalidField = activeFields.find((field) =>
+    !positive(typed[field]) && !(field === "quantity" && kind === "INCOME" && typed[field] === 0),
+  );
+
+  if (invalidField) {
+    const labels: Record<TrioField, string> = { quantity: "a quantidade", unitPrice: "o preço executado", amount: "o valor da operação" };
+    return {
+      kind,
+      quantity: quoted ? typed.quantity : typed.amount,
+      unitPrice: quoted ? typed.unitPrice : null,
+      amount: typed.amount,
+      computed: [],
+      suggestedPrice: false,
+      cashIncome: false,
+      after: current.quantity,
+      issue: `Revise ${labels[invalidField]}: use um número válido maior que zero${invalidField === "quantity" && kind === "INCOME" ? ", ou zero para dinheiro recebido sem unidades" : ""}.`,
+    };
+  }
+
   const price = () => {
     if (positive(typed.unitPrice)) {
       return typed.unitPrice;
@@ -208,7 +237,7 @@ export function resolveMovement(input: MovementInput): MovementPlan {
     const target =
       !quoted || input.totalTarget === "quantity"
         ? typed.total
-        : positive(typed.total) && positive(current.marketPrice)
+        : nonNegative(typed.total) && positive(current.marketPrice)
           ? typed.total! / current.marketPrice!
           : null;
 
@@ -231,9 +260,15 @@ export function resolveMovement(input: MovementInput): MovementPlan {
 
       if (quoted) {
         unitPrice = kind === "OPENING" ? null : price();
-        amount = unitPrice !== null ? round(quantity * unitPrice, 2) : null;
+        // Saldo inicial é valor conhecido da posição, sem preço de aquisição.
+        // No modo total, sua diferença usa a cotação do mês apenas para
+        // registrar o valor; não cria custo de compra.
+        const valuationPrice = kind === "OPENING" ? current.marketPrice : unitPrice;
+        amount = positive(valuationPrice) ? round(quantity * valuationPrice!, 2) : null;
         if (unitPrice === null && kind !== "OPENING") {
           issue ??= "Informe o preço executado.";
+        } else if (amount === null) {
+          issue ??= "A posição precisa de uma cotação válida para calcular o valor.";
         }
         computed.push("quantity", "amount");
       } else {
@@ -293,6 +328,12 @@ export function resolveMovement(input: MovementInput): MovementPlan {
 
   if (!issue && after < 0) {
     issue = "A retirada é maior que a posição.";
+  }
+
+  if (!issue && [quantity, unitPrice, amount, after].some((value) => value !== null && !Number.isFinite(value))) {
+    issue = "Os valores ultrapassam o limite do cálculo. Revise os números informados.";
+  } else if (!issue && amount !== null && amount <= 0) {
+    issue = "O valor da operação precisa ser maior que zero.";
   }
 
   return { kind, quantity, unitPrice, amount, computed, suggestedPrice, cashIncome, after, issue };

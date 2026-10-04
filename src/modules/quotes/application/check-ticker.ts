@@ -1,7 +1,5 @@
-import { randomUUID } from "node:crypto";
-
 import { getPrismaClient } from "@/lib/prisma";
-import { getUserDb } from "@/lib/user-db";
+import { currentUserId, getUserDb } from "@/lib/user-db";
 import {
   ASSET_KIND_DEFINITIONS,
   baseCurrencyOf,
@@ -12,6 +10,7 @@ import {
 } from "@/modules/portfolio/domain/asset-kinds";
 import { getQuoteProviderConfiguration } from "@/modules/quotes/application/fetch-current-quotes";
 import { readMonthQuoteValues } from "@/modules/quotes/application/month-quote-values";
+import { createVerifiedTickerToken, readVerifiedTickerToken } from "@/modules/quotes/application/verified-ticker-token";
 import { calendarDay, toDateKey } from "@/modules/quotes/domain/calendar";
 import { providerLabel } from "@/modules/quotes/domain/quote-refresh";
 import type { QuoteProviderConfiguration } from "@/modules/quotes/domain/quote-types";
@@ -29,70 +28,30 @@ import { fetchYahooPrice } from "@/modules/quotes/infrastructure/yahoo";
 import { latestTreasuryPoint, treasurySeriesOf } from "@/modules/quotes/domain/treasury";
 import { readTreasuryBook } from "@/modules/quotes/infrastructure/treasury";
 
-// Checagem do ticker de um ativo novo (spec 026). O resultado fica guardado no
-// servidor sob um token opaco, como o desfazer da spec 017: ao salvar, a
-// inclusão usa a cotação conferida aqui em vez de confiar num preço enviado
-// pelo navegador, e um ticker que o provedor não conhece nunca recebe token.
+// O comprovante assinado (spec 063) cruza a rota e a Server Action sem depender
+// da memória de uma função. O preço vem do provedor e não do navegador.
+export type { VerifiedTicker } from "@/modules/quotes/application/verified-ticker-token";
+export const readVerifiedTicker = readVerifiedTickerToken;
 
-export type VerifiedTicker = {
-  symbol: string;
-  kind: AssetKind;
-  status: "found" | "unavailable";
-  provider: QuoteProvider;
-  priceBrl: number | null;
-  /** Moeda da CoinGecko conferida, guardada no ativo novo ao salvar. */
-  coinId: string | null;
-  quoteDate: Date;
-  fetchedAt: Date;
-  expiresAt: number;
-};
-
-const TOKEN_TTL_MS = 2 * 60 * 60 * 1000;
+const LOOKUP_TTL_MS = 60 * 1000;
 
 type Lookup =
   | { state: "found"; priceBrl: number; coinId: string | null; name: string | null; quoteDate?: string; coins?: CoinCandidate[] }
   | { state: "not-found" }
   | { state: "unavailable"; code: string; message: string };
 
-// Resposta do provedor por provedor e símbolo, reaproveitada pelo mesmo tempo
-// do token e só no mesmo dia: digitar de novo, trocar entre ETF e ação da B3 ou
-// conferir outra posição com o mesmo ticker não gasta outra consulta. Importa
+// Resposta do provedor por símbolo, reaproveitada por até um minuto no mesmo
+// dia: a inclusão usa um preço recente e digitações/checagens consecutivas
+// não gastam outra consulta. Importa
 // sobretudo no Alpha Vantage, de 25 consultas gratuitas por dia (spec 003),
 // que a atualização diária também usa. Indisponível não fica guardado, para a
 // próxima checagem tentar de novo.
 type CachedLookup = { lookup: Extract<Lookup, { state: "found" | "not-found" }>; fetchedAt: Date; expiresAt: number };
 
 const globalForTickers = globalThis as unknown as {
-  tickerCheckStore?: Map<string, VerifiedTicker>;
   tickerLookupCache?: Map<string, CachedLookup>;
 };
-const store = (globalForTickers.tickerCheckStore ??= new Map<string, VerifiedTicker>());
 const lookupCache = (globalForTickers.tickerLookupCache ??= new Map<string, CachedLookup>());
-
-export function readVerifiedTicker(token: string): VerifiedTicker | null {
-  const entry = store.get(token);
-
-  if (!entry || entry.expiresAt < Date.now()) {
-    store.delete(token);
-    return null;
-  }
-
-  return entry;
-}
-
-function remember(entry: Omit<VerifiedTicker, "expiresAt">) {
-  const now = Date.now();
-
-  for (const [key, value] of store) {
-    if (value.expiresAt < now) {
-      store.delete(key);
-    }
-  }
-
-  const token = randomUUID();
-  store.set(token, { ...entry, expiresAt: now + TOKEN_TTL_MS });
-  return token;
-}
 
 export async function checkTicker(
   input: { monthId: string; kind: AssetKind; ticker: string; coinId?: string },
@@ -159,6 +118,7 @@ export async function checkTicker(
   }
 
   const now = options.now ?? new Date();
+  const context = { userId: await currentUserId(), monthId: input.monthId, now };
   // Cada moeda escolhida é uma consulta própria no cache (spec 033).
   const cacheSymbol = provider === "coingecko" && input.coinId ? `${symbol}:${input.coinId}` : symbol;
   const { lookup, fetchedAt } = await cachedLookup(provider, cacheSymbol, now, async () => {
@@ -196,7 +156,7 @@ export async function checkTicker(
   }
 
   if (lookup.state === "unavailable") {
-    const token = remember({
+    const token = createVerifiedTickerToken({
       symbol,
       kind: input.kind,
       status: "unavailable",
@@ -205,11 +165,11 @@ export async function checkTicker(
       coinId: null,
       quoteDate,
       fetchedAt,
-    });
+    }, context);
     return { status: "unavailable", symbol, provider, code: lookup.code, message: lookup.message, token };
   }
 
-  const token = remember({
+  const token = createVerifiedTickerToken({
     symbol,
     kind: input.kind,
     status: "found",
@@ -218,7 +178,7 @@ export async function checkTicker(
     coinId: lookup.coinId,
     quoteDate,
     fetchedAt,
-  });
+  }, context);
 
   return {
     status: "found",
@@ -261,7 +221,7 @@ async function cachedLookup(
   if (result.state === "unavailable") {
     lookupCache.delete(key);
   } else {
-    lookupCache.set(key, { lookup: result, fetchedAt: now, expiresAt: now.getTime() + TOKEN_TTL_MS });
+    lookupCache.set(key, { lookup: result, fetchedAt: now, expiresAt: now.getTime() + LOOKUP_TTL_MS });
   }
 
   return { lookup: result, fetchedAt: now };

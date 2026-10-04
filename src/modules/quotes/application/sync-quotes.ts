@@ -8,7 +8,6 @@ import {
 } from "@/generated/prisma/client";
 import { QUOTE_REFRESH_LOCK_KEY } from "@/lib/advisory-locks";
 import { getPrismaClient } from "@/lib/prisma";
-import { syncCdi, type CdiRatesFetcher, type CdiReport } from "@/modules/portfolio/application/cdi-positions";
 import { fetchCurrentQuotes, getQuoteProviderConfiguration } from "@/modules/quotes/application/fetch-current-quotes";
 import { loadSymbolHistory, type UsdRatesCache } from "@/modules/quotes/application/symbol-history";
 import { addMonths, calendarDay, lastDayOf, monthOf, toDateKey } from "@/modules/quotes/domain/calendar";
@@ -28,9 +27,12 @@ import {
 } from "@/modules/quotes/domain/quote-types";
 import { describeProviderError } from "@/modules/quotes/infrastructure/http";
 import { isTreasuryDay } from "@/modules/quotes/domain/treasury";
+import { syncSelicReference, type SelicSyncReport } from "@/modules/quotes/application/selic-reference";
+import type { SelicFetcher } from "@/modules/quotes/infrastructure/bcb-selic";
 
-// Job agendado das cotações (spec 053): a única escrita das cotações
-// automáticas. Roda fora da navegação, pelo roteiro `pnpm quotes:sync`, pela
+// Job agendado das cotações (spec 053): atualização periódica e histórica das
+// cotações automáticas. A inclusão de um ticker guarda só o preço atual
+// conferido (spec 063). Roda fora da navegação, pelo roteiro `pnpm quotes:sync`, pela
 // função do Neon ou pelo GitHub Actions, sempre com esta mesma função. Sem
 // dependências do Next.js nem de sessão: trabalha com o cliente sem escopo,
 // sobre os símbolos de todos os usuários.
@@ -47,7 +49,7 @@ export type HistoryReport = {
 };
 
 export type QuoteSyncOutcome =
-  | { state: "idle"; cdi?: CdiReport }
+  | { state: "idle"; selic?: SelicSyncReport }
   | { state: "busy"; runId: string }
   | {
       state: "done";
@@ -56,8 +58,8 @@ export type QuoteSyncOutcome =
       succeeded: string[];
       failed: { symbol: string; errorCode: string; errorMessage: string }[];
       histories: HistoryReport[];
-      /** Renda fixa pelo CDI (spec 060): taxas buscadas e posições recalculadas. */
-      cdi?: CdiReport;
+      /** Meta Selic informativa, com cadência própria de 24 horas (spec 064). */
+      selic?: SelicSyncReport;
     }
   | { state: "unavailable"; message: string };
 
@@ -87,14 +89,14 @@ export async function syncQuotes({
   loadHistory = loadSymbolHistory,
   configuration = getQuoteProviderConfiguration(),
   prisma = getPrismaClient(),
-  fetchCdiRates,
+  fetchSelicRate,
 }: {
   now?: Date;
   fetchQuotes?: QuoteFetcher;
   loadHistory?: HistoryLoader;
   configuration?: QuoteProviderConfiguration;
   prisma?: PrismaClient | null;
-  fetchCdiRates?: CdiRatesFetcher;
+  fetchSelicRate?: SelicFetcher;
 } = {}): Promise<QuoteSyncOutcome> {
   if (!prisma) {
     return { state: "unavailable", message: "O banco de dados não está configurado." };
@@ -105,19 +107,15 @@ export async function syncQuotes({
   const today = calendarDay(now);
   const currentMonth = monthOf(today);
   const claim = await claimRun(prisma, now, today, currentMonth);
-  // O CDI tem cadência própria (spec 060) e roda mesmo sem cotação devida.
-  const runCdi = () =>
-    syncCdi(prisma, { now, ...(fetchCdiRates ? { fetchRates: fetchCdiRates } : {}) }).catch(
-      (error: unknown): CdiReport => ({
-        rates: { state: "failed", inserted: 0, through: null, message: describeProviderError(error).message },
-        valued: 0,
-        failed: [],
-      }),
+  // Informação de referência independente das posições. O cálculo de renda
+  // fixa está pausado; a Selic nunca altera um saldo (specs 064 e 065).
+  const runSelic = () =>
+    syncSelicReference(prisma, { now, ...(fetchSelicRate ? { fetchRate: fetchSelicRate } : {}) }).catch(
+      (error: unknown): SelicSyncReport => ({ state: "failed", observedOn: null, message: describeProviderError(error).message }),
     );
 
   if (claim.state === "idle") {
-    const cdi = await runCdi();
-    return cdi.rates.state === "skipped" ? { state: "idle" } : { state: "idle", cdi };
+    return { state: "idle", selic: await runSelic() };
   }
 
   if (claim.state !== "claimed") {
@@ -208,11 +206,7 @@ export async function syncQuotes({
     loadHistory,
   });
 
-  const cdi = await runCdi();
-
-  if (cdi.rates.state !== "skipped") {
-    outcome.cdi = cdi;
-  }
+  outcome.selic = await runSelic();
 
   // Uma execução só de histórico serviu de reserva contra execuções
   // simultâneas; sem cotações, ela não entra no histórico de execuções.

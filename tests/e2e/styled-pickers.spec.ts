@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { formTab, openAddForm, openEditableMonth, openEditForm } from "./support/position-form";
+import { continueForm, formTab, openAddForm, openEditableMonth, openEditForm } from "./support/position-form";
 import { stubQuoteChecks } from "./support/quote-checks";
 
 // A checagem de abertura grava no banco e pode criar competências; os
@@ -58,13 +58,13 @@ test("as listas da nova posição abrem ao clicar e filtram ao digitar", async (
   await expect(institution).toHaveValue("");
   await expect(institution).toHaveAttribute("aria-expanded", "true");
   await page.keyboard.press("Tab");
+  // A estratégia agora é o próximo controle: o foco abre sua própria lista.
+  // Escape fecha só essa lista antes de conferir a instituição restaurada.
+  await page.keyboard.press("Escape");
   await expect(dialog).toBeVisible();
   await expect(institution).toHaveValue("C6");
 
-  // O nome do ativo é texto livre (spec 040).
-  await expect(dialog.getByRole("combobox", { name: "Ativo", exact: true })).toHaveCount(0);
-  await dialog.getByRole("textbox", { name: "Nome do ativo" }).fill("CDB Teste");
-
+  // Os atributos da posição são escolhidos antes de avançar ao ativo (spec 066).
   const strategy = dialog.getByRole("combobox", { name: "Estratégia", exact: true });
   await expect(strategy).toHaveValue("Sem estratégia");
   await strategy.click();
@@ -72,6 +72,12 @@ test("as listas da nova posição abrem ao clicar e filtram ao digitar", async (
   await page.getByRole("option", { name: "Core", exact: true }).click();
   await expect(strategy).toHaveValue("Core");
   await expect(strategy).toBeFocused();
+
+  await expect(dialog.getByRole("textbox", { name: "Nome do ativo" })).toHaveCount(0);
+  await continueForm(dialog, "Ativo");
+  // O nome do ativo continua texto livre, agora na etapa do ativo.
+  await expect(dialog.getByRole("combobox", { name: "Ativo", exact: true })).toHaveCount(0);
+  await dialog.getByRole("textbox", { name: "Nome do ativo" }).fill("CDB Teste");
 
   // Com a lista fechada, Escape fecha o diálogo, como num select nativo.
   await page.keyboard.press("Escape");
@@ -110,21 +116,23 @@ test("a estratégia da posição abre a lista e o Escape fecha só a lista", asy
   await expect(dialog).toHaveCount(0);
 });
 
-test("o rateio aceita só classes existentes, subclasse nova e resgate fixo", async ({ page }) => {
+test("o rateio usa a lista fixa da planilha, com subclasse e resgate dependentes da classe", async ({ page }) => {
   test.skip(!(await openEditableMonth(page)), "O mês mais recente e o anterior estão fechados nos dados reais.");
   const dialog = await openEditForm(page, "Bitcoin 01", "Ledger");
   await formTab(dialog, "Rateio").click();
 
   const assetClass = dialog.getByRole("combobox", { name: "Classe da classificação 1", exact: true });
+  const subclass = dialog.getByRole("combobox", { name: "Subclasse da classificação 1", exact: true });
+  const redemption = dialog.getByRole("combobox", { name: "Resgate da classificação 1", exact: true });
   await expect(assetClass).toHaveValue("Cripto");
   await assetClass.click();
-  await expect(page.getByRole("option", { name: "Renda Fixa" })).toBeVisible();
+  await expect(page.getByRole("option")).toHaveText(["Caixa", "Cripto", "Renda Fixa", "Renda Variável", "Reserva"]);
   await expect(page.getByRole("option", { name: "Cripto" })).toHaveAttribute("aria-selected", "true");
 
-  // A classe só aceita as cadastradas (spec 035): digitar outra não oferece "Usar".
+  // Nada de valor livre (spec 068): digitar outra classe não oferece "Usar".
   await page.keyboard.type("Classe nova");
   await expect(page.getByRole("option", { name: /Usar/ })).toHaveCount(0);
-  await expect(page.getByText("Nenhuma classe com esse nome")).toBeVisible();
+  await expect(page.getByText("Nenhuma opção com esse nome")).toBeVisible();
   // Sair do campo sem escolher volta ao valor anterior. O Tab abre a lista da
   // subclasse, e o Escape fecha só essa lista.
   await page.keyboard.press("Tab");
@@ -132,20 +140,32 @@ test("o rateio aceita só classes existentes, subclasse nova e resgate fixo", as
   await expect(dialog).toBeVisible();
   await expect(assetClass).toHaveValue("Cripto");
 
-  // A subclasse continua aceitando um valor novo.
-  const subclass = dialog.getByRole("combobox", { name: "Subclasse da classificação 1", exact: true });
+  // A subclasse mostra só as da classe, sem criar outra.
   await subclass.click();
+  await expect(page.getByRole("option")).toHaveText(["BTC", "Altcoin", "Stablecoin"]);
   await page.keyboard.press("ControlOrMeta+a");
   await page.keyboard.type("Subclasse nova");
-  await page.getByRole("option", { name: "Usar “Subclasse nova”" }).click();
-  await expect(subclass).toHaveValue("Subclasse nova");
-
-  // O resgate é fixo: Curto, Médio, Longo ou Nenhum.
-  const redemption = dialog.getByRole("combobox", { name: "Resgate da classificação 1", exact: true });
-  await expect(redemption).toHaveValue("Nenhum");
-  await redemption.click();
-  await expect(page.getByRole("option")).toHaveText(["Curto", "Médio", "Longo", "Nenhum"]);
+  await expect(page.getByRole("option", { name: /Usar/ })).toHaveCount(0);
   await page.keyboard.press("Escape");
+  await expect(subclass).toHaveValue("BTC");
+  await expect(redemption).toHaveValue("Nenhum");
+
+  // Trocar a classe limpa o que não vale nela e oferece as opções dela.
+  await assetClass.click();
+  await page.getByRole("option", { name: "Renda Fixa", exact: true }).click();
+  await expect(subclass).toHaveValue("");
+  await expect(redemption).toHaveValue("");
+  await subclass.click();
+  await expect(page.getByRole("option")).toHaveText(["Pós-fixado", "IPCA"]);
+  await page.keyboard.press("Escape");
+  await redemption.click();
+  await expect(page.getByRole("option")).toHaveText(["Curto", "Médio", "Longo"]);
+  await page.keyboard.press("Escape");
+
+  // O caixa é sempre curto: o resgate já vem escolhido.
+  await assetClass.click();
+  await page.getByRole("option", { name: "Caixa", exact: true }).click();
+  await expect(redemption).toHaveValue("Curto");
 
   // Com a lista fechada, Escape fecha o formulário sem salvar.
   await page.keyboard.press("Escape");

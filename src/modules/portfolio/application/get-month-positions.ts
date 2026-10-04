@@ -1,5 +1,6 @@
 import { Prisma, type PortfolioMonthStatus } from "@/generated/prisma/client";
 import { getUserDb } from "@/lib/user-db";
+import { assetTypeOf, type AssetType } from "@/modules/portfolio/domain/classification";
 import { readMonthQuoteValues } from "@/modules/quotes/application/month-quote-values";
 import { calendarDay, currentReferenceMonth, lastDayOf, toDateKey } from "@/modules/quotes/domain/calendar";
 
@@ -27,6 +28,10 @@ export type MonthPosition = {
   liquidity: string | null;
   /** Conta corrente (spec 059): recebe o dinheiro de títulos liquidados. */
   cashAccount: boolean;
+  /** Tipo do ativo (spec 068): o escolhido ou, nos antigos, o deduzido. */
+  assetType: AssetType;
+  /** O tipo foi deduzido, sem escolha do usuário. */
+  assetTypeInferred: boolean;
   /** Cálculo bruto por CDI, opcional; a base pertence à própria competência. */
   cdiPercent?: number | null;
   appliedOn?: string | null;
@@ -113,6 +118,7 @@ export async function getMonthPositions(
                   cashAccount: true,
                   cdiPercent: true,
                   appliedOn: true,
+                  assetType: true,
                 },
               },
               account: {
@@ -195,6 +201,8 @@ export async function getMonthPositions(
             maturityDate: position.asset.maturityDate ? toDateKey(position.asset.maturityDate) : null,
             liquidity: position.asset.liquidity,
             cashAccount: position.asset.cashAccount,
+            assetType: assetTypeOf(position.asset),
+            assetTypeInferred: position.asset.assetType === null,
             cdiPercent: position.asset.cdiPercent?.toNumber() ?? null,
             appliedOn: position.asset.appliedOn ? toDateKey(position.asset.appliedOn) : null,
             calculationStartDate: position.calculationStartDate ? toDateKey(position.calculationStartDate) : null,

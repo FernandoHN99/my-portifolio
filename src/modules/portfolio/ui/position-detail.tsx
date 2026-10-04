@@ -524,7 +524,6 @@ export function PositionDetail({
             quantity: editPosition.quantity,
             unitPriceBrl: editPosition.unitPriceBrl,
             totalBrl: editPosition.totalBrl,
-            cdi: Boolean(history.cdi),
           }}
           edit={movement.edit}
           formKey={movement.key}

@@ -1,15 +1,18 @@
 import type { OverviewData } from "@/modules/portfolio/application/get-overview-data";
 import { toMonthParam } from "@/modules/portfolio/presentation/reference-month";
+import { AssetTypeBreakdown } from "@/modules/portfolio/ui/asset-type-breakdown";
 import { CompositionDonuts } from "@/modules/portfolio/ui/composition-donuts";
 import { EmptyPortfolio } from "@/modules/portfolio/ui/empty-portfolio";
 import { FixedIncomeDurationChart } from "@/modules/portfolio/ui/fixed-income-duration-chart";
 import { OverviewKpis } from "@/modules/portfolio/ui/overview-kpis";
 import { PortfolioEvolutionChart } from "@/modules/portfolio/ui/portfolio-evolution-chart";
 import { RebalancePanel } from "@/modules/portfolio/ui/rebalance-panel";
+import type { SelicMonthView } from "@/modules/quotes/application/selic-reference";
+import { DevQuoteSyncButton } from "@/modules/quotes/ui/dev-quote-sync-button";
 
-export function OverviewDashboard({ overview }: { overview: OverviewData | null }) {
+export function OverviewDashboard({ overview, selic }: { overview: OverviewData | null; selic: SelicMonthView | null }) {
   if (!overview) {
-    return <EmptyPortfolio />;
+    return <><div className="mx-auto max-w-[1472px] px-5 pt-6 sm:px-7 xl:px-12"><DevQuoteSyncButton /></div><EmptyPortfolio /></>;
   }
 
   const monthParam = toMonthParam(overview.referenceDate);
@@ -30,10 +33,11 @@ export function OverviewDashboard({ overview }: { overview: OverviewData | null 
             Posições separadas por conta, consolidadas em uma única visão.
           </p>
         </div>
+        <DevQuoteSyncButton />
       </header>
 
       <div className="mt-7">
-        <OverviewKpis overview={overview} />
+        <OverviewKpis overview={overview} selic={selic} />
       </div>
 
       <section
@@ -64,6 +68,10 @@ export function OverviewDashboard({ overview }: { overview: OverviewData | null 
 
       <div className="mt-6">
         <CompositionDonuts groups={overview.composition} />
+      </div>
+
+      <div className="mt-6">
+        <AssetTypeBreakdown rows={overview.byType} />
       </div>
 
       {/* min-w-0 nos itens: a tabela de comprar e vender tem largura mínima e

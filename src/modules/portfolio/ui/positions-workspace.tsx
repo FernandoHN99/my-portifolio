@@ -45,6 +45,7 @@ import { formatDay } from "@/modules/portfolio/presentation/maturity";
 import {
   allocationLabel,
   classesOf,
+  typeOf,
   filterOptions,
   filterPositions,
   groupPositions,
@@ -80,7 +81,12 @@ import {
 } from "@/modules/portfolio/ui/position-transaction-dialog";
 
 const QUICK_CLASSES = ["Caixa", "Cripto", "Renda Fixa", "Renda Variável", "Reserva"];
-const GROUP_OPTIONS = ["instituicao", "classe"] as const;
+const GROUP_OPTIONS = ["instituicao", "classe", "tipo"] as const;
+const GROUP_LABELS: Record<(typeof GROUP_OPTIONS)[number], string> = {
+  instituicao: "Instituição",
+  classe: "Classe",
+  tipo: "Tipo",
+};
 const list = parseAsArrayOf(parseAsString).withDefault([]);
 
 const features = tableFeatures({
@@ -96,6 +102,8 @@ type ColumnMeta = { align: "left" | "right"; calculated: boolean; hide: string }
 const COLUMN_META: Record<string, ColumnMeta> = {
   assetName: { align: "left", calculated: false, hide: "" },
   institutionName: { align: "left", calculated: false, hide: "hidden sm:table-cell" },
+  // O tipo ganha coluna só em telas largas; nas demais, fica sob o nome do ativo.
+  assetType: { align: "left", calculated: false, hide: "hidden 2xl:table-cell" },
   strategy: { align: "left", calculated: false, hide: "hidden xl:table-cell" },
   classes: { align: "left", calculated: false, hide: "hidden lg:table-cell" },
   maturityDate: { align: "left", calculated: false, hide: "hidden xl:table-cell" },
@@ -108,6 +116,7 @@ const COLUMN_META: Record<string, ColumnMeta> = {
 const columns = helper.columns([
   helper.accessor("assetName", { header: "Ativo" }),
   helper.accessor("institutionName", { header: "Instituição" }),
+  helper.accessor((row) => typeOf(row), { id: "assetType", header: "Tipo" }),
   helper.accessor((row) => strategyOf(row), { id: "strategy", header: "Estratégia" }),
   helper.accessor((row) => classesOf(row).join(", "), { id: "classes", header: "Classes" }),
   // Sem vencimento ordena depois de qualquer data, nos dois sentidos de ordem.
@@ -140,6 +149,7 @@ export function PositionsWorkspace({
     {
       classe: list,
       subclasse: list,
+      tipo: list,
       inst: list,
       estrategia: list,
       moeda: list,
@@ -180,6 +190,7 @@ export function PositionsWorkspace({
   const filters: PositionFilters = {
     classes: query.classe,
     subclasses: query.subclasse,
+    types: query.tipo,
     institutions: query.inst,
     strategies: query.estrategia,
     currencies: query.moeda,
@@ -221,6 +232,7 @@ export function PositionsWorkspace({
   const activeFilterCount =
     filters.classes.length +
     filters.subclasses.length +
+    filters.types.length +
     filters.institutions.length +
     filters.strategies.length +
     filters.currencies.length +
@@ -295,7 +307,7 @@ export function PositionsWorkspace({
     });
 
   const clearFilters = () =>
-    void setQuery({ classe: null, subclasse: null, inst: null, estrategia: null, moeda: null, venc: null, liq: null, q: null });
+    void setQuery({ classe: null, subclasse: null, tipo: null, inst: null, estrategia: null, moeda: null, venc: null, liq: null, q: null });
 
   // A linha abre a página da posição (spec 016), com a query da tabela para a
   // volta reabrir os mesmos filtros.
@@ -329,7 +341,6 @@ export function PositionsWorkspace({
             quantity: target.quantity,
             unitPriceBrl: target.unitPriceBrl,
             totalBrl: target.totalBrl,
-            cdi: Boolean(target.cdiPercent && target.calculationStartDate),
           },
         }))
       }
@@ -455,6 +466,7 @@ export function PositionsWorkspace({
 
           <MultiSelectFilter label="Classe" options={options.classes} selected={filters.classes} onChange={(next) => void setQuery({ classe: next })} />
           <MultiSelectFilter label="Subclasse" options={options.subclasses} selected={filters.subclasses} onChange={(next) => void setQuery({ subclasse: next })} />
+          <MultiSelectFilter label="Tipo" options={options.types} selected={filters.types} onChange={(next) => void setQuery({ tipo: next })} />
           <MultiSelectFilter label="Instituição" options={options.institutions} selected={filters.institutions} onChange={(next) => void setQuery({ inst: next })} />
           <MultiSelectFilter label="Estratégia" options={options.strategies} selected={filters.strategies} onChange={(next) => void setQuery({ estrategia: next })} />
           <MultiSelectFilter label="Moeda" options={options.currencies} selected={filters.currencies} onChange={(next) => void setQuery({ moeda: next })} />
@@ -488,7 +500,7 @@ export function PositionsWorkspace({
                       : "text-muted-foreground hover:text-foreground",
                   )}
                 >
-                  {option === null ? "Nenhum" : option === "instituicao" ? "Instituição" : "Classe"}
+                  {option === null ? "Nenhum" : GROUP_LABELS[option]}
                 </button>
               ))}
             </div>
@@ -786,7 +798,10 @@ function PositionRow({
           >
             {position.assetName}
           </Link>
-          <p className="mt-1 font-mono text-[9px] text-muted-foreground">{position.ticker ?? "SALDO"}</p>
+          <p className="mt-1 font-mono text-[9px] text-muted-foreground">
+            {position.ticker ?? "SALDO"}
+            <span className="font-sans 2xl:hidden"> · {typeOf(position)}</span>
+          </p>
           {position.maturityDate ? (
             <MaturityBadge maturityDate={position.maturityDate} referenceDay={referenceDay} className="mt-1.5 xl:hidden" />
           ) : null}
@@ -794,6 +809,9 @@ function PositionRow({
         </Cell>
         <Cell id="institutionName">
           <p className="text-xs text-foreground/80">{position.institutionName}</p>
+        </Cell>
+        <Cell id="assetType">
+          <span className="text-xs whitespace-nowrap text-foreground/80" data-testid="position-type">{typeOf(position)}</span>
         </Cell>
         <Cell id="strategy">
           <span className="text-xs whitespace-nowrap text-foreground/80">{strategyOf(position)}</span>

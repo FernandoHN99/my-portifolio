@@ -1,4 +1,5 @@
 import type { MonthPosition } from "@/modules/portfolio/application/get-month-positions";
+import { ASSET_TYPE_LABELS } from "@/modules/portfolio/domain/classification";
 
 export const NO_CLASS = "Sem classificação";
 export const NO_STRATEGY = "Sem estratégia";
@@ -8,6 +9,8 @@ export const NO_LIQUIDITY = "Sem liquidez informada";
 export type PositionFilters = {
   classes: string[];
   subclasses: string[];
+  /** Tipo do ativo, pelo rótulo, como "Tesouro Direto" (spec 068). */
+  types: string[];
   institutions: string[];
   strategies: string[];
   currencies: string[];
@@ -21,6 +24,7 @@ export type PositionFilters = {
 export type FilterDimension =
   | "classes"
   | "subclasses"
+  | "types"
   | "institutions"
   | "strategies"
   | "currencies"
@@ -30,6 +34,7 @@ export type FilterDimension =
 export const FILTER_DIMENSIONS: FilterDimension[] = [
   "classes",
   "subclasses",
+  "types",
   "institutions",
   "strategies",
   "currencies",
@@ -37,7 +42,7 @@ export const FILTER_DIMENSIONS: FilterDimension[] = [
   "liquidities",
 ];
 
-export type GroupBy = "instituicao" | "classe";
+export type GroupBy = "instituicao" | "classe" | "tipo";
 
 export type GroupedPosition<T extends MonthPosition = MonthPosition> = {
   position: T;
@@ -50,6 +55,11 @@ export type PositionGroup<T extends MonthPosition = MonthPosition> = {
   items: GroupedPosition<T>[];
   totalBrl: number;
 };
+
+/** Rótulo do tipo do ativo, para a coluna, o filtro e o agrupamento. */
+export function typeOf(position: MonthPosition) {
+  return ASSET_TYPE_LABELS[position.assetType];
+}
 
 export function strategyOf(position: MonthPosition) {
   return position.strategy ?? NO_STRATEGY;
@@ -94,6 +104,10 @@ export function filterPositions<T extends MonthPosition>(positions: T[], filters
 
   return positions.filter((position) => {
     if (filters.institutions.length > 0 && !filters.institutions.includes(position.institutionName)) {
+      return false;
+    }
+
+    if (filters.types.length > 0 && !filters.types.includes(typeOf(position))) {
       return false;
     }
 
@@ -178,8 +192,8 @@ export function groupPositions<T extends MonthPosition>(
   };
 
   for (const position of positions) {
-    if (groupBy === "instituicao") {
-      add(position.institutionName, { position, valueBrl: position.totalBrl });
+    if (groupBy === "instituicao" || groupBy === "tipo") {
+      add(groupBy === "tipo" ? typeOf(position) : position.institutionName, { position, valueBrl: position.totalBrl });
       continue;
     }
 
@@ -245,6 +259,7 @@ export function filterOptions(
 const EMPTY_FILTERS: PositionFilters = {
   classes: [],
   subclasses: [],
+  types: [],
   institutions: [],
   strategies: [],
   currencies: [],
@@ -270,6 +285,8 @@ function facetValues(position: MonthPosition, dimension: FilterDimension, scoped
       return position.allocations
         .filter((allocation) => scoped.classes.length === 0 || scoped.classes.includes(allocation.assetClass))
         .map((allocation) => allocation.subclass);
+    case "types":
+      return [typeOf(position)];
     case "institutions":
       return [position.institutionName];
     case "strategies":

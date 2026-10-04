@@ -23,6 +23,7 @@ import {
 } from "@/modules/portfolio/application/position-transactions";
 import { requireSessionUser } from "@/modules/auth/session";
 import { ASSET_KINDS } from "@/modules/portfolio/domain/asset-kinds";
+import { ASSET_TYPES } from "@/modules/portfolio/domain/classification";
 import { TRANSACTION_KINDS } from "@/modules/portfolio/domain/position-transactions";
 import { toMonthParam } from "@/modules/portfolio/presentation/reference-month";
 
@@ -40,7 +41,7 @@ const day = z
   .refine((entry) => entry >= "2000-01-01" && entry <= "2100-12-31" && !Number.isNaN(Date.parse(`${entry}T00:00:00Z`)));
 
 // Rateio completo do formulário da posição (spec 043); o servidor confere a
-// soma, as classes cadastradas e o resgate.
+// soma e a classificação fixa da spec 068.
 const allocationsSchema = z
   .array(
     z.object({
@@ -69,7 +70,7 @@ const newAssetSchema = z.object({
   ticker: z.string().trim().max(120).nullable(),
   maturityDate: day.nullable(),
   liquidity: z.string().trim().max(30).nullable().optional(),
-  quoteCheckToken: z.string().uuid().nullable(),
+  quoteCheckToken: z.string().min(1).max(4096).nullable(),
   manualPriceBrl: value.nullable(),
   cashAccount: z.boolean().optional(),
   cdiPercent: z.string().trim().max(12).nullable().optional(),
@@ -85,6 +86,7 @@ const addSchema = z.object({
       assetId: z.string().uuid().optional(),
       newAsset: newAssetSchema.optional(),
       value,
+      valueKind: z.enum(["quantity", "amount"]).optional(),
       initialKind: z.enum(["OPENING", "CONTRIBUTION"]).optional(),
       executedPriceBrl: value.nullable().optional(),
       strategy,
@@ -108,6 +110,7 @@ const editSchema = z.object({
       maturityDate: day.nullable(),
       cashAccount: z.boolean().optional(),
       cdiPercent: z.string().trim().max(12).nullable().optional(),
+      assetType: z.enum(ASSET_TYPES).optional(),
     }),
   }),
 });

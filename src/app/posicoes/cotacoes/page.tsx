@@ -7,6 +7,7 @@ import { getMonthQuotes } from "@/modules/quotes/application/get-month-quotes";
 import { getRunHistory } from "@/modules/quotes/application/get-run-history";
 import { getRequestQuoteRefreshSummary } from "@/modules/quotes/application/quote-refresh-summary";
 import { QuotesWorkspace } from "@/modules/quotes/ui/quotes-workspace";
+import { getSelicForMonth } from "@/modules/quotes/application/selic-reference";
 
 export const dynamic = "force-dynamic";
 
@@ -21,10 +22,11 @@ export default async function QuotesPage({
 }) {
   const { mes } = await searchParams;
   const { months, selected } = await getMonthContext(mes);
-  const [month, summary, history] = await Promise.all([
+  const [month, summary, history, selic] = await Promise.all([
     getMonthQuotes(selected?.referenceDate),
     getRequestQuoteRefreshSummary(),
     selected ? getRunHistory(selected.referenceDate) : Promise.resolve(null),
+    getSelicForMonth(selected?.referenceDate),
   ]);
 
   return (
@@ -34,7 +36,7 @@ export default async function QuotesPage({
       selectedMonth={selected?.month ?? null}
       context={{ kind: "quotes", label: selected ? `Cotações · ${formatMonthCompact(selected.referenceDate)}` : "Cotações" }}
     >
-      <QuotesWorkspace month={month} summary={summary} history={history} />
+      <QuotesWorkspace month={month} summary={summary} history={history} selic={selic} />
     </AppShell>
   );
 }

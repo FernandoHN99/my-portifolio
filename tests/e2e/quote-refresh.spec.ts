@@ -76,7 +76,9 @@ test("não há atualização manual em nenhum mês", async ({ page }, testInfo) 
     await page.goto(path);
     const indicator = page.getByTestId("quote-refresh");
     await expect(indicator).toContainText(testInfo.project.name.startsWith("mobile") ? "5 min" : "Atualizado há 5 min");
-    await expect(page.getByRole("button", { name: /Atualizar cotações/ })).toHaveCount(0);
+    // O botão "(dev)" só existe no `pnpm dev` (specs 064 e 072) e roda o job;
+    // nenhuma tela oferece a atualização manual de antes.
+    await expect(page.getByRole("button", { name: /Atualizar cotações(?! \(dev\))/ })).toHaveCount(0);
     // O resumo simulado é mais novo que o do servidor, e a tela recarrega os
     // dados; o WebKit conta isso como navegação, que interromperia a próxima.
     await page.waitForLoadState("networkidle");

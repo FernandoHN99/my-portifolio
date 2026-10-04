@@ -35,6 +35,16 @@ const CATEGORY_COLORS: Record<string, string> = {
   Curto: OKABE_ITO.sky,
   Médio: OKABE_ITO.orange,
   Longo: OKABE_ITO.grey,
+  // Tipos de ativo (spec 068)
+  "ETF dos EUA": OKABE_ITO.yellow,
+  "Ação dos EUA": OKABE_ITO.vermillion,
+  "ETF da B3": OKABE_ITO.vermillion,
+  "Ação ou FII da B3": OKABE_ITO.purple,
+  "Tesouro Direto": OKABE_ITO.green,
+  "Renda fixa": OKABE_ITO.blue,
+  Previdência: OKABE_ITO.purple,
+  "Caixa em reais": OKABE_ITO.sky,
+  "Caixa em dólar": OKABE_ITO.grey,
 };
 
 const FALLBACK_COLORS = [OKABE_ITO.blue, OKABE_ITO.vermillion, OKABE_ITO.purple, OKABE_ITO.yellow, OKABE_ITO.green];

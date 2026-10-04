@@ -1,4 +1,4 @@
-import type { CdiReport } from "@/modules/portfolio/application/cdi-positions";
+import type { SelicSyncReport } from "@/modules/quotes/application/selic-reference";
 import type { QuoteSyncOutcome } from "@/modules/quotes/application/sync-quotes";
 
 // Linhas de registro de uma execução do job de cotações (spec 053), iguais no
@@ -7,7 +7,7 @@ import type { QuoteSyncOutcome } from "@/modules/quotes/application/sync-quotes"
 export function describeQuoteSync(outcome: QuoteSyncOutcome): string[] {
   switch (outcome.state) {
     case "idle":
-      return ["Cotações em dia: nenhum símbolo devido.", ...describeCdi(outcome.cdi)];
+      return ["Cotações em dia: nenhum símbolo devido.", ...describeSelic(outcome.selic)];
     case "busy":
       return [`Outra execução está em andamento (${outcome.runId}).`];
     case "unavailable":
@@ -26,31 +26,26 @@ export function describeQuoteSync(outcome: QuoteSyncOutcome): string[] {
               ? `Histórico de ${report.symbol}: já completo.`
               : `Histórico de ${report.symbol} (${report.provider}): ${report.months} meses guardados.`,
         ),
-        ...describeCdi(outcome.cdi),
+        ...describeSelic(outcome.selic),
       ];
   }
 }
 
 /** Execução que deve aparecer como falha para quem agendou (código de saída 1). */
 export function isQuoteSyncFailure(outcome: QuoteSyncOutcome) {
-  return outcome.state === "unavailable" || (outcome.state === "done" && outcome.status === "FAILED");
+  return outcome.state === "unavailable" ||
+    (outcome.state === "done" && outcome.status === "FAILED") ||
+    ((outcome.state === "done" || outcome.state === "idle") && outcome.selic?.state === "failed");
 }
 
-function describeCdi(report: CdiReport | undefined): string[] {
+function describeSelic(report: SelicSyncReport | undefined): string[] {
   if (!report) {
     return [];
   }
 
-  const rates =
-    report.rates.state === "failed"
-      ? `CDI: falha ao buscar no Banco Central: ${report.rates.message}`
-      : report.rates.state === "fetched"
-        ? `CDI: ${report.rates.inserted} taxas novas, conferido até ${report.rates.through ?? "—"}.`
-        : `CDI: taxas em dia, conferido até ${report.rates.through ?? "—"}.`;
-
-  return [
-    rates,
-    `CDI: ${report.valued} posições recalculadas.`,
-    ...report.failed.map((failure) => `CDI: posição ${failure.positionId} sem cálculo: ${failure.message}`),
-  ];
+  return [report.state === "failed"
+    ? `Selic: falha ao buscar a meta no Banco Central: ${report.message}`
+    : report.state === "fetched"
+      ? `Selic: meta atualizada, referência ${report.observedOn ?? "—"}.`
+      : `Selic: conferência diária em dia, referência ${report.observedOn ?? "—"}.`];
 }

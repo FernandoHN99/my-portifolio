@@ -5,6 +5,7 @@ import { SCOPED_USER } from "@/lib/user-db";
 import { valueCdiPositions } from "@/modules/portfolio/application/cdi-positions";
 import { MonthEditError, parseDecimal, withUndo } from "@/modules/portfolio/application/month-editing";
 import { USD_SYMBOL } from "@/modules/portfolio/domain/asset-kinds";
+import { AUTOMATIC_FIXED_INCOME_ENABLED } from "@/modules/portfolio/domain/fixed-income-policy";
 import type { TransactionKind } from "@/modules/portfolio/domain/position-transactions";
 import { calendarDay, lastDayOf, toDateKey } from "@/modules/quotes/domain/calendar";
 
@@ -253,14 +254,23 @@ function quantityEffect(entry: { kind: PositionTransactionKind; quantity: Prisma
     : entry.quantity;
 }
 
-/** Base do mês mais as movimentações dele. */
+/** Base, movimentos e rendimento automático já salvo, preservado na pausa. */
 async function quantityOf(transaction: Transaction, positionId: string) {
   const position = await transaction.position.findUniqueOrThrow({
     where: { id: positionId },
-    select: { openingQuantity: true, transactions: { select: { kind: true, quantity: true, amountBrl: true } } },
+    select: {
+      openingQuantity: true,
+      calculatedIncomeBrl: true,
+      asset: { select: { quoteSymbol: true } },
+      transactions: { select: { kind: true, quantity: true, amountBrl: true } },
+    },
   });
 
-  return position.transactions.reduce((total, entry) => total.plus(quantityEffect(entry)), position.openingQuantity);
+  const plain = position.transactions.reduce((total, entry) => total.plus(quantityEffect(entry)), position.openingQuantity);
+  // Não converter nem apagar os juros anteriores: seu valor permanece fixo.
+  // A soma arredondada reproduz o último saldo em reais, inclusive numa
+  // retirada total ou liquidação, sem deixar centavos/juros para trás.
+  return position.asset.quoteSymbol ? plain : plain.plus(position.calculatedIncomeBrl).toDecimalPlaces(2);
 }
 
 /**
@@ -275,7 +285,6 @@ export async function recomputePosition(transaction: Transaction, positionId: st
       select: {
         unitPriceBrl: true,
         calculationStartDate: true,
-        calculatedIncomeBrl: true,
         asset: { select: { quoteSymbol: true, cdiPercent: true } },
       },
     }),
@@ -285,11 +294,8 @@ export async function recomputePosition(transaction: Transaction, positionId: st
     throw new MonthEditError(negativeMessage);
   }
 
-  // Renda fixa pelo CDI (spec 060): o saldo é recalculado com as datas das
-  // movimentações. Sem taxa conferida, fica a soma com o rendimento já
-  // calculado, e o job completa depois.
-  const cdi = Boolean(position.calculationStartDate && position.asset.cdiPercent && !position.asset.quoteSymbol);
-  const quantity = cdi ? plain.plus(position.calculatedIncomeBrl).toDecimalPlaces(2) : plain;
+  const cdi = AUTOMATIC_FIXED_INCOME_ENABLED && Boolean(position.calculationStartDate && position.asset.cdiPercent && !position.asset.quoteSymbol);
+  const quantity = plain;
 
   let totalBrl: Prisma.Decimal;
 
