@@ -26,10 +26,10 @@ export async function saveTargetPlanAction(input: unknown): Promise<TargetPlanAc
   }
 
   try {
-    const plan = await saveTargetPlan(parsed.data);
+    await saveTargetPlan(parsed.data);
     revalidatePath("/");
     revalidatePath("/configuracao");
-    return { ok: true, message: `${plan.name} passou a valer em todas as análises.` };
+    return { ok: true, message: "Metas salvas. Elas passam a valer em todas as análises." };
   } catch (error) {
     unstable_rethrow(error);
     return {

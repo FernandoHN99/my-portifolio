@@ -26,8 +26,12 @@ export async function ensureMonthsUpToDate(today: Date = new Date()): Promise<Mo
     select: { referenceDate: true },
   });
 
-  if (!latest || latest.referenceDate.getTime() >= target.getTime()) {
-    return { state: "up-to-date", latestMonth: latest ? toMonthParam(latest.referenceDate) : null };
+  if (!latest) {
+    return startFirstMonth(target);
+  }
+
+  if (latest.referenceDate.getTime() >= target.getTime()) {
+    return { state: "up-to-date", latestMonth: toMonthParam(latest.referenceDate) };
   }
 
   return prisma.$transaction(
@@ -67,6 +71,33 @@ export async function ensureMonthsUpToDate(today: Date = new Date()): Promise<Mo
     },
     { maxWait: 10_000, timeout: 60_000 },
   );
+}
+
+/**
+ * Usuário novo, sem competência nenhuma (spec 055): cria a do mês corrente,
+ * vazia e aberta, para ele já poder incluir a primeira posição. Restaurar um
+ * backup depois troca tudo, como sempre.
+ */
+async function startFirstMonth(target: Date): Promise<MonthRolloverOutcome> {
+  const prisma = (await getUserDb())!;
+
+  return prisma.$transaction(async (transaction): Promise<MonthRolloverOutcome> => {
+    await transaction.$executeRaw`SELECT pg_advisory_xact_lock(${MONTH_ROLLOVER_LOCK_KEY})`;
+    const existing = await transaction.portfolioMonth.findFirst({
+      orderBy: { referenceDate: "desc" },
+      select: { referenceDate: true },
+    });
+
+    if (existing) {
+      return { state: "up-to-date", latestMonth: toMonthParam(existing.referenceDate) };
+    }
+
+    await transaction.portfolioMonth.create({
+      data: { userId: SCOPED_USER, referenceDate: target, status: PortfolioMonthStatus.DRAFT },
+    });
+
+    return { state: "started", month: toMonthParam(target) };
+  });
 }
 
 async function copyMonth(

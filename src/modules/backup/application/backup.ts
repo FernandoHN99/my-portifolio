@@ -122,6 +122,39 @@ function dropFields(rows: unknown, fields: string[]) {
 }
 
 /**
+ * Só as metas vigentes entram (spec 054): arquivos exportados antes traziam
+ * também as versões anteriores do plano, que não existem mais. O formato não
+ * muda; as versões antigas só são deixadas de fora.
+ */
+function keepActiveTargetPlans(tables: RawTables): RawTables {
+  const plans = tables.targetPlans;
+
+  if (!Array.isArray(plans)) {
+    return tables;
+  }
+
+  const inactive = new Set(
+    plans
+      .filter((plan) => plan && typeof plan === "object" && (plan as BackupRow).isActive === false)
+      .map((plan) => (plan as BackupRow).id),
+  );
+
+  if (inactive.size === 0) {
+    return tables;
+  }
+
+  const targets = tables.allocationTargets;
+
+  return {
+    ...tables,
+    targetPlans: plans.filter((plan) => !inactive.has((plan as BackupRow | null)?.id)),
+    allocationTargets: Array.isArray(targets)
+      ? targets.filter((target) => !inactive.has((target as BackupRow | null)?.planId))
+      : targets,
+  };
+}
+
+/**
  * Conversões de arquivos antigos, da versão da chave para a seguinte. Cada
  * mudança de formato acrescenta um passo aqui (docs/backup-format.md).
  */
@@ -307,6 +340,8 @@ export function parseBackup(input: unknown): {
   for (let version = sourceVersion; version < BACKUP_VERSION; version += 1) {
     tables = UPGRADES[version](tables);
   }
+
+  tables = keepActiveTargetPlans(tables);
 
   const known = new Set<string>(BACKUP_TABLES.map((table) => table.key));
   const unknownTable = Object.keys(tables).find((key) => !known.has(key));

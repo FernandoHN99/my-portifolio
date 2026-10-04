@@ -140,6 +140,7 @@ async function execute(onDataChanged: () => void) {
 
     if (
       payload.rollover.state === "created" ||
+      payload.rollover.state === "started" ||
       payload.targetPlan === "created" ||
       quotesChanged
     ) {

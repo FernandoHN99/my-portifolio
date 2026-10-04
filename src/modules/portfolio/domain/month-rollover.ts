@@ -18,6 +18,8 @@ export type GeneratedMonthView = {
 export type MonthRolloverOutcome =
   | { state: "up-to-date"; latestMonth: string | null }
   | { state: "created"; months: GeneratedMonthView[] }
+  /** Primeira competência de um usuário novo, vazia e aberta (spec 055). */
+  | { state: "started"; month: string }
   | { state: "unavailable"; message: string };
 
 /**

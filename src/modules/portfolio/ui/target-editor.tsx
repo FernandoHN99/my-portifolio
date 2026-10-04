@@ -22,6 +22,7 @@ import { saveTargetPlanAction } from "@/app/actions/target-plan";
 import { setPendingChanges } from "@/components/product/unsaved-changes";
 import { cn } from "@/lib/utils";
 import type { TargetEditorData, TargetEditorItem } from "@/modules/portfolio/application/get-target-editor";
+import { deriveCurrencyTargets, withDerivedCurrency } from "@/modules/portfolio/domain/currency-targets";
 import {
   buildAllocationGroups,
   MAX_REBALANCE_TOLERANCE,
@@ -55,7 +56,11 @@ export function TargetEditor({ editor, children }: { editor: TargetEditorData; c
   const sequence = useRef(0);
   const dismissToast = useCallback(() => setToast(null), []);
 
-  const valueOf = (item: TargetEditorItem) => draftValue(item, draft);
+  // A moeda sobre o total acompanha o rascunho das classes e da moeda de cada
+  // classe, sem campo próprio (spec 054).
+  const derivedCurrency = deriveCurrencyTargets(toTargets(editor.items, draft));
+  const valueOf = (item: TargetEditorItem) =>
+    item.scope === "CURRENCY" ? (derivedCurrency.get(item.primaryLabel) ?? 0) * 100 : draftValue(item, draft);
   const textOf = (item: TargetEditorItem) => draft[item.key] ?? formatInput(item.percent);
 
   const changedKeys = editor.items
@@ -65,6 +70,10 @@ export function TargetEditor({ editor, children }: { editor: TargetEditorData; c
   let hasInvalidValue = false;
 
   for (const item of editor.items) {
+    if (item.scope === "CURRENCY") {
+      continue;
+    }
+
     const value = valueOf(item);
     if (!Number.isFinite(value) || value < 0 || value > 100) {
       hasInvalidValue = true;
@@ -128,7 +137,7 @@ export function TargetEditor({ editor, children }: { editor: TargetEditorData; c
   const deferredToleranceDraft = useDeferredValue(toleranceDraft);
   const preview = editor.preview;
   const before = useMemo(
-    () => (preview ? buildAllocationGroups(preview.aggregates, toTargets(editor.items, {}), editor.tolerance) : []),
+    () => (preview ? buildAllocationGroups(preview.aggregates, previewTargets(editor.items, {}), editor.tolerance) : []),
     [preview, editor.items, editor.tolerance],
   );
   const after = useMemo(() => {
@@ -138,7 +147,7 @@ export function TargetEditor({ editor, children }: { editor: TargetEditorData; c
     const tolerance = draftTolerance(deferredToleranceDraft, editor.tolerance);
     return buildAllocationGroups(
       preview.aggregates,
-      toTargets(editor.items, deferredDraft),
+      previewTargets(editor.items, deferredDraft),
       isValidTolerance(tolerance) ? tolerance : editor.tolerance,
     );
   }, [preview, editor.items, editor.tolerance, deferredDraft, deferredToleranceDraft]);
@@ -152,8 +161,8 @@ export function TargetEditor({ editor, children }: { editor: TargetEditorData; c
           <p className="text-[11px] font-semibold tracking-[0.16em] text-primary uppercase">Configuração</p>
           <h1 className="mt-3 text-3xl font-semibold tracking-[-0.05em] sm:text-[2.65rem]">Metas da carteira</h1>
           <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground">
-            Mude um percentual e veja as ações de compra e venda mudarem na hora. Versão vigente:{" "}
-            <span className="text-foreground">{editor.planName}</span>.
+            Mude um percentual e veja as ações de compra e venda mudarem na hora. Última alteração em{" "}
+            <span className="text-foreground">{VERSION_DATE_FORMAT.format(editor.updatedAt)}</span>.
           </p>
         </div>
       </header>
@@ -180,7 +189,9 @@ export function TargetEditor({ editor, children }: { editor: TargetEditorData; c
                 <h2 className="text-base font-semibold tracking-[-0.025em]">{title}</h2>
                 <p className="mt-1 text-[11px] text-muted-foreground">{description}</p>
 
-                {scope === "CLASS_CURRENCY" ? (
+                {scope === "CURRENCY" ? (
+                  <DerivedCurrencyGroup items={items} valueOf={valueOf} />
+                ) : scope === "CLASS_CURRENCY" ? (
                   <div className="mt-5 space-y-6">
                     {[...new Set(items.map((item) => item.primaryLabel))].map((className) => {
                       const classItems = items.filter((item) => item.primaryLabel === className);
@@ -226,47 +237,35 @@ export function TargetEditor({ editor, children }: { editor: TargetEditorData; c
             );
           })}
 
-          <section className="premium-panel rounded-[24px] p-5 sm:p-6" aria-label="Versões das metas">
-            <div className="flex items-center gap-2">
-              <ClockCounterClockwiseIcon aria-hidden="true" className="text-primary" size={16} weight="duotone" />
-              <h2 className="text-base font-semibold tracking-[-0.025em]">Versões</h2>
-            </div>
-            <p className="mt-1 text-[11px] text-muted-foreground">
-              Cada salvamento cria uma versão, e só a vigente vale para as análises. Uma importação de backup
-              troca todos os dados e aparece aqui também.
-            </p>
-            <ol className="mt-4 space-y-2">
-              {editor.versions.map((version) => (
-                <li
-                  key={`${version.kind}-${version.id}`}
-                  data-version-kind={version.kind}
-                  className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs"
-                >
-                  {version.kind === "import" ? (
+          {editor.versions.length > 0 ? (
+            <section className="premium-panel rounded-[24px] p-5 sm:p-6" aria-label="Versões">
+              <div className="flex items-center gap-2">
+                <ClockCounterClockwiseIcon aria-hidden="true" className="text-primary" size={16} weight="duotone" />
+                <h2 className="text-base font-semibold tracking-[-0.025em]">Versões</h2>
+              </div>
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                Cada backup restaurado troca todos os dados e aparece aqui. Salvar as metas não cria versões.
+              </p>
+              <ol className="mt-4 space-y-2">
+                {editor.versions.map((version) => (
+                  <li
+                    key={version.id}
+                    data-version-kind="import"
+                    className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs"
+                  >
                     <DownloadSimpleIcon aria-hidden="true" className="-mx-px text-chart-up" size={12} weight="bold" />
-                  ) : (
-                    <span className={cn("size-1.5 rounded-full", version.isActive ? "bg-primary" : "bg-border")} />
-                  )}
-                  <span className={version.isActive || version.kind === "import" ? "text-foreground" : "text-muted-foreground"}>
-                    {version.name}
-                  </span>
-                  {version.kind === "import" && version.exportedAt ? (
+                    <span className="text-foreground">Backup importado</span>
                     <span className="rounded-full bg-white/[0.05] px-2 py-0.5 text-[10px] text-muted-foreground">
                       exportado em {VERSION_DATE_FORMAT.format(version.exportedAt)}
                     </span>
-                  ) : null}
-                  {version.isActive ? (
-                    <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
-                      vigente
+                    <span className="ml-auto font-mono text-[10px] text-muted-foreground">
+                      {VERSION_DATE_FORMAT.format(version.importedAt)}
                     </span>
-                  ) : null}
-                  <span className="ml-auto font-mono text-[10px] text-muted-foreground">
-                    {VERSION_DATE_FORMAT.format(version.createdAt)}
-                  </span>
-                </li>
-              ))}
-            </ol>
-          </section>
+                  </li>
+                ))}
+              </ol>
+            </section>
+          ) : null}
           {children}
         </div>
 
@@ -336,6 +335,40 @@ type GroupProps = {
   onChange: (item: TargetEditorItem, text: string) => void;
   changedKeys: string[];
 };
+
+// Moeda sobre o total, calculada (spec 054): sem deslizante nem campo, com o
+// valor que sai das classes e da moeda dentro de cada classe.
+function DerivedCurrencyGroup({
+  items,
+  valueOf,
+}: {
+  items: TargetEditorItem[];
+  valueOf: (item: TargetEditorItem) => number;
+}) {
+  return (
+    <div className="mt-5" data-testid="derived-currency">
+      <StackedBar
+        segments={items.map((item) => ({ key: item.key, label: item.primaryLabel, value: valueOf(item) }))}
+      />
+      <div className="mt-4 space-y-3">
+        {items.map((item) => (
+          <div key={item.key} className="grid grid-cols-[minmax(0,1fr)_84px] items-center gap-3">
+            <span className="flex min-w-0 items-center gap-2">
+              <span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: categoryColor(item.primaryLabel) }} />
+              <span className="truncate text-xs text-foreground/85">{item.primaryLabel}</span>
+            </span>
+            <span
+              aria-label={`Meta calculada de ${item.primaryLabel}`}
+              className="pr-2 text-right font-mono text-xs text-foreground tabular-nums"
+            >
+              {formatInput(Math.round(valueOf(item) * 100) / 100)}%
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function TargetGroup({
   heading,
@@ -764,6 +797,14 @@ function toTargets(items: TargetEditorItem[], draft: Draft): TargetValue[] {
       fraction: Number.isFinite(value) ? value / 100 : 0,
     };
   });
+}
+
+/** Metas da prévia, com a moeda sobre o total calculada como no servidor. */
+function previewTargets(items: TargetEditorItem[], draft: Draft): TargetValue[] {
+  return withDerivedCurrency(toTargets(items, draft)).map((target) => ({
+    ...target,
+    scope: target.scope as AllocationGroupKey,
+  }));
 }
 
 function isValidTolerance(value: number) {

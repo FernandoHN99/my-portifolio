@@ -31,6 +31,7 @@ import { Fragment, useCallback, useRef, useState, useTransition, type MouseEvent
 import {
   cloneLatestMonthAction,
   removePositionAction,
+  startPortfolioAction,
   undoChangeAction,
   type EditActionResult,
 } from "@/app/actions/edit-month";
@@ -65,6 +66,7 @@ import {
   secondaryButtonClass,
 } from "@/modules/portfolio/ui/edit-dialogs";
 import { EditToast, type EditToastState } from "@/modules/portfolio/ui/edit-toast";
+import { EmptyPortfolio } from "@/modules/portfolio/ui/empty-portfolio";
 import { MaturityBadge } from "@/modules/portfolio/ui/maturity-badge";
 import { MultiSelectFilter } from "@/modules/portfolio/ui/multi-select-filter";
 import { PositionFormDialog, type PositionFormTarget } from "@/modules/portfolio/ui/position-form-dialog";
@@ -187,16 +189,7 @@ export function PositionsWorkspace({
   });
 
   if (!month || month.positions.length === 0) {
-    return (
-      <div className="mx-auto flex min-h-[60dvh] max-w-xl flex-col items-center justify-center px-5 text-center">
-        <span className="grid size-12 place-items-center rounded-2xl border border-border bg-card text-primary">
-          <TableIcon aria-hidden="true" size={22} weight="duotone" />
-        </span>
-        <h1 className="mt-6 text-2xl font-semibold tracking-[-0.04em]">
-          Nenhuma posição nesta competência
-        </h1>
-      </div>
-    );
+    return <EmptyPositions month={month} catalog={catalog} />;
   }
 
   const canEdit = !month.isLocked;
@@ -956,4 +949,92 @@ function formatWeightPercent(weight: number) {
 function parseDay(value: string) {
   const [year, month, day] = value.split("-").map(Number);
   return new Date(Date.UTC(year, month - 1, day));
+}
+
+/**
+ * Competência sem posições. No mês aberto, ou sem competência nenhuma, como o
+ * usuário novo (spec 055), oferece incluir a primeira posição ali mesmo ou
+ * restaurar um backup; `?incluir=1`, vindo da Visão Geral, já abre o
+ * formulário. Um mês fechado sem posições só avisa.
+ */
+function EmptyPositions({ month, catalog }: { month: MonthPositions | null; catalog: EditingCatalog }) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const [form, setForm] = useState<FormState>({ open: false, target: null, key: 0 });
+  const [toast, setToast] = useState<EditToastState | null>(null);
+  const [isStarting, startStarting] = useTransition();
+  // Pedido de incluir que espera a competência aberta: `?incluir=1`, ou o
+  // clique antes de a primeira competência existir.
+  const [pendingAdd, setPendingAdd] = useState(() => searchParams.get("incluir") === "1");
+  const sequence = useRef(0);
+  const dismissToast = useCallback(() => setToast(null), []);
+  const editable = month !== null && !month.isLocked;
+  const formOpen = form.open || (pendingAdd && editable);
+
+  const closeForm = () => {
+    setForm((current) => ({ ...current, open: false }));
+    setPendingAdd(false);
+
+    if (searchParams.get("incluir") === "1") {
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete("incluir");
+      router.replace(params.size > 0 ? `/posicoes?${params}` : "/posicoes", { scroll: false });
+    }
+  };
+
+  if (month && month.isLocked) {
+    return (
+      <div className="mx-auto flex min-h-[60dvh] max-w-xl flex-col items-center justify-center px-5 text-center">
+        <span className="grid size-12 place-items-center rounded-2xl border border-border bg-card text-primary">
+          <TableIcon aria-hidden="true" size={22} weight="duotone" />
+        </span>
+        <h1 className="mt-6 text-2xl font-semibold tracking-[-0.04em]">Nenhuma posição nesta competência</h1>
+      </div>
+    );
+  }
+
+  const add = () => {
+    if (editable) {
+      setForm((current) => ({ open: true, target: { mode: "add" }, key: current.key + 1 }));
+      return;
+    }
+
+    startStarting(async () => {
+      const result = await startPortfolioAction();
+
+      if (!result.ok) {
+        setToast({ id: ++sequence.current, tone: "error", message: result.message });
+        return;
+      }
+
+      setPendingAdd(true);
+      router.refresh();
+    });
+  };
+
+  return (
+    <>
+      <EmptyPortfolio title="Nenhuma posição ainda" onAdd={add} adding={isStarting || (pendingAdd && !editable)} />
+      {month ? (
+        <PositionFormDialog
+          open={formOpen}
+          onOpenChange={(open) => (open ? setForm((current) => ({ ...current, open })) : closeForm())}
+          target={form.target ?? { mode: "add" }}
+          formKey={form.key}
+          catalog={catalog}
+          month={{
+            id: month.id,
+            label: formatMonthCompact(month.referenceDate),
+            isCurrent: month.isCurrent,
+            quotes: month.quotes,
+          }}
+          occupied={new Set()}
+          onSaved={(result) =>
+            setToast({ id: ++sequence.current, tone: result.ok ? "success" : "error", message: result.message })
+          }
+        />
+      ) : null}
+      <EditToast toast={toast} onDismiss={dismissToast} onUndo={() => undefined} undoing={false} />
+    </>
+  );
 }

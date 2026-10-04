@@ -1,8 +1,7 @@
-import { FileSearchIcon } from "@phosphor-icons/react/dist/ssr";
-
 import type { OverviewData } from "@/modules/portfolio/application/get-overview-data";
 import { toMonthParam } from "@/modules/portfolio/presentation/reference-month";
 import { CompositionDonuts } from "@/modules/portfolio/ui/composition-donuts";
+import { EmptyPortfolio } from "@/modules/portfolio/ui/empty-portfolio";
 import { FixedIncomeDurationChart } from "@/modules/portfolio/ui/fixed-income-duration-chart";
 import { OverviewKpis } from "@/modules/portfolio/ui/overview-kpis";
 import { PortfolioEvolutionChart } from "@/modules/portfolio/ui/portfolio-evolution-chart";
@@ -10,7 +9,7 @@ import { RebalancePanel } from "@/modules/portfolio/ui/rebalance-panel";
 
 export function OverviewDashboard({ overview }: { overview: OverviewData | null }) {
   if (!overview) {
-    return <EmptyOverview />;
+    return <EmptyPortfolio />;
   }
 
   const monthParam = toMonthParam(overview.referenceDate);
@@ -76,22 +75,6 @@ export function OverviewDashboard({ overview }: { overview: OverviewData | null 
         />
         <FixedIncomeDurationChart duration={overview.fixedIncomeDuration} />
       </div>
-    </div>
-  );
-}
-
-function EmptyOverview() {
-  return (
-    <div className="mx-auto flex min-h-[60dvh] max-w-xl flex-col items-center justify-center px-5 py-16 text-center">
-      <span className="grid size-12 place-items-center rounded-2xl border border-border bg-card text-primary">
-        <FileSearchIcon aria-hidden="true" size={22} weight="duotone" />
-      </span>
-      <h1 className="mt-6 text-2xl font-semibold tracking-[-0.04em]">
-        Sua carteira ainda não tem posições
-      </h1>
-      <p className="mt-3 text-sm leading-6 text-muted-foreground">
-        Importe os dados do Excel para montar a primeira visão consolidada.
-      </p>
     </div>
   );
 }

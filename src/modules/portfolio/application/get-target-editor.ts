@@ -11,23 +11,22 @@ export type TargetEditorItem = {
 };
 
 /**
- * Linha do histórico da configuração: uma versão das metas, criada a cada
- * salvamento, ou uma importação de backup, que troca todos os dados (spec 047).
+ * Linha das versões da configuração: só as importações de backup, que trocam
+ * todos os dados (spec 047). As metas não têm versões (spec 054): salvar altera
+ * o plano vigente.
  */
 export type TargetPlanVersion = {
   id: string;
-  kind: "plan" | "import";
-  name: string;
-  createdAt: Date;
-  isActive: boolean;
-  /** Na importação, quando o arquivo foi exportado. */
-  exportedAt: Date | null;
+  importedAt: Date;
+  /** Quando o arquivo foi exportado. */
+  exportedAt: Date;
 };
 
 const VERSION_LIMIT = 12;
 
 export type TargetEditorData = {
-  planName: string;
+  /** Última alteração das metas. */
+  updatedAt: Date;
   tolerance: number;
   items: TargetEditorItem[];
   versions: TargetPlanVersion[];
@@ -51,12 +50,12 @@ export async function getTargetEditor(referenceDate?: Date): Promise<TargetEdito
   }
 
   try {
-    const [active, versions, imports, overview] = await Promise.all([
+    const [active, imports, overview] = await Promise.all([
       prisma.targetPlan.findFirst({
         where: { isActive: true },
         orderBy: { createdAt: "desc" },
         select: {
-          name: true,
+          updatedAt: true,
           tolerancePercent: true,
           targets: {
             orderBy: { key: "asc" },
@@ -69,11 +68,6 @@ export async function getTargetEditor(referenceDate?: Date): Promise<TargetEdito
             },
           },
         },
-      }),
-      prisma.targetPlan.findMany({
-        orderBy: { createdAt: "desc" },
-        take: VERSION_LIMIT,
-        select: { id: true, name: true, createdAt: true, isActive: true },
       }),
       prisma.dataImport.findMany({
         orderBy: { importedAt: "desc" },
@@ -88,7 +82,7 @@ export async function getTargetEditor(referenceDate?: Date): Promise<TargetEdito
     }
 
     const editor: TargetEditorData = {
-      planName: active.name,
+      updatedAt: active.updatedAt,
       tolerance: active.tolerancePercent.toNumber(),
       items: active.targets.map((target) => ({
         key: target.key,
@@ -97,23 +91,7 @@ export async function getTargetEditor(referenceDate?: Date): Promise<TargetEdito
         secondaryLabel: target.secondaryLabel,
         percent: target.percentage.mul(100).toNumber(),
       })),
-      versions: [
-        ...versions.map(
-          (version): TargetPlanVersion => ({ ...version, kind: "plan", exportedAt: null }),
-        ),
-        ...imports.map(
-          (entry): TargetPlanVersion => ({
-            id: entry.id,
-            kind: "import",
-            name: "Backup importado",
-            createdAt: entry.importedAt,
-            isActive: false,
-            exportedAt: entry.exportedAt,
-          }),
-        ),
-      ]
-        .sort((left, right) => right.createdAt.getTime() - left.createdAt.getTime())
-        .slice(0, VERSION_LIMIT),
+      versions: imports.map((entry) => ({ id: entry.id, importedAt: entry.importedAt, exportedAt: entry.exportedAt })),
       preview: overview ? { referenceDate: overview.referenceDate, aggregates: overview.aggregates } : null,
     };
 

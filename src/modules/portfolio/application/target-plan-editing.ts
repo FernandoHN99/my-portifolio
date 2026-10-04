@@ -2,6 +2,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { DEFAULT_TARGETS_LOCK_KEY } from "@/lib/advisory-locks";
 import { getUserDb, SCOPED_USER } from "@/lib/user-db";
 import { getAllocationOverview } from "@/modules/portfolio/application/get-allocation-overview";
+import { deriveCurrencyTargets } from "@/modules/portfolio/domain/currency-targets";
 import { buildDefaultTargets, DEFAULT_TARGET_PLAN_NAME } from "@/modules/portfolio/domain/default-targets";
 import { DEFAULT_REBALANCE_TOLERANCE, MAX_REBALANCE_TOLERANCE } from "@/modules/portfolio/domain/rebalance";
 import { targetGroupKey } from "@/modules/portfolio/presentation/target-groups";
@@ -44,7 +45,7 @@ export async function saveTargetPlan(input: { targets: { key: string; percent: s
     throw new TargetPlanError("As metas enviadas não correspondem às categorias do plano.");
   }
 
-  const parsed = active.targets.map((target) => {
+  const submittedTargets = active.targets.map((target) => {
     const raw = submitted.get(target.key);
 
     if (raw === undefined) {
@@ -55,8 +56,23 @@ export async function saveTargetPlan(input: { targets: { key: string; percent: s
     return { ...target, fraction: percent.div(100) };
   });
 
+  // A moeda sobre o total não é editada (spec 054): vem da moeda dentro de cada
+  // classe, ponderada pela meta da classe. O valor enviado é ignorado.
+  const derived = deriveCurrencyTargets(
+    submittedTargets.map((target) => ({ ...target, fraction: target.fraction.toNumber() })),
+  );
+  const parsed = submittedTargets.map((target) =>
+    target.scope === "CURRENCY"
+      ? { ...target, fraction: new Prisma.Decimal(derived.get(target.primaryLabel) ?? 0).toDecimalPlaces(10) }
+      : target,
+  );
+
   const sums = new Map<string, Prisma.Decimal>();
   for (const target of parsed) {
+    // A soma da moeda calculada depende das outras metas, já conferidas.
+    if (target.scope === "CURRENCY") {
+      continue;
+    }
     const group = targetGroupKey(target.scope, target.primaryLabel);
     sums.set(group, (sums.get(group) ?? new Prisma.Decimal(0)).plus(target.fraction));
   }
@@ -69,36 +85,26 @@ export async function saveTargetPlan(input: { targets: { key: string; percent: s
   }
 
   const tolerance = parseTolerance(input.tolerance);
+  const changed = parsed.filter((target) => !target.fraction.equals(target.percentage));
 
-  if (parsed.every((target) => target.fraction.equals(target.percentage)) && tolerance.equals(active.tolerancePercent)) {
-    throw new TargetPlanError("Nada mudou em relação à versão vigente.");
+  if (changed.length === 0 && tolerance.equals(active.tolerancePercent)) {
+    throw new TargetPlanError("Nada mudou nas metas.");
   }
 
-  const name = `Metas editadas em ${new Intl.DateTimeFormat("pt-BR", {
-    dateStyle: "short",
-    timeStyle: "short",
-  }).format(new Date())}`;
-
+  // As metas são uma só, editada no lugar: salvar não cria versões (spec 054).
   return prisma.$transaction(async (transaction) => {
-    await transaction.targetPlan.updateMany({ where: { isActive: true }, data: { isActive: false } });
-    const plan = await transaction.targetPlan.create({
-      data: { userId: SCOPED_USER, name, isActive: true, tolerancePercent: tolerance },
+    for (const target of changed) {
+      await transaction.allocationTarget.updateMany({
+        where: { planId: active.id, key: target.key },
+        data: { percentage: target.fraction },
+      });
+    }
+
+    return transaction.targetPlan.update({
+      where: { id: active.id },
+      data: { tolerancePercent: tolerance },
       select: { id: true, name: true },
     });
-
-    await transaction.allocationTarget.createMany({
-      data: parsed.map((target) => ({
-        userId: SCOPED_USER,
-        planId: plan.id,
-        key: target.key,
-        scope: target.scope,
-        primaryLabel: target.primaryLabel,
-        secondaryLabel: target.secondaryLabel,
-        percentage: target.fraction,
-      })),
-    });
-
-    return plan;
   });
 }
 
@@ -109,8 +115,8 @@ export type DefaultTargetPlanOutcome = "created" | "existing" | "no-positions";
  * competência mais recente (spec 048), para a configuração e o rebalanceamento
  * já começarem prontos. Roda na checagem de abertura, ao abrir a configuração e
  * depois de restaurar um backup; o bloqueio consultivo evita dois planos
- * criados ao mesmo tempo. Editar as metas depois cria uma versão nova, como
- * qualquer salvamento, e tudo sai no backup.
+ * criados ao mesmo tempo. Editar as metas depois altera este mesmo plano
+ * (spec 054), e tudo sai no backup.
  */
 export async function ensureDefaultTargetPlan(): Promise<DefaultTargetPlanOutcome> {
   const prisma = await getUserDb();

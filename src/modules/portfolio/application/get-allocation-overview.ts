@@ -1,5 +1,6 @@
 import { Prisma, type PortfolioMonthStatus } from "@/generated/prisma/client";
 import { getUserDb } from "@/lib/user-db";
+import { withDerivedCurrency } from "@/modules/portfolio/domain/currency-targets";
 import {
   buildAllocationGroups,
   DEFAULT_REBALANCE_TOLERANCE,
@@ -106,13 +107,17 @@ export async function getActivePlan(): Promise<{ targets: TargetValue[]; toleran
     },
   });
 
+  // A moeda sobre o total é sempre a calculada pela moeda de cada classe
+  // (spec 054), mesmo num plano gravado antes dessa regra.
   return {
-    targets: (plan?.targets ?? []).map((target) => ({
-      scope: target.scope as AllocationGroupKey,
-      primaryLabel: target.primaryLabel,
-      secondaryLabel: target.secondaryLabel,
-      fraction: target.percentage.toNumber(),
-    })),
+    targets: withDerivedCurrency(
+      (plan?.targets ?? []).map((target) => ({
+        scope: target.scope as AllocationGroupKey,
+        primaryLabel: target.primaryLabel,
+        secondaryLabel: target.secondaryLabel,
+        fraction: target.percentage.toNumber(),
+      })),
+    ).map((target): TargetValue => ({ ...target, scope: target.scope as AllocationGroupKey })),
     tolerance: plan?.tolerancePercent.toNumber() ?? DEFAULT_REBALANCE_TOLERANCE,
   };
 }

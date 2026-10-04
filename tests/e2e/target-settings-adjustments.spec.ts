@@ -171,18 +171,41 @@ test("editar uma meta não troca a aba da prévia", async ({ page }) => {
 test("sem Excel: nada de restaurar o padrão da planilha nem de contar o que está fora da meta", async ({ page }) => {
   await openSettings(page);
 
-  // A importação do Excel saiu (spec 047); a prévia não conta mais o que está
-  // fora da meta, e as versões seguem listadas.
+  // A importação do Excel saiu (spec 047) e a prévia não conta mais o que está
+  // fora da meta. As versões listam só os backups importados (spec 054).
   await expect(page.getByRole("button", { name: "Restaurar padrão do Excel" })).toHaveCount(0);
   await expect(page.getByText("Fora da meta")).toHaveCount(0);
   await expect(page.getByText("origem: Excel")).toHaveCount(0);
-  const versions = page.getByRole("region", { name: "Versões das metas" });
+  const versions = page.getByRole("region", { name: "Versões", exact: true });
   await expect(versions.locator("[data-version-kind]").first()).toBeVisible();
-  await expect(versions.getByText("vigente", { exact: true })).toHaveCount(1);
+  await expect(versions.locator('[data-version-kind]:not([data-version-kind="import"])')).toHaveCount(0);
+  await expect(versions.getByText("vigente", { exact: true })).toHaveCount(0);
+  await expect(versions.locator("li").filter({ hasNotText: "Backup importado" })).toHaveCount(0);
 });
 
-test("no toque, rolar sobre o deslizante rola a página e não muda a meta", async ({ page, isMobile }) => {
-  test.skip(!isMobile, "Gesto de toque: só no perfil de celular.");
+// A moeda sobre o patrimônio total não é editada (spec 054): ela sai da moeda
+// dentro de cada classe, ponderada pela meta da classe, e acompanha o rascunho.
+test("a moeda sobre o patrimônio total é calculada, sem campo", async ({ page }) => {
+  await openSettings(page);
+
+  const currency = page.getByRole("region", { name: "Moeda", exact: true });
+  await expect(currency.getByRole("textbox")).toHaveCount(0);
+  await expect(currency.getByRole("slider")).toHaveCount(0);
+  await expect(currency).toContainText("calculada pela moeda dentro de cada classe");
+
+  const brl = currency.getByLabel("Meta calculada de BRL");
+  const before = await brl.textContent();
+  const caixa = page.getByRole("textbox", { name: "Percentual de Caixa" });
+  const current = Number((await caixa.inputValue()).replace(",", "."));
+  await caixa.fill(String(current + 10).replace(".", ","));
+  await expect(brl).not.toHaveText(before ?? "");
+
+  await discardIfPending(page);
+  await expect(brl).toHaveText(before ?? "");
+});
+
+test("no toque, rolar sobre o deslizante rola a página e não muda a meta", async ({ page, isMobile, browserName }) => {
+  test.skip(!isMobile || browserName !== "chromium", "Gesto nativo via CDP: somente Chrome mobile; Safari exige aparelho real.");
   await openSettings(page);
 
   const caixa = page.getByRole("textbox", { name: "Percentual de Caixa" });

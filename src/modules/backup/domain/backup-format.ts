@@ -24,7 +24,7 @@ export const BACKUP_TABLES = [
   { key: "portfolioMonths", label: "Competências", shared: false },
   { key: "positions", label: "Posições", shared: false },
   { key: "positionAllocations", label: "Rateios", shared: false },
-  { key: "targetPlans", label: "Versões das metas", shared: false },
+  { key: "targetPlans", label: "Metas", shared: false },
   { key: "allocationTargets", label: null, shared: false },
   { key: "manualQuotes", label: "Cotações digitadas", shared: false },
   { key: "marketQuotes", label: "Cotações mensais", shared: true },

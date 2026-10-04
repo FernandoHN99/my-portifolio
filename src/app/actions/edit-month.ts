@@ -14,6 +14,7 @@ import {
   undoChange,
   updateMonthQuotes,
 } from "@/modules/portfolio/application/month-editing";
+import { ensureMonthsUpToDate } from "@/modules/portfolio/application/month-rollover";
 import { requireSessionUser } from "@/modules/auth/session";
 import { ASSET_KINDS } from "@/modules/portfolio/domain/asset-kinds";
 import { toMonthParam } from "@/modules/portfolio/presentation/reference-month";
@@ -177,6 +178,22 @@ export async function cloneLatestMonthAction(): Promise<EditActionResult> {
       undoToken: result.undoToken,
       month: toMonthParam(result.referenceDate),
     };
+  });
+}
+
+/**
+ * Primeira competência de um usuário novo (spec 055), quando ele quer incluir a
+ * primeira posição antes da checagem de abertura criá-la.
+ */
+export async function startPortfolioAction(): Promise<EditActionResult> {
+  return run(async () => {
+    const outcome = await ensureMonthsUpToDate();
+
+    if (outcome.state === "unavailable") {
+      return { ok: false, message: outcome.message };
+    }
+
+    return { ok: true, message: "Competência do mês criada." };
   });
 }
 
