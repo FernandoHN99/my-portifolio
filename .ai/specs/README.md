@@ -56,16 +56,16 @@ Esta pasta organiza a implementação em fatias pequenas e revisáveis.
 - [050 — Login e dados por usuário](050-login-and-user-data.md): concluída.
 - [051 — Cotações automáticas compartilhadas, à mão por usuário e só atualização automática](051-shared-automatic-quotes.md): concluída.
 - [052 — Backup por usuário no novo modelo](052-per-user-backup.md): concluída.
-- [053 — Cotações atualizadas por um job agendado, fora da navegação](053-scheduled-quote-sync.md): implementada localmente; agendamento escolhido (função do Neon em `aws-us-east-1`), a publicar depois das migrações.
-- [054 — Moeda sobre o total calculada e metas sem versões](054-derived-currency-and-single-target-plan.md): concluída localmente.
-- [055 — Carteira vazia: incluir a primeira posição ou restaurar um backup](055-empty-portfolio-start.md): concluída localmente.
-- [056 — Transações nas posições: base do mês, saldo inicial e correção sem cascata](056-position-transactions.md): concluída localmente.
-- [057 — Formulário de movimentação e lápis só de atributos](057-movement-form-and-attribute-pencil.md): concluída localmente.
-- [058 — Histórico e indicadores por movimentações](058-transaction-history-and-indicators.md): concluída localmente.
-- [059 — Conta corrente e liquidação de títulos vencidos](059-cash-account-and-liquidation.md): concluída localmente.
+- [053 — Cotações atualizadas por um job agendado, fora da navegação](053-scheduled-quote-sync.md): concluída; na produção, como função do Neon em `aws-us-east-1`, de hora em hora.
+- [054 — Moeda sobre o total calculada e metas sem versões](054-derived-currency-and-single-target-plan.md): concluída; na produção desde 2026-10-04.
+- [055 — Carteira vazia: incluir a primeira posição ou restaurar um backup](055-empty-portfolio-start.md): concluída; na produção desde 2026-10-04.
+- [056 — Transações nas posições: base do mês, saldo inicial e correção sem cascata](056-position-transactions.md): concluída; na produção desde 2026-10-04.
+- [057 — Formulário de movimentação e lápis só de atributos](057-movement-form-and-attribute-pencil.md): concluída; na produção desde 2026-10-04.
+- [058 — Histórico e indicadores por movimentações](058-transaction-history-and-indicators.md): concluída; na produção desde 2026-10-04.
+- [059 — Conta corrente e liquidação de títulos vencidos](059-cash-account-and-liquidation.md): concluída; na produção desde 2026-10-04.
 - [060 — Renda fixa a percentual do CDI, cálculo bruto](060-cdi-fixed-income.md): concluída; CDI real pela reserva SOAP do Banco Central e mês passado fechando no fim da competência.
-- [061 — Tesouro Direto por quantidade e preço oficial](061-treasury-direct-quotes.md): implementada localmente; falta uma inclusão real gravada.
-- [062 — Revisão mobile com referência no Safari do iPhone 16 Plus](062-iphone-mobile-review.md): emulação concluída; falta o aparelho físico.
+- [061 — Tesouro Direto por quantidade e preço oficial](061-treasury-direct-quotes.md): na produção desde 2026-10-04; falta uma inclusão real gravada.
+- [062 — Revisão mobile com referência no Safari do iPhone 16 Plus](062-iphone-mobile-review.md): emulação concluída e na produção desde 2026-10-04; falta o aparelho físico.
 
 As specs 010 a 017 formam a reestruturação da UX pedida pelo usuário. O
 propósito, as restrições e as regras de cálculo comuns a elas estão em

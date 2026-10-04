@@ -1,8 +1,7 @@
 # 053 — Cotações atualizadas por um job agendado, fora da navegação
 
-Estado: implementada localmente, em commit na branch `feat/specs-053-062`, sem
-push nem deploy. O projeto de jobs do Neon existe, ainda sem função nem
-gatilho (2026-10-04).
+Estado: concluída e na produção em 2026-10-04, como a função `quotesync` do
+projeto de jobs do Neon, com o gatilho de hora em hora.
 Definida em: 2026-10-04
 
 ## Problema

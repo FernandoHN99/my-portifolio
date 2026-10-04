@@ -11,16 +11,15 @@ e Claude Code consultando a mesma base de conhecimento.
 
 ## Trabalho em andamento
 
-Estado em 2026-10-04: specs 016 e 028 a 052 concluídas e no `main`; as specs
-053 a 062 estão em quatro commits na branch local `feat/specs-053-062`, sem
-push nem deploy (detalhes em `.ai/specs/README.md`). O app está publicado na
-Vercel com o banco no Neon ([Produção](.ai/context/production.md)); a produção
-ainda não tem as migrações de 2026-10-04.
+Estado em 2026-10-04: specs 016 e 028 a 062 no `main` e na produção
+(detalhes em `.ai/specs/README.md`). O app está publicado na Vercel com o banco
+no Neon, e o job das cotações roda como função do Neon
+([Produção](.ai/context/production.md)).
 
 - as cotações são atualizadas só pelo job agendado (`pnpm quotes:sync`,
   [spec 053](.ai/specs/053-scheduled-quote-sync.md)); a abertura do app não
-  consulta provedores. O agendamento escolhido é a função do Neon no projeto
-  de jobs em `aws-us-east-1`, ainda sem função publicada
+  consulta provedores. Na produção, ele roda de hora em hora como a função
+  `quotesync` do projeto de jobs do Neon, em `aws-us-east-1`
   ([operação](docs/quote-sync-job.md));
 - as posições têm movimentações sobre a base de cada mês
   ([spec 056](.ai/specs/056-position-transactions.md)): o lápis edita só
@@ -29,7 +28,8 @@ ainda não tem as migrações de 2026-10-04.
   ([spec 057](.ai/specs/057-movement-form-and-attribute-pencil.md)). Regras em
   [Prompt de continuidade](.ai/context/position-transactions-prompt.md);
 - a renda fixa a percentual do CDI é calculada pelo job com o CDI diário do
-  Banco Central ([spec 060](.ai/specs/060-cdi-fixed-income.md)); o Tesouro
+  Banco Central, pela API JSON ou, fora do ar, pelo webservice SOAP do SGS
+  ([spec 060](.ai/specs/060-cdi-fixed-income.md)); o Tesouro
   Direto é cotado pelo PU Base oficial ([spec 061](.ai/specs/061-treasury-direct-quotes.md));
 - o Playwright tem o perfil `mobile-safari` (iPhone 16 Plus, WebKit)
   ([spec 062](.ai/specs/062-iphone-mobile-review.md)); testes que preenchem

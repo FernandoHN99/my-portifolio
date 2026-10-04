@@ -2,10 +2,10 @@
 
 Registrado em: 2026-10-03
 Origem: pedido do usuário de publicar o app, na conversa de 2026-10-03.
-Estado em 2026-10-03, 21:40 UTC: no ar com login, specs 049 a 052
-(deploy `dpl_3JmfYpdwKKPNkkwHmErh1LkA9cEC`). A produção não tem usuários nem
-dados da carteira; o usuário cria a conta e restaura o backup (veja
-"Pendente").
+Estado em 2026-10-04, 18:45 UTC: no ar com as specs 053 a 062 (deploy
+`dpl_kdNuafnZUHLzV1Pk4Uwm8ZbHQD64`, commit `4ef7e18`), com a conta do usuário
+e os dados dele restaurados. As cotações e o CDI vêm da função `quotesync`
+do projeto de jobs, de hora em hora.
 
 ## Onde está
 
@@ -15,7 +15,7 @@ dados da carteira; o usuário cria a conta e restaura o backup (veja
 | App | Vercel, projeto `my-portifolio` (`prj_scITNB2skZfK9mh06bIgny38melT`), time pessoal `personal-team-6d7a`, plano Hobby, funções em `gru1` (São Paulo) |
 | Código | GitHub `FernandoHN99/my-portifolio`; cada push no `main` publica a produção |
 | Endereço principal | `my-portifolio-three-zeta.vercel.app`, sem a proteção da Vercel (`ssoProtection: all_except_custom_domains`): o acesso depende do login do app |
-| Jobs | Neon, projeto `my-portifolio-jobs` (`square-cell-51336542`), região `aws-us-east-1`, branch `main` (`br-old-dream-b8ysin0q`); criado vazio em 2026-10-04 para a função das cotações, ainda sem função nem gatilho ([operação](../../docs/quote-sync-job.md)) |
+| Jobs | Neon, projeto `my-portifolio-jobs` (`square-cell-51336542`), região `aws-us-east-1`, branch `main` (`br-old-dream-b8ysin0q`): função `quotesync` e gatilho `quotes-hourly` (cron `0 * * * *`, UTC), que conectam ao banco de São Paulo ([operação](../../docs/quote-sync-job.md)) |
 
 ## Configuração da Vercel
 
@@ -79,35 +79,38 @@ A produção começa sem usuários. Para entrar:
   Conferido: sem sessão, as páginas levam a `/entrar` e as rotas respondem
   401; um cookie falso é recusado; um e-mail fora da lista não cria conta
   (403); o deploy novo não tem erros nos logs.
+- 2026-10-03: o deploy do commit `5449521` (só documentação) falhou: o cache
+  do build deixou o `pnpm install` em "Already up to date", que pula o
+  `postinstall`, e o build não achou o cliente do Prisma
+  (`@/generated/prisma/client`). O deploy anterior seguiu no ar. Desde
+  2026-10-04, o `build` do `package.json` roda `prisma generate` antes do
+  `next build`;
+- 2026-10-04, 18:40 UTC: antes de publicar as specs 053 a 062, o agente criou
+  a branch `snapshot-antes-da-053` (`br-blue-base-b61rhe56`), cópia da
+  produção com 1 usuário, 41 competências, 457 posições e 4 planos de metas
+  (3 inativos);
+- 2026-10-04, 18:42 UTC: o push dos commits `154b81b` a `4ef7e18` no `main`
+  publicou o deploy `dpl_kdNuafnZUHLzV1Pk4Uwm8ZbHQD64`, que aplicou as quatro
+  migrações de 2026-10-04 (20 no total). Conferido: as 457 posições com a base
+  do mês igual ao saldo, só o plano de metas vigente, 13 símbolos no cadastro
+  do job, `/entrar` respondendo e as rotas de dados em 401 sem sessão, sem
+  erros nos logs;
+- 2026-10-04, 18:43 UTC: a função `quotesync` (deployment 1) e o gatilho
+  `quotes-hourly` foram publicados no projeto de jobs pela CLI do Neon
+  (`neon deploy`), com o login do usuário no navegador;
+- 2026-10-04, 19:00 UTC: primeira execução pelo gatilho, em 5 segundos:
+  execução COMPLETED, 10 cotações atualizadas (BTC, GLDM, GPCA11.SAO, IAUM,
+  SIVR, SOL, USD, VOO, VXUS e XLE) e outubro reprecificado. ARGT, ETH e VTI,
+  fora da carteira de outubro, não foram buscados. Sem posição pelo CDI na
+  produção, o passo do CDI não buscou taxas;
+- 2026-10-04, 19:02 UTC: a função foi republicada (deployment 2) com a conexão
+  em `sslmode=verify-full`, para tirar o aviso do `pg` sobre `require`.
 
 ## Pendente
 
-### Trabalho local de 2026-10-04 (specs 053 a 062)
-
-Nada disso está na produção, a pedido do usuário ("nada no Vercel, somente
-local"). Com a aprovação dele, está em quatro commits na branch local
-`feat/specs-053-062`, sem push: um push no `main` publica a produção, e o de
-outra branch cria um Preview que usa o banco da produção sem migrar. Para
-publicar:
-
-1. as migrações `20261004120000_quote_symbols`,
-   `20261004130000_single_target_plan` (apaga as versões antigas das metas),
-   `20261004140000_position_transactions` e
-   `20261004210000_cdi_daily_valuation` rodam no build da Vercel, como as
-   anteriores;
-2. a abertura do app deixa de buscar cotações: sem o job agendado publicado, a
-   produção fica sem atualização de cotações nem de CDI. O usuário escolheu a
-   função do Neon no projeto de jobs em `aws-us-east-1` (Functions não existe
-   em `aws-sa-east-1`); logo depois do deploy das migrações, publicar a função
-   e o gatilho pelos passos da [operação](../../docs/quote-sync-job.md);
-3. o backup passa à versão 5; arquivos antigos continuam restaurando.
-
-### Primeiro acesso (2026-10-03)
-
-O usuário cria a conta em "Criar conta", com o e-mail de
-`AUTH_ALLOWED_EMAILS`, e restaura na Configuração o arquivo
-`backups/producao-antes-da-050-2026-10-03.json`. A branch
-`snapshot-antes-da-050` pode ser apagada depois de conferidos os dados.
+- as branches `snapshot-antes-da-050` e `snapshot-antes-da-053` podem ser
+  apagadas depois de o usuário conferir os dados na produção;
+- o backup passou à versão 5; arquivos antigos continuam restaurando.
 
 ## Decisões do usuário
 
@@ -121,8 +124,9 @@ Em 2026-10-03:
 Em 2026-10-04:
 
 - o agendamento das cotações é a função do Neon em `aws-us-east-1`;
-- aprovou os quatro commits das specs 053 a 062; nada vai para a Vercel até
-  ele pedir.
+- aprovou os quatro commits das specs 053 a 062 e, depois, a correção do CDI;
+- pediu o deploy de tudo ("Faça o deploy quero ver tudo funcionando!"), o que
+  encerrou o "somente local".
 
 ## Observações
 
