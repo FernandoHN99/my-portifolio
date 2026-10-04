@@ -11,8 +11,8 @@ depois dos ajustes em andamento.
 
 ## Transações dentro das posições
 
-Implementado localmente em 2026-10-04, nas specs 056 a 059 (em commit na
-branch local `feat/specs-053-062`, sem deploy); as regras finais estão no
+Implementado nas specs 056 a 059 e publicado em 2026-10-04; a revisão posterior
+das specs 063 a 066 permanece local, sem commit ou deploy. As regras estão no
 [prompt consolidado](position-transactions-prompt.md). O texto abaixo fica como
 histórico do pedido.
 
@@ -23,7 +23,7 @@ das respostas finais de 2026-10-04; a investigação e pesquisa de Tesouro/CDI
 ficam em [Descoberta dos próximos ajustes](next-adjustments-discovery.md).
 Depois do planejamento, o usuário autorizou neste chat continuar a
 implementação que outra IA havia iniciado e documentar cada fatia. O estado
-atual fica nas specs [056 a 062](../specs/README.md); tudo é local, sem deploy.
+atual fica no [índice das specs](../specs/README.md), distinguindo produção e revisão local.
 Verifique o código atual e a spec antes de continuar.
 
 Pedido do usuário em 2026-10-03, que substitui o "livro de movimentações"

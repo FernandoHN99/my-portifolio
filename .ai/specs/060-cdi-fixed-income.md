@@ -4,6 +4,11 @@ Estado: implementada em 2026-10-04 e conferida com o CDI real, pela reserva
 SOAP do Banco Central; a API JSON saiu do DNS público.
 Definida em: 2026-10-04
 
+**Decisão posterior:** o usuário suspendeu o cálculo automático nesta etapa.
+A [spec 065](065-manual-fixed-income.md) define o comportamento local atual:
+rendimentos manuais, saldo e metadados anteriores preservados. A descrição
+abaixo registra a implementação anterior, sem autorizar sua reativação.
+
 ## Problema
 
 Seção 7 do [Prompt de continuidade](../context/position-transactions-prompt.md):

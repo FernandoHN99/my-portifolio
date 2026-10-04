@@ -1,6 +1,7 @@
 # 035 — Resgate fixo e classes existentes no rateio
 
-Estado: concluída em 2026-10-02.
+Estado: concluída em 2026-10-02. A subclasse livre foi substituída pela lista
+fixa da planilha, dependente da classe, na [spec 068](068-fixed-classification-and-asset-type.md).
 Definida em: 2026-10-02
 
 ## Problema

@@ -61,6 +61,18 @@ todos os usuários e não entram no arquivo. O cadastro dos símbolos cotados
 fica de fora: ele é derivado dos ativos, e o job agendado cadastra sozinho, na
 execução seguinte, os símbolos de um backup restaurado.
 
+Os indexadores compartilhados (`rate_observations`, `rate_coverage`) e a meta
+Selic informativa (`reference_rates`, [spec 064](../.ai/specs/064-selic-and-dev-quotes.md),
+e o histórico dela, `reference_rate_points`, [spec 067](../.ai/specs/067-selic-per-month.md))
+também ficam fora: são dados públicos recarregáveis pelo job, sem vínculos com
+uma carteira. Essas tabelas não mudam o conteúdo nem a versão 5 do backup;
+exportação, conversão e restauração da carteira permanecem iguais.
+
+Desde a [spec 068](../.ai/specs/068-fixed-classification-and-asset-type.md), os
+ativos têm `assetType`, opcional: um arquivo sem o campo restaura com o tipo
+vazio, deduzido na leitura, sem mudar a versão. Um arquivo com o campo só
+restaura num app que já o conhece.
+
 ## Restauração
 
 Desde a [spec 054](../.ai/specs/054-derived-currency-and-single-target-plan.md),
@@ -106,14 +118,16 @@ posições, previstas no [backlog](../.ai/context/backlog.md).
 
 1. **Schema e migração**: altere o schema e crie a migração (`pnpm db:migrate`,
    ou `prisma migrate dev --create-only` num schema de teste).
-2. **Tabelas**: tabela nova entra em `BACKUP_TABLES`, na posição certa da
+2. **Tabelas**: tabela nova da carteira entra em `BACKUP_TABLES`, na posição certa da
    ordem de gravação e com `shared` quando é de todos os usuários, e em
    `TABLE_SPECS`, com o modelo, a tabela do banco, o
    `Prisma.<Modelo>ScalarFieldEnum`, os campos fora do arquivo em `omit` (o
    `userId` das tabelas da carteira), as chaves estrangeiras para outras
    tabelas do arquivo em `references`, os campos BigInt em `bigints` e os Json
    opcionais em `nullableJson`. Uma tabela de apoio fica com `label: null`; uma
-   que interessa ao usuário ganha um rótulo no resumo da restauração.
+   que interessa ao usuário ganha um rótulo no resumo da restauração. Dados
+   públicos recarregáveis sem vínculo com a carteira podem ficar de fora,
+   como o cadastro de símbolos e as taxas; registre aqui a exclusão e sua razão.
 3. **Versão**: só campos opcionais ou com valor padrão novos são aceitos por
    arquivos antigos sem conversão, porque a ausência vira o padrão do banco.
    Campo obrigatório novo, campo ou tabela removidos ou renomeados e mudança

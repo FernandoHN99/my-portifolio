@@ -3,6 +3,11 @@
 Estado: concluída localmente em 2026-10-04 (sem deploy).
 Definida em: 2026-10-04
 
+Revisão posterior do mesmo dia: a [spec 066](066-guided-position-and-movement-dialogs.md)
+substitui as escolhas na inclusão por saldo inicial automático e reorganiza a
+movimentação em etapas obrigatórias. As regras financeiras abaixo permanecem
+como referência; a apresentação original fica como histórico.
+
 ## Problema
 
 Fatia B do [Prompt de continuidade](../context/position-transactions-prompt.md)

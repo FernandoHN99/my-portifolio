@@ -5,17 +5,19 @@ Fonte principal de como o job das cotações roda e é agendado
 devido, espera depois de falhas, histórico) está na spec; aqui ficam as portas
 de entrada, as configurações versionadas e os passos para ligar cada uma.
 
-## Uma função, três portas
+## Uma função e suas portas
 
-A escrita das cotações automáticas é só `syncQuotes`
-(`src/modules/quotes/application/sync-quotes.ts`). O app não busca cotações:
-lê o que o job gravou.
+A atualização periódica das cotações automáticas é `syncQuotes`
+(`src/modules/quotes/application/sync-quotes.ts`). A navegação lê o que o job
+gravou. A conferência de um ticker novo busca apenas seu preço atual; o histórico
+continua sendo carregado pelo job.
 
 | Porta | Onde | Uso |
 |---|---|---|
 | `pnpm quotes:sync` | `scripts/quotes-sync.ts` | local, e o passo do GitHub Actions |
 | Função do Neon `quotesync` | `jobs/neon/quote-sync.ts`, `jobs/neon/neon.ts` | agendamento em uso, de hora em hora |
 | GitHub Actions | `.github/workflows/quote-sync.yml` | reserva, hoje só manual |
+| Botão “Atualizar cotações (dev)” | `POST /api/quotes/dev-sync` | somente `pnpm dev`, com sessão e origem do próprio app |
 
 As três fazem a mesma coisa e podem coexistir: a execução é reservada sob um
 bloqueio do Postgres, e uma segunda execução ao mesmo tempo sai com `busy`.
@@ -25,7 +27,16 @@ execução.
 Saída e código de saída: o roteiro e a função escrevem as mesmas linhas
 (`describeQuoteSync`). Sai com erro (código 1 no terminal, HTTP 500 na função)
 só quando o job não conseguiu rodar ou todas as cotações falharam; falhas de
-alguns símbolos ficam registradas no cadastro e na execução.
+alguns símbolos ficam registradas no cadastro e na execução. A falha da consulta
+da meta Selic também retorna erro, preservando a última taxa disponível.
+
+A [spec 064](../.ai/specs/064-selic-and-dev-quotes.md) acrescenta a meta Selic
+(SGS 432, % ao ano), uma tentativa por 24 horas, mesmo sem cotação devida. Desde
+a [spec 067](../.ai/specs/067-selic-per-month.md), a primeira consulta traz dez
+anos e as seguintes, desde a última observação; as mudanças da taxa ficam em
+`reference_rate_points`, para mostrar a Selic de cada competência.
+A taxa é informativa e não recalcula posições; o cálculo de renda fixa foi
+pausado pela [spec 065](../.ai/specs/065-manual-fixed-income.md).
 
 ## Local
 
@@ -36,6 +47,15 @@ pnpm quotes:sync
 Usa o `DATABASE_URL` do `.env`. Para testar sem tocar nos dados, aponte para um
 schema de teste: `DATABASE_URL="$(pnpm --silent db:test-schema url teste)"
 pnpm quotes:sync`.
+
+Em `pnpm dev`, o botão na Visão geral e nas Cotações executa esse mesmo job no
+banco configurado do servidor, exibindo o resultado. Ele respeita a cadência,
+os símbolos devidos e a reserva contra concorrência; não força consultas se
+tudo estiver atualizado. A condição fica num lugar só, `devToolsEnabled()` em
+`src/lib/dev-tools.ts` ([spec 072](../.ai/specs/072-dev-branch-and-local-tools.md)):
+o botão existe em todas as branches, inclusive na `main`, e só funciona no
+`pnpm dev`. No build de produção o botão desaparece, e chamadas
+diretas ao endpoint respondem 404 antes de acessar sessão, banco ou provedores.
 
 ## Função do Neon (em uso)
 

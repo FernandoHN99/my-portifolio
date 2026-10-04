@@ -1,5 +1,13 @@
 # Prompt de continuidade: transações, renda fixa, Tesouro e iPhone
 
+Atualização posterior de 2026-10-04: o usuário pediu a revisão implementada
+localmente nas [specs 063 a 066](../specs/README.md). Elas prevalecem sobre este
+briefing nos seguintes pontos: cálculo bruto automático de renda fixa pausado;
+Selic somente informativa; cadastro com saldo inicial automático; inclusão e
+movimentação por etapas obrigatórias; comprovante de ticker entre processos;
+cotação atual na inclusão e histórico no job; atualização manual só em dev.
+Esta rodada permanece local, sem deploy. As demais regras mensais continuam.
+
 Consolidado em 2026-10-04 a partir das respostas do usuário.
 Fonte principal das regras confirmadas para esta evolução.
 Preparado em um atendimento dedicado somente à documentação; não representa

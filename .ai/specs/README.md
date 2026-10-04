@@ -63,9 +63,35 @@ Esta pasta organiza a implementação em fatias pequenas e revisáveis.
 - [057 — Formulário de movimentação e lápis só de atributos](057-movement-form-and-attribute-pencil.md): concluída; na produção desde 2026-10-04.
 - [058 — Histórico e indicadores por movimentações](058-transaction-history-and-indicators.md): concluída; na produção desde 2026-10-04.
 - [059 — Conta corrente e liquidação de títulos vencidos](059-cash-account-and-liquidation.md): concluída; na produção desde 2026-10-04.
-- [060 — Renda fixa a percentual do CDI, cálculo bruto](060-cdi-fixed-income.md): concluída; CDI real pela reserva SOAP do Banco Central e mês passado fechando no fim da competência.
+- [060 — Renda fixa a percentual do CDI, cálculo bruto](060-cdi-fixed-income.md): implementação anterior concluída; cálculo suspenso localmente pela 065, a pedido do usuário.
 - [061 — Tesouro Direto por quantidade e preço oficial](061-treasury-direct-quotes.md): na produção desde 2026-10-04; falta uma inclusão real gravada.
 - [062 — Revisão mobile com referência no Safari do iPhone 16 Plus](062-iphone-mobile-review.md): emulação concluída e na produção desde 2026-10-04; falta o aparelho físico.
+- [063 — Conferência de ticker entre consulta e salvamento](063-ticker-verification-during-save.md): concluída localmente; XRP entre processos, cotação atual na inclusão e histórico somente no job.
+- [064 — Meta Selic informativa e atualização local das cotações](064-selic-and-dev-quotes.md): concluída localmente; taxa diária nas duas telas e botão só em desenvolvimento.
+- [065 — Renda fixa por movimentações manuais](065-manual-fixed-income.md): concluída localmente; avaliação automática pausada, saldos e metadados preservados.
+- [066 — Inclusão e movimentação por etapas obrigatórias](066-guided-position-and-movement-dialogs.md): concluída localmente; protótipo validado antes da implementação, inclusão simplificada e prévia antes de registrar.
+- [067 — Selic de cada competência no card do dólar](067-selic-per-month.md): concluída localmente; substitui o card próprio da 064, com histórico da meta.
+- [068 — Classificação fixa da planilha e tipo do ativo](068-fixed-classification-and-asset-type.md): concluída localmente; listas dependentes, coluna, filtro e painel por tipo.
+- [069 — Campo de data do design system e listas do diálogo de movimentação](069-date-picker-and-dialog-pickers.md): concluída localmente.
+- [070 — Tesouro Direto com preço próprio e valor em reais](070-treasury-own-value.md): concluída localmente; catálogo carregado já na escolha do tipo.
+- [071 — Backup convertido com movimentações](071-backup-with-movements.md): arquivo gerado e validado num schema de teste, fora do Git.
+- [072 — Branch dev e ferramentas só do desenvolvimento](072-dev-branch-and-local-tools.md): concluída localmente; inclui a causa do CSS corrompido no `pnpm dev`.
+
+As specs 063 a 072 são revisões posteriores de 2026-10-04 e 2026-10-05, ainda
+sem commit ou publicação. Não confundir seu estado local com a produção das
+specs anteriores.
+
+Conferência conjunta das specs 063 a 072, em 2026-10-05:
+
+- `pnpm check`, 30 testes unitários e o build de produção, numa pasta `.next-*`
+  separada, passaram;
+- a suíte e2e completa, sobre o `pnpm dev` local (Chrome, Android e Safari do
+  iPhone): 329 aprovados, 22 pulados por falta de mês aberto ou de dado, e 4
+  falhas corrigidas e repetidas com sucesso:
+  - o teste antigo que proibia qualquer botão "Atualizar cotações" passou a
+    ignorar o botão "(dev)";
+  - o teste novo do Tesouro, instável no WebKit, passou a esperar o campo de
+    preço.
 
 As specs 010 a 017 formam a reestruturação da UX pedida pelo usuário. O
 propósito, as restrições e as regras de cálculo comuns a elas estão em

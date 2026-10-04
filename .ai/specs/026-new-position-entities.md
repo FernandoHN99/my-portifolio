@@ -3,6 +3,10 @@
 Estado: concluída em 2026-10-02
 Definida em: 2026-10-02
 
+A conferência do ticker ao salvar foi atualizada pela
+[spec 063](063-ticker-verification-during-save.md): o comprovante assinado
+substitui o token guardado na memória do processo.
+
 ## Problema
 
 Pedido do usuário em 2026-10-02, registrado em

@@ -16,21 +16,46 @@ Estado em 2026-10-04: specs 016 e 028 a 062 no `main` e na produção
 no Neon, e o job das cotações roda como função do Neon
 ([Produção](.ai/context/production.md)).
 
+Revisões locais posteriores: specs 063 a 066 (2026-10-04) e 067 a 072
+(2026-10-05) concluídas, ainda sem commit ou deploy. O trabalho do dia a dia vai
+para a branch `dev`; a `main` é a produção ([fluxo de Git](docs/git-workflow.md)).
+
 - as cotações são atualizadas só pelo job agendado (`pnpm quotes:sync`,
   [spec 053](.ai/specs/053-scheduled-quote-sync.md)); a abertura do app não
   consulta provedores. Na produção, ele roda de hora em hora como a função
   `quotesync` do projeto de jobs do Neon, em `aws-us-east-1`
   ([operação](docs/quote-sync-job.md));
+- a conferência de ticker usa comprovante assinado, válido entre processos;
+  a inclusão grava o preço atual e deixa histórico pendente para o job
+  ([spec 063](.ai/specs/063-ticker-verification-during-save.md)). Em desenvolvimento,
+  Visão geral e Cotações têm um botão para executar o job localmente; em produção,
+  o botão não aparece e sua rota responde 404. A meta Selic é informativa,
+  consultada no máximo a cada 24 horas pelo job e mostrada nas duas telas
+  ([spec 064](.ai/specs/064-selic-and-dev-quotes.md));
 - as posições têm movimentações sobre a base de cada mês
   ([spec 056](.ai/specs/056-position-transactions.md)): o lápis edita só
   atributos e os valores mudam por aporte, retirada e rendimento, corrigidos no
   próprio registro e só no mês aberto, sem cascata
   ([spec 057](.ai/specs/057-movement-form-and-attribute-pencil.md)). Regras em
   [Prompt de continuidade](.ai/context/position-transactions-prompt.md);
-- a renda fixa a percentual do CDI é calculada pelo job com o CDI diário do
-  Banco Central, pela API JSON ou, fora do ar, pelo webservice SOAP do SGS
-  ([spec 060](.ai/specs/060-cdi-fixed-income.md)); o Tesouro
-  Direto é cotado pelo PU Base oficial ([spec 061](.ai/specs/061-treasury-direct-quotes.md));
+- inclusão e movimentação passam por etapas obrigatórias e conferência; a
+  posição nova recebe saldo inicial automaticamente, sem escolhas contábeis
+  ([spec 066](.ai/specs/066-guided-position-and-movement-dialogs.md));
+- o cálculo automático pelo CDI foi suspenso localmente a pedido do usuário
+  ([spec 065](.ai/specs/065-manual-fixed-income.md)). Rendimentos novos são
+  manuais; valores e metadados anteriores da spec 060 ficam preservados. O Tesouro
+  Direto é cotado pelo PU Base oficial ([spec 061](.ai/specs/061-treasury-direct-quotes.md)),
+  que é só sugestão: o usuário pode digitar o preço dele e informar a posição em
+  reais ([spec 070](.ai/specs/070-treasury-own-value.md));
+- classe, subclasse e resgate vêm da lista fixa da planilha, dependentes entre
+  si; o tipo do ativo (Tesouro Direto, ETF dos EUA…) é outro campo, com coluna,
+  filtro e painel na Visão geral ([spec 068](.ai/specs/068-fixed-classification-and-asset-type.md));
+- a Selic de cada competência fica no card do dólar da Visão geral e no cabeçalho
+  das Cotações ([spec 067](.ai/specs/067-selic-per-month.md)); datas usam o
+  `DatePicker` do design system ([spec 069](.ai/specs/069-date-picker-and-dialog-pickers.md));
+- servidores de teste com outra pasta de build (`PORTFOLIO_TEST_DIST_DIR`) usam
+  um nome `.next-*`, ignorado pelo Git: fora dele, o Tailwind lia o cache binário
+  e quebrava o CSS de todos os `pnpm dev` ([spec 072](.ai/specs/072-dev-branch-and-local-tools.md));
 - o Playwright tem o perfil `mobile-safari` (iPhone 16 Plus, WebKit)
   ([spec 062](.ai/specs/062-iphone-mobile-review.md)); testes que preenchem
   campos esperam a hidratação (`waitForHydration`), porque o WebKit é mais lento;
@@ -54,10 +79,11 @@ no Neon, e o job das cotações roda como função do Neon
   [docs/backup-format.md](docs/backup-format.md), que mantém o formato do
   backup e as conversões de versões antigas;
 - o backup mais recente dos dados reais é
-  `backups/meu-portfolio-backup-2026-10-03-2016.json` (versão 2, convertido na
-  restauração); a produção começa sem usuários e recebe os dados por ele;
-- transações dentro das posições e a previdência, que o usuário indicou como
-  próximo assunto, estão no backlog, em `.ai/context/backlog.md`;
+  `backups/meu-portfolio-backup-2026-10-05-movimentacoes.json` (versão 5, com
+  movimentações convertidas pelas regras do usuário, [spec 071](.ai/specs/071-backup-with-movements.md));
+  ainda não foi restaurado na carteira local nem na produção;
+- transações dentro das posições foram implementadas; a previdência, que o
+  usuário indicou como próximo assunto, continua em `.ai/context/backlog.md`;
 - as respostas do usuário, o backlog e o que ainda aguarda resposta estão em
   `.ai/context/ux-restructure.md`, nas seções de respostas de 2026-10-02
   (segunda, terceira e quarta rodadas) e nos ajustes de 2026-10-03;
@@ -74,7 +100,7 @@ fatia fica em `.ai/specs/README.md`.
 Ao atualizar um ambiente local: `pnpm install`, `pnpm db:migrate`,
 `pnpm db:generate` (o `migrate dev` do Prisma 7 não regenera o cliente) e
 reiniciar o `pnpm dev`. Ao abrir, o app cria as competências que faltam (e a
-primeira, para um usuário novo); as cotações e o CDI vêm de `pnpm quotes:sync`.
+primeira, para um usuário novo); as cotações e a meta Selic vêm de `pnpm quotes:sync`.
 
 Para testar gravações sem tocar nos dados reais, use um schema de teste no
 mesmo Postgres (ideia do usuário, spec 042): `pnpm db:test-schema create

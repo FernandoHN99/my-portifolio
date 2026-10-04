@@ -1,7 +1,10 @@
 # 061 — Tesouro Direto por quantidade e preço oficial
 
 Estado: implementada localmente em 2026-10-04; falta confirmar uma inclusão
-gravada com um título real do usuário. Sem deploy.
+gravada com um título real do usuário. Sem deploy. Desde a
+[spec 070](070-treasury-own-value.md), o preço oficial é sugestão que o usuário
+pode trocar, a posição pode ser informada em reais e a subclasse segue o
+indexador do título ([spec 068](068-fixed-classification-and-asset-type.md)).
 
 ## Resultado esperado
 
