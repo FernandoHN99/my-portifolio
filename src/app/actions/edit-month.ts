@@ -2,7 +2,6 @@
 
 import { revalidatePath } from "next/cache";
 import { unstable_rethrow } from "next/navigation";
-import { after } from "next/server";
 import { z } from "zod";
 
 import {
@@ -17,7 +16,6 @@ import {
 } from "@/modules/portfolio/application/month-editing";
 import { requireSessionUser } from "@/modules/auth/session";
 import { ASSET_KINDS } from "@/modules/portfolio/domain/asset-kinds";
-import { backfillNewAssetHistories } from "@/modules/quotes/application/backfill-asset-history";
 import { toMonthParam } from "@/modules/portfolio/presentation/reference-month";
 
 export type EditActionResult =
@@ -111,14 +109,9 @@ export async function addPositionAction(input: unknown): Promise<EditActionResul
   }
 
   return run(async () => {
+    // Um ticker novo fica cadastrado como pendente, e o job agendado carrega o
+    // histórico dele (spec 053).
     const result = await addPosition(parsed.data);
-
-    // Ativo novo com ticker: o histórico de fechamento mensal é buscado depois
-    // da resposta, sem atrasar o salvamento (spec 029).
-    if (parsed.data.addition.newAsset?.ticker) {
-      after(() => backfillNewAssetHistories().catch((error) => console.error("Histórico de cotações não buscado.", error)));
-    }
-
     return { ok: true, message: "Posição incluída.", undoToken: result.undoToken };
   });
 }

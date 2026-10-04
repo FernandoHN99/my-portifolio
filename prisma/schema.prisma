@@ -293,6 +293,42 @@ model DailyQuote {
 
 // Execução da atualização automática de cotações, de todos os usuários
 // (spec 051). Cada um vê só os resultados dos próprios símbolos.
+enum QuoteSymbolStatus {
+  PENDING
+  ACTIVE
+  ERROR
+}
+
+// Cadastro dos símbolos cotados, compartilhado por todos os usuários (spec
+// 053). O símbolo é a mesma chave de daily_quotes, market_quotes e
+// manual_quotes. O job agendado lê daqui o que buscar e grava aqui o resultado
+// de cada tentativa; quem usa o símbolo são os ativos dos usuários.
+model QuoteSymbol {
+  symbol             String            @id
+  instrumentType     String            @map("instrument_type")
+  baseCurrency       String            @map("base_currency")
+  /// Moeda da CoinGecko do símbolo, a mesma para todos os usuários.
+  providerId         String?           @map("provider_id")
+  status             QuoteSymbolStatus @default(PENDING)
+  lastAttemptAt      DateTime?         @map("last_attempt_at") @db.Timestamptz(3)
+  lastSuccessAt      DateTime?         @map("last_success_at") @db.Timestamptz(3)
+  /// Falhas seguidas da cotação atual; volta a zero no sucesso.
+  failureCount       Int               @default(0) @map("failure_count")
+  lastErrorCode      String?           @map("last_error_code")
+  lastErrorMessage   String?           @map("last_error_message")
+  /// Espera depois de falhas: antes disso o job não tenta de novo.
+  nextAttemptAt      DateTime?         @map("next_attempt_at") @db.Timestamptz(3)
+  /// Último mês (dia 1) com o histórico de fechamento conferido; nulo até o
+  /// primeiro carregamento.
+  historySyncedUntil DateTime?         @map("history_synced_until") @db.Date
+  historyAttemptedAt DateTime?         @map("history_attempted_at") @db.Timestamptz(3)
+  historyError       String?           @map("history_error")
+  createdAt          DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@map("quote_symbols")
+}
+
 model QuoteRefreshRun {
   id            String               @id @default(uuid()) @db.Uuid
   status        QuoteRefreshStatus   @default(RUNNING)

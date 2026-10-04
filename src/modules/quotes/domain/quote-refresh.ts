@@ -1,9 +1,8 @@
 // Tipos e regras da atualização de cotações compartilhados entre servidor e
 // interface. Sem dependências de banco, para poder ser importado no cliente.
 
-// Só há atualização automática (spec 051): ao abrir o aplicativo, quando a
-// última tentativa tem mais de uma hora.
-export const QUOTE_REFRESH_INTERVAL_MS = 60 * 60 * 1000;
+// As cotações são atualizadas só pelo job agendado, de hora em hora (spec
+// 053); a interface lê o resumo da última execução.
 
 export type QuoteRefreshRunStatus = "RUNNING" | "COMPLETED" | "COMPLETED_WITH_ISSUES" | "FAILED";
 
@@ -34,12 +33,6 @@ export type QuoteRefreshSummary = {
   lastRun: QuoteRefreshRunView | null;
 };
 
-export type QuoteRefreshOutcome =
-  | { state: "fresh"; lastStartedAt: string }
-  | { state: "busy"; runId: string }
-  | { state: "done"; run: QuoteRefreshRunView }
-  | { state: "unavailable"; message: string };
-
 /**
  * Cotação que pode ser editada à mão (spec 028). O usuário não pretende editar
  * cotações: a edição existe só para a que não foi encontrada (sem valor no
@@ -55,15 +48,6 @@ export function isQuoteEditable({
   lastFailed: boolean;
 }) {
   return !hasValue || carried || lastFailed;
-}
-
-export function isRefreshDue(lastStartedAt: Date | null, now: Date) {
-  if (!lastStartedAt) {
-    return true;
-  }
-
-  const elapsed = now.getTime() - lastStartedAt.getTime();
-  return elapsed >= QUOTE_REFRESH_INTERVAL_MS || elapsed < 0;
 }
 
 const PROVIDER_LABELS: Record<string, string> = {

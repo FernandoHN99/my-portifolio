@@ -1,5 +1,6 @@
 import { getPrismaClient } from "@/lib/prisma";
 import { getUserDb } from "@/lib/user-db";
+import { visibleRunsFor } from "@/modules/quotes/application/quote-refresh-summary";
 import { readQuoteViewer, runViewFor } from "@/modules/quotes/application/run-views";
 import { addMonths } from "@/modules/quotes/domain/calendar";
 import { type QuoteFailureView, type QuoteRefreshRunStatus } from "@/modules/quotes/domain/quote-refresh";
@@ -47,10 +48,12 @@ export async function getRunHistory(referenceDate: Date, before?: string): Promi
   }
 
   try {
-    const [viewer, runs, total] = await Promise.all([
-      readQuoteViewer(userDb),
+    // Só as execuções com algum símbolo do usuário (spec 053).
+    const viewer = await readQuoteViewer(userDb);
+    const visible = visibleRunsFor(viewer);
+    const [runs, total] = await Promise.all([
       prisma.quoteRefreshRun.findMany({
-        where: { quoteDate: inMonth, ...(cursor ? { startedAt: { lt: cursor } } : {}) },
+        where: { quoteDate: inMonth, ...visible, ...(cursor ? { startedAt: { lt: cursor } } : {}) },
         orderBy: { startedAt: "desc" },
         take: RUN_HISTORY_PAGE_SIZE + 1,
         select: {
@@ -67,7 +70,7 @@ export async function getRunHistory(referenceDate: Date, before?: string): Promi
           },
         },
       }),
-      prisma.quoteRefreshRun.count({ where: { quoteDate: inMonth } }),
+      prisma.quoteRefreshRun.count({ where: { quoteDate: inMonth, ...visible } }),
     ]);
 
     const entries: QuoteRunHistoryEntry[] = runs.map((run) => {

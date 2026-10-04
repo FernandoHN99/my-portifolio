@@ -1,0 +1,43 @@
+# Reserva do job das cotações (spec 053): a mesma função de `pnpm quotes:sync`.
+# O agendamento principal é a função do Neon (jobs/neon/neon.ts). Fica só manual
+# até ser escolhido; para agendar, descomente `schedule`. Duas execuções ao
+# mesmo tempo são seguras: a segunda encontra a primeira em andamento e sai.
+#
+# Segredos do repositório: PORTFOLIO_DATABASE_URL (conexão pooled do Neon) e,
+# opcionais, COINGECKO_API_KEY, FINNHUB_API_KEY, ALPHA_VANTAGE_API_KEY,
+# BRAPI_TOKEN e AWESOME_API_KEY.
+name: Atualização de cotações
+
+on:
+  workflow_dispatch:
+  # schedule:
+  #   - cron: "0 * * * *"
+
+concurrency:
+  group: quote-sync
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      DATABASE_URL: ${{ secrets.PORTFOLIO_DATABASE_URL }}
+      COINGECKO_API_KEY: ${{ secrets.COINGECKO_API_KEY }}
+      FINNHUB_API_KEY: ${{ secrets.FINNHUB_API_KEY }}
+      ALPHA_VANTAGE_API_KEY: ${{ secrets.ALPHA_VANTAGE_API_KEY }}
+      BRAPI_TOKEN: ${{ secrets.BRAPI_TOKEN }}
+      AWESOME_API_KEY: ${{ secrets.AWESOME_API_KEY }}
+      TZ: America/Sao_Paulo
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm quotes:sync

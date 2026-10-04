@@ -20,6 +20,8 @@
     "backup:export": "tsx scripts/backup.ts export",
     "backup:restore": "tsx scripts/backup.ts restore",
     "auth:user": "tsx scripts/auth-user.ts",
+    "quotes:sync": "tsx scripts/quotes-sync.ts",
+    "jobs:build": "node jobs/neon/build.mjs",
     "postinstall": "prisma generate"
   },
   "dependencies": {
@@ -47,12 +49,14 @@
     "zod": "4.6.5"
   },
   "devDependencies": {
+    "@neon/config": "1.8.3",
     "@playwright/test": "1.63.0",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/pg": "^8.23.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "esbuild": "0.28.2",
     "eslint": "^9",
     "eslint-config-next": "16.3.8",
     "prisma": "7.10.0",

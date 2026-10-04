@@ -8,7 +8,7 @@ import { QuoteRefreshIndicator } from "@/components/product/quote-refresh-indica
 import { TabViewport } from "@/components/product/tab-viewport";
 import { cn } from "@/lib/utils";
 import type { PortfolioMonthSummary } from "@/modules/portfolio/application/get-portfolio-months";
-import { getRequestQuoteRefreshSummary } from "@/modules/quotes/application/refresh-quotes";
+import { getRequestQuoteRefreshSummary } from "@/modules/quotes/application/quote-refresh-summary";
 
 type AppShellProps = {
   active: TabKey | "none";

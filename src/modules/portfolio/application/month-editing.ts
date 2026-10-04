@@ -598,6 +598,13 @@ async function ensureMonthQuote(
   }
   batch.quoteBySymbol.set(symbol, valueBrl);
 
+  // O ticker novo entra no cadastro como pendente, e o job agendado carrega o
+  // histórico dele (spec 053). Um símbolo já cadastrado fica como está.
+  await transaction.quoteSymbol.createMany({
+    data: [{ symbol, instrumentType, baseCurrency, providerId: verified.coinId }],
+    skipDuplicates: true,
+  });
+
   if (verified.status === "found" && verified.priceBrl !== null) {
     const daily = await transaction.dailyQuote.findUnique({
       where: { symbol_quoteDate: { symbol, quoteDate: verified.quoteDate } },

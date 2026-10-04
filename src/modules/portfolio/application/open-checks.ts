@@ -1,22 +1,15 @@
 import { ensureMonthsUpToDate } from "@/modules/portfolio/application/month-rollover";
 import { ensureDefaultTargetPlan } from "@/modules/portfolio/application/target-plan-editing";
 import type { MonthRolloverOutcome, OpenCheckResponse, TargetPlanCheck } from "@/modules/portfolio/domain/month-rollover";
-import {
-  getQuoteRefreshSummary,
-  refreshQuotes,
-  type QuoteFetcher,
-} from "@/modules/quotes/application/refresh-quotes";
-import type { QuoteRefreshOutcome } from "@/modules/quotes/domain/quote-refresh";
+import { getQuoteRefreshSummary } from "@/modules/quotes/application/quote-refresh-summary";
 
-// Checagem feita quando o aplicativo é aberto. Primeiro a virada de mês, que
-// cria as competências que faltam até o mês corrente; depois as metas padrão,
-// se não houver plano de metas (spec 048); por fim as cotações, se a última
-// tentativa tiver mais de uma hora. Nenhuma falha aqui quebra a página, e uma
-// falha numa etapa não impede as seguintes.
-export async function runOpenChecks({
-  now = new Date(),
-  fetchQuotes,
-}: { now?: Date; fetchQuotes?: QuoteFetcher } = {}): Promise<OpenCheckResponse> {
+// Checagem feita quando o aplicativo é aberto e a cada poucos minutos com ele
+// visível. Primeiro a virada de mês, que cria as competências que faltam até o
+// mês corrente; depois as metas padrão, se não houver plano de metas (spec
+// 048). As cotações não são mais buscadas aqui: o job agendado as atualiza
+// (spec 053), e a checagem só devolve o resumo da última execução. Nenhuma
+// falha aqui quebra a página, e uma falha numa etapa não impede as seguintes.
+export async function runOpenChecks({ now = new Date() }: { now?: Date } = {}): Promise<OpenCheckResponse> {
   const rollover = await ensureMonthsUpToDate(now).catch(
     (error: unknown): MonthRolloverOutcome => ({
       state: "unavailable",
@@ -24,14 +17,8 @@ export async function runOpenChecks({
     }),
   );
   const targetPlan = await ensureDefaultTargetPlan().catch((): TargetPlanCheck => "unavailable");
-  const refresh = await refreshQuotes({ now, fetchQuotes }).catch(
-    (error: unknown): QuoteRefreshOutcome => ({
-      state: "unavailable",
-      message: describeUnexpected(error, "Não foi possível atualizar as cotações."),
-    }),
-  );
 
-  return { rollover, targetPlan, refresh, summary: await getQuoteRefreshSummary() };
+  return { rollover, targetPlan, summary: await getQuoteRefreshSummary(now) };
 }
 
 function describeUnexpected(error: unknown, fallback: string) {

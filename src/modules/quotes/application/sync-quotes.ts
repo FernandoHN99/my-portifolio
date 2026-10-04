@@ -1,0 +1,700 @@
+import {
+  Prisma,
+  QuoteRefreshStatus,
+  QuoteSymbolStatus,
+  QuoteUpdateStatus,
+  type PrismaClient,
+  type QuoteSymbol,
+} from "@/generated/prisma/client";
+import { QUOTE_REFRESH_LOCK_KEY } from "@/lib/advisory-locks";
+import { getPrismaClient } from "@/lib/prisma";
+import { fetchCurrentQuotes, getQuoteProviderConfiguration } from "@/modules/quotes/application/fetch-current-quotes";
+import { loadSymbolHistory, type UsdRatesCache } from "@/modules/quotes/application/symbol-history";
+import { addMonths, calendarDay, lastDayOf, monthOf, toDateKey } from "@/modules/quotes/domain/calendar";
+import {
+  backoffUntil,
+  isHistoryDue,
+  isQuoteDue,
+  MAX_HISTORIES_PER_RUN,
+  MAX_QUOTES_PER_RUN,
+  missingClosingMonths,
+} from "@/modules/quotes/domain/quote-sync";
+import {
+  quoteFailure,
+  type QuoteProviderConfiguration,
+  type QuoteRequest,
+  type QuoteResult,
+} from "@/modules/quotes/domain/quote-types";
+import { describeProviderError } from "@/modules/quotes/infrastructure/http";
+
+// Job agendado das cotações (spec 053): a única escrita das cotações
+// automáticas. Roda fora da navegação, pelo roteiro `pnpm quotes:sync`, pela
+// função do Neon ou pelo GitHub Actions, sempre com esta mesma função. Sem
+// dependências do Next.js nem de sessão: trabalha com o cliente sem escopo,
+// sobre os símbolos de todos os usuários.
+
+export type QuoteFetcher = (requests: QuoteRequest[]) => Promise<QuoteResult[]>;
+export type HistoryLoader = typeof loadSymbolHistory;
+
+export type HistoryReport = {
+  symbol: string;
+  status: "SUCCESS" | "FAILED" | "UP_TO_DATE";
+  provider: string | null;
+  months: number;
+  message?: string;
+};
+
+export type QuoteSyncOutcome =
+  | { state: "idle" }
+  | { state: "busy"; runId: string }
+  | {
+      state: "done";
+      runId: string;
+      status: QuoteRefreshStatus;
+      succeeded: string[];
+      failed: { symbol: string; errorCode: string; errorMessage: string }[];
+      histories: HistoryReport[];
+    }
+  | { state: "unavailable"; message: string };
+
+type Transaction = Prisma.TransactionClient;
+
+type Claim =
+  | {
+      state: "claimed";
+      runId: string;
+      quoteSymbols: QuoteSymbol[];
+      historySymbols: QuoteSymbol[];
+      unregistered: string[];
+      currentMonthIds: string[];
+    }
+  | { state: "idle" }
+  | { state: "busy"; runId: string };
+
+// O bloqueio consultivo (QUOTE_REFRESH_LOCK_KEY) serializa a reserva de uma
+// execução e dura só a transação curta que cria a execução, o que funciona pelo
+// pooler do Neon. Uma execução que continua RUNNING depois de 10 minutos foi
+// interrompida.
+const STALE_RUN_MS = 10 * 60 * 1000;
+
+export async function syncQuotes({
+  now = new Date(),
+  fetchQuotes,
+  loadHistory = loadSymbolHistory,
+  configuration = getQuoteProviderConfiguration(),
+  prisma = getPrismaClient(),
+}: {
+  now?: Date;
+  fetchQuotes?: QuoteFetcher;
+  loadHistory?: HistoryLoader;
+  configuration?: QuoteProviderConfiguration;
+  prisma?: PrismaClient | null;
+} = {}): Promise<QuoteSyncOutcome> {
+  if (!prisma) {
+    return { state: "unavailable", message: "O banco de dados não está configurado." };
+  }
+
+  const startedClock = Date.now();
+  const clock = () => new Date(now.getTime() + (Date.now() - startedClock));
+  const today = calendarDay(now);
+  const currentMonth = monthOf(today);
+  const claim = await claimRun(prisma, now, today, currentMonth);
+
+  if (claim.state !== "claimed") {
+    return claim;
+  }
+
+  const fetcher: QuoteFetcher = fetchQuotes ?? ((requests) => fetchCurrentQuotes(requests, configuration));
+  let results: QuoteResult[] | null = null;
+  let outcome: Extract<QuoteSyncOutcome, { state: "done" }> = {
+    state: "done",
+    runId: claim.runId,
+    status: QuoteRefreshStatus.FAILED,
+    succeeded: [],
+    failed: [],
+    histories: [],
+  };
+
+  if (claim.quoteSymbols.length > 0 || claim.unregistered.length > 0) {
+    // Fica fora do try para que, se a gravação falhar, cada símbolo consultado
+    // ainda apareça como falha na execução.
+    try {
+      const requests = claim.quoteSymbols.map(
+        (symbol): QuoteRequest => ({
+          symbol: symbol.symbol,
+          instrumentType: symbol.instrumentType,
+          baseCurrency: symbol.baseCurrency,
+          providerId: symbol.providerId ?? undefined,
+        }),
+      );
+      const fetched = await fetchSafely(fetcher, requests);
+      const fetchedAt = clock();
+      const completed = completeResults(requests, fetched).concat(
+        claim.unregistered.map((symbol) =>
+          quoteFailure(
+            symbol,
+            "configuration",
+            "MISSING_QUOTE_METADATA",
+            `Não há histórico de ${symbol} para escolher o provedor da cotação.`,
+          ),
+        ),
+      );
+      results = completed;
+      const successes = completed.filter((result) => result.status === "SUCCESS");
+      const failures = completed.filter((result) => result.status === "FAILED");
+      const status =
+        failures.length === 0
+          ? QuoteRefreshStatus.COMPLETED
+          : successes.length === 0
+            ? QuoteRefreshStatus.FAILED
+            : QuoteRefreshStatus.COMPLETED_WITH_ISSUES;
+
+      await prisma.$transaction(
+        (transaction) =>
+          saveResults(transaction, {
+            runId: claim.runId,
+            completed,
+            registry: new Map(claim.quoteSymbols.map((symbol) => [symbol.symbol, symbol])),
+            currentMonthIds: claim.currentMonthIds,
+            currentMonth,
+            today,
+            fetchedAt,
+            status,
+            finishedAt: clock(),
+          }),
+        { maxWait: 10_000, timeout: 60_000 },
+      );
+
+      outcome = {
+        ...outcome,
+        status,
+        succeeded: successes.map((result) => result.symbol),
+        failed: failures.flatMap((result) =>
+          result.status === "FAILED"
+            ? [{ symbol: result.symbol, errorCode: result.errorCode, errorMessage: result.errorMessage }]
+            : [],
+        ),
+      };
+    } catch (error) {
+      console.error("A atualização de cotações falhou.", error);
+      await recordFailedRun(prisma, claim.runId, results, clock()).catch(() => undefined);
+    }
+  }
+
+  outcome.histories = await syncHistories(prisma, claim.historySymbols, {
+    currentMonth,
+    now: clock(),
+    configuration,
+    loadHistory,
+  });
+
+  // Uma execução só de histórico serviu de reserva contra execuções
+  // simultâneas; sem cotações, ela não entra no histórico de execuções.
+  if (claim.quoteSymbols.length === 0 && claim.unregistered.length === 0) {
+    await prisma.quoteRefreshRun.delete({ where: { id: claim.runId } }).catch(() => undefined);
+    outcome.status = outcome.histories.some((report) => report.status === "FAILED")
+      ? QuoteRefreshStatus.COMPLETED_WITH_ISSUES
+      : QuoteRefreshStatus.COMPLETED;
+  }
+
+  return outcome;
+}
+
+/**
+ * Reserva a execução e escolhe os símbolos devidos, dentro do bloqueio: os
+ * símbolos em uso (posições da competência mais recente de cada usuário) que
+ * faltam no cadastro são cadastrados; dos cadastrados, entram os de cotação
+ * vencida e os de histórico por carregar. Sem nada devido, não cria execução.
+ */
+async function claimRun(prisma: PrismaClient, now: Date, today: Date, currentMonth: Date): Promise<Claim> {
+  return prisma.$transaction(
+    async (transaction) => {
+      await transaction.$executeRaw`SELECT pg_advisory_xact_lock(${QUOTE_REFRESH_LOCK_KEY})`;
+      await transaction.quoteRefreshRun.updateMany({
+        where: { status: QuoteRefreshStatus.RUNNING, startedAt: { lt: new Date(now.getTime() - STALE_RUN_MS) } },
+        data: {
+          status: QuoteRefreshStatus.FAILED,
+          finishedAt: now,
+          errorMessage: "A execução foi interrompida antes de terminar.",
+        },
+      });
+
+      const running = await transaction.quoteRefreshRun.findFirst({
+        where: { status: QuoteRefreshStatus.RUNNING },
+        select: { id: true },
+      });
+
+      if (running) {
+        return { state: "busy" as const, runId: running.id };
+      }
+
+      const latestMonths = await transaction.portfolioMonth.findMany({
+        distinct: ["userId"],
+        orderBy: [{ userId: "asc" }, { referenceDate: "desc" }],
+        select: { id: true, referenceDate: true },
+      });
+      const inUse = await symbolsInUse(
+        transaction,
+        latestMonths.map((month) => month.id),
+      );
+      const unregistered = await registerMissingSymbols(transaction, inUse);
+      const registry = await transaction.quoteSymbol.findMany({
+        where: { symbol: { in: inUse } },
+        orderBy: [{ lastSuccessAt: { sort: "asc", nulls: "first" } }, { symbol: "asc" }],
+      });
+      const quoteSymbols = registry.filter((symbol) => isQuoteDue(symbol, now)).slice(0, MAX_QUOTES_PER_RUN);
+      const historySymbols = registry
+        .filter((symbol) => isHistoryDue(symbol, currentMonth, now))
+        .slice(0, MAX_HISTORIES_PER_RUN);
+      // Um símbolo sem cadastro possível só é relatado quando a execução já
+      // vai acontecer, para não criar execuções de hora em hora só com ele.
+      const reportUnregistered = quoteSymbols.length > 0 ? unregistered : [];
+
+      if (quoteSymbols.length === 0 && historySymbols.length === 0) {
+        return { state: "idle" as const };
+      }
+
+      const run = await transaction.quoteRefreshRun.create({
+        data: { status: QuoteRefreshStatus.RUNNING, quoteDate: today, startedAt: now },
+        select: { id: true },
+      });
+
+      return {
+        state: "claimed" as const,
+        runId: run.id,
+        quoteSymbols,
+        historySymbols,
+        unregistered: reportUnregistered,
+        currentMonthIds: latestMonths
+          .filter((month) => month.referenceDate.getTime() === currentMonth.getTime())
+          .map((month) => month.id),
+      };
+    },
+    { maxWait: 10_000, timeout: 30_000 },
+  );
+}
+
+async function symbolsInUse(transaction: Transaction, monthIds: string[]) {
+  if (monthIds.length === 0) {
+    return [];
+  }
+
+  const positions = await transaction.position.findMany({
+    where: { portfolioMonthId: { in: monthIds }, asset: { quoteSymbol: { not: null } } },
+    distinct: ["assetId"],
+    select: { asset: { select: { quoteSymbol: true } } },
+  });
+
+  return [...new Set(positions.map((position) => position.asset.quoteSymbol!))].sort();
+}
+
+/**
+ * Cadastra os símbolos em uso que faltam, como os de um backup restaurado, com
+ * o tipo e a moeda da cotação mais recente e a moeda da CoinGecko do ativo mais
+ * antigo. Devolve os que não têm cotação nenhuma para tirar o tipo.
+ */
+async function registerMissingSymbols(transaction: Transaction, inUse: string[]) {
+  if (inUse.length === 0) {
+    return [];
+  }
+
+  const known = new Set(
+    (await transaction.quoteSymbol.findMany({ where: { symbol: { in: inUse } }, select: { symbol: true } })).map(
+      (row) => row.symbol,
+    ),
+  );
+  const missing = inUse.filter((symbol) => !known.has(symbol));
+
+  if (missing.length === 0) {
+    return [];
+  }
+
+  const [monthly, daily, assets] = await Promise.all([
+    transaction.marketQuote.findMany({
+      where: { symbol: { in: missing } },
+      orderBy: { referenceDate: "desc" },
+      select: { symbol: true, instrumentType: true, baseCurrency: true },
+    }),
+    transaction.dailyQuote.findMany({
+      where: { symbol: { in: missing } },
+      orderBy: { quoteDate: "desc" },
+      select: { symbol: true, instrumentType: true, baseCurrency: true },
+    }),
+    transaction.asset.findMany({
+      where: { quoteSymbol: { in: missing }, quoteProviderId: { not: null } },
+      orderBy: { createdAt: "asc" },
+      select: { quoteSymbol: true, quoteProviderId: true },
+    }),
+  ]);
+  const metadata = new Map<string, { instrumentType: string; baseCurrency: string }>();
+
+  for (const quote of [...monthly, ...daily]) {
+    if (!metadata.has(quote.symbol)) {
+      metadata.set(quote.symbol, { instrumentType: quote.instrumentType, baseCurrency: quote.baseCurrency });
+    }
+  }
+
+  const providerIds = new Map<string, string>();
+
+  for (const asset of assets) {
+    if (asset.quoteSymbol && asset.quoteProviderId && !providerIds.has(asset.quoteSymbol)) {
+      providerIds.set(asset.quoteSymbol, asset.quoteProviderId);
+    }
+  }
+
+  const registrable = missing.filter((symbol) => metadata.has(symbol));
+
+  if (registrable.length > 0) {
+    await transaction.quoteSymbol.createMany({
+      data: registrable.map((symbol) => ({
+        symbol,
+        ...metadata.get(symbol)!,
+        providerId: providerIds.get(symbol) ?? null,
+      })),
+      skipDuplicates: true,
+    });
+  }
+
+  return missing.filter((symbol) => !metadata.has(symbol));
+}
+
+async function saveResults(
+  transaction: Transaction,
+  {
+    runId,
+    completed,
+    registry,
+    currentMonthIds,
+    currentMonth,
+    today,
+    fetchedAt,
+    status,
+    finishedAt,
+  }: {
+    runId: string;
+    completed: QuoteResult[];
+    registry: Map<string, QuoteSymbol>;
+    currentMonthIds: string[];
+    currentMonth: Date;
+    today: Date;
+    fetchedAt: Date;
+    status: QuoteRefreshStatus;
+    finishedAt: Date;
+  },
+) {
+  const successes = completed.flatMap((result) =>
+    result.status === "SUCCESS" && registry.has(result.symbol)
+      ? [{ ...registry.get(result.symbol)!, provider: result.provider, price: toPrice(result.valueBrl) }]
+      : [],
+  );
+  const failures = completed.flatMap((result) => (result.status === "FAILED" ? [result] : []));
+
+  await transaction.quoteRefreshResult.createMany({
+    data: completed.map((result) => ({
+      runId,
+      symbol: result.symbol,
+      provider: result.provider,
+      status: result.status === "SUCCESS" ? QuoteUpdateStatus.SUCCESS : QuoteUpdateStatus.FAILED,
+      valueBrl: result.status === "SUCCESS" ? toPrice(result.valueBrl) : null,
+      errorCode: result.status === "FAILED" ? result.errorCode : null,
+      errorMessage: result.status === "FAILED" ? result.errorMessage : null,
+      fetchedAt,
+    })),
+  });
+
+  if (successes.length > 0) {
+    const symbols = successes.map((success) => success.symbol);
+    const prices = successes.map((success) => success.price.toString());
+
+    // A cotação do dia: gravar de novo no mesmo dia substitui o valor, então a
+    // série guarda a última cotação válida de cada dia.
+    await transaction.$executeRaw`
+      INSERT INTO "daily_quotes" (
+        "id", "symbol", "quote_date", "instrument_type", "base_currency", "value_brl", "provider", "fetched_at", "run_id"
+      )
+      SELECT gen_random_uuid(), "s"."symbol", ${toDateKey(today)}::date, "s"."instrument_type", "s"."base_currency",
+             "s"."price", "s"."provider", ${fetchedAt}, ${runId}::uuid
+      FROM UNNEST(
+        ${symbols}::text[],
+        ${successes.map((success) => success.instrumentType)}::text[],
+        ${successes.map((success) => success.baseCurrency)}::text[],
+        ${prices}::numeric[],
+        ${successes.map((success) => success.provider)}::text[]
+      ) AS "s"("symbol", "instrument_type", "base_currency", "price", "provider")
+      ON CONFLICT ("symbol", "quote_date") DO UPDATE SET
+        "instrument_type" = EXCLUDED."instrument_type",
+        "base_currency" = EXCLUDED."base_currency",
+        "value_brl" = EXCLUDED."value_brl",
+        "provider" = EXCLUDED."provider",
+        "fetched_at" = EXCLUDED."fetched_at",
+        "run_id" = EXCLUDED."run_id"`;
+
+    // A cotação buscada substitui as digitadas à mão naquele mês, de todos os
+    // usuários (spec 028): elas valiam só enquanto a busca falhava.
+    await transaction.manualQuote.deleteMany({ where: { referenceDate: currentMonth, symbol: { in: symbols } } });
+
+    await transaction.quoteSymbol.updateMany({
+      where: { symbol: { in: symbols } },
+      data: {
+        status: QuoteSymbolStatus.ACTIVE,
+        lastAttemptAt: fetchedAt,
+        lastSuccessAt: fetchedAt,
+        failureCount: 0,
+        lastErrorCode: null,
+        lastErrorMessage: null,
+        nextAttemptAt: null,
+      },
+    });
+
+    if (currentMonthIds.length > 0) {
+      await transaction.$executeRaw`
+        INSERT INTO "market_quotes" (
+          "id", "reference_date", "symbol", "instrument_type", "base_currency", "value_brl", "quote_date"
+        )
+        SELECT gen_random_uuid(), ${toDateKey(currentMonth)}::date, "s"."symbol", "s"."instrument_type", "s"."base_currency",
+               "s"."price", ${toDateKey(today)}::date
+        FROM UNNEST(
+          ${symbols}::text[],
+          ${successes.map((success) => success.instrumentType)}::text[],
+          ${successes.map((success) => success.baseCurrency)}::text[],
+          ${prices}::numeric[]
+        ) AS "s"("symbol", "instrument_type", "base_currency", "price")
+        ON CONFLICT ("reference_date", "symbol") DO UPDATE SET
+          "value_brl" = EXCLUDED."value_brl",
+          "quote_date" = EXCLUDED."quote_date",
+          "carried_from" = NULL`;
+
+      // Reprecifica as posições do mês corrente de cada usuário.
+      await transaction.$executeRaw`
+        UPDATE "positions" AS "p"
+        SET "unit_price_brl" = "s"."price",
+            "total_brl" = ROUND("p"."quantity" * "s"."price", 2),
+            "updated_at" = ${fetchedAt}
+        FROM "assets" AS "a",
+             UNNEST(${symbols}::text[], ${prices}::numeric[]) AS "s"("symbol", "price")
+        WHERE "a"."id" = "p"."asset_id"
+          AND "a"."quote_symbol" = "s"."symbol"
+          AND "p"."portfolio_month_id" = ANY(${currentMonthIds}::uuid[])`;
+
+      const usd = successes.find((success) => success.symbol === "USD");
+
+      if (usd) {
+        await transaction.position.updateMany({
+          where: { portfolioMonthId: { in: currentMonthIds }, exchangeRateBrl: { not: null } },
+          data: { exchangeRateBrl: usd.price },
+        });
+      }
+    }
+  }
+
+  for (const failure of failures) {
+    const symbol = registry.get(failure.symbol);
+
+    if (!symbol) {
+      continue;
+    }
+
+    const failureCount = symbol.failureCount + 1;
+    await transaction.quoteSymbol.update({
+      where: { symbol: failure.symbol },
+      data: {
+        status: QuoteSymbolStatus.ERROR,
+        lastAttemptAt: fetchedAt,
+        failureCount,
+        lastErrorCode: failure.errorCode,
+        lastErrorMessage: `${failure.provider}: ${failure.errorMessage}`.slice(0, 1000),
+        nextAttemptAt: backoffUntil(fetchedAt, failureCount),
+      },
+    });
+  }
+
+  await transaction.quoteRefreshRun.update({
+    where: { id: runId },
+    data: {
+      status,
+      finishedAt,
+      repricedMonth: currentMonthIds.length > 0 ? currentMonth : null,
+      errorMessage:
+        failures.length === 0 ? null : `${failures.length} de ${completed.length} cotações não foram atualizadas.`,
+    },
+  });
+}
+
+/**
+ * Histórico de cada símbolo devido: só os meses sem fechamento conhecido. Sem
+ * meses faltando, só registra a conferência, sem consultar provedor. A falha de
+ * um símbolo fica no cadastro e não impede os outros.
+ */
+async function syncHistories(
+  prisma: PrismaClient,
+  symbols: QuoteSymbol[],
+  {
+    currentMonth,
+    now,
+    configuration,
+    loadHistory,
+  }: { currentMonth: Date; now: Date; configuration: QuoteProviderConfiguration; loadHistory: HistoryLoader },
+) {
+  const reports: HistoryReport[] = [];
+  const usdCache: UsdRatesCache = { rates: null };
+  const previousMonth = addMonths(currentMonth, -1);
+
+  for (const symbol of symbols) {
+    try {
+      const months = missingClosingMonths({
+        currentMonth,
+        syncedUntil: symbol.historySyncedUntil,
+        closingDays: await closingDaysOf(prisma, symbol.symbol, currentMonth),
+      });
+      const result =
+        months.length > 0
+          ? await loadHistory(prisma, symbol, { months, currentMonth, now, configuration, usdCache })
+          : null;
+
+      await prisma.quoteSymbol.update({
+        where: { symbol: symbol.symbol },
+        data: { historySyncedUntil: previousMonth, historyAttemptedAt: now, historyError: null },
+      });
+      reports.push({
+        symbol: symbol.symbol,
+        status: result ? "SUCCESS" : "UP_TO_DATE",
+        provider: result?.provider ?? null,
+        months: result?.inserted ?? 0,
+      });
+    } catch (error) {
+      const message = describeProviderError(error).message;
+      await prisma.quoteSymbol
+        .update({
+          where: { symbol: symbol.symbol },
+          data: { historyAttemptedAt: now, historyError: message.slice(0, 1000) },
+        })
+        .catch(() => undefined);
+      reports.push({ symbol: symbol.symbol, status: "FAILED", provider: null, months: 0, message });
+    }
+  }
+
+  return reports;
+}
+
+/** Dia mais recente com cotação própria de cada mês (AAAA-MM) da janela. */
+async function closingDaysOf(prisma: PrismaClient, symbol: string, currentMonth: Date) {
+  const from = addMonths(currentMonth, -48);
+  const [daily, monthly] = await Promise.all([
+    prisma.dailyQuote.findMany({
+      where: { symbol, quoteDate: { gte: from, lt: currentMonth } },
+      select: { quoteDate: true },
+    }),
+    prisma.marketQuote.findMany({
+      where: { symbol, carriedFrom: null, referenceDate: { gte: from, lt: currentMonth } },
+      select: { referenceDate: true, quoteDate: true },
+    }),
+  ]);
+  const days = new Map<string, string>();
+  const keep = (day: string) => {
+    const month = day.slice(0, 7);
+    const current = days.get(month);
+
+    if (!current || day > current) {
+      days.set(month, day);
+    }
+  };
+
+  for (const quote of daily) {
+    keep(toDateKey(quote.quoteDate));
+  }
+
+  // As importadas do Excel não têm dia: são o fechamento do mês.
+  for (const quote of monthly) {
+    keep(toDateKey(quote.quoteDate ?? lastDayOf(quote.referenceDate)));
+  }
+
+  return days;
+}
+
+// Encerra como falha uma execução cuja gravação não terminou. A transação
+// principal foi desfeita, então os resultados são regravados aqui: cada símbolo
+// consultado vira uma falha com o motivo, para o aviso indicar cada um.
+async function recordFailedRun(
+  prisma: PrismaClient,
+  runId: string,
+  results: QuoteResult[] | null,
+  finishedAt: Date,
+) {
+  await prisma.$transaction(async (transaction) => {
+    if (results && results.length > 0) {
+      await transaction.quoteRefreshResult.createMany({
+        skipDuplicates: true,
+        data: results.map((result) => ({
+          runId,
+          symbol: result.symbol,
+          provider: result.provider,
+          status: QuoteUpdateStatus.FAILED,
+          // Sem o valor: ele pode ter sido a causa da falha na gravação.
+          valueBrl: null,
+          errorCode: result.status === "FAILED" ? result.errorCode : "NOT_SAVED",
+          errorMessage:
+            result.status === "FAILED" ? result.errorMessage : "A cotação foi obtida, mas não pôde ser gravada.",
+          fetchedAt: finishedAt,
+        })),
+      });
+    }
+
+    await transaction.quoteRefreshRun.update({
+      where: { id: runId },
+      data: {
+        status: QuoteRefreshStatus.FAILED,
+        finishedAt,
+        errorMessage: results
+          ? "As cotações foram consultadas, mas não puderam ser gravadas."
+          : "Não foi possível consultar as cotações.",
+      },
+    });
+  });
+}
+
+async function fetchSafely(fetchQuotes: QuoteFetcher, requests: QuoteRequest[]) {
+  if (requests.length === 0) {
+    return [];
+  }
+
+  try {
+    return await fetchQuotes(requests);
+  } catch (error) {
+    const described = describeProviderError(error);
+    return requests.map((request) => quoteFailure(request.symbol, "provider", described.code, described.message));
+  }
+}
+
+// Garante exatamente um resultado válido por símbolo pedido.
+function completeResults(requests: QuoteRequest[], fetched: QuoteResult[]) {
+  const bySymbol = new Map<string, QuoteResult>();
+
+  for (const result of fetched) {
+    if (!bySymbol.has(result.symbol)) {
+      bySymbol.set(result.symbol, result);
+    }
+  }
+
+  return requests.map((request): QuoteResult => {
+    const result = bySymbol.get(request.symbol);
+
+    if (!result) {
+      return quoteFailure(request.symbol, "provider", "MISSING_RESULT", "O provedor não devolveu este ativo.");
+    }
+
+    if (result.status === "SUCCESS" && !(Number.isFinite(result.valueBrl) && result.valueBrl > 0)) {
+      return quoteFailure(
+        request.symbol,
+        result.provider,
+        "INVALID_VALUE",
+        "O provedor devolveu um valor que não é um preço válido.",
+      );
+    }
+
+    return result;
+  });
+}
+
+function toPrice(value: number) {
+  return new Prisma.Decimal(value).toDecimalPlaces(8);
+}

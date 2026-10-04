@@ -1,4 +1,4 @@
-import type { QuoteRefreshOutcome, QuoteRefreshSummary } from "@/modules/quotes/domain/quote-refresh";
+import type { QuoteRefreshSummary } from "@/modules/quotes/domain/quote-refresh";
 
 // Tipos da virada de mês e da checagem de abertura, sem dependências de banco,
 // para poderem ser usados no navegador.
@@ -29,6 +29,5 @@ export type TargetPlanCheck = "created" | "existing" | "no-positions" | "unavail
 export type OpenCheckResponse = {
   rollover: MonthRolloverOutcome;
   targetPlan: TargetPlanCheck;
-  refresh: QuoteRefreshOutcome;
   summary: QuoteRefreshSummary | null;
 };

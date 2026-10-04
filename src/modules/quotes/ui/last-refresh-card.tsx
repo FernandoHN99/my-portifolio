@@ -9,9 +9,9 @@ import { parseMonthParam } from "@/modules/portfolio/presentation/reference-mont
 import type { QuoteRefreshSummary } from "@/modules/quotes/domain/quote-refresh";
 import { formatRefreshDateTime } from "@/modules/quotes/presentation/refresh-time";
 
-// Última atualização das cotações, que é só automática (spec 051): ao abrir o
-// aplicativo, no máximo uma vez por hora. Usa o mesmo cliente do indicador do
-// topo. Aparece só no mês corrente, o único que a atualização muda (spec 038).
+// Última atualização das cotações, feita só pelo job agendado, de hora em hora
+// (spec 053). Usa o mesmo cliente do indicador do topo. Aparece só no mês
+// corrente, o único que a atualização muda (spec 038).
 export function LastRefreshCard({
   summary: serverSummary,
   currentMonth,
@@ -19,7 +19,7 @@ export function LastRefreshCard({
   summary: QuoteRefreshSummary | null;
   currentMonth: string;
 }) {
-  const { client, now, summary, time, lastRun, hasIssues } = useQuoteRefresh(serverSummary);
+  const { now, summary, time, lastRun, hasIssues } = useQuoteRefresh(serverSummary);
   const lastAttemptIsLatestUpdate =
     lastRun !== null && summary?.lastUpdatedAt === (lastRun.finishedAt ?? lastRun.startedAt);
   const failed = lastRun?.failures ?? [];
@@ -44,13 +44,10 @@ export function LastRefreshCard({
           data-testid="last-refresh-time"
           className={cn(
             "mt-1.5 text-lg font-semibold tracking-[-0.03em] text-foreground",
-            client.spinning ? "text-primary" : null,
-            !client.spinning && now === null && summary?.lastUpdatedAt ? "invisible" : null,
+            now === null && summary?.lastUpdatedAt ? "invisible" : null,
           )}
         >
-          {client.spinning
-            ? "Atualizando cotações…"
-            : (time?.long ?? (summary?.lastUpdatedAt ? "Atualizado há 10 min" : "Cotações sem atualização"))}
+          {time?.long ?? (summary?.lastUpdatedAt ? "Atualizado há 10 min" : "Cotações sem atualização")}
         </p>
         {time ? <p className="mt-0.5 text-xs text-muted-foreground">Em {time.absolute}</p> : null}
         {hasIssues && lastRun && now !== null ? (
@@ -62,8 +59,8 @@ export function LastRefreshCard({
           </p>
         ) : null}
         <p className="mt-1.5 text-[11px] leading-5 text-muted-foreground">
-          As cotações são buscadas automaticamente ao abrir o aplicativo, no máximo uma vez por hora, e recalculam
-          as posições de {compact(currentMonth)}.
+          As cotações são atualizadas automaticamente de hora em hora, sem depender do aplicativo aberto, e
+          recalculam as posições de {compact(currentMonth)}.
         </p>
       </div>
 

@@ -3,31 +3,31 @@ import { hasPendingChanges } from "@/components/product/unsaved-changes";
 import type { MonthRolloverOutcome, OpenCheckResponse } from "@/modules/portfolio/domain/month-rollover";
 import { formatMonth, formatMonthCompact } from "@/modules/portfolio/presentation/portfolio-format";
 import { parseMonthParam } from "@/modules/portfolio/presentation/reference-month";
-import {
-  providerLabel,
-  QUOTE_REFRESH_INTERVAL_MS,
-  type QuoteRefreshOutcome,
-  type QuoteRefreshRunView,
-  type QuoteRefreshSummary,
-} from "@/modules/quotes/domain/quote-refresh";
+import { providerLabel, type QuoteRefreshRunView, type QuoteRefreshSummary } from "@/modules/quotes/domain/quote-refresh";
 
-// Estado da checagem de cotações no navegador. Fica fora do React para que a
+// Estado da checagem de abertura no navegador. Fica fora do React para que a
 // requisição em andamento e o resultado sobrevivam à troca de abas, que monta
-// um novo cabeçalho em cada página. Só há atualização automática (spec 051).
+// um novo cabeçalho em cada página. As cotações são atualizadas só pelo job
+// agendado (spec 053): a checagem traz o resumo da última execução, e o
+// navegador recarrega os dados quando ele mostra cotações novas.
 
 export type QuoteRefreshClientState = {
   running: boolean;
-  spinning: boolean;
   summary: QuoteRefreshSummary | null;
 };
 
-const SERVER_STATE: QuoteRefreshClientState = { running: false, spinning: false, summary: null };
-const SPIN_DELAY_MS = 300;
-const REQUEST_TIMEOUT_MS = 5 * 60 * 1000;
+const SERVER_STATE: QuoteRefreshClientState = { running: false, summary: null };
+const REQUEST_TIMEOUT_MS = 60 * 1000;
+/** Intervalo mínimo entre checagens de uma aba. */
+const OPEN_CHECK_INTERVAL_MS = 5 * 60 * 1000;
+const ANNOUNCED_RUN_KEY = "quotes:announced-run";
 
 let state: QuoteRefreshClientState = SERVER_STATE;
 let lastOpenCheckAt: number | null = null;
 let refreshQueued = false;
+// O resumo que a tela mostra: o do servidor ao montar a página, depois o de
+// cada checagem. Uma execução nova muda a última execução ou o horário.
+let seen: Pick<QuoteRefreshSummary, "lastUpdatedAt"> & { lastRunId: string | null } | null = null;
 const listeners = new Set<() => void>();
 const runListeners = new Set<(run: QuoteRefreshRunView) => void>();
 
@@ -61,15 +61,19 @@ function setState(patch: Partial<QuoteRefreshClientState>) {
   listeners.forEach((listener) => listener());
 }
 
-// Checagem de abertura: uma vez por carregamento do aplicativo e de novo quando
-// a aba volta a ficar visível depois de uma hora. O servidor decide se as
-// cotações estão vencidas.
-export function runOpenCheck(onDataChanged: () => void) {
+// Checagem de abertura: uma vez por carregamento do aplicativo e de novo a
+// cada cinco minutos com a aba visível. O resumo do servidor ao montar a página
+// é a referência para saber se o job gravou cotações desde então.
+export function runOpenCheck(onDataChanged: () => void, serverSummary: QuoteRefreshSummary | null = null) {
+  seen ??= serverSummary
+    ? { lastUpdatedAt: serverSummary.lastUpdatedAt, lastRunId: serverSummary.lastRun?.id ?? null }
+    : null;
+
   if (state.running) {
     return;
   }
 
-  if (lastOpenCheckAt !== null && Date.now() - lastOpenCheckAt < QUOTE_REFRESH_INTERVAL_MS) {
+  if (lastOpenCheckAt !== null && Date.now() - lastOpenCheckAt < OPEN_CHECK_INTERVAL_MS) {
     return;
   }
 
@@ -93,10 +97,7 @@ export function refreshUnlessEditing(refresh: () => void) {
 }
 
 async function execute(onDataChanged: () => void) {
-  setState({ running: true, spinning: false });
-  // O indicador só mostra "Atualizando" se a checagem demorar: quando as
-  // cotações estão em dia, a resposta chega antes.
-  const spinTimer = window.setTimeout(() => state.running && setState({ spinning: true }), SPIN_DELAY_MS);
+  setState({ running: true });
 
   try {
     const response = await fetch("/api/quotes/open-check", {
@@ -104,8 +105,6 @@ async function execute(onDataChanged: () => void) {
       headers: { "content-type": "application/json" },
       body: "{}",
       cache: "no-store",
-      // Os provedores têm 12 segundos cada; o limite só evita a seta presa se o
-      // servidor parar de responder.
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
 
@@ -114,6 +113,7 @@ async function execute(onDataChanged: () => void) {
     }
 
     const payload = (await response.json()) as OpenCheckResponse;
+    const quotesChanged = payload.summary ? noteSummary(payload.summary) : false;
 
     if (payload.summary) {
       setState({ summary: payload.summary });
@@ -132,23 +132,22 @@ async function execute(onDataChanged: () => void) {
       });
     }
 
-    announceRefresh(payload.refresh);
+    const lastRun = payload.summary?.lastRun ?? null;
+
+    if (lastRun) {
+      announceRun(lastRun);
+    }
 
     if (
       payload.rollover.state === "created" ||
       payload.targetPlan === "created" ||
-      refreshChangedData(payload.refresh)
+      quotesChanged
     ) {
       onDataChanged();
     }
-
-    if (payload.refresh.state === "done") {
-      const { run } = payload.refresh;
-      runListeners.forEach((listener) => listener(run));
-    }
   } catch {
-    // Também na checagem automática: um erro nunca passa em silêncio. O id fixo
-    // faz uma nova falha substituir o aviso anterior em vez de empilhar.
+    // Um erro nunca passa em silêncio. O id fixo faz uma nova falha substituir
+    // o aviso anterior em vez de empilhar.
     showAppToast({
       id: "quotes-unreachable",
       tone: "error",
@@ -156,9 +155,30 @@ async function execute(onDataChanged: () => void) {
       description: "O aplicativo não respondeu ao abrir. Ele tenta de novo na próxima checagem.",
     });
   } finally {
-    window.clearTimeout(spinTimer);
-    setState({ running: false, spinning: false });
+    setState({ running: false });
   }
+}
+
+/**
+ * Guarda o resumo visto e diz se o job gravou cotações desde o anterior. Uma
+ * execução nova também avisa a página de cotações, que mostra o histórico de
+ * execuções.
+ */
+function noteSummary(summary: QuoteRefreshSummary) {
+  const previous = seen;
+  const lastRunId = summary.lastRun?.id ?? null;
+  seen = { lastUpdatedAt: summary.lastUpdatedAt, lastRunId };
+
+  if (!previous) {
+    return false;
+  }
+
+  if (summary.lastRun && lastRunId !== previous.lastRunId) {
+    const run = summary.lastRun;
+    runListeners.forEach((listener) => listener(run));
+  }
+
+  return summary.lastUpdatedAt !== previous.lastUpdatedAt;
 }
 
 const listFormat = new Intl.ListFormat("pt-BR", { style: "long", type: "conjunction" });
@@ -209,30 +229,14 @@ function announceRollover(outcome: MonthRolloverOutcome) {
   });
 }
 
-function refreshChangedData(outcome: QuoteRefreshOutcome) {
-  return outcome.state === "done" && outcome.run.succeeded > 0;
-}
-
-function announceRefresh(outcome: QuoteRefreshOutcome) {
-  if (outcome.state === "busy") {
+// Avisa as falhas de cada execução uma única vez, mesmo que a página seja
+// recarregada: o id da última execução avisada fica no navegador.
+function announceRun(run: QuoteRefreshRunView) {
+  if (run.status === "RUNNING" || (run.failures.length === 0 && run.status !== "FAILED") || wasAnnounced(run.id)) {
     return;
   }
 
-  if (outcome.state === "unavailable") {
-    showAppToast({
-      id: "quotes-unavailable",
-      tone: "error",
-      title: "Não foi possível atualizar as cotações",
-      description: outcome.message,
-    });
-    return;
-  }
-
-  if (outcome.state !== "done") {
-    return;
-  }
-
-  const { run } = outcome;
+  markAnnounced(run.id);
 
   if (run.failures.length > 0) {
     const [first] = run.failures;
@@ -266,5 +270,21 @@ function announceRefresh(outcome: QuoteRefreshOutcome) {
       description: run.errorMessage ?? "A atualização falhou antes de consultar os provedores.",
     });
     return;
+  }
+}
+
+function wasAnnounced(runId: string) {
+  try {
+    return window.localStorage.getItem(ANNOUNCED_RUN_KEY) === runId;
+  } catch {
+    return false;
+  }
+}
+
+function markAnnounced(runId: string) {
+  try {
+    window.localStorage.setItem(ANNOUNCED_RUN_KEY, runId);
+  } catch {
+    // Sem armazenamento, o aviso pode se repetir num novo carregamento.
   }
 }

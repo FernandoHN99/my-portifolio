@@ -1,13 +1,9 @@
 import { expect, test } from "@playwright/test";
 
-import type { QuoteRefreshOutcome } from "@/modules/quotes/domain/quote-refresh";
-
 import { stubQuoteChecks } from "./support/quote-checks";
 
 // A virada real cria competências no banco; aqui a checagem de abertura devolve
 // um resultado fixo e só a apresentação é conferida.
-
-const FRESH: QuoteRefreshOutcome = { state: "fresh", lastStartedAt: "2026-10-02T12:00:00.000Z" };
 
 test("abrir o app avisa a competência do mês criada", async ({ page }) => {
   await stubQuoteChecks(page, {
@@ -25,7 +21,6 @@ test("abrir o app avisa a competência do mês criada", async ({ page }) => {
           },
         ],
       },
-      refresh: FRESH,
       summary: null,
     },
   });
@@ -62,7 +57,6 @@ test("meses passados sem cotação diária são apontados", async ({ page }) => 
           },
         ],
       },
-      refresh: FRESH,
       summary: null,
     },
   });
@@ -83,7 +77,6 @@ test("uma falha na virada de mês é avisada sem quebrar a página", async ({ pa
   await stubQuoteChecks(page, {
     openCheck: {
       rollover: { state: "unavailable", message: "Não foi possível criar a competência do mês." },
-      refresh: FRESH,
       summary: null,
     },
   });

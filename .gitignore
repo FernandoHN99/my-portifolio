@@ -57,3 +57,6 @@ next-env.d.ts
 
 # backups exportados do aplicativo (dados pessoais)
 /backups/
+
+# Pacote da função do Neon (pnpm jobs:build)
+/jobs/neon/dist

@@ -5,7 +5,7 @@ import { getMonthContext } from "@/modules/portfolio/application/get-month-conte
 import { formatMonthCompact } from "@/modules/portfolio/presentation/portfolio-format";
 import { getMonthQuotes } from "@/modules/quotes/application/get-month-quotes";
 import { getRunHistory } from "@/modules/quotes/application/get-run-history";
-import { getRequestQuoteRefreshSummary } from "@/modules/quotes/application/refresh-quotes";
+import { getRequestQuoteRefreshSummary } from "@/modules/quotes/application/quote-refresh-summary";
 import { QuotesWorkspace } from "@/modules/quotes/ui/quotes-workspace";
 
 export const dynamic = "force-dynamic";

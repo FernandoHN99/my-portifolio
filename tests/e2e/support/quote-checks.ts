@@ -4,15 +4,14 @@ import type { OpenCheckResponse } from "@/modules/portfolio/domain/month-rollove
 import type { QuoteRefreshRunView, QuoteRefreshSummary } from "@/modules/quotes/domain/quote-refresh";
 
 // Os testes de interface rodam sobre os dados reais. A checagem de abertura
-// grava no banco, cria competências e consulta provedores, então os cenários a
-// substituem por respostas fixas. Só há atualização automática (spec 051). As
-// respostas usam os tipos da rota, para o typecheck acusar mudanças no
-// contrato.
+// grava no banco (cria competências e metas padrão), então os cenários a
+// substituem por respostas fixas. As cotações vêm só do job agendado (spec
+// 053): a checagem devolve o resumo da última execução. As respostas usam os
+// tipos da rota, para o typecheck acusar mudanças no contrato.
 
 export const IDLE_OPEN_CHECK: OpenCheckResponse = {
   rollover: { state: "up-to-date", latestMonth: null },
   targetPlan: "existing",
-  refresh: { state: "fresh", lastStartedAt: "2026-10-02T12:00:00.000Z" },
   summary: null,
 };
 
