@@ -26,7 +26,7 @@ compartilhadas dos símbolos dele ([spec 051](../.ai/specs/051-shared-automatic-
 ```json
 {
   "format": "meu-portfolio-backup",
-  "version": 4,
+  "version": 5,
   "exportedAt": "2026-10-03T18:17:27.609Z",
   "tables": {
     "dataImports": [],
@@ -52,13 +52,21 @@ compartilhadas dos símbolos dele ([spec 051](../.ai/specs/051-shared-automatic-
 - a ordem de `BACKUP_TABLES` é a de gravação: cada tabela depois das que ela
   referencia. A limpeza segue a ordem inversa.
 
-Tabelas da versão 4, na ordem: `dataImports`, `institutions`, `accounts`,
+Tabelas da versão 5, na ordem: `dataImports`, `institutions`, `accounts`,
 `assets`, `portfolioMonths`, `positions`, `positionAllocations`,
-`targetPlans`, `allocationTargets`, `manualQuotes` e as compartilhadas
+`positionTransactions`, `targetPlans`, `allocationTargets`, `manualQuotes` e as compartilhadas
 `marketQuotes` e `dailyQuotes`. As execuções da atualização de cotações são de
-todos os usuários e não entram no arquivo.
+todos os usuários e não entram no arquivo. O cadastro dos símbolos cotados
+(`quote_symbols`, [spec 053](../.ai/specs/053-scheduled-quote-sync.md)) também
+fica de fora: ele é derivado dos ativos, e o job agendado cadastra sozinho, na
+execução seguinte, os símbolos de um backup restaurado.
 
 ## Restauração
+
+Desde a [spec 054](../.ai/specs/054-derived-currency-and-single-target-plan.md),
+as metas são uma só por usuário: a restauração grava só o plano vigente
+(`isActive`) de `targetPlans`, com as metas dele, e deixa de fora as versões
+anteriores que arquivos mais antigos trazem.
 
 1. `check` confere o arquivo sem gravar e devolve o resumo (contagem por
    tabela, hoje e no arquivo, e o intervalo de competências);
@@ -88,6 +96,7 @@ conferido.
 | 2 | 2026-10-03, spec 047 | saem `importBatches`, `importSourceRows`, `importIssues` e os campos `sourceBatchId`, `sourceRowId`, `sourceSheet` e `sourceCell`; entra `dataImports` |
 | 3 | 2026-10-03, spec 049 | saem `monthlyUpdateRuns` e `quoteUpdateResults`, sem uso; meses com status `IMPORTED` passam a `REVIEWED` |
 | 4 | 2026-10-03, specs 051 e 052 | o arquivo passa a ser de um usuário: sai `userId`; saem `quoteRefreshRuns`, `quoteRefreshResults` e o `runId` de `dailyQuotes`; entra `manualQuotes`, vazia na conversão, porque até a versão 3 a cotação editada à mão ficava em `marketQuotes` |
+| 5 | 2026-10-04, specs 056 a 060 | entra `positionTransactions` (movimentações das posições, com `transferId` nas liquidações), vazia na conversão; as posições ganham `openingQuantity`, a base do mês, igual à quantidade na conversão, e o estado do cálculo pelo CDI (`calculationStartDate`, `calculatedIncomeBrl`, `incomeCalculatedThrough`, `incomeCalculationError`), desligado na conversão; os ativos ganham `cashAccount`, `cdiPercent` e `appliedOn`, com padrão no banco. As taxas do CDI (`rate_observations`) são de todos e ficam fora do arquivo |
 
 ## Como mudar o formato
 

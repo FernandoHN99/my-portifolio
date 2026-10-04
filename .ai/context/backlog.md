@@ -11,6 +11,21 @@ depois dos ajustes em andamento.
 
 ## Transações dentro das posições
 
+Implementado localmente em 2026-10-04, nas specs 056 a 059 (em commit na
+branch local `feat/specs-053-062`, sem deploy); as regras finais estão no
+[prompt consolidado](position-transactions-prompt.md). O texto abaixo fica como
+histórico do pedido.
+
+Em 2026-10-04, o usuário pediu investigação do código e perguntas para
+detalhar esta ideia junto de outros ajustes, preservando a praticidade atual.
+O [prompt consolidado](position-transactions-prompt.md) é a fonte principal
+das respostas finais de 2026-10-04; a investigação e pesquisa de Tesouro/CDI
+ficam em [Descoberta dos próximos ajustes](next-adjustments-discovery.md).
+Depois do planejamento, o usuário autorizou neste chat continuar a
+implementação que outra IA havia iniciado e documentar cada fatia. O estado
+atual fica nas specs [056 a 062](../specs/README.md); tudo é local, sem deploy.
+Verifique o código atual e a spec antes de continuar.
+
 Pedido do usuário em 2026-10-03, que substitui o "livro de movimentações"
 anotado antes. Ele sente falta de registrar compras e vendas para mapear valor
 de compra e venda, marcar nos gráficos os momentos de compra e entender melhor
@@ -38,7 +53,6 @@ O que ele descreveu:
   ([spec 016](../specs/016-position-history.md) hoje estima aportes pela
   variação de quantidade).
 
-Questões a resolver quando virar spec: como as transações convivem com as
-posições mensais já importadas; se a posição mensal passa a ser derivada das
-transações; e de onde vem o histórico do CDI (por exemplo, a série do Banco
-Central).
+As decisões sobre legado, base de cada mês, edição sem cascata e fonte do CDI
+estão no briefing consolidado e nas specs de implementação; as descrições
+acima preservam a origem do pedido de 2026-10-03.

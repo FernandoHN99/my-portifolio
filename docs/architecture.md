@@ -45,6 +45,15 @@ disponível no histórico
 ([spec 021](../.ai/specs/021-automatic-month-rollover.md)). Não haverá
 agendamento nem tentativa de atualizar com o aplicativo desligado.
 
+Atualizado em 2026-10-04: a atualização das cotações saiu da abertura do
+aplicativo e passou a um job agendado, que roda sem o aplicativo aberto e
+busca só os símbolos devidos ([spec 053](../.ai/specs/053-scheduled-quote-sync.md)).
+As posições ganharam movimentações (aporte, retirada, rendimento e saldo
+inicial) sobre a base de cada mês, sem correção em cascata entre competências
+([specs 056 a 059](../.ai/specs/056-position-transactions.md)), e a renda fixa
+a percentual do CDI é calculada pelo job a partir do CDI diário
+([spec 060](../.ai/specs/060-cdi-fixed-income.md)).
+
 Atualizado em 2026-10-03: só há atualização automática; a seta do topo e o
 botão da página de cotações saíram, a pedido do usuário. As cotações
 automáticas, o histórico diário e as execuções são compartilhados entre os

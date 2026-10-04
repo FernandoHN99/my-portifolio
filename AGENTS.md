@@ -11,10 +11,29 @@ e Claude Code consultando a mesma base de conhecimento.
 
 ## Trabalho em andamento
 
-Estado em 2026-10-03: specs 016 e 028 a 052 concluídas e no `main`; detalhes
-em `.ai/specs/README.md`. O app está publicado na Vercel com o banco no Neon
-([Produção](.ai/context/production.md)).
+Estado em 2026-10-04: specs 016 e 028 a 052 concluídas e no `main`; as specs
+053 a 062 estão em quatro commits na branch local `feat/specs-053-062`, sem
+push nem deploy (detalhes em `.ai/specs/README.md`). O app está publicado na
+Vercel com o banco no Neon ([Produção](.ai/context/production.md)); a produção
+ainda não tem as migrações de 2026-10-04.
 
+- as cotações são atualizadas só pelo job agendado (`pnpm quotes:sync`,
+  [spec 053](.ai/specs/053-scheduled-quote-sync.md)); a abertura do app não
+  consulta provedores. O agendamento escolhido é a função do Neon no projeto
+  de jobs em `aws-us-east-1`, ainda sem função publicada
+  ([operação](docs/quote-sync-job.md));
+- as posições têm movimentações sobre a base de cada mês
+  ([spec 056](.ai/specs/056-position-transactions.md)): o lápis edita só
+  atributos e os valores mudam por aporte, retirada e rendimento, corrigidos no
+  próprio registro e só no mês aberto, sem cascata
+  ([spec 057](.ai/specs/057-movement-form-and-attribute-pencil.md)). Regras em
+  [Prompt de continuidade](.ai/context/position-transactions-prompt.md);
+- a renda fixa a percentual do CDI é calculada pelo job com o CDI diário do
+  Banco Central ([spec 060](.ai/specs/060-cdi-fixed-income.md)); o Tesouro
+  Direto é cotado pelo PU Base oficial ([spec 061](.ai/specs/061-treasury-direct-quotes.md));
+- o Playwright tem o perfil `mobile-safari` (iPhone 16 Plus, WebKit)
+  ([spec 062](.ai/specs/062-iphone-mobile-review.md)); testes que preenchem
+  campos esperam a hidratação (`waitForHydration`), porque o WebKit é mais lento;
 - o app tem login e mais de um usuário ([spec 050](.ai/specs/050-login-and-user-data.md)):
   as tabelas da carteira têm `user_id`, e o código lê e grava pelo cliente com
   escopo (`getUserDb`, em `src/lib/user-db.ts`); as cotações automáticas são de
@@ -54,8 +73,8 @@ fatia fica em `.ai/specs/README.md`.
 
 Ao atualizar um ambiente local: `pnpm install`, `pnpm db:migrate`,
 `pnpm db:generate` (o `migrate dev` do Prisma 7 não regenera o cliente) e
-reiniciar o `pnpm dev`. Ao abrir, o app cria as competências que faltam e
-atualiza as cotações se a última atualização tiver mais de uma hora.
+reiniciar o `pnpm dev`. Ao abrir, o app cria as competências que faltam (e a
+primeira, para um usuário novo); as cotações e o CDI vêm de `pnpm quotes:sync`.
 
 Para testar gravações sem tocar nos dados reais, use um schema de teste no
 mesmo Postgres (ideia do usuário, spec 042): `pnpm db:test-schema create

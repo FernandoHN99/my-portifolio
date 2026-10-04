@@ -98,13 +98,17 @@ ALPHA_VANTAGE_API_KEY=
 ```
 
 As chaves são lidas somente no servidor. Ao abrir, o aplicativo cria as
-competências que faltarem até o mês corrente e, se a última tentativa tiver
-mais de uma hora, consulta os provedores. Não há atualização manual
-([spec 051](.ai/specs/051-shared-automatic-quotes.md)). As cotações
-automáticas são de todos os usuários: cada atualização busca os símbolos de
-todas as carteiras, grava no histórico diário e recalcula a competência do mês
-corrente de cada usuário; as que falharem mantêm o valor anterior e são
-avisadas, a cada usuário, pelo nome dos ativos dele. Na página **Cotações**, em
+competências que faltarem até o mês corrente. As cotações são atualizadas só
+pelo job agendado, fora da navegação: `pnpm quotes:sync` localmente, e a função
+do Neon ou o GitHub Actions quando publicados
+([spec 053](.ai/specs/053-scheduled-quote-sync.md), [operação](docs/quote-sync-job.md)).
+Não há atualização manual ([spec 051](.ai/specs/051-shared-automatic-quotes.md)).
+As cotações automáticas são de todos os usuários: cada execução busca os
+símbolos devidos de todas as carteiras, grava no histórico diário e recalcula a
+competência do mês corrente de cada usuário; as que falharem mantêm o valor
+anterior e são avisadas, a cada usuário, pelo nome dos ativos dele. O mesmo job
+busca o CDI diário do Banco Central e recalcula a renda fixa configurada a
+percentual do CDI ([spec 060](.ai/specs/060-cdi-fixed-income.md)). Na página **Cotações**, em
 Posições, uma cotação não encontrada ou com falha pode ser digitada à mão; ela
 vale só para quem a digitou, até a próxima atualização bem-sucedida. A página
 também mostra o histórico das execuções do mês.

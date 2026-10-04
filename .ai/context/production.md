@@ -15,6 +15,7 @@ dados da carteira; o usuário cria a conta e restaura o backup (veja
 | App | Vercel, projeto `my-portifolio` (`prj_scITNB2skZfK9mh06bIgny38melT`), time pessoal `personal-team-6d7a`, plano Hobby, funções em `gru1` (São Paulo) |
 | Código | GitHub `FernandoHN99/my-portifolio`; cada push no `main` publica a produção |
 | Endereço principal | `my-portifolio-three-zeta.vercel.app`, sem a proteção da Vercel (`ssoProtection: all_except_custom_domains`): o acesso depende do login do app |
+| Jobs | Neon, projeto `my-portifolio-jobs` (`square-cell-51336542`), região `aws-us-east-1`, branch `main` (`br-old-dream-b8ysin0q`); criado vazio em 2026-10-04 para a função das cotações, ainda sem função nem gatilho ([operação](../../docs/quote-sync-job.md)) |
 
 ## Configuração da Vercel
 
@@ -81,6 +82,28 @@ A produção começa sem usuários. Para entrar:
 
 ## Pendente
 
+### Trabalho local de 2026-10-04 (specs 053 a 062)
+
+Nada disso está na produção, a pedido do usuário ("nada no Vercel, somente
+local"). Com a aprovação dele, está em quatro commits na branch local
+`feat/specs-053-062`, sem push: um push no `main` publica a produção, e o de
+outra branch cria um Preview que usa o banco da produção sem migrar. Para
+publicar:
+
+1. as migrações `20261004120000_quote_symbols`,
+   `20261004130000_single_target_plan` (apaga as versões antigas das metas),
+   `20261004140000_position_transactions` e
+   `20261004210000_cdi_daily_valuation` rodam no build da Vercel, como as
+   anteriores;
+2. a abertura do app deixa de buscar cotações: sem o job agendado publicado, a
+   produção fica sem atualização de cotações nem de CDI. O usuário escolheu a
+   função do Neon no projeto de jobs em `aws-us-east-1` (Functions não existe
+   em `aws-sa-east-1`); logo depois do deploy das migrações, publicar a função
+   e o gatilho pelos passos da [operação](../../docs/quote-sync-job.md);
+3. o backup passa à versão 5; arquivos antigos continuam restaurando.
+
+### Primeiro acesso (2026-10-03)
+
 O usuário cria a conta em "Criar conta", com o e-mail de
 `AUTH_ALLOWED_EMAILS`, e restaura na Configuração o arquivo
 `backups/producao-antes-da-050-2026-10-03.json`. A branch
@@ -94,6 +117,12 @@ Em 2026-10-03:
 - a conta dele é criada por ele mesmo, pela tela, com o e-mail que ele
   informou, o único em `AUTH_ALLOWED_EMAILS`;
 - o Preview continua usando o banco da produção, sem migrar.
+
+Em 2026-10-04:
+
+- o agendamento das cotações é a função do Neon em `aws-us-east-1`;
+- aprovou os quatro commits das specs 053 a 062; nada vai para a Vercel até
+  ele pedir.
 
 ## Observações
 

@@ -1,7 +1,8 @@
 # 053 — Cotações atualizadas por um job agendado, fora da navegação
 
-Estado: em implementação, só no ambiente local (nada publicado na Vercel nem
-no Neon).
+Estado: implementada localmente, em commit na branch `feat/specs-053-062`, sem
+push nem deploy. O projeto de jobs do Neon existe, ainda sem função nem
+gatilho (2026-10-04).
 Definida em: 2026-10-04
 
 ## Problema
@@ -117,8 +118,9 @@ usado quando os anteriores falham.
 - as execuções simultâneas são seguras mesmo com duas portas ativas ao mesmo
   tempo (veja Concorrência).
 
-Recomendação ao usuário (pendente de resposta): a função do Neon num projeto de
-jobs em `aws-us-east-1`, dentro do plano Free (10 horas ativas, 400 em espera
+Decisão do usuário em 2026-10-04, seguindo a recomendação: a função do Neon
+num projeto de jobs em `aws-us-east-1` (`my-portifolio-jobs`,
+`square-cell-51336542`, criado vazio no mesmo dia), dentro do plano Free (10 horas ativas, 400 em espera
 e 1 milhão de invocações por mês; uma execução por hora gasta perto de 4 horas
 em espera por mês). O GitHub Actions é gratuito no repositório público, mas
 atrasa ou pula horários no pico e desliga os agendamentos depois de 60 dias

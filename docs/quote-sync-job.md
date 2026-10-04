@@ -47,10 +47,18 @@ espera e 1 milhão de invocações por mês; o job de hora em hora usa uma fraç
 disso.
 
 `jobs/neon/neon.ts` declara a função e o gatilho `quotes-hourly` (cron
-`0 * * * *`, UTC). Para publicar (ainda não feito; depende da decisão do
-usuário):
+`0 * * * *`, UTC). O usuário escolheu esta porta em 2026-10-04. O projeto de
+jobs já existe: `my-portifolio-jobs` (`square-cell-51336542`), em
+`aws-us-east-1`, branch `main` (`br-old-dream-b8ysin0q`), criado vazio pelo
+MCP em 2026-10-04, ainda sem função nem gatilho (a consulta de funções da
+branch respondeu vazia, sem a recusa de `aws-sa-east-1`). O banco dele não é
+usado. A publicação espera o deploy das migrações de 2026-10-04 na produção:
+antes delas, o job falharia por falta das tabelas novas.
 
-1. criar o projeto de jobs no Neon, em `aws-us-east-1` (Console ou MCP);
+Para publicar:
+
+1. publicar o app com as migrações de 2026-10-04 (o projeto de jobs já
+   existe);
 2. instalar a CLI e entrar: `npm i -g neon` e `neon auth`;
 3. criar `.env.jobs` na raiz, fora do Git (`.env*` já é ignorado), com:
    - `PORTFOLIO_DATABASE_URL`: a conexão **pooled** do banco de produção;
@@ -62,6 +70,8 @@ usuário):
    pnpm jobs:build
    cd jobs/neon && neon link && neon deploy --env ../../.env.jobs
    ```
+
+   No `neon link`, escolher o projeto `my-portifolio-jobs`, nunca o do banco;
 
 5. conferir nos logs (`neon logs query --source function`) a primeira execução
    com o horário do gatilho.
