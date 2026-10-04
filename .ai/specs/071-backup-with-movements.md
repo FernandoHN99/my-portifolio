@@ -1,7 +1,8 @@
 # 071 — Backup convertido com movimentações
 
-Estado: arquivo gerado e validado em 2026-10-05, num schema de teste. A carteira
-local e a produção não foram alteradas.
+Estado: arquivo gerado e validado em 2026-10-05, num schema de teste, e
+restaurado na carteira local no mesmo dia, a pedido do usuário. A produção não
+foi alterada.
 Origem: pedido do usuário em 2026-10-04. O backup fiel dele vinha do tempo
 anterior às movimentações; ele pediu um arquivo novo em que cada posição tenha
 pelo menos uma movimentação, para usar daqui em diante, perguntando cada dúvida
@@ -67,6 +68,22 @@ quais 110 aportes, 80 rendimentos, 37 retiradas e 6 saldos iniciais.
 - `backups/meu-portfolio-backup-2026-10-05-movimentacoes.json`: o backup novo.
 - `backups/revisao-movimentacoes-2026-10-05.md`: cada movimentação, com o motivo
   da classificação, para o usuário conferir.
+
+## Depois da restauração local
+
+- Antes de restaurar, a carteira local foi exportada para
+  `backups/local-antes-da-071-2026-10-05.json`, fora do Git.
+- Com as movimentações registradas, a página da posição passa da decomposição
+  estimada à registrada (spec 058): "Saldo de partida", "Aportes menos
+  retiradas", "Rendimentos incorporados" e "Efeito de preço".
+- O preço médio de uma posição com saldo inicial fica "Custo de compra
+  desconhecido", porque o saldo inicial não é custo.
+- Os testes de `position-history.spec.ts` foram atualizados para esses valores.
+- A tabela mês a mês deixava de mostrar "Volta" quando a posição voltava num mês
+  com movimentações; agora mostra nos dois modos.
+- No arquivo, todas as competências estão fechadas, inclusive out/2026. Para
+  movimentar, o usuário abre o mês na linha do tempo; até lá, os testes que
+  editam ficam pulados.
 
 O roteiro da conversão ficou fora do repositório, porque leva nomes dos ativos
 dele. Para corrigir uma movimentação específica depois da restauração, reabrir o

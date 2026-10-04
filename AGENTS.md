@@ -16,9 +16,9 @@ Estado em 2026-10-04: specs 016 e 028 a 062 no `main` e na produção
 no Neon, e o job das cotações roda como função do Neon
 ([Produção](.ai/context/production.md)).
 
-Revisões locais posteriores: specs 063 a 066 (2026-10-04) e 067 a 072
-(2026-10-05) concluídas, ainda sem commit ou deploy. O trabalho do dia a dia vai
-para a branch `dev`; a `main` é a produção ([fluxo de Git](docs/git-workflow.md)).
+Revisões posteriores: specs 063 a 066 (2026-10-04) e 067 a 072 (2026-10-05)
+concluídas e commitadas na branch `dev`, ainda sem deploy. O trabalho do dia a
+dia vai para a `dev`; a `main` é a produção ([fluxo de Git](docs/git-workflow.md)).
 
 - as cotações são atualizadas só pelo job agendado (`pnpm quotes:sync`,
   [spec 053](.ai/specs/053-scheduled-quote-sync.md)); a abertura do app não
@@ -80,8 +80,10 @@ para a branch `dev`; a `main` é a produção ([fluxo de Git](docs/git-workflow.
   backup e as conversões de versões antigas;
 - o backup mais recente dos dados reais é
   `backups/meu-portfolio-backup-2026-10-05-movimentacoes.json` (versão 5, com
-  movimentações convertidas pelas regras do usuário, [spec 071](.ai/specs/071-backup-with-movements.md));
-  ainda não foi restaurado na carteira local nem na produção;
+  movimentações convertidas pelas regras do usuário, [spec 071](.ai/specs/071-backup-with-movements.md)),
+  restaurado na carteira local em 2026-10-05; a produção ainda não o recebeu.
+  Nele todas as competências estão fechadas: os testes que editam ficam pulados
+  até o usuário abrir um mês;
 - transações dentro das posições foram implementadas; a previdência, que o
   usuário indicou como próximo assunto, continua em `.ai/context/backlog.md`;
 - as respostas do usuário, o backlog e o que ainda aguarda resposta estão em

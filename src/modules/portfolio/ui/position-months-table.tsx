@@ -15,7 +15,7 @@ import {
 } from "@/modules/portfolio/presentation/position-page";
 
 type TableRow =
-  | { kind: "present"; slot: PresentSlot; first: boolean; cameFrom: string[] }
+  | { kind: "present"; slot: PresentSlot; first: boolean; returned: boolean; cameFrom: string[] }
   | { kind: "absent"; from: string; to: string; count: number; elsewhere: string[]; exitBrl: number | null }
   | { kind: "missing"; from: string; to: string; count: number };
 
@@ -134,7 +134,9 @@ function PresentRow({
 }) {
   const { slot } = row;
   const step = slot.step;
-  const entry = row.first || slot.entryBrl !== null;
+  // A volta depois de uma lacuna vale também quando o mês tem movimentações
+  // registradas, em que a entrada não é estimada (spec 071).
+  const entry = row.first || row.returned || slot.entryBrl !== null;
 
   return (
     <tr
@@ -253,12 +255,13 @@ function buildTableRows(slots: HistorySlot[]): TableRow[] {
     const last = rows.at(-1);
 
     if (slot.kind === "present") {
+      const returned = previousExisting?.kind === "absent";
       rows.push({
         kind: "present",
         slot,
         first: rows.length === 0,
-        cameFrom:
-          slot.entryBrl !== null && previousExisting?.kind === "absent" ? previousExisting.elsewhere : [],
+        returned,
+        cameFrom: returned && previousExisting?.kind === "absent" ? previousExisting.elsewhere : [],
       });
     } else if (last && last.kind === slot.kind) {
       last.to = slot.month;

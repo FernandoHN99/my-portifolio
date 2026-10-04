@@ -77,9 +77,9 @@ Esta pasta organiza a implementação em fatias pequenas e revisáveis.
 - [071 — Backup convertido com movimentações](071-backup-with-movements.md): arquivo gerado e validado num schema de teste, fora do Git.
 - [072 — Branch dev e ferramentas só do desenvolvimento](072-dev-branch-and-local-tools.md): concluída localmente; inclui a causa do CSS corrompido no `pnpm dev`.
 
-As specs 063 a 072 são revisões posteriores de 2026-10-04 e 2026-10-05, ainda
-sem commit ou publicação. Não confundir seu estado local com a produção das
-specs anteriores.
+As specs 063 a 072 são revisões posteriores de 2026-10-04 e 2026-10-05,
+commitadas na branch `dev` e ainda sem publicação. Não confundir esse estado com
+a produção das specs anteriores.
 
 Conferência conjunta das specs 063 a 072, em 2026-10-05:
 
