@@ -63,7 +63,7 @@ Esta pasta organiza a implementação em fatias pequenas e revisáveis.
 - [057 — Formulário de movimentação e lápis só de atributos](057-movement-form-and-attribute-pencil.md): concluída localmente.
 - [058 — Histórico e indicadores por movimentações](058-transaction-history-and-indicators.md): concluída localmente.
 - [059 — Conta corrente e liquidação de títulos vencidos](059-cash-account-and-liquidation.md): concluída localmente.
-- [060 — Renda fixa a percentual do CDI, cálculo bruto](060-cdi-fixed-income.md): implementada localmente; a fonte do Banco Central não respondeu desta máquina.
+- [060 — Renda fixa a percentual do CDI, cálculo bruto](060-cdi-fixed-income.md): concluída; CDI real pela reserva SOAP do Banco Central e mês passado fechando no fim da competência.
 - [061 — Tesouro Direto por quantidade e preço oficial](061-treasury-direct-quotes.md): implementada localmente; falta uma inclusão real gravada.
 - [062 — Revisão mobile com referência no Safari do iPhone 16 Plus](062-iphone-mobile-review.md): emulação concluída; falta o aparelho físico.
 

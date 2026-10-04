@@ -84,7 +84,7 @@ const sharePercent = new Intl.NumberFormat("pt-BR", {
  */
 export type PositionEditing = {
   position: MonthPosition | null;
-  month: PositionFormMonth & { isLocked: boolean; referenceDate: Date };
+  month: PositionFormMonth & { isLocked: boolean };
   occupied: string[];
   catalog: EditingCatalog;
   /** Caixas marcados como conta corrente no mês, destinos da liquidação (spec 059). */

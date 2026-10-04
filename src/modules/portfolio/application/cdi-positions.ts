@@ -1,4 +1,4 @@
-import { Prisma, type PrismaClient } from "@/generated/prisma/client";
+import { PortfolioMonthStatus, Prisma, type PrismaClient } from "@/generated/prisma/client";
 import { calculateCdiMonth, type CdiMovement } from "@/modules/portfolio/domain/cdi-valuation";
 import { calendarDay, toDateKey } from "@/modules/quotes/domain/calendar";
 import { fetchCdiDaily } from "@/modules/quotes/infrastructure/bcb";
@@ -33,6 +33,7 @@ const CDI_POSITION_SELECT = {
   openingQuantity: true,
   calculationStartDate: true,
   calculatedIncomeBrl: true,
+  portfolioMonth: { select: { referenceDate: true } },
   asset: { select: { cdiPercent: true, maturityDate: true, quoteSymbol: true } },
   transactions: {
     orderBy: [{ occurredOn: "asc" as const }, { createdAt: "asc" as const }],
@@ -146,7 +147,8 @@ export async function syncCdiRates(
  * Calcula o saldo bruto das posições pelo CDI e grava o resultado. `asOf` é o
  * dia da avaliação (exclusivo, convenção da B3), como o primeiro dia do mês
  * seguinte para fechar uma competência; por padrão, hoje. A avaliação nunca
- * passa do dia seguinte à última taxa conferida.
+ * passa do fim da competência da posição (um mês passado fecha no primeiro dia
+ * do mês seguinte) nem do dia seguinte à última taxa conferida.
  */
 export async function valueCdiPositions(
   client: Client,
@@ -176,9 +178,10 @@ export async function valueCdiPositions(
   // A avaliação vai até `asOf` (por padrão, hoje), sem passar do dia seguinte
   // à última taxa conferida.
   const until = asOf ?? toDateKey(calendarDay(now));
-  const evaluation = lastVerified ? minDay(until, nextDay(lastVerified)) : until;
+  const verifiedUntil = lastVerified ? minDay(until, nextDay(lastVerified)) : until;
 
   for (const position of positions) {
+    const evaluation = minDay(verifiedUntil, nextMonthStart(position.portfolioMonth.referenceDate));
     const result = valueOne(position, { rates: rateList, windows, asOf: evaluation });
 
     if (result.state === "calculated") {
@@ -237,6 +240,11 @@ function nextDay(day: string) {
   return addDays(day, 1);
 }
 
+/** Primeiro dia do mês seguinte ao da competência (AAAA-MM-DD). */
+function nextMonthStart(referenceDate: Date) {
+  return toDateKey(new Date(Date.UTC(referenceDate.getUTCFullYear(), referenceDate.getUTCMonth() + 1, 1)));
+}
+
 function addDays(day: string, amount: number) {
   const value = new Date(`${day}T00:00:00.000Z`);
   value.setUTCDate(value.getUTCDate() + amount);
@@ -249,20 +257,20 @@ function minDay(left: string, right: string) {
 
 /**
  * Passo do job agendado (spec 053): busca o CDI que falta e recalcula as
- * posições configuradas na competência mais recente de cada usuário, quando
- * ela é a do mês corrente.
+ * posições configuradas no mês corrente e nos meses abertos de cada usuário. Um
+ * mês passado aberto fecha no fim da competência, então recalculá-lo só
+ * completa os dias que ainda não tinham taxa; um mês revisado não muda.
  */
 export async function syncCdi(
   prisma: PrismaClient,
   { now = new Date(), fetchRates = fetchCdiDaily }: { now?: Date; fetchRates?: CdiRatesFetcher } = {},
 ): Promise<CdiReport> {
   const currentMonth = new Date(Date.UTC(now.getFullYear(), now.getMonth(), 1));
-  const latest = await prisma.portfolioMonth.findMany({
-    distinct: ["userId"],
-    orderBy: [{ userId: "asc" }, { referenceDate: "desc" }],
-    select: { id: true, referenceDate: true },
+  const months = await prisma.portfolioMonth.findMany({
+    where: { OR: [{ referenceDate: currentMonth }, { status: PortfolioMonthStatus.DRAFT, referenceDate: { lt: currentMonth } }] },
+    select: { id: true },
   });
-  const monthIds = latest.filter((month) => month.referenceDate.getTime() === currentMonth.getTime()).map((month) => month.id);
+  const monthIds = months.map((month) => month.id);
 
   if (monthIds.length === 0) {
     return { rates: { state: "skipped", inserted: 0, through: null }, valued: 0, failed: [] };

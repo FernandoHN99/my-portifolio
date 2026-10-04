@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { fetchJson, ProviderRefusalError } from "@/modules/quotes/infrastructure/http";
+import { fetchJson, ProviderRefusalError, QuoteHttpError } from "@/modules/quotes/infrastructure/http";
 
 // PTAX do Banco Central pela API Olinda (spec 037): oficial, sem chave. O
 // dólar de um período inteiro vem numa única consulta, o que faz dela a fonte
@@ -45,8 +45,10 @@ export async function fetchPtaxUsdLatest(today: string) {
 }
 
 // CDI diário do SGS, série 12 (spec 060): percentual ao dia, um valor por dia
-// útil, publicado no dia útil seguinte. Endereço oficial documentado no Portal
-// de Dados Abertos do Banco Central; consultas de até dez anos.
+// útil, publicado no dia útil seguinte. Duas portas oficiais do Banco Central
+// para a mesma série: a API JSON do Portal de Dados Abertos e, de reserva, o
+// webservice SOAP do SGS. Em 2026-10-04 o endereço da API JSON
+// (api.bcb.gov.br) deixou de existir no DNS público, e o webservice respondia.
 const cdiSchema = z.array(z.object({ data: z.string(), valor: z.string() }));
 
 /** Data como DD/MM/AAAA, o formato do SGS. */
@@ -57,6 +59,19 @@ function sgsDate(day: string) {
 
 /** CDI diário entre dois dias (AAAA-MM-DD), inclusive, em percentual ao dia. */
 export async function fetchCdiDaily(startDay: string, endDay: string) {
+  try {
+    return await fetchCdiDailyJson(startDay, endDay);
+  } catch (error) {
+    // O 404 é a resposta da API para um período sem valores, não uma falha.
+    if (error instanceof QuoteHttpError && error.statusCode === 404) {
+      throw error;
+    }
+
+    return fetchCdiDailySoap(startDay, endDay);
+  }
+}
+
+async function fetchCdiDailyJson(startDay: string, endDay: string) {
   const url = new URL("https://api.bcb.gov.br/dados/serie/bcdata.sgs.12/dados");
   url.searchParams.set("formato", "json");
   url.searchParams.set("dataInicial", sgsDate(startDay));
@@ -66,5 +81,63 @@ export async function fetchCdiDaily(startDay: string, endDay: string) {
   return payload.map((entry) => {
     const [date, month, year] = entry.data.split("/");
     return { date: `${year}-${month}-${date}`, dailyPercent: entry.valor.replace(",", ".") };
+  });
+}
+
+const SGS_SOAP_URL = "https://www3.bcb.gov.br/wssgs/services/FachadaWSSGS";
+
+/**
+ * A mesma série pelo webservice SOAP do SGS (`getValoresSeriesXML`). A resposta
+ * traz o XML da série escapado dentro do envelope, com datas como D/M/AAAA e
+ * valores com ponto. Um período sem valores, como um fim de semana, volta como
+ * falha SOAP "Value(s) not found", que aqui é uma lista vazia.
+ */
+export async function fetchCdiDailySoap(startDay: string, endDay: string) {
+  const body =
+    '<?xml version="1.0" encoding="UTF-8"?>' +
+    '<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:pub="http://publico.ws.casosdeuso.sgs.pec.bcb.gov.br">' +
+    "<soapenv:Body><pub:getValoresSeriesXML><codigosSeries><item>12</item></codigosSeries>" +
+    `<dataInicio>${sgsDate(startDay)}</dataInicio><dataFim>${sgsDate(endDay)}</dataFim>` +
+    "</pub:getValoresSeriesXML></soapenv:Body></soapenv:Envelope>";
+  const response = await fetch(SGS_SOAP_URL, {
+    method: "POST",
+    headers: { "Content-Type": "text/xml; charset=utf-8", SOAPAction: '""' },
+    body,
+    cache: "no-store",
+    signal: AbortSignal.timeout(20_000),
+  });
+  const text = await response.text();
+
+  if (text.includes("Value(s) not found")) {
+    return [];
+  }
+
+  if (!response.ok) {
+    throw new QuoteHttpError(response.status, `O Banco Central respondeu com HTTP ${response.status}.`);
+  }
+
+  const series = text
+    .replaceAll("&lt;", "<")
+    .replaceAll("&gt;", ">")
+    .replaceAll("&quot;", '"')
+    .replaceAll("&apos;", "'")
+    .replaceAll("&amp;", "&");
+
+  if (!/<SERIE ID='12'>/.test(series)) {
+    throw new ProviderRefusalError("INVALID_RESPONSE", "O Banco Central respondeu sem a série do CDI.");
+  }
+
+  const items = [...series.matchAll(/<ITEM>([\s\S]*?)<\/ITEM>/g)].map((match) => match[1]);
+
+  return items.flatMap((item) => {
+    const date = /<DATA>(\d{1,2})\/(\d{1,2})\/(\d{4})<\/DATA>/.exec(item);
+    const value = /<VALOR>([\d.,]+)<\/VALOR>/.exec(item);
+
+    if (!date || !value || /<BLOQUEADO>true<\/BLOQUEADO>/.test(item)) {
+      return [];
+    }
+
+    const [, day, month, year] = date;
+    return [{ date: `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`, dailyPercent: value[1].replace(",", ".") }];
   });
 }

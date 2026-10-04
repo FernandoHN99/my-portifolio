@@ -609,7 +609,13 @@ export function PositionsWorkspace({
         target={form.target}
         formKey={form.key}
         catalog={catalog}
-        month={{ id: month.id, label: monthLabel, isCurrent: month.isCurrent, quotes: month.quotes }}
+        month={{
+          id: month.id,
+          label: monthLabel,
+          isCurrent: month.isCurrent,
+          quotes: month.quotes,
+          referenceDate: month.referenceDate,
+        }}
         occupied={occupied}
         onSaved={notify}
       />
@@ -1119,6 +1125,7 @@ function EmptyPositions({ month, catalog }: { month: MonthPositions | null; cata
             label: formatMonthCompact(month.referenceDate),
             isCurrent: month.isCurrent,
             quotes: month.quotes,
+            referenceDate: month.referenceDate,
           }}
           occupied={new Set()}
           onSaved={(result) =>

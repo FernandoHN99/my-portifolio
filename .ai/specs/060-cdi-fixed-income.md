@@ -1,7 +1,7 @@
 # 060 — Renda fixa a percentual do CDI, cálculo bruto
 
-Estado: implementada localmente em 2026-10-04 (sem deploy); a fonte oficial não
-respondeu desta máquina, e a verificação usou taxas simuladas.
+Estado: implementada em 2026-10-04 e conferida com o CDI real, pela reserva
+SOAP do Banco Central; a API JSON saiu do DNS público.
 Definida em: 2026-10-04
 
 ## Problema
@@ -32,14 +32,19 @@ inclusivo, fim exclusivo; decimais de 40 dígitos, arredondamento só no saldo).
 
 ## Comportamento
 
-- **fonte**: série 12 do SGS do Banco Central
-  (`api.bcb.gov.br/dados/serie/bcdata.sgs.12/dados`), endereço do Portal de
-  Dados Abertos. Gratuita e oficial, publicada no dia útil seguinte;
+- **fonte**: série 12 do SGS do Banco Central, gratuita e oficial, publicada
+  no dia útil seguinte, por duas portas do próprio Banco Central: a API JSON do
+  Portal de Dados Abertos (`api.bcb.gov.br/dados/serie/bcdata.sgs.12/dados`) e,
+  quando ela falha, o webservice SOAP do SGS
+  (`www3.bcb.gov.br/wssgs/services/FachadaWSSGS`, `getValoresSeriesXML`). Um
+  período sem valores (fim de semana) volta como falha SOAP "Value(s) not
+  found", tratada como lista vazia;
 - **job** ([spec 053](053-scheduled-quote-sync.md)): a cada execução, mesmo sem
   cotação devida, busca o CDI que falta (no máximo a cada 3 horas) desde o
-  início de cálculo mais antigo das posições do mês corrente e recalcula essas
-  posições. O relatório da execução diz quantas taxas entraram, até quando e
-  quantas posições foram recalculadas;
+  início de cálculo mais antigo das posições do mês corrente e dos meses
+  abertos, e recalcula essas posições. Um mês revisado não muda. O relatório da
+  execução diz quantas taxas entraram, até quando e quantas posições foram
+  recalculadas;
 - **saldo bruto** = base do mês, rendendo desde o início do cálculo, mais cada
   movimentação rendendo desde o próprio dia; retiradas reduzem a base que segue
   rendendo. A avaliação vai até hoje, mas nunca passa do dia seguinte à última
@@ -50,8 +55,14 @@ inclusivo, fim exclusivo; decimais de 40 dígitos, arredondamento só no saldo).
   aplicação"; o valor vira "Valor aplicado" e o movimento inicial fica no dia da
   aplicação;
 - **ativo antigo**: no lápis, "% do CDI" e "Calcular desde". A base é o saldo
-  conhecido do mês; o início fica dentro da competência, para a base não render
-  antes de existir. Nada da aplicação original é inventado;
+  conhecido do mês; o início fica sempre dentro da competência, para a base não
+  render antes de existir nem depois de o mês fechar. Nada da aplicação
+  original é inventado. Um início antes das taxas já carregadas espera a
+  próxima execução do job, com o motivo na posição;
+- **mês passado aberto**: a posição fecha no fim da competência (a avaliação
+  vai até o primeiro dia do mês seguinte, exclusivo), como na virada. O dia da
+  aplicação de uma renda fixa nova vai até o último dia do mês, e o formulário
+  sugere esse dia; o dia da aplicação vale só para o ativo criado na inclusão;
 - **desligar** guarda o rendimento já calculado como um rendimento registrado
   ("Rendimento bruto pelo CDI até …"), para o saldo não sumir;
 - **sem duplicar**: numa posição calculada pelo CDI, o formulário de
@@ -95,13 +106,27 @@ Em 2026-10-04:
   - a virada para novembro herdou R$ 1.525,10 como base, com o cálculo desde
     01/11.
 
+Em 2026-10-04, depois da reserva SOAP, num schema de teste com os dados do
+backup e o CDI real (13 taxas de 15/09 a 01/10, 0,051660% e 0,050788% ao dia):
+
+- R$ 1.000 aplicados em 01/10 a 100% do CDI: R$ 1.000,51 até 01/10, a última
+  taxa publicada;
+- R$ 1.000 aplicados em 15/09, em setembro aberto: R$ 1.006,13, fechando em
+  30/09 (a taxa de 01/10 não entra); uma aplicação em 02/10 num mês de
+  setembro é recusada;
+- a LCI BRB - Jun/27 (R$ 6.191,37) em setembro, desde 10/09: o início em 04/10
+  e em 31/08 é recusado; antes do job, o saldo fica com o motivo; depois dele,
+  R$ 6.238,98 até 30/09. Rodar de novo não busca nada nem muda o saldo;
+- o teste de interface confere que, num mês passado aberto, o dia da aplicação
+  sugerido e o limite são o último dia do mês.
+
 ## Limitações
 
-- **fonte inacessível daqui**: `api.bcb.gov.br` respondeu "domínio inexistente"
-  (NXDOMAIN) nesta máquina, também pelo DNS do Google e pelo serviço de busca de
-  páginas, em 2026-10-04, embora seja o endereço oficial documentado. A API
-  Olinda do Banco Central (PTAX) responde. A integração fica pronta; falta
-  confirmar a resposta real quando o endereço voltar a resolver;
+- **API JSON fora do DNS**: `api.bcb.gov.br` respondeu "domínio inexistente"
+  (NXDOMAIN) em 2026-10-04 também nos DNS públicos do Google e da Cloudflare,
+  embora seja o endereço documentado no Portal de Dados Abertos. O webservice
+  SOAP do SGS responde a mesma série e é a reserva; a API JSON segue como
+  primeira tentativa para quando voltar;
 - feriados não descontam dias úteis na projeção (hipótese declarada na tela);
 - liquidez diária, carência e IR regressivo não fazem parte desta etapa.
 

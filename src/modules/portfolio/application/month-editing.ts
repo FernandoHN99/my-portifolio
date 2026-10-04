@@ -260,10 +260,21 @@ export async function addPosition(input: { monthId: string; addition: PositionAd
     // valor que ela já tinha ao começar o acompanhamento, ou aporte. A base do
     // mês fica zero e a quantidade vem do movimento.
     if (quantity.greaterThan(0)) {
-      const dates = await transaction.asset.findUnique({
-        where: { id: asset.id },
-        select: { appliedOn: true, cdiPercent: true },
-      });
+      // O dia da aplicação vale só para a renda fixa criada nesta inclusão; um
+      // ativo que já existia entra pelo dia do movimento no mês.
+      const dates = batch.created.assetIds.includes(asset.id)
+        ? await transaction.asset.findUnique({
+            where: { id: asset.id },
+            select: { appliedOn: true, cdiPercent: true },
+          })
+        : null;
+
+      if (dates?.appliedOn && dates.appliedOn > lastDayOf(month.referenceDate)) {
+        throw new MonthEditError(
+          `O dia da aplicação fica até o fim da competência (${formatDay(lastDayOf(month.referenceDate))}).`,
+        );
+      }
+
       const contribution = addition.initialKind === "CONTRIBUTION";
       const executed =
         contribution && unitPriceBrl
@@ -365,7 +376,7 @@ export async function editPosition(input: { monthId: string; edit: PositionEdit 
 async function applyCdiStart(
   transaction: Transaction,
   month: { id: string; referenceDate: Date },
-  position: { id: string; assetId: string; openingQuantity: Prisma.Decimal; calculationStartDate: Date | null },
+  position: { id: string; assetId: string; calculationStartDate: Date | null },
   next: string | null | undefined,
 ) {
   const asset = await transaction.asset.findUniqueOrThrow({
@@ -374,7 +385,7 @@ async function applyCdiStart(
   });
   const enabled = Boolean(asset.cdiPercent) && !asset.quoteSymbol;
   const wanted = next === undefined ? (enabled ? position.calculationStartDate : null) : enabled ? next : null;
-  const start = typeof wanted === "string" ? parseCdiStart(wanted, month.referenceDate, position.openingQuantity) : wanted;
+  const start = typeof wanted === "string" ? parseCdiStart(wanted, month.referenceDate) : wanted;
 
   if (!start) {
     if (position.calculationStartDate) {
@@ -418,21 +429,29 @@ async function foldCalculatedIncome(transaction: Transaction, month: { reference
 }
 
 /**
- * Dia do início do cálculo: nunca no futuro; com base conhecida (saldo herdado
- * ou legado), dentro da competência, para a base não render antes de existir.
+ * Dia do início do cálculo: nunca no futuro e sempre dentro da competência,
+ * para a base não render antes de existir nem depois de o mês fechar.
  */
-function parseCdiStart(raw: string, referenceDate: Date, openingQuantity: Prisma.Decimal) {
+function parseCdiStart(raw: string, referenceDate: Date) {
   const day = /^\d{4}-\d{2}-\d{2}$/.test(raw) ? new Date(`${raw}T00:00:00.000Z`) : null;
 
   if (!day || Number.isNaN(day.getTime()) || toDateKey(day) !== raw || day > calendarDay(new Date())) {
     throw new MonthEditError("Informe um dia válido, até hoje, para o início do cálculo pelo CDI.");
   }
 
-  if (openingQuantity.greaterThan(0) && (day < referenceDate || day > lastDayOf(referenceDate))) {
-    throw new MonthEditError("Com o saldo herdado do mês anterior, o cálculo pelo CDI começa dentro da competência.");
+  if (day < referenceDate || day > lastDayOf(referenceDate)) {
+    throw new MonthEditError(
+      `O cálculo pelo CDI começa dentro da competência, de ${formatDay(referenceDate)} a ${formatDay(lastDayOf(referenceDate))}.`,
+    );
   }
 
   return day;
+}
+
+/** Dia como DD/MM/AAAA, nas mensagens. */
+function formatDay(day: Date) {
+  const [year, month, date] = toDateKey(day).split("-");
+  return `${date}/${month}/${year}`;
 }
 
 /** Percentual e dia da aplicação de uma renda fixa nova pelo CDI (spec 060). */

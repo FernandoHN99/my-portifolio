@@ -36,6 +36,7 @@ import {
 } from "@/modules/portfolio/domain/asset-kinds";
 import { normalizeLiquidity } from "@/modules/portfolio/domain/liquidity";
 import { categoryColor } from "@/modules/portfolio/presentation/category-colors";
+import { transactionMonthOf } from "@/modules/portfolio/ui/position-transaction-dialog";
 import { TreasuryPicker } from "@/modules/portfolio/ui/treasury-picker";
 import { formatBrl, formatPriceBrl, parseLocaleNumber } from "@/modules/portfolio/presentation/portfolio-format";
 import {
@@ -63,7 +64,7 @@ import {
 // ficam com cadeado até o tipo ser escolhido, porque dependem dele (spec 048).
 // Salvar grava na hora, com desfazer; só um mês aberto aceita edição (spec 034).
 
-export type PositionFormMonth = { id: string; label: string; isCurrent: boolean; quotes: MonthQuote[] };
+export type PositionFormMonth = { id: string; label: string; isCurrent: boolean; quotes: MonthQuote[]; referenceDate: Date };
 export type PositionFormTarget = { mode: "add" } | { mode: "edit"; position: MonthPosition };
 
 type TabKey = "geral" | "ativo" | "rateio";
@@ -171,7 +172,10 @@ function PositionForm({
   const [cdiPercent, setCdiPercent] = useState(
     editing?.cdiPercent ? String(editing.cdiPercent).replace(".", ",") : "",
   );
-  const [cdiDate, setCdiDate] = useState(editing?.calculationStartDate ?? todayKey());
+  // Os dias ficam dentro da competência (o dia da aplicação pode ser anterior
+  // a ela): hoje, no mês corrente; o último dia, num mês passado.
+  const monthDays = transactionMonthOf(month.id, month.referenceDate);
+  const [cdiDate, setCdiDate] = useState(editing?.calculationStartDate ?? monthDays.lastDay);
   // Rateio: na inclusão, segue o tipo e o ativo escolhidos até ser mexido.
   const [rows, setRows] = useState<AllocationRow[] | null>(() =>
     editing
@@ -805,7 +809,8 @@ function PositionForm({
                             type="date"
                             aria-label={editing ? "Calcular pelo CDI desde" : "Dia da aplicação"}
                             value={cdiDate}
-                            max={todayKey()}
+                            min={editing ? monthDays.firstDay : "2000-01-01"}
+                            max={monthDays.lastDay}
                             onChange={(event) => setCdiDate(event.target.value)}
                             className={cn(inputClass, "font-mono")}
                           />
@@ -1221,10 +1226,4 @@ function StatusLine({
       <span>{children}</span>
     </p>
   );
-}
-
-/** Hoje como AAAA-MM-DD, no relógio do navegador. */
-function todayKey() {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 }

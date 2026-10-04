@@ -5,6 +5,7 @@ import type { TickerCheckRequest, TickerCheckResponse } from "@/modules/quotes/d
 import {
   chooseKind,
   formTab,
+  hasOpenMonth,
   issueCount,
   openAddForm,
   openEditableMonth,
@@ -366,6 +367,29 @@ test("renda fixa de nome existente é reaproveitada só na instituição dela", 
   await pick(page, dialog.getByRole("combobox", { name: "Instituição" }), "itau", /^Itaú$/);
   await expect(existing).toHaveCount(0);
   await expect(dialog.getByText("Ativo novo: LCI BRB - Set/26, criado ao salvar.")).toBeVisible();
+  await dialog.getByRole("button", { name: "Cancelar" }).click();
+});
+
+// Renda fixa pelo CDI (spec 060): o dia da aplicação nunca passa do fim da
+// competência; num mês passado aberto, a sugestão é o último dia dele.
+test("num mês passado, o dia da aplicação pelo CDI fica dentro da competência", async ({ page }) => {
+  const now = new Date();
+  const previous = `${new Date(now.getFullYear(), now.getMonth() - 1, 1).getFullYear()}-${String(new Date(now.getFullYear(), now.getMonth() - 1, 1).getMonth() + 1).padStart(2, "0")}`;
+  const lastDay = new Date(now.getFullYear(), now.getMonth(), 0);
+  const lastKey = `${lastDay.getFullYear()}-${String(lastDay.getMonth() + 1).padStart(2, "0")}-${String(lastDay.getDate()).padStart(2, "0")}`;
+  await page.goto(`/posicoes?mes=${previous}`);
+  test.skip(!(await hasOpenMonth(page)), "O mês passado está fechado nos dados reais.");
+
+  const dialog = await openAddForm(page);
+  await chooseKind(page, dialog, /Renda fixa/);
+  await pick(page, dialog.getByRole("combobox", { name: "Instituição" }), "inter", /^Inter$/);
+  await dialog.getByRole("textbox", { name: "Nome do ativo" }).fill("CDB Teste CDI");
+  await formTab(dialog, "Ativo").click();
+  await dialog.getByRole("textbox", { name: "Percentual do CDI" }).fill("105");
+
+  const applied = dialog.getByLabel("Dia da aplicação");
+  await expect(applied).toHaveValue(lastKey);
+  await expect(applied).toHaveAttribute("max", lastKey);
   await dialog.getByRole("button", { name: "Cancelar" }).click();
 });
 
