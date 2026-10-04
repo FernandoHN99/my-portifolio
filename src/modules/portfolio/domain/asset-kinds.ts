@@ -14,6 +14,7 @@ export const ASSET_KINDS = [
   "br-etf",
   "br-stock",
   "crypto",
+  "treasury",
   "fixed-income",
   "brl-cash",
   "usd-balance",
@@ -21,7 +22,7 @@ export const ASSET_KINDS = [
 
 export type AssetKind = (typeof ASSET_KINDS)[number];
 
-export type QuoteProvider = "finnhub" | "alpha-vantage" | "yahoo" | "coingecko" | "awesome-api";
+export type QuoteProvider = "finnhub" | "alpha-vantage" | "yahoo" | "coingecko" | "awesome-api" | "tesouro";
 
 export type AllocationSeed = { assetClass: string; subclass: string; duration: string };
 
@@ -97,6 +98,15 @@ export const ASSET_KIND_DEFINITIONS: Record<AssetKind, AssetKindDefinition> = {
     instrumentType: null,
     allowsMaturity: true,
   },
+  treasury: {
+    kind: "treasury",
+    label: "Tesouro Direto",
+    hint: "Cotação oficial · BRL",
+    ticker: "market",
+    provider: "tesouro",
+    instrumentType: "TESOURO",
+    allowsMaturity: true,
+  },
   "brl-cash": {
     kind: "brl-cash",
     label: "Caixa em reais",
@@ -108,7 +118,7 @@ export const ASSET_KIND_DEFINITIONS: Record<AssetKind, AssetKindDefinition> = {
   },
   "usd-balance": {
     kind: "usd-balance",
-    label: "Saldo em dólar",
+    label: "Caixa em dólar",
     hint: "Cotado pelo USD",
     ticker: "usd",
     provider: null,
@@ -143,6 +153,11 @@ export function normalizeTicker(kind: AssetKind, raw: string): string | null {
   }
 
   const text = raw.trim().toUpperCase();
+
+  if (definition.provider === "tesouro") {
+    const match = /^TD:[A-Z0-9-]+:(\d{4}-\d{2}-\d{2})$/.exec(text);
+    return match && Number.isFinite(Date.parse(`${match[1]}T00:00:00Z`)) && new Date(`${match[1]}T00:00:00Z`).toISOString().slice(0, 10) === match[1] ? text : null;
+  }
 
   if (definition.provider === "yahoo") {
     const base = text.replace(/\.(SAO|SA)$/, "");
@@ -206,6 +221,8 @@ export function defaultAllocation(kind: AssetKind, symbol: string | null): Alloc
     case "fixed-income":
       // Subclasse e prazo da renda fixa variam por título e são escolhidos.
       return { assetClass: "Renda Fixa", subclass: "", duration: "" };
+    case "treasury":
+      return { assetClass: "Renda Fixa", subclass: "Tesouro Direto", duration: "" };
     case "brl-cash":
     case "usd-balance":
       return { assetClass: "Caixa", subclass: "Pós-fixado", duration: "Curto" };
@@ -222,8 +239,10 @@ export function describeAsset(asset: { quoteSymbol: string | null; baseCurrency:
   }
 
   if (asset.quoteSymbol === USD_SYMBOL) {
-    return "Saldo em dólar";
+    return "Caixa em dólar";
   }
+
+  if (asset.quoteSymbol.startsWith("TD:")) return "Tesouro Direto";
 
   if (asset.baseCurrency === "BTC" || asset.baseCurrency === ALTCOINS) {
     return "Cripto";
@@ -234,6 +253,7 @@ export function describeAsset(asset: { quoteSymbol: string | null; baseCurrency:
 
 /** Provedor que a atualização de cotações usa para um símbolo já cadastrado. */
 export function providerForQuote(instrumentType: string, baseCurrency: string): QuoteProvider {
+  if (instrumentType === "TESOURO") return "tesouro";
   if (instrumentType === "FIAT") {
     return "awesome-api";
   }

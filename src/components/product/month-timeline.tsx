@@ -223,7 +223,7 @@ export function MonthTimeline({ months, selectedMonth }: MonthTimelineProps) {
     // Na tela larga a faixa fica centralizada (spec 030): a coluna do meio
     // encolhe e rola quando falta espaço. À direita, a situação do mês
     // selecionado, aberto ou fechado (spec 034).
-    <div className="relative flex items-center gap-2 border-b border-border/70 bg-background/80 px-4 py-2 backdrop-blur-xl sm:grid sm:grid-cols-[minmax(0,1fr)_minmax(0,auto)_minmax(0,1fr)] sm:px-6">
+    <div className="relative flex items-center gap-2 border-b border-border/70 bg-background/80 px-4 py-2 backdrop-blur-xl sm:px-6 xl:grid xl:grid-cols-[minmax(0,1fr)_minmax(0,auto)_minmax(0,1fr)]">
       <span
         aria-hidden="true"
         className={cn(
@@ -245,7 +245,7 @@ export function MonthTimeline({ months, selectedMonth }: MonthTimelineProps) {
         aria-label="Competências"
         data-hydrated={hydrated || undefined}
         onScroll={updateEdges}
-        className="flex min-w-0 flex-1 flex-row-reverse overflow-x-auto [scrollbar-width:none] sm:col-start-2 [&::-webkit-scrollbar]:hidden"
+        className="flex min-w-0 flex-1 flex-row-reverse overflow-x-auto overscroll-x-contain [scrollbar-width:none] xl:col-start-2 [&::-webkit-scrollbar]:hidden"
         style={{ maskImage: fade, WebkitMaskImage: fade }}
       >
         <div className="flex w-max shrink-0 items-center gap-1.5">
@@ -265,7 +265,7 @@ export function MonthTimeline({ months, selectedMonth }: MonthTimelineProps) {
       </nav>
 
       {active ? (
-        <div className="ml-auto flex shrink-0 justify-self-end sm:col-start-3">
+        <div className="ml-auto flex shrink-0 justify-self-end xl:col-start-3">
           <MonthLock month={active} />
         </div>
       ) : null}
@@ -315,7 +315,7 @@ function YearCapsule({
         aria-disabled={expanded || undefined}
         onClick={expanded ? undefined : onExpand}
         className={cn(
-          "flex h-8 shrink-0 flex-col items-center justify-center rounded-lg px-2 font-mono text-[11px] tracking-[0.06em] outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring/50",
+          "flex h-10 shrink-0 flex-col items-center justify-center rounded-lg px-2 font-mono text-[11px] tracking-[0.06em] outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring/50 sm:h-8 pointer-coarse:h-10",
           expanded
             ? "cursor-default text-foreground"
             : holdsActive
@@ -385,7 +385,7 @@ function MonthButton({
       aria-current={active ? "date" : undefined}
       onClick={() => onSelect(month.month)}
       className={cn(
-        "flex h-8 min-w-9 shrink-0 flex-col items-center justify-center rounded-lg px-2 text-[11px] font-medium outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring/50",
+        "flex h-10 min-w-10 shrink-0 flex-col items-center justify-center rounded-lg px-2 text-[11px] font-medium outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring/50 sm:h-8 sm:min-w-9 pointer-coarse:h-10 pointer-coarse:min-w-10",
         active
           ? "bg-primary text-primary-foreground"
           : "text-muted-foreground hover:bg-white/[0.045] hover:text-foreground",

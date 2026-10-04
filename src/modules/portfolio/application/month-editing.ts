@@ -1,8 +1,9 @@
 import { createHash, randomUUID } from "node:crypto";
 
-import { PortfolioMonthStatus, Prisma, QuoteUpdateStatus } from "@/generated/prisma/client";
+import { PortfolioMonthStatus, PositionTransactionKind, Prisma, QuoteUpdateStatus } from "@/generated/prisma/client";
 import { currentUserId, getUserDb, SCOPED_USER } from "@/lib/user-db";
 import {
+  parseCdiPercent,
   applyAssetAttributes,
   AssetAttributeError,
   restoreAssetState,
@@ -23,9 +24,10 @@ import {
 } from "@/modules/portfolio/domain/asset-kinds";
 import { MAX_LIQUIDITY_LENGTH, normalizeLiquidity } from "@/modules/portfolio/domain/liquidity";
 import { isRedemption } from "@/modules/portfolio/domain/redemption";
+import { valueCdiPositions } from "@/modules/portfolio/application/cdi-positions";
 import { readVerifiedTicker } from "@/modules/quotes/application/check-ticker";
 import { readMonthQuoteValues } from "@/modules/quotes/application/month-quote-values";
-import { addMonths, currentReferenceMonth } from "@/modules/quotes/domain/calendar";
+import { addMonths, calendarDay, currentReferenceMonth, lastDayOf, toDateKey } from "@/modules/quotes/domain/calendar";
 import { isQuoteEditable } from "@/modules/quotes/domain/quote-refresh";
 
 type Transaction = Prisma.TransactionClient;
@@ -53,6 +55,11 @@ export type NewAssetInput = {
   liquidity?: string | null;
   quoteCheckToken: string | null;
   manualPriceBrl: string | null;
+  /** Conta corrente (spec 059), só no caixa em reais e no caixa em dólar. */
+  cashAccount?: boolean;
+  /** Renda fixa pelo CDI (spec 060): percentual, como "105", e o dia da aplicação. */
+  cdiPercent?: string | null;
+  appliedOn?: string | null;
 };
 /** Inclusão pelo formulário da posição (spec 043), já com o rateio completo. */
 export type PositionAddition = {
@@ -61,13 +68,27 @@ export type PositionAddition = {
   assetId?: string;
   newAsset?: NewAssetInput;
   value: string;
+  /**
+   * Como o valor entra (spec 056): saldo que a posição já tinha, sem ser
+   * aporte nem custo conhecido, ou aporte de dinheiro novo.
+   */
+  initialKind?: "OPENING" | "CONTRIBUTION";
+  /** Preço executado do aporte inicial num ativo cotado; sem ele, a cotação do mês. */
+  executedPriceBrl?: string | null;
   strategy: string | null;
   allocations: AllocationInput[];
 };
-/** Edição pelo formulário da posição (spec 043): a posição, o rateio e o ativo. */
+/**
+ * Edição pelo formulário da posição (spec 043): os atributos da posição, o
+ * rateio e o ativo. Quantidade e saldo só mudam por movimentações (spec 057).
+ */
 export type PositionEdit = {
   positionId: string;
-  value: string;
+  /**
+   * Início do cálculo pelo CDI nesta posição (spec 060), AAAA-MM-DD; nulo
+   * desliga. Ausente, fica como está. O percentual é do ativo.
+   */
+  cdiStartDate?: string | null;
   strategy: string | null;
   allocations: AllocationInput[];
   asset: AssetAttributes;
@@ -85,6 +106,11 @@ type SnapshotPosition = {
   accountId: string;
   assetId: string;
   quantity: Prisma.Decimal;
+  openingQuantity: Prisma.Decimal;
+  calculationStartDate: Date | null;
+  calculatedIncomeBrl: Prisma.Decimal;
+  incomeCalculatedThrough: Date | null;
+  incomeCalculationError: string | null;
   unitPriceBrl: Prisma.Decimal | null;
   exchangeRateBrl: Prisma.Decimal | null;
   totalBrl: Prisma.Decimal;
@@ -107,7 +133,21 @@ type SnapshotQuote = {
   valueBrl: Prisma.Decimal;
 };
 
-type MonthSnapshot = { positions: SnapshotPosition[]; quotes: SnapshotQuote[] };
+/** Movimentação registrada no mês (spec 056), que volta junto no desfazer. */
+type SnapshotTransaction = {
+  id: string;
+  positionId: string;
+  kind: PositionTransactionKind;
+  occurredOn: Date;
+  quantity: Prisma.Decimal;
+  unitPriceBrl: Prisma.Decimal | null;
+  amountBrl: Prisma.Decimal;
+  note: string | null;
+  transferId: string | null;
+  createdAt: Date;
+};
+
+type MonthSnapshot = { positions: SnapshotPosition[]; quotes: SnapshotQuote[]; transactions: SnapshotTransaction[] };
 
 /**
  * Cadastros criados junto com uma inclusão. Ficam fora da fotografia da
@@ -216,6 +256,42 @@ export async function addPosition(input: { monthId: string; addition: PositionAd
       data: allocations.map((allocation) => ({ ...allocation, userId: SCOPED_USER, positionId: created.id })),
     });
 
+    // A posição nasce com o movimento inicial (spec 056): saldo inicial, o
+    // valor que ela já tinha ao começar o acompanhamento, ou aporte. A base do
+    // mês fica zero e a quantidade vem do movimento.
+    if (quantity.greaterThan(0)) {
+      const dates = await transaction.asset.findUnique({
+        where: { id: asset.id },
+        select: { appliedOn: true, cdiPercent: true },
+      });
+      const contribution = addition.initialKind === "CONTRIBUTION";
+      const executed =
+        contribution && unitPriceBrl
+          ? addition.executedPriceBrl
+            ? parsePositive(addition.executedPriceBrl, 8)
+            : unitPriceBrl
+          : null;
+      await transaction.positionTransaction.create({
+        data: {
+          userId: SCOPED_USER,
+          positionId: created.id,
+          kind: contribution ? PositionTransactionKind.CONTRIBUTION : PositionTransactionKind.OPENING,
+          occurredOn: dates?.appliedOn ?? transactionDay(month.referenceDate),
+          quantity,
+          // O saldo inicial não é custo de compra: sem preço executado.
+          unitPriceBrl: executed,
+          amountBrl: executed ? quantity.mul(executed).toDecimalPlaces(2) : totalBrl,
+        },
+      });
+
+      // Renda fixa pelo CDI (spec 060): o valor informado é o aplicado no dia da
+      // aplicação, e o saldo bruto sai do cálculo até hoje.
+      if (dates?.cdiPercent && dates.appliedOn && !asset.quoteSymbol) {
+        await transaction.position.update({ where: { id: created.id }, data: { calculationStartDate: dates.appliedOn } });
+        await valueCdiPositions(transaction, { where: { id: created.id } });
+      }
+    }
+
     return hasCreated(batch.created) ? { created: batch.created } : undefined;
   });
 }
@@ -234,8 +310,8 @@ export async function editPosition(input: { monthId: string; edit: PositionEdit 
       select: {
         id: true,
         assetId: true,
-        unitPriceBrl: true,
-        asset: { select: { quoteSymbol: true } },
+        openingQuantity: true,
+        calculationStartDate: true,
         allocations: { select: { duration: true } },
       },
     });
@@ -244,22 +320,12 @@ export async function editPosition(input: { monthId: string; edit: PositionEdit 
       throw new MonthEditError("A posição não pertence a esta competência.");
     }
 
-    const value = parseNonNegative(input.edit.value);
-    const data: Prisma.PositionUpdateInput = { strategy: normalizeStrategy(input.edit.strategy) };
-
-    if (position.asset.quoteSymbol) {
-      if (!position.unitPriceBrl) {
-        throw new MonthEditError("Uma posição cotada está sem preço e não pode ser recalculada.");
-      }
-      data.quantity = value;
-      data.totalBrl = value.mul(position.unitPriceBrl).toDecimalPlaces(2);
-    } else {
-      const balance = value.toDecimalPlaces(2);
-      data.quantity = balance;
-      data.totalBrl = balance;
-    }
-
-    await transaction.position.update({ where: { id: position.id }, data });
+    // O lápis edita só os atributos: quantidade e saldo vêm das movimentações
+    // (spec 057).
+    await transaction.position.update({
+      where: { id: position.id },
+      data: { strategy: normalizeStrategy(input.edit.strategy) },
+    });
 
     // Um prazo antigo, como D+0, só continua se a posição já o tinha.
     await assertAllocationRules(
@@ -283,8 +349,113 @@ export async function editPosition(input: { monthId: string; edit: PositionEdit 
       throw error;
     }
 
+    await applyCdiStart(transaction, month, position, input.edit.cdiStartDate);
+
     return previous ? { assets: [previous] } : undefined;
   });
+}
+
+/**
+ * Liga, muda ou desliga o cálculo pelo CDI de uma posição (spec 060). Ligado,
+ * a base do mês rende a partir do dia escolhido, dentro da competência; num
+ * ativo legado, a base é o saldo conhecido, sem inventar a aplicação. Desligar
+ * guarda o rendimento já calculado como um rendimento registrado, para o saldo
+ * não sumir. O percentual é do ativo e chega pelos atributos.
+ */
+async function applyCdiStart(
+  transaction: Transaction,
+  month: { id: string; referenceDate: Date },
+  position: { id: string; assetId: string; openingQuantity: Prisma.Decimal; calculationStartDate: Date | null },
+  next: string | null | undefined,
+) {
+  const asset = await transaction.asset.findUniqueOrThrow({
+    where: { id: position.assetId },
+    select: { cdiPercent: true, quoteSymbol: true },
+  });
+  const enabled = Boolean(asset.cdiPercent) && !asset.quoteSymbol;
+  const wanted = next === undefined ? (enabled ? position.calculationStartDate : null) : enabled ? next : null;
+  const start = typeof wanted === "string" ? parseCdiStart(wanted, month.referenceDate, position.openingQuantity) : wanted;
+
+  if (!start) {
+    if (position.calculationStartDate) {
+      await foldCalculatedIncome(transaction, month, position.id);
+    }
+    return;
+  }
+
+  if (position.calculationStartDate?.getTime() !== start.getTime()) {
+    await transaction.position.update({ where: { id: position.id }, data: { calculationStartDate: start } });
+  }
+
+  await valueCdiPositions(transaction, { where: { id: position.id } });
+}
+
+async function foldCalculatedIncome(transaction: Transaction, month: { referenceDate: Date }, positionId: string) {
+  const current = await transaction.position.findUniqueOrThrow({
+    where: { id: positionId },
+    select: { calculatedIncomeBrl: true, incomeCalculatedThrough: true },
+  });
+  const income = current.calculatedIncomeBrl.toDecimalPlaces(2);
+
+  if (income.greaterThan(0)) {
+    await transaction.positionTransaction.create({
+      data: {
+        userId: SCOPED_USER,
+        positionId,
+        kind: PositionTransactionKind.INCOME,
+        occurredOn: transactionDay(month.referenceDate),
+        quantity: income,
+        amountBrl: income,
+        note: `Rendimento bruto pelo CDI${current.incomeCalculatedThrough ? ` até ${toDateKey(current.incomeCalculatedThrough)}` : ""}`,
+      },
+    });
+  }
+
+  await transaction.position.update({
+    where: { id: positionId },
+    data: { calculationStartDate: null, calculatedIncomeBrl: 0, incomeCalculatedThrough: null, incomeCalculationError: null },
+  });
+}
+
+/**
+ * Dia do início do cálculo: nunca no futuro; com base conhecida (saldo herdado
+ * ou legado), dentro da competência, para a base não render antes de existir.
+ */
+function parseCdiStart(raw: string, referenceDate: Date, openingQuantity: Prisma.Decimal) {
+  const day = /^\d{4}-\d{2}-\d{2}$/.test(raw) ? new Date(`${raw}T00:00:00.000Z`) : null;
+
+  if (!day || Number.isNaN(day.getTime()) || toDateKey(day) !== raw || day > calendarDay(new Date())) {
+    throw new MonthEditError("Informe um dia válido, até hoje, para o início do cálculo pelo CDI.");
+  }
+
+  if (openingQuantity.greaterThan(0) && (day < referenceDate || day > lastDayOf(referenceDate))) {
+    throw new MonthEditError("Com o saldo herdado do mês anterior, o cálculo pelo CDI começa dentro da competência.");
+  }
+
+  return day;
+}
+
+/** Percentual e dia da aplicação de uma renda fixa nova pelo CDI (spec 060). */
+function cdiOfNewAsset(input: NewAssetInput) {
+  if (input.kind !== "fixed-income" || !input.cdiPercent) {
+    return {};
+  }
+
+  let percent: Prisma.Decimal | null;
+
+  try {
+    percent = parseCdiPercent(input.cdiPercent);
+  } catch (error) {
+    throw new MonthEditError(error instanceof Error ? error.message : "Revise o percentual do CDI.");
+  }
+
+  const applied = input.appliedOn && /^\d{4}-\d{2}-\d{2}$/.test(input.appliedOn) ? new Date(`${input.appliedOn}T00:00:00.000Z`) : null;
+
+  if (!applied || Number.isNaN(applied.getTime()) || toDateKey(applied) !== input.appliedOn || applied > calendarDay(new Date()) || input.appliedOn < "2000-01-01") {
+    throw new MonthEditError("Informe o dia da aplicação, até hoje, para calcular pelo CDI.");
+  }
+
+  return { cdiPercent: percent, appliedOn: applied };
 }
 
 /** Remove uma posição da competência (spec 043), com desfazer. */
@@ -439,7 +610,11 @@ async function resolveAdditionAsset(
     throw new MonthEditError(`Informe um ticker válido para ${name}.`);
   }
 
-  const maturityDate = parseMaturityDate(input.maturityDate);
+  const officialMaturity = input.kind === "treasury" ? symbol?.slice(-10) ?? null : null;
+  if (officialMaturity && input.maturityDate && input.maturityDate !== officialMaturity) {
+    throw new MonthEditError("O vencimento deve ser o do título oficial selecionado.");
+  }
+  const maturityDate = parseMaturityDate(officialMaturity ?? input.maturityDate);
 
   if (maturityDate && !definition.allowsMaturity) {
     throw new MonthEditError("Só ativos sem ticker de mercado têm vencimento.");
@@ -484,7 +659,7 @@ async function resolveAdditionAsset(
             select: { quoteProviderId: true },
           })
         )?.quoteProviderId ?? verifiedCoinId)
-      : null;
+      : definition.provider === "tesouro" ? verifiedCoinId : null;
 
   const asset = await transaction.asset.create({
     data: {
@@ -497,6 +672,8 @@ async function resolveAdditionAsset(
       maturityDate,
       liquidity: normalizeLiquidity(input.liquidity)?.slice(0, MAX_LIQUIDITY_LENGTH) ?? null,
       quoteProviderId,
+      cashAccount: Boolean(input.cashAccount) && (input.kind === "brl-cash" || input.kind === "usd-balance"),
+      ...cdiOfNewAsset(input),
     },
     select: { id: true },
   });
@@ -813,13 +990,30 @@ export async function cloneLatestMonth() {
 
   return prisma.$transaction(
     async (transaction) => {
+      // Renda fixa pelo CDI (spec 060): o mês de origem fecha pelo CDI até o
+      // primeiro dia do mês novo antes de servir de base.
+      const head = await transaction.portfolioMonth.findFirst({
+        orderBy: { referenceDate: "desc" },
+        select: { id: true, referenceDate: true },
+      });
+
+      if (head) {
+        await valueCdiPositions(transaction, {
+          where: { portfolioMonthId: head.id },
+          asOf: toDateKey(nextMonth(head.referenceDate)),
+        });
+      }
+
       const latest = await transaction.portfolioMonth.findFirst({
         orderBy: { referenceDate: "desc" },
         select: {
           id: true,
           referenceDate: true,
+          // Posições zeradas, como um título liquidado (spec 059), ficam no mês.
           positions: {
+            where: { quantity: { gt: 0 } },
             select: {
+              calculationStartDate: true,
               accountId: true,
               assetId: true,
               quantity: true,
@@ -851,9 +1045,18 @@ export async function cloneLatestMonth() {
       });
 
       for (const position of latest.positions) {
-        const { allocations, ...fields } = position;
+        const { allocations, calculationStartDate, ...fields } = position;
+        // O mês novo herda uma vez o fechamento do anterior como base, sem as
+        // movimentações dele (spec 056); no CDI, o cálculo recomeça no dia 1
+        // (spec 060).
         const created = await transaction.position.create({
-          data: { ...fields, userId: SCOPED_USER, portfolioMonthId: month.id },
+          data: {
+            ...fields,
+            openingQuantity: fields.quantity,
+            calculationStartDate: calculationStartDate ? target : null,
+            userId: SCOPED_USER,
+            portfolioMonthId: month.id,
+          },
           select: { id: true },
         });
 
@@ -1045,7 +1248,7 @@ async function assertQuotesEditable(transaction: Transaction, referenceDate: Dat
   }
 }
 
-async function withUndo(
+export async function withUndo(
   monthId: string,
   mutate: (
     transaction: Transaction,
@@ -1117,6 +1320,11 @@ async function readSnapshot(
         accountId: true,
         assetId: true,
         quantity: true,
+        openingQuantity: true,
+        calculationStartDate: true,
+        calculatedIncomeBrl: true,
+        incomeCalculatedThrough: true,
+        incomeCalculationError: true,
         unitPriceBrl: true,
         exchangeRateBrl: true,
         totalBrl: true,
@@ -1139,8 +1347,24 @@ async function readSnapshot(
       select: { id: true, symbol: true, instrumentType: true, baseCurrency: true, valueBrl: true },
     }),
   ]);
+  const transactions = await transaction.positionTransaction.findMany({
+    where: { position: { portfolioMonthId: month.id } },
+    orderBy: { id: "asc" },
+    select: {
+      id: true,
+      positionId: true,
+      kind: true,
+      occurredOn: true,
+      quantity: true,
+      unitPriceBrl: true,
+      amountBrl: true,
+      note: true,
+      transferId: true,
+      createdAt: true,
+    },
+  });
 
-  return { positions, quotes };
+  return { positions, quotes, transactions };
 }
 
 async function restoreSnapshot(
@@ -1159,6 +1383,11 @@ async function restoreSnapshot(
       create: { ...position, userId: SCOPED_USER, portfolioMonthId: month.id },
       update: {
         quantity: position.quantity,
+        openingQuantity: position.openingQuantity,
+        calculationStartDate: position.calculationStartDate,
+        calculatedIncomeBrl: position.calculatedIncomeBrl,
+        incomeCalculatedThrough: position.incomeCalculatedThrough,
+        incomeCalculationError: position.incomeCalculationError,
         unitPriceBrl: position.unitPriceBrl,
         exchangeRateBrl: position.exchangeRateBrl,
         totalBrl: position.totalBrl,
@@ -1186,6 +1415,22 @@ async function restoreSnapshot(
       where: { id: quote.id },
       create: { ...quote, userId: SCOPED_USER, referenceDate: month.referenceDate },
       update: { valueBrl: quote.valueBrl },
+    });
+  }
+
+  // As movimentações do mês voltam como estavam (spec 056); as de posições
+  // apagadas acima já saíram junto com elas.
+  const keepTransactionIds = snapshot.transactions.map((entry) => entry.id);
+  await transaction.positionTransaction.deleteMany({
+    where: { position: { portfolioMonthId: month.id }, id: { notIn: keepTransactionIds } },
+  });
+
+  for (const entry of snapshot.transactions) {
+    const { id, ...data } = entry;
+    await transaction.positionTransaction.upsert({
+      where: { id },
+      create: { id, ...data, userId: SCOPED_USER },
+      update: data,
     });
   }
 }
@@ -1246,6 +1491,16 @@ function storeUndo(userId: string, entry: NewUndoEntry) {
   const token = randomUUID();
   undoStore.set(token, { ...entry, userId } as UndoEntry);
   return token;
+}
+
+/**
+ * Dia de uma movimentação registrada agora numa competência: hoje, no mês
+ * corrente; o último dia do mês, num mês passado aberto de novo.
+ */
+export function transactionDay(referenceDate: Date, now = new Date()) {
+  const today = calendarDay(now);
+  const last = lastDayOf(referenceDate);
+  return today.getTime() > last.getTime() ? last : today < referenceDate ? referenceDate : today;
 }
 
 async function requirePrisma() {

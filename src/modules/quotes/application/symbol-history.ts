@@ -9,6 +9,9 @@ import { fetchPtaxUsdPeriod } from "@/modules/quotes/infrastructure/bcb";
 import { fetchBinanceMonthlyCloses } from "@/modules/quotes/infrastructure/binance";
 import { fetchCoinGeckoDailyHistory, resolveCoinGeckoCoin } from "@/modules/quotes/infrastructure/coingecko";
 import { fetchYahooDailyHistory } from "@/modules/quotes/infrastructure/yahoo";
+import { treasuryMonthEndPoints, treasurySeriesOf, TREASURY_PROVIDER } from "@/modules/quotes/domain/treasury";
+import { readTreasuryBook } from "@/modules/quotes/infrastructure/treasury";
+import { ProviderRefusalError } from "@/modules/quotes/infrastructure/http";
 
 // Histórico de fechamento mensal de um símbolo (spec 029), carregado pelo job
 // agendado (spec 053) só nos meses que faltam: os 36 meses de um ticker novo ou
@@ -58,6 +61,29 @@ export async function loadSymbolHistory(
     usdCache: UsdRatesCache;
   },
 ): Promise<HistoryResult> {
+  // O Tesouro tem fonte própria oficial e nunca passa por ticker de bolsa.
+  // A série inclui preços de títulos fora da oferta; cobertura é a observada
+  // no arquivo, sem inventar preços antes do primeiro PU ou após o vencimento.
+  if (target.instrumentType === "TESOURO") {
+    if (months.length === 0) return { provider: TREASURY_PROVIDER, inserted: 0 };
+    const series = treasurySeriesOf(await readTreasuryBook(), target);
+    if (!series) throw new ProviderRefusalError("NOT_FOUND", "O Tesouro não publicou histórico deste título e vencimento.");
+    const points = treasuryMonthEndPoints(series, months, toDateKey(currentMonth).slice(0, 7));
+    const created = await prisma.dailyQuote.createMany({
+      data: [...points].map(([, point]) => ({
+        symbol: target.symbol,
+        quoteDate: new Date(`${point.day}T00:00:00.000Z`),
+        instrumentType: target.instrumentType,
+        baseCurrency: "BRL",
+        valueBrl: new Prisma.Decimal(point.value).toDecimalPlaces(8),
+        provider: TREASURY_PROVIDER,
+        fetchedAt: now,
+      })),
+      skipDuplicates: true,
+    });
+    return { provider: TREASURY_PROVIDER, inserted: created.count };
+  }
+
   const provider = providerForQuote(target.instrumentType, target.baseCurrency);
 
   if (months.length === 0 || target.symbol === "USD" || target.symbol === "BRL" || provider === "awesome-api") {

@@ -5,8 +5,18 @@ import { expect, type Locator, type Page } from "@playwright/test";
 // e os cenários que editam ficam pulados. Os testes rodam sobre os dados reais
 // e nunca salvam: preenchem, conferem e cancelam.
 
+/**
+ * Espera a página hidratar: no WebKit, mais lento, um campo preenchido antes
+ * disso mostra o texto sem o React receber a mudança. A faixa de competências
+ * marca `data-hydrated` quando monta no navegador.
+ */
+export async function waitForHydration(page: Page) {
+  await expect(page.getByRole("navigation", { name: "Competências" })).toHaveAttribute("data-hydrated");
+}
+
 export async function hasOpenMonth(page: Page) {
   await expect(page.getByRole("heading", { level: 1, name: "Carteira do mês" })).toBeVisible();
+  await waitForHydration(page);
   return (await page.getByRole("button", { name: "Adicionar posição" }).count()) > 0;
 }
 

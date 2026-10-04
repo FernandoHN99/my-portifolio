@@ -2,7 +2,7 @@
 
 import { Combobox as ComboboxPrimitive } from "@base-ui/react/combobox";
 import { PlusIcon } from "@phosphor-icons/react/dist/ssr";
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
 import {
   Combobox,
@@ -95,6 +95,8 @@ export function Picker({
   // opção escolhida: o Base UI esvazia o campo com Escape ou ao apagar o
   // texto, mas o valor só muda quando outra opção é escolhida.
   const [draft, setDraft] = useState<string | null>(null);
+  // Seleção feita no foco, que o Safari desfaria no soltar do toque (spec 062).
+  const keepSelection = useRef(false);
   const { contains } = ComboboxPrimitive.useFilter();
 
   const selected = value === null ? null : (options.find((option) => option.value === value) ?? null);
@@ -174,8 +176,22 @@ export function Picker({
           // seleção do texto só mostraria as alças do sistema.
           if (allowTyping || !window.matchMedia("(pointer: coarse)").matches) {
             event.currentTarget.select();
+            // O Safari desfaz a seleção no fim do toque ou do clique que deu o
+            // foco e põe o cursor no fim: digitar somaria ao texto (spec 062).
+            // O primeiro soltar depois do foco não mexe na seleção.
+            keepSelection.current = true;
           }
           onFocus?.(event);
+        }}
+        onMouseUp={(event) => {
+          if (keepSelection.current) {
+            keepSelection.current = false;
+            event.preventDefault();
+          }
+        }}
+        onBlur={(event) => {
+          keepSelection.current = false;
+          fieldProps.onBlur?.(event);
         }}
         onKeyDown={(event) => {
           // Com a lista fechada, Escape segue para o diálogo ou o painel, como

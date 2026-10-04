@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { waitForHydration } from "./support/position-form";
 import { stubQuoteChecks } from "./support/quote-checks";
 
 // A checagem de abertura grava no banco e pode criar competências; os
@@ -14,6 +15,7 @@ async function openSettings(page: Page) {
   await page.goto("/configuracao?mes=2026-09");
   await expect(page.getByRole("heading", { level: 1, name: "Metas da carteira" })).toBeVisible();
   await expect(page.getByRole("textbox", { name: "Percentual de Caixa" })).toBeVisible();
+  await waitForHydration(page);
 }
 
 // Gesto de toque real, pelo protocolo do Chrome: `page.mouse` não passa pela rolagem por toque nem pelo
@@ -240,8 +242,8 @@ test("no toque, rolar sobre o deslizante rola a página e não muda a meta", asy
   await discardIfPending(page);
 });
 
-test("no toque, o arraste horizontal anda de 1 em 1 ponto", async ({ page, isMobile }) => {
-  test.skip(!isMobile, "Gesto de toque: só no perfil de celular.");
+test("no toque, o arraste horizontal anda de 1 em 1 ponto", async ({ page, isMobile, browserName }) => {
+  test.skip(!isMobile || browserName !== "chromium", "Gesto nativo via CDP: somente Chrome mobile; Safari exige aparelho real.");
   await openSettings(page);
 
   const caixa = page.getByRole("textbox", { name: "Percentual de Caixa" });

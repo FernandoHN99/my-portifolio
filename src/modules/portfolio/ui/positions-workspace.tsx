@@ -9,6 +9,8 @@ import {
   CurrencyCircleDollarIcon,
   LockKeyIcon,
   MagnifyingGlassIcon,
+  ArrowsDownUpIcon,
+  HandCoinsIcon,
   PencilSimpleIcon,
   PlusIcon,
   TableIcon,
@@ -67,9 +69,15 @@ import {
 } from "@/modules/portfolio/ui/edit-dialogs";
 import { EditToast, type EditToastState } from "@/modules/portfolio/ui/edit-toast";
 import { EmptyPortfolio } from "@/modules/portfolio/ui/empty-portfolio";
+import { cashCurrencyOf, LiquidationDialog, type LiquidationTarget } from "@/modules/portfolio/ui/liquidation-dialog";
 import { MaturityBadge } from "@/modules/portfolio/ui/maturity-badge";
 import { MultiSelectFilter } from "@/modules/portfolio/ui/multi-select-filter";
 import { PositionFormDialog, type PositionFormTarget } from "@/modules/portfolio/ui/position-form-dialog";
+import {
+  PositionTransactionDialog,
+  transactionMonthOf,
+  type TransactionTarget,
+} from "@/modules/portfolio/ui/position-transaction-dialog";
 
 const QUICK_CLASSES = ["Caixa", "Cripto", "Renda Fixa", "Renda Variável", "Reserva"];
 const GROUP_OPTIONS = ["instituicao", "classe"] as const;
@@ -145,6 +153,16 @@ export function PositionsWorkspace({
   );
 
   const [form, setForm] = useState<FormState>({ open: false, target: null, key: 0 });
+  const [movement, setMovement] = useState<{ open: boolean; target: TransactionTarget | null; key: number }>({
+    open: false,
+    target: null,
+    key: 0,
+  });
+  const [liquidation, setLiquidation] = useState<{ open: boolean; target: LiquidationTarget | null; key: number }>({
+    open: false,
+    target: null,
+    key: 0,
+  });
   const [removal, setRemoval] = useState<{ open: boolean; position: MonthPosition | null }>({
     open: false,
     position: null,
@@ -300,7 +318,39 @@ export function PositionsWorkspace({
       onOpen={openPosition}
       onToggle={toggleExpanded}
       onEdit={(target) => openForm({ mode: "edit", position: target })}
+      onMove={(target) =>
+        setMovement((current) => ({
+          open: true,
+          key: current.key + 1,
+          target: {
+            positionId: target.id,
+            assetName: target.assetName,
+            quoteSymbol: target.quoteSymbol,
+            quantity: target.quantity,
+            unitPriceBrl: target.unitPriceBrl,
+            totalBrl: target.totalBrl,
+            cdi: Boolean(target.cdiPercent && target.calculationStartDate),
+          },
+        }))
+      }
       onRemove={(target) => setRemoval({ open: true, position: target })}
+      onLiquidate={
+        // Título vencido e com saldo no mês aberto (spec 059).
+        position.maturityDate && position.maturityDate <= month.referenceDay && position.totalBrl > 0
+          ? (target) =>
+              setLiquidation((current) => ({
+                open: true,
+                key: current.key + 1,
+                target: {
+                  positionId: target.id,
+                  assetName: target.assetName,
+                  totalBrl: target.totalBrl,
+                  maturityDate: target.maturityDate!,
+                  currency: cashCurrencyOf(target.quoteSymbol),
+                },
+              }))
+          : undefined
+      }
     />
   );
 
@@ -564,6 +614,32 @@ export function PositionsWorkspace({
         onSaved={notify}
       />
 
+      <LiquidationDialog
+        open={liquidation.open}
+        onOpenChange={(open) => setLiquidation((current) => ({ ...current, open }))}
+        target={liquidation.target}
+        formKey={liquidation.key}
+        month={transactionMonthOf(month.id, month.referenceDate)}
+        cashAccounts={month.positions
+          .filter((position) => position.cashAccount)
+          .map((position) => ({
+            positionId: position.id,
+            label: `${position.assetName} · ${position.institutionName}`,
+            totalBrl: position.totalBrl,
+            currency: cashCurrencyOf(position.quoteSymbol),
+          }))}
+        onSaved={notify}
+      />
+
+      <PositionTransactionDialog
+        open={movement.open}
+        onOpenChange={(open) => setMovement((current) => ({ ...current, open }))}
+        target={movement.target}
+        formKey={movement.key}
+        month={transactionMonthOf(month.id, month.referenceDate)}
+        onSaved={notify}
+      />
+
       <Dialog.Root
         open={removal.open}
         onOpenChange={(open) => !isSaving && setRemoval((current) => ({ ...current, open }))}
@@ -613,7 +689,9 @@ function PositionRow({
   onOpen,
   onToggle,
   onEdit,
+  onMove,
   onRemove,
+  onLiquidate,
 }: {
   position: MonthPosition;
   referenceDay: string;
@@ -626,7 +704,10 @@ function PositionRow({
   onOpen: (position: MonthPosition, href: string) => void;
   onToggle: (position: MonthPosition) => void;
   onEdit: (position: MonthPosition) => void;
+  onMove: (position: MonthPosition) => void;
   onRemove: (position: MonthPosition) => void;
+  /** Só nos títulos vencidos com saldo (spec 059). */
+  onLiquidate?: (position: MonthPosition) => void;
 }) {
   const isPartial = Math.abs(valueBrl - position.totalBrl) > 0.005;
   const [first, ...others] = [...position.allocations].sort((left, right) => right.weight - left.weight);
@@ -770,15 +851,26 @@ function PositionRow({
         </Cell>
         <td className="py-3.5 pr-3 pl-0 align-top sm:pr-4">
           {canEdit ? (
-            // Lápis e lixeira aparecem ao passar o mouse, ao focar e sempre em
-            // telas de toque, sem hover (spec 043).
-            <div className="flex justify-end gap-0.5 opacity-0 transition-opacity duration-150 group-focus-within:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100">
-              <IconButton label={`Editar ${position.assetName}`} onClick={() => onEdit(position)}>
-                <PencilSimpleIcon aria-hidden="true" size={14} weight="bold" />
-              </IconButton>
-              <IconButton label={`Remover ${position.assetName}`} tone="danger" onClick={() => onRemove(position)}>
-                <TrashIcon aria-hidden="true" size={14} />
-              </IconButton>
+            // Movimentar, lápis e lixeira aparecem ao passar o mouse, ao focar e
+            // sempre em telas de toque, sem hover (specs 043 e 056). Liquidar,
+            // num título vencido, fica sempre à vista (spec 059).
+            <div className="flex justify-end gap-0.5">
+              {onLiquidate ? (
+                <IconButton label={`Liquidar ${position.assetName}`} onClick={() => onLiquidate(position)}>
+                  <HandCoinsIcon aria-hidden="true" size={14} weight="bold" className="text-warning-foreground" />
+                </IconButton>
+              ) : null}
+              <div className="flex gap-0.5 opacity-0 transition-opacity duration-150 group-focus-within:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100">
+                <IconButton label={`Movimentar ${position.assetName}`} onClick={() => onMove(position)}>
+                  <ArrowsDownUpIcon aria-hidden="true" size={14} weight="bold" />
+                </IconButton>
+                <IconButton label={`Editar ${position.assetName}`} onClick={() => onEdit(position)}>
+                  <PencilSimpleIcon aria-hidden="true" size={14} weight="bold" />
+                </IconButton>
+                <IconButton label={`Remover ${position.assetName}`} tone="danger" onClick={() => onRemove(position)}>
+                  <TrashIcon aria-hidden="true" size={14} />
+                </IconButton>
+              </div>
             </div>
           ) : null}
         </td>

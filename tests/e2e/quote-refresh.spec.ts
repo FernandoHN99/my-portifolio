@@ -77,6 +77,9 @@ test("não há atualização manual em nenhum mês", async ({ page }, testInfo) 
     const indicator = page.getByTestId("quote-refresh");
     await expect(indicator).toContainText(testInfo.project.name.startsWith("mobile") ? "5 min" : "Atualizado há 5 min");
     await expect(page.getByRole("button", { name: /Atualizar cotações/ })).toHaveCount(0);
+    // O resumo simulado é mais novo que o do servidor, e a tela recarrega os
+    // dados; o WebKit conta isso como navegação, que interromperia a próxima.
+    await page.waitForLoadState("networkidle");
   }
 
   // O card da última atualização só aparece no mês corrente (spec 038).
@@ -199,12 +202,21 @@ test("o indicador do topo não corta as abas em telas estreitas", async ({ page 
       const nav = page.getByRole("navigation", { name: "Navegação principal" });
       await expect(page.getByTestId("quote-refresh")).toContainText(/\d/);
       await expect(page.getByRole("link", { name: "Posições" })).toBeVisible();
+      await page.waitForLoadState("networkidle");
 
-      const scroller = await nav.evaluate((element) => {
-        const parent = element.parentElement as HTMLElement;
-        return { clientWidth: parent.clientWidth, scrollWidth: parent.scrollWidth };
-      });
-      expect(scroller.scrollWidth, `abas cortadas em ${width} px (${path})`).toBeLessThanOrEqual(scroller.clientWidth);
+      // Mede depois de assentar: a pílula da aba ativa e o rótulo do horário
+      // entram com animação, e no meio dela a faixa passa da largura por alguns
+      // pixels.
+      await expect
+        .poll(
+          () =>
+            nav.evaluate((element) => {
+              const parent = element.parentElement as HTMLElement;
+              return parent.scrollWidth - parent.clientWidth;
+            }),
+          { message: `abas cortadas em ${width} px (${path})` },
+        )
+        .toBeLessThanOrEqual(0);
     }
   }
 });

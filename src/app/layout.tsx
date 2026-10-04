@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
 import type { ReactNode } from "react";
@@ -22,6 +22,16 @@ export const metadata: Metadata = {
     template: "%s · Meu portfólio",
   },
   description: "Acompanhamento pessoal de investimentos.",
+};
+
+// O tema do aplicativo é sempre escuro. O zoom continua disponível (spec 062).
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  interactiveWidget: "resizes-content",
+  colorScheme: "dark",
+  themeColor: "#030605",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

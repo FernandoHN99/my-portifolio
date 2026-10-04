@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 const requestSchema: z.ZodType<TickerCheckRequest> = z.object({
   monthId: z.string().uuid(),
   kind: z.enum(ASSET_KINDS),
-  ticker: z.string().trim().min(1).max(20),
+  ticker: z.string().trim().min(1).max(120),
   coinId: z.string().trim().min(1).max(120).optional(),
 });
 

@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 
+import { waitForHydration } from "./support/position-form";
 import { stubQuoteChecks } from "./support/quote-checks";
 
 // A checagem de abertura grava no banco; aqui ela é substituída por uma
@@ -116,6 +117,7 @@ test("um mês fechado não oferece edição", async ({ page }) => {
 
 test("a configuração simula metas antes de salvar", async ({ page }) => {
   await page.goto("/configuracao?mes=2026-09");
+  await waitForHydration(page);
 
   await expect(page.getByRole("heading", { level: 1, name: "Metas da carteira" })).toBeVisible();
   const preview = page.getByRole("complementary", { name: "Prévia do rebalanceamento" });
@@ -134,6 +136,7 @@ test("a configuração simula metas antes de salvar", async ({ page }) => {
 
 test("a tolerância muda a prévia antes de salvar", async ({ page }) => {
   await page.goto("/configuracao?mes=2026-09");
+  await waitForHydration(page);
 
   const tolerance = page.getByRole("textbox", { name: "Tolerância em pontos percentuais" });
   await expect(tolerance).toHaveValue("2");

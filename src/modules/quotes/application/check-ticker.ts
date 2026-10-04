@@ -26,6 +26,8 @@ import {
 import { lookupFinnhubSymbol } from "@/modules/quotes/infrastructure/finnhub";
 import { describeProviderError } from "@/modules/quotes/infrastructure/http";
 import { fetchYahooPrice } from "@/modules/quotes/infrastructure/yahoo";
+import { latestTreasuryPoint, treasurySeriesOf } from "@/modules/quotes/domain/treasury";
+import { readTreasuryBook } from "@/modules/quotes/infrastructure/treasury";
 
 // Checagem do ticker de um ativo novo (spec 026). O resultado fica guardado no
 // servidor sob um token opaco, como o desfazer da spec 017: ao salvar, a
@@ -48,7 +50,7 @@ export type VerifiedTicker = {
 const TOKEN_TTL_MS = 2 * 60 * 60 * 1000;
 
 type Lookup =
-  | { state: "found"; priceBrl: number; coinId: string | null; name: string | null; coins?: CoinCandidate[] }
+  | { state: "found"; priceBrl: number; coinId: string | null; name: string | null; quoteDate?: string; coins?: CoinCandidate[] }
   | { state: "not-found" }
   | { state: "unavailable"; code: string; message: string };
 
@@ -178,9 +180,11 @@ export async function checkTicker(
       options.configuration ?? getQuoteProviderConfiguration(),
       stored?.quoteProviderId ?? null,
       input.coinId ?? null,
+      toDateKey(now),
     );
   });
-  const quoteDate = calendarDay(fetchedAt);
+  const quoteDate = lookup.state === "found" && lookup.quoteDate
+    ? new Date(`${lookup.quoteDate}T00:00:00Z`) : calendarDay(fetchedAt);
 
   if (lookup.state === "not-found") {
     return {
@@ -269,9 +273,18 @@ async function lookupSymbol(
   configuration: QuoteProviderConfiguration,
   storedCoinId: string | null,
   chosenCoinId: string | null,
+  today: string,
 ): Promise<Lookup> {
   try {
     switch (provider) {
+      case "tesouro": {
+        const series = treasurySeriesOf(await readTreasuryBook(), { symbol, providerId: chosenCoinId });
+        if (!series || series.maturityDate <= today) return { state: "not-found" };
+        const point = latestTreasuryPoint(series, today);
+        return point
+          ? { state: "found", priceBrl: point.value, quoteDate: point.day, coinId: series.providerId, name: series.name }
+          : { state: "unavailable", code: "MISSING_QUOTE", message: "O Tesouro não publicou preço de mercado para este título." };
+      }
       case "finnhub": {
         // EUA: Finnhub e, sem a chave ou com ele fora do ar, o Yahoo Finance
         // (spec 037). Os dois cotam em dólar; o real sai do câmbio do dia.

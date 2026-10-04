@@ -14,6 +14,7 @@ import { fetchCryptoQuotes } from "@/modules/quotes/infrastructure/coingecko";
 import { fetchFinnhubQuotes } from "@/modules/quotes/infrastructure/finnhub";
 import { describeProviderError } from "@/modules/quotes/infrastructure/http";
 import { fetchYahooPrice } from "@/modules/quotes/infrastructure/yahoo";
+import { fetchTreasuryQuotes } from "@/modules/quotes/infrastructure/treasury";
 
 // Cotações de hoje por cadeia de provedores (spec 037). Cada grupo tenta o
 // primeiro provedor e passa ao seguinte só os símbolos que falharam; a falha
@@ -41,13 +42,15 @@ export async function fetchCurrentQuotes(
   const unique = [...new Map(requests.map((request) => [request.symbol, request])).values()];
   const fiat = unique.filter((request) => request.instrumentType === "FIAT");
   const crypto = unique.filter((request) => request.instrumentType === "CRIPTO");
+  const treasury = unique.filter((request) => request.instrumentType === "TESOURO");
   const usdAssets = unique.filter(
-    (request) => request.instrumentType !== "FIAT" && request.instrumentType !== "CRIPTO" && request.baseCurrency === "USD",
+    (request) => request.instrumentType !== "FIAT" && request.instrumentType !== "CRIPTO" && request.instrumentType !== "TESOURO" && request.baseCurrency === "USD",
   );
   const b3 = unique.filter(
-    (request) => request.instrumentType !== "FIAT" && request.instrumentType !== "CRIPTO" && request.baseCurrency !== "USD",
+    (request) => request.instrumentType !== "FIAT" && request.instrumentType !== "CRIPTO" && request.instrumentType !== "TESOURO" && request.baseCurrency !== "USD",
   );
   const results: QuoteResult[] = [];
+  results.push(...await fetchTreasuryQuotes(treasury, { today }));
 
   // O dólar serve ao câmbio, aos ativos em dólar e aos pares em USDT.
   const needsUsd = fiat.some((request) => request.symbol === "USD") || usdAssets.length > 0 || crypto.length > 0;

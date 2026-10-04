@@ -93,6 +93,13 @@ const TABLE_SPECS: Record<BackupTableKey, TableSpec> = {
     omit: OWNED,
     references: { positionId: "positions" },
   },
+  positionTransactions: {
+    model: "positionTransaction",
+    table: "position_transactions",
+    fields: Prisma.PositionTransactionScalarFieldEnum,
+    omit: OWNED,
+    references: { positionId: "positions" },
+  },
   targetPlans: { model: "targetPlan", table: "target_plans", fields: Prisma.TargetPlanScalarFieldEnum, omit: OWNED },
   allocationTargets: {
     model: "allocationTarget",
@@ -213,6 +220,30 @@ const UPGRADES: Record<number, (tables: RawTables) => RawTables> = {
       manualQuotes: [],
     };
   },
+  // 4 → 5 (specs 056 a 060): entram as movimentações das posições, vazias na
+  // conversão, e a base de cada mês, que é o próprio valor conhecido da posição
+  // (o saldo inicial do acompanhamento). O legado conserva a fotografia, sem
+  // cálculo pelo CDI: não se supõe a data nem o principal de um saldo
+  // conhecido. As taxas do CDI são de todos e não entram no arquivo. Os campos
+  // novos dos ativos têm padrão no banco.
+  4: (tables) => ({
+    ...tables,
+    positions: Array.isArray(tables.positions)
+      ? tables.positions.map((position) =>
+          position && typeof position === "object"
+            ? {
+                ...(position as BackupRow),
+                openingQuantity: (position as BackupRow).quantity,
+                calculationStartDate: null,
+                calculatedIncomeBrl: "0",
+                incomeCalculatedThrough: null,
+                incomeCalculationError: null,
+              }
+            : position,
+        )
+      : tables.positions,
+    positionTransactions: [],
+  }),
 };
 
 export class BackupValidationError extends Error {}

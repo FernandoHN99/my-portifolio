@@ -5,6 +5,7 @@ import {
   Line,
   LineChart,
   ReferenceArea,
+  ReferenceDot,
   ReferenceLine,
   ResponsiveContainer,
   Tooltip,
@@ -19,6 +20,8 @@ import { formatUsd, monthLabel } from "@/modules/portfolio/presentation/position
 import type { PriceHistory, PricePoint } from "@/modules/quotes/domain/price-history";
 
 type Currency = "BRL" | "USD";
+
+export type PriceMarker = { day: string; kind: "CONTRIBUTION" | "WITHDRAWAL"; unitPriceBrl: number };
 type RangeKey = "6m" | "12m" | "36m" | "all";
 
 type PriceRow = {
@@ -42,12 +45,15 @@ export function AssetPriceChart({
   selectedMonth,
   averagePriceBrl,
   averageLabel,
+  markers = [],
 }: {
   prices: PriceHistory;
   symbol: string;
   selectedMonth: string;
   averagePriceBrl: number | null;
   averageLabel: string;
+  /** Aportes e retiradas (spec 056), no dia e no preço da movimentação. */
+  markers?: PriceMarker[];
 }) {
   const canUseUsd = symbol !== "USD" && prices.points.some((point) => point.valueUsd !== null);
   const [currency, setCurrency] = useState<Currency>("BRL");
@@ -89,6 +95,14 @@ export function AssetPriceChart({
   const selectedStart = monthFromKey(selectedMonth).getTime();
   const selectedEnd = new Date(Date.UTC(new Date(selectedStart).getUTCFullYear(), new Date(selectedStart).getUTCMonth() + 1, 0)).getTime();
   const format = (value: number) => (activeCurrency === "BRL" ? formatPriceBrl(value) : `US$ ${formatUsd(value)}`);
+  // Os marcadores ficam no preço em reais da movimentação; no gráfico em dólar,
+  // somem.
+  const visibleMarkers =
+    activeCurrency === "BRL"
+      ? markers
+          .map((marker) => ({ ...marker, t: Date.parse(`${marker.day}T00:00:00.000Z`) }))
+          .filter((marker) => marker.t >= domain[0] && marker.t <= domain[1] + DAY_MS * 31)
+      : [];
 
   const ranges: { key: RangeKey; label: string }[] = [
     { key: "6m", label: "6M" },
@@ -141,6 +155,14 @@ export function AssetPriceChart({
           <li className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
             <span className="w-3.5 border-t border-dashed border-warning-foreground" />
             {averageLabel}
+          </li>
+        ) : null}
+        {visibleMarkers.length > 0 ? (
+          <li className="flex items-center gap-1.5 text-[11px] text-muted-foreground" data-testid="price-markers-legend">
+            <span className="size-2 rounded-full bg-chart-up" />
+            Aporte
+            <span className="ml-1.5 size-2 rounded-full bg-chart-down" />
+            Retirada
           </li>
         ) : null}
       </ul>
@@ -209,6 +231,18 @@ export function AssetPriceChart({
                 );
               }}
             />
+            {visibleMarkers.map((marker, index) => (
+              <ReferenceDot
+                key={`${marker.day}-${index}`}
+                x={marker.t}
+                y={marker.unitPriceBrl}
+                r={4}
+                fill={marker.kind === "CONTRIBUTION" ? "var(--chart-up)" : "var(--chart-down)"}
+                stroke="var(--card)"
+                strokeWidth={1.5}
+                ifOverflow="extendDomain"
+              />
+            ))}
             <Line
               dataKey="value"
               name="Fechamento do mês"

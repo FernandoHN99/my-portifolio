@@ -433,21 +433,25 @@ const TargetRow = memo(function TargetRow({
   onChange: (item: TargetEditorItem, text: string) => void;
 }) {
   return (
-    <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_84px] items-center gap-3">
-      <span className="flex min-w-0 items-center gap-2">
+    <div className="grid grid-cols-[minmax(0,1fr)_84px] items-center gap-x-3 gap-y-1 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_84px] sm:gap-3">
+      <span className="col-start-1 row-start-1 flex min-w-0 items-center gap-2">
         <span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: categoryColor(label) }} />
         <span className="truncate text-xs text-foreground/85">
           {label}
         </span>
       </span>
-      <StepSlider
-        value={value}
-        max={100}
-        label={`Meta de ${label}`}
-        valueText={(current) => `${formatInput(current)}%`}
-        onChange={(next) => onChange(item, formatInput(next))}
-      />
-      <PercentInput item={item} text={text} changed={changed} label={label} onChange={onChange} />
+      <div className="col-span-2 col-start-1 row-start-2 min-w-0 sm:col-span-1 sm:col-start-2 sm:row-start-1">
+        <StepSlider
+          value={value}
+          max={100}
+          label={`Meta de ${label}`}
+          valueText={(current) => `${formatInput(current)}%`}
+          onChange={(next) => onChange(item, formatInput(next))}
+        />
+      </div>
+      <div className="col-start-2 row-start-1 sm:col-start-3">
+        <PercentInput item={item} text={text} changed={changed} label={label} onChange={onChange} />
+      </div>
     </div>
   );
 });

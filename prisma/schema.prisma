@@ -169,6 +169,13 @@ model Asset {
   // atualização de cotações não buscar outra moeda com o mesmo símbolo. Nulo
   // nos demais ativos; BTC e SOL têm identificador fixo no código.
   quoteProviderId String?    @map("quote_provider_id")
+  // Conta corrente (spec 059): um caixa em reais ou em dólar marcado para
+  // receber o dinheiro de títulos vencidos e de outras liquidações.
+  cashAccount     Boolean    @default(false) @map("cash_account")
+  // Renda fixa pós-fixada (spec 060): percentual do CDI, como 105 para 105% do
+  // CDI, e o dia da aplicação, a partir do qual o rendimento bruto é calculado.
+  cdiPercent      Decimal?   @map("cdi_percent") @db.Decimal(7, 3)
+  appliedOn       DateTime?  @map("applied_on") @db.Date
   createdAt       DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
   user            User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   positions       Position[]
@@ -201,6 +208,16 @@ model Position {
   accountId        String               @map("account_id") @db.Uuid
   assetId          String               @map("asset_id") @db.Uuid
   quantity         Decimal              @db.Decimal(30, 12)
+  /// Base do mês (spec 056): a quantidade com que a posição abriu a competência,
+  /// herdada uma vez do fechamento do mês anterior. A quantidade é a base mais
+  /// as movimentações do mês. Zero numa posição incluída no mês.
+  openingQuantity  Decimal              @default(0) @map("opening_quantity") @db.Decimal(30, 12)
+  /// Data financeira da base do mês; nula no legado até configuração explícita.
+  calculationStartDate DateTime?        @map("calculation_start_date") @db.Date
+  /// Retorno automático do próprio mês, separado das movimentações (spec 060).
+  calculatedIncomeBrl Decimal           @default(0) @map("calculated_income_brl") @db.Decimal(24, 8)
+  incomeCalculatedThrough DateTime?     @map("income_calculated_through") @db.Date
+  incomeCalculationError String?        @map("income_calculation_error")
   unitPriceBrl     Decimal?             @map("unit_price_brl") @db.Decimal(24, 8)
   exchangeRateBrl  Decimal?             @map("exchange_rate_brl") @db.Decimal(20, 8)
   totalBrl         Decimal              @map("total_brl") @db.Decimal(24, 2)
@@ -211,6 +228,7 @@ model Position {
   account          Account              @relation(fields: [accountId, userId], references: [id, userId], onDelete: NoAction)
   asset            Asset                @relation(fields: [assetId, userId], references: [id, userId], onDelete: NoAction)
   allocations      PositionAllocation[]
+  transactions     PositionTransaction[]
 
   @@unique([portfolioMonthId, accountId, assetId])
   @@unique([id, userId])
@@ -223,6 +241,77 @@ model Position {
 // Cotação de cada mês, compartilhada entre os usuários (spec 051): vem dos
 // provedores, da virada de mês ou da inclusão de um ativo. A cotação digitada
 // por um usuário fica em ManualQuote e vale só para ele.
+enum PositionTransactionKind {
+  CONTRIBUTION
+  WITHDRAWAL
+  INCOME
+  OPENING
+}
+
+// Movimentação de uma posição (spec 056): saldo inicial de uma posição nova,
+// aporte, retirada ou rendimento. Fica na posição da competência em que foi
+// registrada; a quantidade da posição é a base do mês mais as movimentações
+// dele. Só as do mês aberto podem ser incluídas, corrigidas ou apagadas, e a
+// correção não mexe em outros meses.
+model PositionTransaction {
+  id           String                  @id @default(uuid()) @db.Uuid
+  userId       String                  @map("user_id") @db.Uuid
+  positionId   String                  @map("position_id") @db.Uuid
+  kind         PositionTransactionKind
+  occurredOn   DateTime                @map("occurred_on") @db.Date
+  /// Quantidade movimentada: unidades nos ativos cotados, dólares no caixa em
+  /// dólar e o próprio valor nos saldos em reais. Sempre positiva; zero no
+  /// rendimento recebido em dinheiro, como dividendos.
+  quantity     Decimal                 @db.Decimal(30, 12)
+  /// Preço executado em reais (o de compra ou de venda, ou o câmbio no caixa em
+  /// dólar), diferente da cotação do mês. Nulo nos saldos em reais.
+  unitPriceBrl Decimal?                @map("unit_price_brl") @db.Decimal(24, 8)
+  /// Dinheiro movimentado em reais. Positivo; só o rendimento de acerto de
+  /// uma liquidação pode ser negativo (spec 059).
+  amountBrl    Decimal                 @map("amount_brl") @db.Decimal(24, 2)
+  note         String?
+  /// Liga as pernas de uma transferência interna, como a liquidação de um
+  /// título num caixa (spec 059): não é aporte externo nem rendimento novo.
+  transferId   String?                 @map("transfer_id") @db.Uuid
+  createdAt    DateTime                @default(now()) @map("created_at") @db.Timestamptz(3)
+  position     Position                @relation(fields: [positionId, userId], references: [id, userId], onDelete: Cascade)
+
+  @@unique([id, userId])
+  @@index([positionId, occurredOn])
+  @@index([userId])
+  @@index([transferId])
+  @@map("position_transactions")
+}
+
+// Indexadores diários compartilhados (spec 060): percentual ao dia, nunca preço
+// em reais. O CDI observado na SGS12 é diferente da Selic e da cotação de ativo.
+model RateObservation {
+  id           String   @id @default(uuid()) @db.Uuid
+  indexer      String
+  date         DateTime @db.Date
+  dailyPercent Decimal  @map("daily_percent") @db.Decimal(18, 12)
+  source       String
+  fetchedAt    DateTime @map("fetched_at") @db.Timestamptz(3)
+
+  @@unique([indexer, date])
+  @@index([date])
+  @@map("rate_observations")
+}
+
+// Janelas lidas integralmente da fonte. Uma ausência dentro da resposta não
+// inventa uma taxa: só as observações efetivamente publicadas acumulam juros.
+model RateCoverage {
+  id                String   @id @default(uuid()) @db.Uuid
+  indexer           String
+  fromDate          DateTime @map("from_date") @db.Date
+  throughDate       DateTime @map("through_date") @db.Date
+  lastPublishedDate DateTime? @map("last_published_date") @db.Date
+  fetchedAt         DateTime @map("fetched_at") @db.Timestamptz(3)
+
+  @@unique([indexer, fromDate, throughDate])
+  @@map("rate_coverage")
+}
+
 model MarketQuote {
   id             String    @id @default(uuid()) @db.Uuid
   referenceDate  DateTime  @map("reference_date") @db.Date

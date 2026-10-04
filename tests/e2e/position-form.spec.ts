@@ -324,7 +324,7 @@ test("uma falha da checagem oferece tentar de novo", async ({ page }) => {
 test("um ativo existente é reaproveitado com o rateio dele", async ({ page }) => {
   await openPositions(page);
   const dialog = await openAddForm(page);
-  await chooseKind(page, dialog, /Saldo em dólar/);
+  await chooseKind(page, dialog, /Caixa em dólar/);
   await pick(page, dialog.getByRole("combobox", { name: "Instituição" }), "itau", /^Itaú$/);
   await dialog.getByRole("textbox", { name: "Nome do ativo" }).fill("Time Deposit");
 
@@ -404,12 +404,13 @@ test("o lápis da linha abre o mesmo formulário com a posição preenchida", as
   await openPositions(page);
   const dialog = await openEditForm(page, "Bitcoin 01", "Ledger");
 
-  // Tipo e instituição ficam só para leitura; nome, quantidade e estratégia
-  // podem mudar.
+  // Tipo e instituição ficam só para leitura; nome e estratégia podem mudar. A
+  // quantidade só muda por movimentações (spec 057): aparece sem campo.
   await expect(dialog.getByRole("combobox", { name: "Tipo do ativo" })).toHaveCount(0);
   await expect(dialog.getByText("Cripto", { exact: true }).first()).toBeVisible();
   await expect(dialog.getByRole("textbox", { name: "Nome do ativo" })).toHaveValue("Bitcoin 01");
-  await expect(dialog.getByRole("textbox", { name: "Quantidade" })).not.toHaveValue("");
+  await expect(dialog.getByRole("textbox", { name: "Quantidade" })).toHaveCount(0);
+  await expect(dialog.getByTestId("position-form-value-hint")).toContainText("use Movimentar");
   await expect(dialog.getByRole("combobox", { name: "Estratégia" })).toHaveValue("Core-Satellite");
   await expect(dialog.getByText("O nome é do ativo e vale para todos os meses.")).toBeVisible();
 
@@ -459,9 +460,13 @@ test("a página da posição edita pelo mesmo formulário", async ({ page }) => 
   await page.getByRole("button", { name: "Editar posição" }).click();
   const dialog = page.getByRole("dialog", { name: "Editar Porquinho" });
   await expect(dialog).toBeVisible();
-  await expect(dialog.getByRole("textbox", { name: "Saldo (R$)" })).not.toHaveValue("");
+  // O saldo aparece sem campo: muda só por movimentações (spec 057).
+  await expect(dialog.getByRole("textbox", { name: "Saldo (R$)" })).toHaveCount(0);
+  await expect(dialog.getByText("Saldo (R$)")).toBeVisible();
   await formTab(dialog, "Ativo").click();
   await expect(dialog.getByLabel("Vencimento")).toBeVisible();
+  // Um saldo em reais pode ser marcado como conta corrente (spec 059).
+  await expect(dialog.getByRole("checkbox", { name: /Conta corrente/ })).toBeVisible();
 
   await dialog.getByRole("button", { name: "Cancelar" }).click();
   await expect(dialog).toHaveCount(0);
@@ -475,4 +480,32 @@ test("num mês fechado, a página da posição não edita", async ({ page }) => 
   const edit = page.getByRole("button", { name: "Editar posição" });
   await expect(edit).toBeDisabled();
   await expect(edit).toHaveAttribute("title", /Ago\/26 está fechado/);
+});
+
+// Tesouro Direto (spec 061): o título é escolhido por tipo e vencimento no
+// catálogo oficial, sem ticker digitado; o vencimento vem do título. Catálogo e
+// conferência simulados, sem salvar.
+test("o Tesouro Direto é escolhido pelo título e vencimento oficiais", async ({ page }) => {
+  const bonds = [
+    { symbol: "TD:TESOURO-IPCA:2032-08-15", providerId: "Tesouro IPCA+|2032-08-15", name: "Tesouro IPCA+ 2032", type: "Tesouro IPCA+", maturityDate: "2032-08-15", quoteDate: "2026-10-02", valueBrl: 2912.33 },
+    { symbol: "TD:TESOURO-IPCA:2035-05-15", providerId: "Tesouro IPCA+|2035-05-15", name: "Tesouro IPCA+ 2035", type: "Tesouro IPCA+", maturityDate: "2035-05-15", quoteDate: "2026-10-02", valueBrl: 2311.05 },
+  ];
+  await page.route("**/api/quotes/treasury-catalog", (route) => route.fulfill({ json: { bonds, valuation: "market" } }));
+  const requests = await stubTickerCheck(page, ({ ticker }) => found(ticker, "tesouro", 2912.33, "Tesouro IPCA+ 2032"));
+  await openPositions(page);
+  const dialog = await openAddForm(page);
+
+  await chooseKind(page, dialog, /Tesouro Direto/);
+  await formTab(dialog, "Ativo").click();
+  await expect(dialog.getByRole("textbox", { name: "Ticker" })).toHaveCount(0);
+  await dialog.getByRole("combobox", { name: "Título do Tesouro" }).click();
+  await page.getByRole("option", { name: /Tesouro IPCA\+ 2032/ }).click();
+
+  await expect(dialog.getByText("Preço de mercado de 02/10/2026")).toBeVisible();
+  await expect(dialog.getByText("Vencimento do título")).toBeVisible();
+  await expect(dialog.getByText("15/08/2032")).toBeVisible();
+  await expect.poll(() => requests.at(-1)?.ticker).toBe("TD:TESOURO-IPCA:2032-08-15");
+  await formTab(dialog, "Geral").click();
+  await expect(dialog.getByRole("textbox", { name: "Nome do ativo" })).toHaveValue("Tesouro IPCA+ 2032");
+  await dialog.getByRole("button", { name: "Cancelar" }).click();
 });

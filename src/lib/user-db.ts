@@ -18,6 +18,7 @@ const OWNED_MODELS = new Set([
   "PortfolioMonth",
   "Position",
   "PositionAllocation",
+  "PositionTransaction",
   "TargetPlan",
   "AllocationTarget",
   "ManualQuote",

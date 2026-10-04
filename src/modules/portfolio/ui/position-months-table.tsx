@@ -1,5 +1,6 @@
 import { cn } from "@/lib/utils";
 import type { HistorySlot, PresentSlot } from "@/modules/portfolio/domain/position-history";
+import type { RecordedMonth } from "@/modules/portfolio/domain/position-transactions";
 import {
   formatBrl,
   formatPercent,
@@ -29,6 +30,7 @@ export function PositionMonthsTable({
   quoteSymbol,
   ticker,
   scope,
+  recorded,
 }: {
   slots: HistorySlot[];
   selectedMonth: string;
@@ -36,10 +38,14 @@ export function PositionMonthsTable({
   quoteSymbol: string | null;
   ticker: string | null;
   scope: "account" | "all";
+  /**
+   * Movimentações registradas por mês, na conta ou em todas as contas (spec 058).
+   */
+  recorded: Map<string, RecordedMonth> | null;
 }) {
   const rows = buildTableRows(slots).reverse();
   const presentCount = slots.filter((slot) => slot.kind === "present").length;
-  const columnCount = quoted ? 8 : 4;
+  const columnCount = quoted ? 8 : 5;
 
   return (
     <section className="premium-panel mt-6 overflow-hidden rounded-[24px]" aria-labelledby="months-title">
@@ -62,9 +68,7 @@ export function PositionMonthsTable({
               <th className="px-4 py-3 text-right">Valor</th>
               <th className="px-4 py-3 text-right">Variação</th>
               {quoted ? <th className="hidden px-4 py-3 text-right lg:table-cell">Preço</th> : null}
-              {quoted ? (
-                <th className="hidden px-4 py-3 text-right whitespace-nowrap lg:table-cell">Aportes e resgates</th>
-              ) : null}
+              <th className="hidden px-4 py-3 text-right whitespace-nowrap lg:table-cell">Aportes e resgates</th>
               <th className="hidden px-4 py-3 pr-5 text-right sm:table-cell sm:pr-6">Da carteira</th>
             </tr>
           </thead>
@@ -78,6 +82,7 @@ export function PositionMonthsTable({
                   quoted={quoted}
                   quoteSymbol={quoteSymbol}
                   ticker={ticker}
+                  recorded={recorded?.get(row.slot.month) ?? null}
                 />
               ) : (
                 <tr key={`${row.kind}-${row.from}`} data-gap={row.kind} className="bg-white/[0.012]">
@@ -118,12 +123,14 @@ function PresentRow({
   quoted,
   quoteSymbol,
   ticker,
+  recorded,
 }: {
   row: Extract<TableRow, { kind: "present" }>;
   selected: boolean;
   quoted: boolean;
   quoteSymbol: string | null;
   ticker: string | null;
+  recorded: RecordedMonth | null;
 }) {
   const { slot } = row;
   const step = slot.step;
@@ -149,6 +156,8 @@ function PresentRow({
         ) : step?.acrossMissing ? (
           <p className="mt-0.5 text-[10px] text-muted-foreground">desde {monthLabel(step.fromMonth)}</p>
         ) : null}
+        {slot.source === "mixed" || step?.source === "mixed" ? <p className="mt-0.5 text-[10px] text-muted-foreground">origem mista</p> : null}
+        {step?.unexplainedBrl ? <p className="mt-0.5 text-[10px] text-muted-foreground">sem registro {formatSignedBrl(step.unexplainedBrl)}</p> : null}
       </td>
       {quoted ? (
         <td className="hidden px-4 py-3 text-right font-mono text-xs whitespace-nowrap text-foreground/85 md:table-cell">
@@ -198,15 +207,31 @@ function PresentRow({
           )}
         </td>
       ) : null}
-      {quoted ? (
-        <td className="hidden px-4 py-3 text-right font-mono text-xs whitespace-nowrap text-foreground/85 lg:table-cell">
-          {slot.entryBrl !== null
-            ? formatSignedBrl(slot.entryBrl)
-            : step?.flowBrl != null
-              ? formatSignedBrl(step.flowBrl)
-              : "—"}
-        </td>
-      ) : null}
+      <td
+        className="hidden px-4 py-3 text-right font-mono text-xs whitespace-nowrap text-foreground/85 lg:table-cell"
+        data-testid="month-flows"
+      >
+        {/* Com movimentações no mês, os valores registrados; sem elas, a
+            estimativa pela variação da quantidade, identificada (spec 058). */}
+        {recorded ? (
+          <>
+            <p>{formatSignedBrl(recorded.netFlowBrl)}</p>
+            <p className="mt-0.5 text-[10px] text-primary">
+              registrado
+              {recorded.incomeBrl !== 0 ? ` · rendimento ${formatSignedBrl(recorded.incomeBrl)}` : ""}
+              {recorded.openingBrl !== 0 ? " · saldo inicial" : ""}
+              {recorded.internalBrl !== 0 ? " · transferência interna" : ""}
+            </p>
+          </>
+        ) : quoted && (slot.entryBrl !== null || step?.flowBrl != null) ? (
+          <>
+            <p>{formatSignedBrl(slot.entryBrl ?? step!.flowBrl!)}</p>
+            <p className="mt-0.5 text-[10px] text-muted-foreground">{step?.source === "mixed" ? "sem movimentos registrados" : "estimado"}</p>
+          </>
+        ) : (
+          "—"
+        )}
+      </td>
       <td className="hidden px-4 py-3 pr-5 text-right font-mono text-xs text-muted-foreground sm:table-cell sm:pr-6">
         {formatSharePercent(slot.share)}
       </td>

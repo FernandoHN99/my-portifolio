@@ -1,9 +1,10 @@
-import type { Prisma } from "@/generated/prisma/client";
+import { Prisma } from "@/generated/prisma/client";
 import { cleanName, normalizeKey, USD_SYMBOL } from "@/modules/portfolio/domain/asset-kinds";
 import { MAX_LIQUIDITY_LENGTH, normalizeLiquidity } from "@/modules/portfolio/domain/liquidity";
 
 // Atributos do ativo editados pelo formulário da posição (spec 043): nome
-// (spec 040), liquidez (spec 039) e vencimento (spec 026). São do ativo, não
+// (spec 040), liquidez (spec 039), vencimento (spec 026) e conta corrente
+// (spec 059). São do ativo, não
 // da competência, e valem para todos os meses.
 //
 // A chave do ativo leva o nome e, no fim, o vencimento:
@@ -27,6 +28,16 @@ export type AssetAttributes = {
   liquidity: string | null;
   /** AAAA-MM-DD */
   maturityDate: string | null;
+  /**
+   * Conta corrente (spec 059): só em ativos sem cotação de mercado (saldos em
+   * reais e caixa em dólar). Ausente, fica como está.
+   */
+  cashAccount?: boolean;
+  /**
+   * Percentual do CDI da renda fixa pós-fixada (spec 060), como "105"; nulo
+   * desliga. Ausente, fica como está.
+   */
+  cdiPercent?: string | null;
 };
 
 /** Estado do ativo antes da edição, para o desfazer. */
@@ -36,6 +47,8 @@ export type AssetState = {
   normalizedKey: string;
   liquidity: string | null;
   maturityDate: Date | null;
+  cashAccount: boolean;
+  cdiPercent: Prisma.Decimal | null;
 };
 
 /**
@@ -49,7 +62,16 @@ export async function applyAssetAttributes(
 ): Promise<AssetState | null> {
   const asset = await transaction.asset.findUnique({
     where: { id: assetId },
-    select: { id: true, name: true, normalizedKey: true, liquidity: true, maturityDate: true, quoteSymbol: true },
+    select: {
+      id: true,
+      name: true,
+      normalizedKey: true,
+      liquidity: true,
+      maturityDate: true,
+      quoteSymbol: true,
+      cashAccount: true,
+      cdiPercent: true,
+    },
   });
 
   if (!asset) {
@@ -72,7 +94,11 @@ export async function applyAssetAttributes(
   const maturity = next.maturityDate;
 
   // Saldos em dólar, como o Time Deposit, aceitam vencimento (spec 040).
-  if (maturity && asset.quoteSymbol && asset.quoteSymbol !== USD_SYMBOL) {
+  const treasuryMaturity = asset.quoteSymbol?.startsWith("TD:") ? asset.quoteSymbol.slice(-10) : null;
+  if (treasuryMaturity && maturity !== treasuryMaturity) {
+    throw new AssetAttributeError("O vencimento do Tesouro é definido pelo título selecionado.");
+  }
+  if (maturity && asset.quoteSymbol && asset.quoteSymbol !== USD_SYMBOL && !treasuryMaturity) {
     throw new AssetAttributeError("Ativos cotados não têm vencimento.");
   }
 
@@ -81,8 +107,27 @@ export async function applyAssetAttributes(
   }
 
   const currentMaturity = asset.maturityDate ? asset.maturityDate.toISOString().slice(0, 10) : null;
+  const cashAccount = next.cashAccount ?? asset.cashAccount;
 
-  if (asset.name === name && asset.liquidity === liquidity && currentMaturity === maturity) {
+  if (cashAccount && asset.quoteSymbol && asset.quoteSymbol !== USD_SYMBOL) {
+    throw new AssetAttributeError("Só caixas em reais ou em dólar podem ser conta corrente.");
+  }
+
+  const cdiPercent = next.cdiPercent === undefined ? asset.cdiPercent : parseCdiPercent(next.cdiPercent);
+
+  if (cdiPercent && asset.quoteSymbol) {
+    throw new AssetAttributeError("Só a renda fixa sem cotação de mercado é calculada pelo CDI.");
+  }
+
+  const sameCdi = (asset.cdiPercent === null && cdiPercent === null) || Boolean(asset.cdiPercent && cdiPercent?.equals(asset.cdiPercent));
+
+  if (
+    asset.name === name &&
+    asset.liquidity === liquidity &&
+    currentMaturity === maturity &&
+    asset.cashAccount === cashAccount &&
+    sameCdi
+  ) {
     return null;
   }
 
@@ -113,6 +158,8 @@ export async function applyAssetAttributes(
       normalizedKey,
       liquidity,
       maturityDate: maturity ? new Date(`${maturity}T00:00:00.000Z`) : null,
+      cashAccount,
+      cdiPercent,
     },
   });
 
@@ -122,6 +169,8 @@ export async function applyAssetAttributes(
     normalizedKey: asset.normalizedKey,
     liquidity: asset.liquidity,
     maturityDate: asset.maturityDate,
+    cashAccount: asset.cashAccount,
+    cdiPercent: asset.cdiPercent,
   };
 }
 
@@ -140,6 +189,8 @@ export async function restoreAssetState(transaction: Prisma.TransactionClient, s
       normalizedKey: state.normalizedKey,
       liquidity: state.liquidity,
       maturityDate: state.maturityDate,
+      cashAccount: state.cashAccount,
+      cdiPercent: state.cdiPercent,
     },
   });
 }
@@ -151,4 +202,26 @@ function isValidDay(day: string) {
     day <= "2100-12-31" &&
     !Number.isNaN(Date.parse(`${day}T00:00:00Z`))
   );
+}
+
+/** Percentual do CDI: maior que zero, até 1.000%, com até três casas (spec 060). */
+export function parseCdiPercent(raw: string | null) {
+  if (raw === null || raw.trim() === "") {
+    return null;
+  }
+
+  const normalized = raw.trim().replace(/\s/g, "").replace("%", "");
+  const text = normalized.includes(",") ? normalized.replace(/\./g, "").replace(",", ".") : normalized;
+
+  if (!/^\d+(?:\.\d+)?$/.test(text)) {
+    throw new AssetAttributeError("Informe o percentual do CDI, como 105 para 105% do CDI.");
+  }
+
+  const value = new Prisma.Decimal(text);
+
+  if (!value.greaterThan(0) || value.greaterThan(1000) || value.decimalPlaces() > 3) {
+    throw new AssetAttributeError("Use um percentual do CDI maior que zero e até 1.000%, com até três casas.");
+  }
+
+  return value;
 }

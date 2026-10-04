@@ -15,8 +15,15 @@ import {
   updateMonthQuotes,
 } from "@/modules/portfolio/application/month-editing";
 import { ensureMonthsUpToDate } from "@/modules/portfolio/application/month-rollover";
+import {
+  addTransaction,
+  liquidatePosition,
+  removeTransaction,
+  updateTransaction,
+} from "@/modules/portfolio/application/position-transactions";
 import { requireSessionUser } from "@/modules/auth/session";
 import { ASSET_KINDS } from "@/modules/portfolio/domain/asset-kinds";
+import { TRANSACTION_KINDS } from "@/modules/portfolio/domain/position-transactions";
 import { toMonthParam } from "@/modules/portfolio/presentation/reference-month";
 
 export type EditActionResult =
@@ -59,11 +66,14 @@ const newAccountSchema = z
 const newAssetSchema = z.object({
   name: label(80),
   kind: z.enum(ASSET_KINDS),
-  ticker: z.string().trim().max(20).nullable(),
+  ticker: z.string().trim().max(120).nullable(),
   maturityDate: day.nullable(),
   liquidity: z.string().trim().max(30).nullable().optional(),
   quoteCheckToken: z.string().uuid().nullable(),
   manualPriceBrl: value.nullable(),
+  cashAccount: z.boolean().optional(),
+  cdiPercent: z.string().trim().max(12).nullable().optional(),
+  appliedOn: day.nullable().optional(),
 });
 
 const addSchema = z.object({
@@ -75,6 +85,8 @@ const addSchema = z.object({
       assetId: z.string().uuid().optional(),
       newAsset: newAssetSchema.optional(),
       value,
+      initialKind: z.enum(["OPENING", "CONTRIBUTION"]).optional(),
+      executedPriceBrl: value.nullable().optional(),
       strategy,
       allocations: allocationsSchema,
     })
@@ -84,22 +96,25 @@ const addSchema = z.object({
 
 const editSchema = z.object({
   ...monthScope,
+  // Sem quantidade nem saldo: o lápis edita só atributos (spec 057).
   edit: z.object({
     positionId: z.string().uuid(),
-    value,
+    cdiStartDate: day.nullable().optional(),
     strategy,
     allocations: allocationsSchema,
     asset: z.object({
       name: label(120),
       liquidity: z.string().trim().max(60).nullable(),
       maturityDate: day.nullable(),
+      cashAccount: z.boolean().optional(),
+      cdiPercent: z.string().trim().max(12).nullable().optional(),
     }),
   }),
 });
 
 const quotesSchema = z.object({
   ...monthScope,
-  quotes: z.array(z.object({ symbol: z.string().trim().min(1).max(20), valueBrl: value })).min(1).max(100),
+  quotes: z.array(z.object({ symbol: z.string().trim().min(1).max(120), valueBrl: value })).min(1).max(100),
 });
 
 export async function addPositionAction(input: unknown): Promise<EditActionResult> {
@@ -178,6 +193,94 @@ export async function cloneLatestMonthAction(): Promise<EditActionResult> {
       undoToken: result.undoToken,
       month: toMonthParam(result.referenceDate),
     };
+  });
+}
+
+const transactionSchema = z.object({
+  ...monthScope,
+  transaction: z.object({
+    positionId: z.string().uuid(),
+    kind: z.enum(TRANSACTION_KINDS),
+    occurredOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    quantity: z.string().trim().max(40).nullable(),
+    unitPriceBrl: z.string().trim().max(40).nullable(),
+    amountBrl: z.string().trim().min(1).max(40),
+    note: z.string().trim().max(200).nullable().optional(),
+  }),
+});
+
+const transactionRemovalSchema = z.object({ ...monthScope, transactionId: z.string().uuid() });
+const transactionUpdateSchema = transactionSchema.extend({ transactionId: z.string().uuid() });
+
+const TRANSACTION_DONE: Record<(typeof TRANSACTION_KINDS)[number], string> = {
+  CONTRIBUTION: "Aporte registrado.",
+  WITHDRAWAL: "Retirada registrada.",
+  INCOME: "Rendimento registrado.",
+};
+
+/** Aporte, retirada ou rendimento numa posição do mês aberto (spec 056). */
+export async function addTransactionAction(input: unknown): Promise<EditActionResult> {
+  const parsed = transactionSchema.safeParse(input);
+
+  if (!parsed.success) {
+    return { ok: false, message: "Revise os campos da movimentação e tente novamente." };
+  }
+
+  return run(async () => {
+    const result = await addTransaction(parsed.data);
+    return { ok: true, message: TRANSACTION_DONE[parsed.data.transaction.kind], undoToken: result.undoToken };
+  });
+}
+
+/** Corrige uma movimentação do mês aberto, no lugar (spec 057). */
+export async function updateTransactionAction(input: unknown): Promise<EditActionResult> {
+  const parsed = transactionUpdateSchema.safeParse(input);
+
+  if (!parsed.success) {
+    return { ok: false, message: "Revise os campos da movimentação e tente novamente." };
+  }
+
+  return run(async () => {
+    const result = await updateTransaction(parsed.data);
+    return { ok: true, message: "Movimentação corrigida.", undoToken: result.undoToken };
+  });
+}
+
+/** Apaga uma movimentação do mês aberto, desfazendo o efeito no saldo. */
+export async function removeTransactionAction(input: unknown): Promise<EditActionResult> {
+  const parsed = transactionRemovalSchema.safeParse(input);
+
+  if (!parsed.success) {
+    return { ok: false, message: "Não foi possível identificar a movimentação." };
+  }
+
+  return run(async () => {
+    const result = await removeTransaction(parsed.data);
+    return { ok: true, message: "Movimentação apagada.", undoToken: result.undoToken };
+  });
+}
+
+const liquidationSchema = z.object({
+  ...monthScope,
+  liquidation: z.object({
+    positionId: z.string().uuid(),
+    destinationPositionId: z.string().uuid(),
+    occurredOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    amountBrl: z.string().trim().min(1).max(40),
+  }),
+});
+
+/** Liquida um título vencido na conta corrente escolhida (spec 059). */
+export async function liquidatePositionAction(input: unknown): Promise<EditActionResult> {
+  const parsed = liquidationSchema.safeParse(input);
+
+  if (!parsed.success) {
+    return { ok: false, message: "Revise os campos da liquidação e tente novamente." };
+  }
+
+  return run(async () => {
+    const result = await liquidatePosition(parsed.data);
+    return { ok: true, message: "Título liquidado na conta corrente.", undoToken: result.undoToken };
   });
 }
 

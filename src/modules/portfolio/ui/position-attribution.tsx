@@ -9,7 +9,7 @@ import { formatBrl } from "@/modules/portfolio/presentation/portfolio-format";
 import { formatSignedBrl, monthLabel } from "@/modules/portfolio/presentation/position-page";
 
 type Mode = "since-entry" | "month";
-type Tone = "total" | "price" | "flow" | "change";
+type Tone = "total" | "price" | "flow" | "change" | "neutral";
 
 type WaterfallBar = {
   key: string;
@@ -38,12 +38,17 @@ export function PositionAttribution({
 }: {
   summary: PositionSummary;
   quoted: boolean;
-  /** Saldo em dólar: a cotação é o câmbio. */
+  /** Caixa em dólar: a cotação é o câmbio. */
   dollarBalance: boolean;
   scope: "account" | "all";
   hasOtherAccounts: boolean;
 }) {
   const [mode, setMode] = useState<Mode>("since-entry");
+  const source = (mode === "month" ? summary.monthStep?.source : summary.attributionSource) ?? "estimated";
+  const tracked = source !== "estimated";
+  const distributedIncome = mode === "month"
+    ? (summary.monthStep?.incomeBrl ?? 0) - (summary.monthStep?.capitalizedIncomeBrl ?? 0)
+    : (summary.incomeBrl ?? 0) - (summary.capitalizedIncomeBrl ?? 0);
   const bars = mode === "since-entry" ? sinceEntryBars(summary, quoted) : monthBars(summary, quoted);
   const emptyText =
     mode === "month"
@@ -60,7 +65,9 @@ export function PositionAttribution({
             De onde veio a variação
           </h2>
           <p className="mt-1 text-[11px] text-muted-foreground">
-            {quoted ? "Preço contra aportes e resgates, estimados pelas competências." : "Variação do saldo informado."}
+            {tracked
+              ? source === "mixed" ? "Movimentações registradas e competências antigas estimadas." : "Variação explicada pelas movimentações registradas."
+              : quoted ? "Preço contra aportes e resgates, estimados pelas competências." : "Variação do saldo informado."}
           </p>
         </div>
         <div role="group" aria-label="Período da decomposição" className="flex items-center gap-0.5 rounded-lg border border-border bg-card/60 p-0.5">
@@ -92,7 +99,8 @@ export function PositionAttribution({
         </div>
       ) : (
         <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1.3fr)_minmax(220px,1fr)] lg:items-center">
-          <div className="h-[220px] w-full" data-testid="attribution-chart">
+          <div className="w-full overflow-x-auto" data-testid="attribution-chart">
+            <div className="h-[220px]" style={{ minWidth: bars.length > 5 ? 560 : undefined }}>
             <ResponsiveContainer height="100%" width="100%">
               <BarChart data={bars} margin={{ top: 22, right: 4, bottom: 0, left: 4 }} barCategoryGap="22%">
                 <XAxis
@@ -166,6 +174,7 @@ export function PositionAttribution({
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
+            </div>
           </div>
 
           <dl className="space-y-2.5" data-testid="attribution-values">
@@ -176,9 +185,9 @@ export function PositionAttribution({
                 <dd
                   className={cn(
                     "ml-auto shrink-0 font-mono text-xs",
-                    bar.signed && bar.value > 0
+                    bar.tone !== "neutral" && bar.signed && bar.value > 0
                       ? "text-primary"
-                      : bar.signed && bar.value < 0
+                      : bar.tone !== "neutral" && bar.signed && bar.value < 0
                         ? "text-destructive"
                         : "text-foreground",
                   )}
@@ -192,7 +201,17 @@ export function PositionAttribution({
       )}
 
       <div className="mt-5 space-y-1.5 border-t border-border/60 pt-4 text-[11px] leading-5 text-muted-foreground">
-        {quoted ? (
+        {tracked ? (
+          <>
+            <p>
+              Aportes e retiradas usam os valores das transações. Rendimentos incorporados e transferências internas aparecem separadamente.
+              {quoted ? " O efeito de preço inclui a diferença entre o preço executado e a cotação atual." : ""}
+              {source === "mixed" ? " As competências anteriores sem movimentações mantêm suas estimativas." : ""}
+            </p>
+            {distributedIncome !== 0 ? <p>Rendimento recebido separadamente: {formatSignedBrl(distributedIncome)}. Esse registro não aumenta a quantidade nem o saldo da posição.</p> : null}
+            {(mode === "month" ? summary.monthStep?.unexplainedBrl : summary.unexplainedBrl) ? <p>Diferenças entre saldos mensais independentes ficam como variação sem registro; não são tratadas como aporte ou rendimento.</p> : null}
+          </>
+        ) : quoted ? (
           <p>
             Ganho de preço é a quantidade do mês anterior vezes a variação da cotação. Aportes e resgates é o
             restante: a variação da quantidade valorizada pela cotação do mês em que aparece. É uma estimativa,
@@ -205,7 +224,7 @@ export function PositionAttribution({
             resgates aparecem juntos na variação.
           </p>
         )}
-        {summary.segments > 1 || summary.state === "absent" ? (
+        {!tracked && (summary.segments > 1 || summary.state === "absent") ? (
           <p>
             {scope === "account"
               ? "Quando a posição sai desta conta, a saída conta como resgate do último valor conhecido e a volta, como aporte do primeiro valor."
@@ -230,6 +249,11 @@ function sinceEntryBars(summary: PositionSummary, quoted: boolean): WaterfallBar
 
   const endLabel = monthLabel(summary.selectedMonth);
   const startLabel = monthLabel(summary.firstMonth);
+
+  if (summary.attributionSource && summary.attributionSource !== "estimated") {
+    return recordedBars(start, end, startLabel, endLabel, summary.priceGainBrl ?? 0, summary.flowsBrl ?? 0,
+      summary.capitalizedIncomeBrl ?? 0, summary.internalBrl ?? 0, summary.openingBrl ?? 0, summary.unexplainedBrl ?? 0);
+  }
 
   if (quoted && summary.priceGainBrl !== null && summary.flowsBrl !== null) {
     return cascade([
@@ -259,6 +283,12 @@ function monthBars(summary: PositionSummary, quoted: boolean): WaterfallBar[] | 
   const toLabel = monthLabel(step.month);
   const start = current.valueBrl - step.changeBrl;
 
+  if (step.source && step.source !== "estimated") {
+    return recordedBars(start, current.valueBrl, step.fromMonth === step.month ? "Abertura" : fromLabel, toLabel,
+      step.priceEffectBrl ?? 0, step.flowBrl ?? 0, step.capitalizedIncomeBrl ?? 0,
+      step.internalBrl ?? 0, step.openingBrl ?? 0, step.unexplainedBrl ?? 0);
+  }
+
   if (quoted && step.priceEffectBrl !== null && step.flowBrl !== null) {
     return cascade([
       { key: "start", label: fromLabel, description: `Valor em ${fromLabel}`, value: start, tone: "total" },
@@ -273,6 +303,20 @@ function monthBars(summary: PositionSummary, quoted: boolean): WaterfallBar[] | 
     { key: "change", label: "Variação", description: "Variação do saldo", value: step.changeBrl, tone: "change" },
     { key: "end", label: toLabel, description: `Valor em ${toLabel}`, value: current.valueBrl, tone: "total" },
   ]);
+}
+
+function recordedBars(start: number, end: number, startLabel: string, endLabel: string, price: number, flows: number, income: number, internal: number, opening: number, unexplained: number): WaterfallBar[] {
+  const entries: Omit<WaterfallBar, "range" | "signed">[] = [
+    { key: "start", label: startLabel, description: `Saldo de partida · ${startLabel}`, value: start, tone: "total" },
+    { key: "flow", label: "Movimentos", description: "Aportes menos retiradas", value: flows, tone: "flow" },
+    { key: "income", label: "Rendimento", description: "Rendimentos incorporados", value: income, tone: "change" },
+    { key: "internal", label: "Transferência", description: "Transferências internas", value: internal, tone: "neutral" },
+    { key: "opening", label: "Saldo inicial", description: "Saldo inicial registrado", value: opening, tone: "neutral" },
+    { key: "price", label: "Preço", description: "Efeito de preço", value: price, tone: "price" },
+    { key: "unexplained", label: "Sem registro", description: "Variação sem registro", value: unexplained, tone: "neutral" },
+    { key: "end", label: endLabel, description: `Valor em ${endLabel}`, value: end, tone: "total" },
+  ];
+  return cascade(entries.filter((entry) => entry.tone === "total" || Math.abs(entry.value) >= 0.005));
 }
 
 function cascade(entries: Omit<WaterfallBar, "range" | "signed">[]): WaterfallBar[] {
@@ -303,7 +347,7 @@ function monthEmptyText(summary: PositionSummary) {
 }
 
 function barColor(bar: WaterfallBar) {
-  if (bar.tone === "total") {
+  if (bar.tone === "total" || bar.tone === "neutral") {
     return "var(--muted-foreground)";
   }
 

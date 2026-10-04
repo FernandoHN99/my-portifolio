@@ -7,6 +7,7 @@ import { getMonthContext } from "@/modules/portfolio/application/get-month-conte
 import { getMonthPositions } from "@/modules/portfolio/application/get-month-positions";
 import { getPositionHistory } from "@/modules/portfolio/application/get-position-history";
 import { formatMonthCompact } from "@/modules/portfolio/presentation/portfolio-format";
+import { cashCurrencyOf } from "@/modules/portfolio/ui/liquidation-dialog";
 import { PositionDetail, type PositionEditing } from "@/modules/portfolio/ui/position-detail";
 
 export const dynamic = "force-dynamic";
@@ -47,8 +48,17 @@ export default async function PositionPage({ params, searchParams }: PositionPag
           isCurrent: month.isCurrent,
           quotes: month.quotes,
           isLocked: month.isLocked,
+          referenceDate: month.referenceDate,
         },
         occupied: month.positions.map((position) => `${position.accountId}:${position.assetId}`),
+        cashAccounts: month.positions
+          .filter((position) => position.cashAccount)
+          .map((position) => ({
+            positionId: position.id,
+            label: `${position.assetName} · ${position.institutionName}`,
+            totalBrl: position.totalBrl,
+            currency: cashCurrencyOf(position.quoteSymbol),
+          })),
         catalog,
       }
     : null;

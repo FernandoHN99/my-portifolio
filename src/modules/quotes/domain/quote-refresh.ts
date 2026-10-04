@@ -62,6 +62,7 @@ const PROVIDER_LABELS: Record<string, string> = {
   fixed: "Valor fixo",
   provider: "Provedor",
   yahoo: "Yahoo Finance",
+  tesouro: "Tesouro Nacional",
 };
 
 export function providerLabel(provider: string) {

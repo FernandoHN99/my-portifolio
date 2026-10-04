@@ -25,6 +25,15 @@ export type MonthPosition = {
   maturityDate: string | null;
   /** Prazo de liquidez do ativo, opcional (spec 039). */
   liquidity: string | null;
+  /** Conta corrente (spec 059): recebe o dinheiro de títulos liquidados. */
+  cashAccount: boolean;
+  /** Cálculo bruto por CDI, opcional; a base pertence à própria competência. */
+  cdiPercent?: number | null;
+  appliedOn?: string | null;
+  calculationStartDate?: string | null;
+  calculatedIncomeBrl?: number;
+  incomeCalculatedThrough?: string | null;
+  incomeCalculationError?: string | null;
   quantity: number;
   quantityText: string;
   unitPriceBrl: number | null;
@@ -86,11 +95,25 @@ export async function getMonthPositions(
               accountId: true,
               assetId: true,
               quantity: true,
+              calculationStartDate: true,
+              calculatedIncomeBrl: true,
+              incomeCalculatedThrough: true,
+              incomeCalculationError: true,
               unitPriceBrl: true,
               totalBrl: true,
               strategy: true,
               asset: {
-                select: { name: true, ticker: true, quoteSymbol: true, baseCurrency: true, maturityDate: true, liquidity: true },
+                select: {
+                  name: true,
+                  ticker: true,
+                  quoteSymbol: true,
+                  baseCurrency: true,
+                  maturityDate: true,
+                  liquidity: true,
+                  cashAccount: true,
+                  cdiPercent: true,
+                  appliedOn: true,
+                },
               },
               account: {
                 select: { name: true, institution: { select: { name: true } } },
@@ -171,6 +194,13 @@ export async function getMonthPositions(
             baseCurrency: position.asset.baseCurrency,
             maturityDate: position.asset.maturityDate ? toDateKey(position.asset.maturityDate) : null,
             liquidity: position.asset.liquidity,
+            cashAccount: position.asset.cashAccount,
+            cdiPercent: position.asset.cdiPercent?.toNumber() ?? null,
+            appliedOn: position.asset.appliedOn ? toDateKey(position.asset.appliedOn) : null,
+            calculationStartDate: position.calculationStartDate ? toDateKey(position.calculationStartDate) : null,
+            calculatedIncomeBrl: position.calculatedIncomeBrl.toNumber(),
+            incomeCalculatedThrough: position.incomeCalculatedThrough ? toDateKey(position.incomeCalculatedThrough) : null,
+            incomeCalculationError: position.incomeCalculationError,
             quantity: position.quantity.toNumber(),
             quantityText: position.quantity.toString(),
             unitPriceBrl: position.unitPriceBrl ? position.unitPriceBrl.toNumber() : null,

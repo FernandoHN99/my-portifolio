@@ -3,8 +3,10 @@
 import NumberFlow from "@number-flow/react";
 import {
   ArrowLeftIcon,
+  ArrowsDownUpIcon,
   ChartPieSliceIcon,
   CoinsIcon,
+  HandCoinsIcon,
   InfoIcon,
   MagnifyingGlassIcon,
   PencilSimpleIcon,
@@ -16,7 +18,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { parseAsStringLiteral, useQueryState } from "nuqs";
 import { useCallback, useRef, useState, useTransition } from "react";
 
-import { undoChangeAction, type EditActionResult } from "@/app/actions/edit-month";
+import { removeTransactionAction, undoChangeAction, type EditActionResult } from "@/app/actions/edit-month";
 import { cn } from "@/lib/utils";
 import type { EditingCatalog } from "@/modules/portfolio/application/get-editing-catalog";
 import type { MonthPosition } from "@/modules/portfolio/application/get-month-positions";
@@ -51,6 +53,15 @@ import { PositionAllocation } from "@/modules/portfolio/ui/position-allocation";
 import { PositionEvolutionChart } from "@/modules/portfolio/ui/position-evolution-chart";
 import { PositionFormDialog, type PositionFormMonth } from "@/modules/portfolio/ui/position-form-dialog";
 import { PositionMonthsTable } from "@/modules/portfolio/ui/position-months-table";
+import {
+  PositionTransactionDialog,
+  transactionMonthOf,
+  type TransactionEdit,
+} from "@/modules/portfolio/ui/position-transaction-dialog";
+import { PositionTransactions } from "@/modules/portfolio/ui/position-transactions";
+import { CdiPanel } from "@/modules/portfolio/ui/cdi-panel";
+import { recordedByMonth } from "@/modules/portfolio/domain/position-transactions";
+import { cashCurrencyOf, LiquidationDialog, type CashAccountOption } from "@/modules/portfolio/ui/liquidation-dialog";
 
 const SCOPES = ["todas"] as const;
 
@@ -73,9 +84,11 @@ const sharePercent = new Intl.NumberFormat("pt-BR", {
  */
 export type PositionEditing = {
   position: MonthPosition | null;
-  month: PositionFormMonth & { isLocked: boolean };
+  month: PositionFormMonth & { isLocked: boolean; referenceDate: Date };
   occupied: string[];
   catalog: EditingCatalog;
+  /** Caixas marcados como conta corrente no mês, destinos da liquidação (spec 059). */
+  cashAccounts: CashAccountOption[];
 };
 
 export function PositionDetail({
@@ -89,6 +102,13 @@ export function PositionDetail({
   const router = useRouter();
   const [scopeParam, setScopeParam] = useQueryState("contas", parseAsStringLiteral(SCOPES));
   const [form, setForm] = useState({ open: false, key: 0 });
+  const [movement, setMovement] = useState<{ open: boolean; key: number; edit: TransactionEdit | null }>({
+    open: false,
+    key: 0,
+    edit: null,
+  });
+  const [liquidation, setLiquidation] = useState({ open: false, key: 0 });
+  const [isRemoving, startRemoving] = useTransition();
   const [toast, setToast] = useState<EditToastState | null>(null);
   const [isUndoing, startUndo] = useTransition();
   const sequence = useRef(0);
@@ -129,6 +149,7 @@ export function PositionDetail({
   const scope: "account" | "all" = scopeParam === "todas" && history.all ? "all" : "account";
   const view = scope === "all" && history.all ? history.all : history.account;
   const { summary, slots } = view;
+  const transactions = view.transactions.filter((entry) => entry.month <= history.selectedMonth);
   const quoted = Boolean(history.quoteSymbol);
   const dollarBalance = history.quoteSymbol === "USD";
   const current = summary.current;
@@ -149,6 +170,13 @@ export function PositionDetail({
         ? `Sem a posição em ${selectedLabel}.`
         : null;
   const strategy = snapshot ? (snapshot.strategy ?? NO_STRATEGY) : null;
+  // Título vencido com saldo no mês aberto (spec 059).
+  const canLiquidate =
+    editBlocked === null &&
+    editPosition !== null &&
+    history.maturityDate !== null &&
+    history.maturityDate <= history.referenceDay &&
+    editPosition.totalBrl > 0;
   const usdValue = current && history.usdRate ? current.valueBrl / history.usdRate : null;
 
   return (
@@ -213,16 +241,38 @@ export function PositionDetail({
               ? `${formatBrl(current.valueBrl)}${usdValue !== null ? ` · US$ ${formatUsd(usdValue)}` : ""}`
               : `Sem a posição em ${selectedLabel}`}
           </p>
-          <button
-            type="button"
-            onClick={() => setForm((value) => ({ open: true, key: value.key + 1 }))}
-            disabled={editBlocked !== null}
-            title={editBlocked ?? `Editar a posição em ${selectedLabel}`}
-            className="inline-flex h-9 items-center gap-2 rounded-xl border border-border bg-card/70 px-3.5 text-xs font-semibold text-foreground outline-none transition-colors hover:bg-white/[0.05] focus-visible:ring-2 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-45"
-          >
-            <PencilSimpleIcon aria-hidden="true" size={14} weight="bold" />
-            Editar posição
-          </button>
+          <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+            {canLiquidate ? (
+              <button
+                type="button"
+                onClick={() => setLiquidation((value) => ({ open: true, key: value.key + 1 }))}
+                className="inline-flex h-9 items-center gap-2 rounded-xl bg-primary px-3.5 text-xs font-semibold text-primary-foreground outline-none transition-colors hover:bg-primary/90 focus-visible:ring-3 focus-visible:ring-ring/40"
+              >
+                <HandCoinsIcon aria-hidden="true" size={14} weight="bold" />
+                Liquidar
+              </button>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => setMovement((value) => ({ open: true, key: value.key + 1, edit: null }))}
+              disabled={editBlocked !== null}
+              title={editBlocked ?? `Aporte, retirada ou rendimento em ${selectedLabel}`}
+              className="inline-flex h-9 items-center gap-2 rounded-xl border border-border bg-card/70 px-3.5 text-xs font-semibold text-foreground outline-none transition-colors hover:bg-white/[0.05] focus-visible:ring-2 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-45"
+            >
+              <ArrowsDownUpIcon aria-hidden="true" size={14} weight="bold" />
+              Movimentar
+            </button>
+            <button
+              type="button"
+              onClick={() => setForm((value) => ({ open: true, key: value.key + 1 }))}
+              disabled={editBlocked !== null}
+              title={editBlocked ?? `Editar a posição em ${selectedLabel}`}
+              className="inline-flex h-9 items-center gap-2 rounded-xl border border-border bg-card/70 px-3.5 text-xs font-semibold text-foreground outline-none transition-colors hover:bg-white/[0.05] focus-visible:ring-2 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-45"
+            >
+              <PencilSimpleIcon aria-hidden="true" size={14} weight="bold" />
+              Editar posição
+            </button>
+          </div>
         </div>
       </header>
 
@@ -354,6 +404,17 @@ export function PositionDetail({
               ? "Saldo em reais, sem cotação de mercado: cada barra é a diferença para a competência anterior, com rendimentos, aportes e resgates juntos."
               : "Fechamento de cada mês: a cotação mais recente daquele mês. No mês corrente, a última cotação."}
           </p>
+          {history.history?.state === "pending" ? (
+            <p data-testid="price-history-pending" className="mt-2 text-[11px] text-primary">
+              Preparando o histórico de cotações deste ativo. Ele aparece depois da próxima atualização automática,
+              em até uma hora.
+            </p>
+          ) : history.history?.state === "failed" ? (
+            <p data-testid="price-history-pending" className="mt-2 text-[11px] text-destructive">
+              O histórico de cotações ainda não foi carregado ({history.history.error}). A atualização automática tenta
+              de novo uma vez por dia.
+            </p>
+          ) : null}
           <div className="mt-5">
             {history.prices && history.quoteSymbol ? (
               <AssetPriceChart
@@ -361,7 +422,16 @@ export function PositionDetail({
                 symbol={history.quoteSymbol}
                 selectedMonth={history.selectedMonth}
                 averagePriceBrl={summary.averagePriceBrl}
-                averageLabel={dollarBalance ? "Câmbio médio estimado" : "Preço médio estimado"}
+                averageLabel={
+                  summary.costSource === "known"
+                    ? dollarBalance ? "Câmbio médio de compra" : "Preço médio de compra"
+                    : dollarBalance ? "Câmbio médio estimado" : "Preço médio estimado"
+                }
+                markers={transactions.flatMap((entry) =>
+                  (entry.kind === "CONTRIBUTION" || entry.kind === "WITHDRAWAL") && entry.unitPriceBrl
+                    ? [{ day: entry.occurredOn, kind: entry.kind, unitPriceBrl: entry.unitPriceBrl }]
+                    : [],
+                )}
               />
             ) : (
               <BalanceChangeChart slots={slots} selectedMonth={history.selectedMonth} scope={scope} />
@@ -380,6 +450,8 @@ export function PositionDetail({
         )}
       </div>
 
+      {history.cdi ? <CdiPanel cdi={history.cdi} /> : null}
+
       <PositionMonthsTable
         slots={slots}
         selectedMonth={history.selectedMonth}
@@ -387,7 +459,79 @@ export function PositionDetail({
         quoteSymbol={history.quoteSymbol}
         ticker={history.ticker}
         scope={scope}
+        recorded={recordedByMonth(view.transactions)}
       />
+
+      <PositionTransactions
+        transactions={transactions}
+        quoted={quoted}
+        dollars={dollarBalance}
+        editableMonthId={editing && !editing.month.isLocked ? editing.month.id : null}
+        firstMonth={firstEver}
+        costSource={summary.costSource}
+        editableAccountId={history.accountId}
+        showAccountLabels={scope === "all"}
+        removing={isRemoving}
+        onEdit={(entry) =>
+          setMovement((value) => ({
+            open: true,
+            key: value.key + 1,
+            edit: {
+              id: entry.id,
+              kind: entry.kind,
+              occurredOn: entry.occurredOn,
+              quantity: entry.quantity,
+              unitPriceBrl: entry.unitPriceBrl,
+              amountBrl: entry.amountBrl,
+              note: entry.note,
+            },
+          }))
+        }
+        onRemove={(entry) =>
+          startRemoving(async () => {
+            const result = await removeTransactionAction({ monthId: entry.monthId, transactionId: entry.id });
+            notify(result);
+          })
+        }
+      />
+
+      {editing && editPosition && history.maturityDate ? (
+        <LiquidationDialog
+          open={liquidation.open}
+          onOpenChange={(open) => setLiquidation((value) => ({ ...value, open }))}
+          target={{
+            positionId: editPosition.id,
+            assetName: editPosition.assetName,
+            totalBrl: editPosition.totalBrl,
+            maturityDate: history.maturityDate,
+            currency: cashCurrencyOf(editPosition.quoteSymbol),
+          }}
+          formKey={liquidation.key}
+          month={transactionMonthOf(editing.month.id, editing.month.referenceDate, editing.month.label)}
+          cashAccounts={editing.cashAccounts}
+          onSaved={notify}
+        />
+      ) : null}
+
+      {editing && editPosition ? (
+        <PositionTransactionDialog
+          open={movement.open}
+          onOpenChange={(open) => setMovement((value) => ({ ...value, open }))}
+          target={{
+            positionId: editPosition.id,
+            assetName: editPosition.assetName,
+            quoteSymbol: editPosition.quoteSymbol,
+            quantity: editPosition.quantity,
+            unitPriceBrl: editPosition.unitPriceBrl,
+            totalBrl: editPosition.totalBrl,
+            cdi: Boolean(history.cdi),
+          }}
+          edit={movement.edit}
+          formKey={movement.key}
+          month={transactionMonthOf(editing.month.id, editing.month.referenceDate, editing.month.label)}
+          onSaved={notify}
+        />
+      ) : null}
 
       {editing ? (
         <PositionFormDialog
@@ -426,6 +570,8 @@ function PositionKpis({
   const current = summary.current;
   const step = summary.monthStep;
   const growth = summary.growthPercent;
+  const recordedIncome = !quoted && summary.attributionSource !== "estimated" && summary.recorded
+    ? summary.incomeBrl ?? 0 : null;
   const sinceLabel = summary.firstMonth ? monthLabel(summary.firstMonth) : null;
 
   return (
@@ -470,7 +616,7 @@ function PositionKpis({
 
       <KpiCard
         label={
-          sinceLabel
+          recordedIncome !== null ? "Rendimentos registrados" : sinceLabel
             ? quoted
               ? `Valorização desde ${sinceLabel}`
               : `Variação desde ${sinceLabel}`
@@ -479,7 +625,7 @@ function PositionKpis({
               : "Variação desde a entrada"
         }
         testId="position-growth"
-        valueText={growth === null ? "—" : signedPercent.format(growth / 100)}
+        valueText={recordedIncome !== null ? formatSignedBrl(recordedIncome) : growth === null ? "—" : signedPercent.format(growth / 100)}
         icon={
           growth !== null && growth < 0 ? (
             <TrendDownIcon aria-hidden="true" size={18} weight="duotone" />
@@ -487,9 +633,9 @@ function PositionKpis({
             <TrendUpIcon aria-hidden="true" size={18} weight="duotone" />
           )
         }
-        tone={growth === null ? "neutral" : growth >= 0 ? "up" : "down"}
+        tone={recordedIncome !== null ? recordedIncome >= 0 ? "up" : "down" : growth === null ? "neutral" : growth >= 0 ? "up" : "down"}
         value={
-          growth === null ? (
+          recordedIncome !== null ? <span>{formatSignedBrl(recordedIncome)}</span> : growth === null ? (
             <span className="text-muted-foreground">—</span>
           ) : (
             <NumberFlow
@@ -500,7 +646,7 @@ function PositionKpis({
           )
         }
         detail={
-          growth === null
+          recordedIncome !== null ? "Aportes e retiradas ficam fora deste total" : growth === null
             ? !summary.firstMonth
               ? "A posição ainda não existia"
               : summary.heldMonths === 1 && summary.state === "present"
@@ -561,11 +707,13 @@ function PositionHighlights({
   const average = summary.averagePriceBrl;
   const aboveAverage = average && current?.priceBrl ? (current.priceBrl / average - 1) * 100 : null;
   const bestMetric = (step: NonNullable<PositionSummary["best"]>) =>
-    quoted && step.priceEffectBrl !== null ? step.priceEffectBrl : step.changeBrl;
+    step.source && step.source !== "estimated"
+      ? (step.priceEffectBrl ?? 0) + (step.incomeBrl ?? 0)
+      : quoted && step.priceEffectBrl !== null ? step.priceEffectBrl : step.changeBrl;
   const stepDetail = (step: NonNullable<PositionSummary["best"]>) =>
     quoted && step.pricePercent !== null
       ? `${monthLabel(step.month)} · cotação ${formatPercent(step.pricePercent)}`
-      : `${monthLabel(step.month)}${step.changePercent !== null ? ` · saldo ${formatPercent(step.changePercent)}` : ""}`;
+      : `${monthLabel(step.month)}${step.source && step.source !== "estimated" ? " · rendimento registrado" : step.changePercent !== null ? ` · saldo ${formatPercent(step.changePercent)}` : ""}`;
 
   return (
     <section className="premium-panel rounded-[24px] p-5 sm:p-6" aria-labelledby="highlights-title">
@@ -573,18 +721,28 @@ function PositionHighlights({
         Destaques
       </h2>
       <p className="mt-1 text-[11px] text-muted-foreground">
-        {quoted ? "Melhor e pior mês pelo efeito de preço." : "Melhor e pior mês pela variação do saldo, com aportes."}
+        {summary.attributionSource && summary.attributionSource !== "estimated"
+          ? "Nos meses registrados, melhor e pior pelo efeito de preço e rendimentos, sem aportes."
+          : quoted ? "Melhor e pior mês pelo efeito de preço." : "Melhor e pior mês pela variação do saldo, com aportes."}
       </p>
 
       <div className="mt-4 divide-y divide-border/55">
         {quoted ? (
           <HighlightRow
             testId="position-average-price"
-            label={dollarBalance ? "Câmbio médio estimado" : "Preço médio estimado"}
+            label={
+              summary.costSource === "known"
+                ? dollarBalance ? "Câmbio médio de compra" : "Preço médio de compra"
+                : summary.costSource === "unknown"
+                  ? "Custo de compra desconhecido"
+                  : dollarBalance ? "Câmbio médio estimado" : "Preço médio estimado"
+            }
             value={average !== null ? formatEstimatedPrice(average) : "—"}
             detail={
-              average === null
-                ? "Sem a posição nesta competência"
+              summary.costSource === "unknown"
+                ? "A base de abertura não informa o custo de aquisição anterior."
+                : average === null
+                  ? "Sem a posição nesta competência"
                 : aboveAverage !== null
                   ? `Cotação ${formatUnsignedPercent(aboveAverage)} ${aboveAverage >= 0 ? "acima" : "abaixo"} ${
                       dollarBalance ? "do câmbio médio" : "do preço médio"

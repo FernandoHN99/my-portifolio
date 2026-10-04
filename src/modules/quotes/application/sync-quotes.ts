@@ -8,6 +8,7 @@ import {
 } from "@/generated/prisma/client";
 import { QUOTE_REFRESH_LOCK_KEY } from "@/lib/advisory-locks";
 import { getPrismaClient } from "@/lib/prisma";
+import { syncCdi, type CdiRatesFetcher, type CdiReport } from "@/modules/portfolio/application/cdi-positions";
 import { fetchCurrentQuotes, getQuoteProviderConfiguration } from "@/modules/quotes/application/fetch-current-quotes";
 import { loadSymbolHistory, type UsdRatesCache } from "@/modules/quotes/application/symbol-history";
 import { addMonths, calendarDay, lastDayOf, monthOf, toDateKey } from "@/modules/quotes/domain/calendar";
@@ -26,6 +27,7 @@ import {
   type QuoteResult,
 } from "@/modules/quotes/domain/quote-types";
 import { describeProviderError } from "@/modules/quotes/infrastructure/http";
+import { isTreasuryDay } from "@/modules/quotes/domain/treasury";
 
 // Job agendado das cotações (spec 053): a única escrita das cotações
 // automáticas. Roda fora da navegação, pelo roteiro `pnpm quotes:sync`, pela
@@ -45,7 +47,7 @@ export type HistoryReport = {
 };
 
 export type QuoteSyncOutcome =
-  | { state: "idle" }
+  | { state: "idle"; cdi?: CdiReport }
   | { state: "busy"; runId: string }
   | {
       state: "done";
@@ -54,6 +56,8 @@ export type QuoteSyncOutcome =
       succeeded: string[];
       failed: { symbol: string; errorCode: string; errorMessage: string }[];
       histories: HistoryReport[];
+      /** Renda fixa pelo CDI (spec 060): taxas buscadas e posições recalculadas. */
+      cdi?: CdiReport;
     }
   | { state: "unavailable"; message: string };
 
@@ -83,12 +87,14 @@ export async function syncQuotes({
   loadHistory = loadSymbolHistory,
   configuration = getQuoteProviderConfiguration(),
   prisma = getPrismaClient(),
+  fetchCdiRates,
 }: {
   now?: Date;
   fetchQuotes?: QuoteFetcher;
   loadHistory?: HistoryLoader;
   configuration?: QuoteProviderConfiguration;
   prisma?: PrismaClient | null;
+  fetchCdiRates?: CdiRatesFetcher;
 } = {}): Promise<QuoteSyncOutcome> {
   if (!prisma) {
     return { state: "unavailable", message: "O banco de dados não está configurado." };
@@ -99,6 +105,20 @@ export async function syncQuotes({
   const today = calendarDay(now);
   const currentMonth = monthOf(today);
   const claim = await claimRun(prisma, now, today, currentMonth);
+  // O CDI tem cadência própria (spec 060) e roda mesmo sem cotação devida.
+  const runCdi = () =>
+    syncCdi(prisma, { now, ...(fetchCdiRates ? { fetchRates: fetchCdiRates } : {}) }).catch(
+      (error: unknown): CdiReport => ({
+        rates: { state: "failed", inserted: 0, through: null, message: describeProviderError(error).message },
+        valued: 0,
+        failed: [],
+      }),
+    );
+
+  if (claim.state === "idle") {
+    const cdi = await runCdi();
+    return cdi.rates.state === "skipped" ? { state: "idle" } : { state: "idle", cdi };
+  }
 
   if (claim.state !== "claimed") {
     return claim;
@@ -129,7 +149,7 @@ export async function syncQuotes({
       );
       const fetched = await fetchSafely(fetcher, requests);
       const fetchedAt = clock();
-      const completed = completeResults(requests, fetched).concat(
+      const completed = completeResults(requests, fetched, toDateKey(today)).concat(
         claim.unregistered.map((symbol) =>
           quoteFailure(
             symbol,
@@ -187,6 +207,12 @@ export async function syncQuotes({
     configuration,
     loadHistory,
   });
+
+  const cdi = await runCdi();
+
+  if (cdi.rates.state !== "skipped") {
+    outcome.cdi = cdi;
+  }
 
   // Uma execução só de histórico serviu de reserva contra execuções
   // simultâneas; sem cotações, ela não entra no histórico de execuções.
@@ -342,6 +368,14 @@ async function registerMissingSymbols(transaction: Transaction, inUse: string[])
     }
   }
 
+  // O símbolo reservado TD identifica Tesouro mesmo depois de restaurar um
+  // backup sem cotações. O provedor ainda confere o identificador na fonte.
+  for (const symbol of missing) {
+    if (symbol.startsWith("TD:") && providerIds.has(symbol) && !metadata.has(symbol)) {
+      metadata.set(symbol, { instrumentType: "TESOURO", baseCurrency: "BRL" });
+    }
+  }
+
   const registrable = missing.filter((symbol) => metadata.has(symbol));
 
   if (registrable.length > 0) {
@@ -384,7 +418,7 @@ async function saveResults(
 ) {
   const successes = completed.flatMap((result) =>
     result.status === "SUCCESS" && registry.has(result.symbol)
-      ? [{ ...registry.get(result.symbol)!, provider: result.provider, price: toPrice(result.valueBrl) }]
+      ? [{ ...registry.get(result.symbol)!, provider: result.provider, price: toPrice(result.valueBrl), quoteDay: result.quoteDate ?? toDateKey(today) }]
       : [],
   );
   const failures = completed.flatMap((result) => (result.status === "FAILED" ? [result] : []));
@@ -406,21 +440,22 @@ async function saveResults(
     const symbols = successes.map((success) => success.symbol);
     const prices = successes.map((success) => success.price.toString());
 
-    // A cotação do dia: gravar de novo no mesmo dia substitui o valor, então a
-    // série guarda a última cotação válida de cada dia.
+    // Guarda o dia do preço informado pela fonte, que pode ser anterior ao da
+    // busca. Uma consulta no domingo não cria um pregão fictício no domingo.
     await transaction.$executeRaw`
       INSERT INTO "daily_quotes" (
         "id", "symbol", "quote_date", "instrument_type", "base_currency", "value_brl", "provider", "fetched_at", "run_id"
       )
-      SELECT gen_random_uuid(), "s"."symbol", ${toDateKey(today)}::date, "s"."instrument_type", "s"."base_currency",
+      SELECT gen_random_uuid(), "s"."symbol", "s"."quote_day"::date, "s"."instrument_type", "s"."base_currency",
              "s"."price", "s"."provider", ${fetchedAt}, ${runId}::uuid
       FROM UNNEST(
         ${symbols}::text[],
         ${successes.map((success) => success.instrumentType)}::text[],
         ${successes.map((success) => success.baseCurrency)}::text[],
         ${prices}::numeric[],
-        ${successes.map((success) => success.provider)}::text[]
-      ) AS "s"("symbol", "instrument_type", "base_currency", "price", "provider")
+        ${successes.map((success) => success.provider)}::text[],
+        ${successes.map((success) => success.quoteDay)}::text[]
+      ) AS "s"("symbol", "instrument_type", "base_currency", "price", "provider", "quote_day")
       ON CONFLICT ("symbol", "quote_date") DO UPDATE SET
         "instrument_type" = EXCLUDED."instrument_type",
         "base_currency" = EXCLUDED."base_currency",
@@ -449,31 +484,36 @@ async function saveResults(
     if (currentMonthIds.length > 0) {
       await transaction.$executeRaw`
         INSERT INTO "market_quotes" (
-          "id", "reference_date", "symbol", "instrument_type", "base_currency", "value_brl", "quote_date"
+          "id", "reference_date", "symbol", "instrument_type", "base_currency", "value_brl", "quote_date", "carried_from"
         )
         SELECT gen_random_uuid(), ${toDateKey(currentMonth)}::date, "s"."symbol", "s"."instrument_type", "s"."base_currency",
-               "s"."price", ${toDateKey(today)}::date
+               "s"."price", "s"."quote_day"::date,
+               CASE WHEN "s"."quote_day"::date < ${toDateKey(currentMonth)}::date
+                    THEN date_trunc('month', "s"."quote_day"::date)::date ELSE NULL END
         FROM UNNEST(
           ${symbols}::text[],
           ${successes.map((success) => success.instrumentType)}::text[],
           ${successes.map((success) => success.baseCurrency)}::text[],
-          ${prices}::numeric[]
-        ) AS "s"("symbol", "instrument_type", "base_currency", "price")
+          ${prices}::numeric[],
+          ${successes.map((success) => success.quoteDay)}::text[]
+        ) AS "s"("symbol", "instrument_type", "base_currency", "price", "quote_day")
         ON CONFLICT ("reference_date", "symbol") DO UPDATE SET
           "value_brl" = EXCLUDED."value_brl",
           "quote_date" = EXCLUDED."quote_date",
-          "carried_from" = NULL`;
+          "carried_from" = EXCLUDED."carried_from"
+        WHERE "market_quotes"."quote_date" IS NULL OR EXCLUDED."quote_date" >= "market_quotes"."quote_date"`;
 
       // Reprecifica as posições do mês corrente de cada usuário.
       await transaction.$executeRaw`
         UPDATE "positions" AS "p"
-        SET "unit_price_brl" = "s"."price",
-            "total_brl" = ROUND("p"."quantity" * "s"."price", 2),
+        SET "unit_price_brl" = "q"."value_brl",
+            "total_brl" = ROUND("p"."quantity" * "q"."value_brl", 2),
             "updated_at" = ${fetchedAt}
-        FROM "assets" AS "a",
-             UNNEST(${symbols}::text[], ${prices}::numeric[]) AS "s"("symbol", "price")
+        FROM "assets" AS "a", "market_quotes" AS "q"
         WHERE "a"."id" = "p"."asset_id"
-          AND "a"."quote_symbol" = "s"."symbol"
+          AND "a"."quote_symbol" = "q"."symbol"
+          AND "q"."symbol" = ANY(${symbols}::text[])
+          AND "q"."reference_date" = ${toDateKey(currentMonth)}::date
           AND "p"."portfolio_month_id" = ANY(${currentMonthIds}::uuid[])`;
 
       const usd = successes.find((success) => success.symbol === "USD");
@@ -666,7 +706,7 @@ async function fetchSafely(fetchQuotes: QuoteFetcher, requests: QuoteRequest[]) 
 }
 
 // Garante exatamente um resultado válido por símbolo pedido.
-function completeResults(requests: QuoteRequest[], fetched: QuoteResult[]) {
+function completeResults(requests: QuoteRequest[], fetched: QuoteResult[], today: string) {
   const bySymbol = new Map<string, QuoteResult>();
 
   for (const result of fetched) {
@@ -689,6 +729,10 @@ function completeResults(requests: QuoteRequest[], fetched: QuoteResult[]) {
         "INVALID_VALUE",
         "O provedor devolveu um valor que não é um preço válido.",
       );
+    }
+
+    if (result.status === "SUCCESS" && result.quoteDate && (!isTreasuryDay(result.quoteDate) || result.quoteDate > today)) {
+      return quoteFailure(request.symbol, result.provider, "INVALID_DATE", "O provedor devolveu uma data de preço inválida ou futura.");
     }
 
     return result;

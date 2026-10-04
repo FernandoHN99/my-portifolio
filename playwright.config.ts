@@ -32,6 +32,11 @@ export default defineConfig({
       use: { ...devices["Pixel 7"], channel: "chrome", storageState: AUTH_STATE },
       dependencies: ["setup"],
     },
+    {
+      name: "mobile-safari",
+      use: { ...devices["iPhone 16 Plus"], storageState: AUTH_STATE },
+      dependencies: ["setup"],
+    },
   ],
   webServer: externalBaseUrl
     ? undefined

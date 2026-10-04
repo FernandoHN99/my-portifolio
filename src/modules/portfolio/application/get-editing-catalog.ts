@@ -15,6 +15,8 @@ export type EditingCatalog = {
     baseCurrency: string;
     maturityDate: string | null;
     liquidity: string | null;
+    cdiPercent?: number | null;
+    appliedOn?: string | null;
     /**
      * Rateio da posição mais recente do ativo, em %, para a inclusão de uma
      * posição dele já vir preenchida (spec 043).
@@ -59,6 +61,8 @@ export async function getEditingCatalog(): Promise<EditingCatalog> {
           baseCurrency: true,
           maturityDate: true,
           liquidity: true,
+          cdiPercent: true,
+          appliedOn: true,
         },
       }),
       prisma.position.findMany({
@@ -120,6 +124,8 @@ export async function getEditingCatalog(): Promise<EditingCatalog> {
       assets: assets.map((asset) => ({
         ...asset,
         maturityDate: asset.maturityDate ? toDateKey(asset.maturityDate) : null,
+        cdiPercent: asset.cdiPercent?.toNumber() ?? null,
+        appliedOn: asset.appliedOn ? toDateKey(asset.appliedOn) : null,
         allocations: latestAllocations.get(asset.id) ?? [],
       })),
       strategies: sorted([

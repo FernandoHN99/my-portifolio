@@ -3,7 +3,8 @@ import { MONTH_ROLLOVER_LOCK_KEY } from "@/lib/advisory-locks";
 import { getUserDb, SCOPED_USER } from "@/lib/user-db";
 import type { GeneratedMonthView, MonthRolloverOutcome } from "@/modules/portfolio/domain/month-rollover";
 import { toMonthParam } from "@/modules/portfolio/presentation/reference-month";
-import { addMonths, calendarDay, lastDayOf, monthOf } from "@/modules/quotes/domain/calendar";
+import { valueCdiPositions } from "@/modules/portfolio/application/cdi-positions";
+import { addMonths, calendarDay, lastDayOf, monthOf, toDateKey } from "@/modules/quotes/domain/calendar";
 
 type Transaction = Prisma.TransactionClient;
 
@@ -106,11 +107,18 @@ async function copyMonth(
   month: Date,
   today: Date,
 ) {
+  // Renda fixa pelo CDI (spec 060): o mês de origem fecha pelo CDI até o
+  // primeiro dia do mês novo, e esse fechamento vira a base dele.
+  await valueCdiPositions(transaction, { where: { portfolioMonthId: source.id }, asOf: toDateKey(month) });
+
   const [positions, sharedQuotes, manualQuotes] = await Promise.all([
+    // Uma posição zerada, como um título liquidado (spec 059), não passa ao
+    // mês seguinte.
     transaction.position.findMany({
-      where: { portfolioMonthId: source.id },
+      where: { portfolioMonthId: source.id, quantity: { gt: 0 } },
       orderBy: { id: "asc" },
       select: {
+        calculationStartDate: true,
         accountId: true,
         assetId: true,
         quantity: true,
@@ -268,6 +276,11 @@ async function copyMonth(
           accountId: position.accountId,
           assetId: position.assetId,
           quantity: position.quantity,
+          // O fechamento do mês anterior vira, uma vez, a base do mês novo; as
+          // movimentações dele não são copiadas (spec 056).
+          openingQuantity: position.quantity,
+          // No CDI, o cálculo do mês novo começa no primeiro dia dele (spec 060).
+          calculationStartDate: position.calculationStartDate ? month : null,
           unitPriceBrl: repriced ?? position.unitPriceBrl,
           exchangeRateBrl:
             position.exchangeRateBrl !== null && usd?.fromHistory ? usd.valueBrl : position.exchangeRateBrl,

@@ -14,6 +14,8 @@ export type QuoteSuccess = {
   provider: string;
   status: "SUCCESS";
   valueBrl: number;
+  /** Data oficial do preço (AAAA-MM-DD), quando o provedor publica com atraso. */
+  quoteDate?: string;
 };
 
 export type QuoteFailure = {

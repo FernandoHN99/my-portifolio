@@ -36,6 +36,7 @@ import {
 } from "@/modules/portfolio/domain/asset-kinds";
 import { normalizeLiquidity } from "@/modules/portfolio/domain/liquidity";
 import { categoryColor } from "@/modules/portfolio/presentation/category-colors";
+import { TreasuryPicker } from "@/modules/portfolio/ui/treasury-picker";
 import { formatBrl, formatPriceBrl, parseLocaleNumber } from "@/modules/portfolio/presentation/portfolio-format";
 import {
   AllocationPicker,
@@ -152,6 +153,10 @@ function PositionForm({
   const [createdInstitution, setCreatedInstitution] = useState<{ key: string; name: string } | null>(null);
   const [assetName, setAssetName] = useState(editing?.assetName ?? "");
   const [value, setValue] = useState(editing ? editableValue(editing) : "");
+  // Como o valor da inclusão entra (spec 056): saldo que a posição já tinha ou
+  // aporte de dinheiro novo, com o preço executado.
+  const [initialKind, setInitialKind] = useState<"OPENING" | "CONTRIBUTION">("OPENING");
+  const [executedPrice, setExecutedPrice] = useState("");
   const [strategy, setStrategy] = useState(editing?.strategy ?? "");
   // Ativo.
   const [tickerText, setTickerText] = useState("");
@@ -160,6 +165,13 @@ function PositionForm({
   const [manualPrice, setManualPrice] = useState("");
   const [maturity, setMaturity] = useState(editing?.maturityDate ?? "");
   const [liquidity, setLiquidity] = useState(editing?.liquidity ?? "");
+  const [cashAccount, setCashAccount] = useState(editing?.cashAccount ?? false);
+  // Renda fixa pelo CDI (spec 060): percentual do ativo e, na inclusão, o dia
+  // da aplicação; na edição, o dia desde quando a posição rende pelo CDI.
+  const [cdiPercent, setCdiPercent] = useState(
+    editing?.cdiPercent ? String(editing.cdiPercent).replace(".", ",") : "",
+  );
+  const [cdiDate, setCdiDate] = useState(editing?.calculationStartDate ?? todayKey());
   // Rateio: na inclusão, segue o tipo e o ativo escolhidos até ser mexido.
   const [rows, setRows] = useState<AllocationRow[] | null>(() =>
     editing
@@ -246,7 +258,9 @@ function PositionForm({
   const coins = kind === "crypto" && symbol && coinCandidates?.symbol === symbol ? coinCandidates.coins : null;
   const checkedCoinId =
     check.state === "done" && check.response.status === "found" ? (check.response.coinId ?? null) : null;
-  const maturityDate = (editing ? allowsMaturityOf(editing) : definition?.allowsMaturity) && maturity ? maturity : null;
+  const treasuryMaturity = (editing?.quoteSymbol ?? (kind === "treasury" ? symbol : null))?.startsWith("TD:")
+    ? (editing?.quoteSymbol ?? symbol)!.slice(-10) : null;
+  const maturityDate = treasuryMaturity ?? ((editing ? allowsMaturityOf(editing) : definition?.allowsMaturity) && maturity ? maturity : null);
   const assetKey =
     !editing && definition && normalizeKey(typedName) && (definition.ticker === null ? institutionName : symbol)
       ? buildAssetKey({ name: typedName, ticker: symbol, institutionName: institutionName ?? "", maturityDate })
@@ -288,7 +302,15 @@ function PositionForm({
   const quoted = editing ? Boolean(editing.quoteSymbol) : catalogAsset ? Boolean(catalogAsset.quoteSymbol) : Boolean(definition?.ticker);
   const quoteSymbol = editing ? editing.quoteSymbol : (catalogAsset?.quoteSymbol ?? symbol);
   const valueLabel =
-    !editing && !kind ? "Quantidade ou saldo" : quoteSymbol === USD_SYMBOL ? "Saldo (US$)" : quoted ? "Quantidade" : "Saldo (R$)";
+    !editing && !kind
+      ? "Quantidade ou saldo"
+      : quoteSymbol === USD_SYMBOL
+        ? "Saldo (US$)"
+        : quoted
+          ? "Quantidade"
+          : !editing && kind === "fixed-income" && cdiPercent.trim()
+            ? "Valor aplicado (R$)"
+            : "Saldo (R$)";
   const parsedValue = parseLocaleNumber(value);
   const duplicate = Boolean(
     account?.accountId && catalogAsset && occupied.has(`${account.accountId}:${catalogAsset.id}`),
@@ -335,7 +357,7 @@ function PositionForm({
   if (!typedName) {
     issues.push({ tab: "geral", message: "Informe o nome do ativo." });
   }
-  if (parsedValue === null || parsedValue < 0) {
+  if (!editing && (parsedValue === null || parsedValue < 0)) {
     issues.push({
       tab: "geral",
       message: !editing && !kind ? "Informe a quantidade ou o saldo." : quoted && quoteSymbol !== USD_SYMBOL ? "Informe a quantidade." : "Informe o saldo.",
@@ -393,10 +415,16 @@ function PositionForm({
           monthId: month.id,
           edit: {
             positionId: editing.id,
-            value: value.trim(),
+            ...(canUseCdi ? { cdiStartDate: cdiPercent.trim() ? cdiDate : null } : {}),
             strategy: strategy || null,
             allocations,
-            asset: { name: typedName, liquidity: normalizeLiquidity(liquidity), maturityDate },
+            asset: {
+              name: typedName,
+              liquidity: normalizeLiquidity(liquidity),
+              maturityDate,
+              ...(canBeCashAccount ? { cashAccount } : {}),
+              ...(canUseCdi ? { cdiPercent: cdiPercent.trim() || null } : {}),
+            },
           },
         });
       } else if (kind && account) {
@@ -416,9 +444,14 @@ function PositionForm({
                     quoteCheckToken:
                       response?.status === "found" || response?.status === "unavailable" ? response.token : null,
                     manualPriceBrl: needsManualPrice ? manualPrice.trim() : null,
+                    cashAccount: canBeCashAccount && cashAccount,
+                    ...(canUseCdi && cdiPercent.trim() ? { cdiPercent: cdiPercent.trim(), appliedOn: cdiDate } : {}),
                   },
                 }),
             value: value.trim(),
+            initialKind,
+            executedPriceBrl:
+              initialKind === "CONTRIBUTION" && quoted && executedPrice.trim() ? executedPrice.trim() : null,
             strategy: strategy || null,
             allocations,
           },
@@ -441,7 +474,15 @@ function PositionForm({
   ];
   const market = !editing && definition?.ticker === "market";
   const baseCurrency = editing?.baseCurrency ?? catalogAsset?.baseCurrency ?? (kind ? baseCurrencyOf(kind, symbol) : null);
-  const canEditMaturity = editing ? allowsMaturityOf(editing) : Boolean(definition?.allowsMaturity);
+  const canEditMaturity = !treasuryMaturity && kind !== "treasury" && (editing ? allowsMaturityOf(editing) : Boolean(definition?.allowsMaturity));
+  // Conta corrente (spec 059): caixa em reais ou em dólar. Na edição, qualquer
+  // ativo sem cotação de mercado, porque o ativo não guarda o tipo.
+  const canBeCashAccount = editing
+    ? !editing.quoteSymbol || editing.quoteSymbol === "USD"
+    : isNewAsset && (kind === "brl-cash" || kind === "usd-balance");
+  // CDI (spec 060): renda fixa nova, ou na edição qualquer saldo em reais sem
+  // cotação, porque o ativo não guarda o tipo.
+  const canUseCdi = editing ? !editing.quoteSymbol : isNewAsset && kind === "fixed-income";
 
   return (
     <>
@@ -566,22 +607,78 @@ function PositionForm({
             ) : null}
 
             <div className="grid grid-cols-2 gap-3">
-              <Field label={valueLabel}>
-                <input
-                  aria-label={valueLabel}
-                  inputMode="decimal"
-                  value={value}
-                  onChange={(event) => setValue(event.target.value)}
-                  className={cn(inputClass, "text-right font-mono")}
-                />
-              </Field>
+              {editing ? (
+                // O valor só muda por movimentações (spec 057).
+                <ReadOnly label={valueLabel} value={value} mono />
+              ) : (
+                <Field label={valueLabel}>
+                  <input
+                    aria-label={valueLabel}
+                    inputMode="decimal"
+                    value={value}
+                    onChange={(event) => setValue(event.target.value)}
+                    className={cn(inputClass, "text-right font-mono")}
+                  />
+                </Field>
+              )}
               <Field label="Estratégia">
                 <Picker aria-label="Estratégia" options={strategyOptions} value={strategy} onValueChange={setStrategy} />
               </Field>
             </div>
-            {quoted && price !== null && parsedValue !== null ? (
+            {editing ? (
+              <p className="-mt-1.5 text-[11px] text-muted-foreground" data-testid="position-form-value-hint">
+                Para mudar a quantidade ou o saldo, use Movimentar (as setas ao lado do lápis).
+              </p>
+            ) : (
+              <div className="space-y-2">
+                <div
+                  role="radiogroup"
+                  aria-label="Como o valor entra"
+                  className="grid grid-cols-2 rounded-xl border border-border bg-background/40 p-1"
+                >
+                  {(
+                    [
+                      { key: "OPENING", label: "Saldo que já tinha" },
+                      { key: "CONTRIBUTION", label: "Aporte agora" },
+                    ] as const
+                  ).map((option) => (
+                    <button
+                      key={option.key}
+                      type="button"
+                      role="radio"
+                      aria-checked={initialKind === option.key}
+                      onClick={() => setInitialKind(option.key)}
+                      className={cn(
+                        "h-8 rounded-lg text-[11px] font-semibold outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring/50",
+                        initialKind === option.key ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
+                      )}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[11px] leading-5 text-muted-foreground">
+                  {initialKind === "OPENING"
+                    ? "Fica registrado como saldo inicial: não conta como aporte nem como custo de compra."
+                    : "Fica registrado como aporte de dinheiro novo."}
+                </p>
+                {initialKind === "CONTRIBUTION" && quoted ? (
+                  <Field label="Preço executado (R$, opcional)">
+                    <input
+                      aria-label="Preço executado"
+                      inputMode="decimal"
+                      value={executedPrice}
+                      placeholder={price !== null ? formatPriceBrl(price) : undefined}
+                      onChange={(event) => setExecutedPrice(event.target.value)}
+                      className={cn(inputClass, "text-right font-mono")}
+                    />
+                  </Field>
+                ) : null}
+              </div>
+            )}
+            {!editing && quoted && price !== null && parsedValue !== null ? (
               <p className="font-mono text-xs text-muted-foreground" data-testid="position-form-total">
-                {formatBrl(parsedValue * price)} a {formatPriceBrl(price)}
+                {formatBrl(parsedValue * price)} a {formatPriceBrl(price)} (cotação do mês)
               </p>
             ) : null}
           </Tabs.Panel>
@@ -605,7 +702,15 @@ function PositionForm({
 
                 {market && kind ? (
                   <>
-                    <Field label="Ticker">
+                    {kind === "treasury" ? (
+                      <Field label="Título do Tesouro">
+                        <TreasuryPicker value={symbol} onSelect={(bond) => {
+                          setTickerText(bond.symbol);
+                          setMaturity(bond.maturityDate);
+                          if (!assetName.trim()) setAssetName(bond.name);
+                        }} />
+                      </Field>
+                    ) : <Field label="Ticker">
                       <input
                         aria-label="Ticker"
                         value={tickerText}
@@ -616,7 +721,7 @@ function PositionForm({
                         placeholder={kind === "crypto" ? "ETH" : kind.startsWith("br") ? "GPCA11" : "VOO"}
                         className={cn(inputClass, "font-mono uppercase")}
                       />
-                    </Field>
+                    </Field>}
                     <TickerStatus
                       kind={kind}
                       text={tickerText}
@@ -671,6 +776,7 @@ function PositionForm({
                     />
                   </Field>
                 ) : null}
+                {treasuryMaturity ? <ReadOnly label="Vencimento do título" value={treasuryMaturity.split("-").reverse().join("/")} mono /> : null}
 
                 {editing || isNewAsset ? (
                   <Field label="Liquidez (opcional)">
@@ -680,9 +786,60 @@ function PositionForm({
                   <ReadOnly label="Liquidez do ativo" value={catalogAsset.liquidity ?? "Não informada"} />
                 ) : null}
 
+                {canUseCdi ? (
+                  <div className="space-y-2 rounded-xl border border-border/70 bg-background/30 p-3" data-testid="cdi-fields">
+                    <div className="grid grid-cols-2 gap-3">
+                      <Field label="Rentabilidade (% do CDI)">
+                        <input
+                          aria-label="Percentual do CDI"
+                          inputMode="decimal"
+                          placeholder="Opcional, como 105"
+                          value={cdiPercent}
+                          onChange={(event) => setCdiPercent(event.target.value)}
+                          className={cn(inputClass, "text-right font-mono")}
+                        />
+                      </Field>
+                      {cdiPercent.trim() ? (
+                        <Field label={editing ? "Calcular desde" : "Dia da aplicação"}>
+                          <input
+                            type="date"
+                            aria-label={editing ? "Calcular pelo CDI desde" : "Dia da aplicação"}
+                            value={cdiDate}
+                            max={todayKey()}
+                            onChange={(event) => setCdiDate(event.target.value)}
+                            className={cn(inputClass, "font-mono")}
+                          />
+                        </Field>
+                      ) : null}
+                    </div>
+                    <p className="text-[11px] leading-5 text-muted-foreground">
+                      {editing
+                        ? "O saldo do mês rende pelo CDI diário do Banco Central a partir desse dia, bruto, sem IR nem IOF. Num ativo antigo, a base é o saldo conhecido: nada da aplicação original é inventado."
+                        : "O valor informado é o aplicado nesse dia; o saldo bruto até hoje sai do CDI diário do Banco Central, sem IR nem IOF."}
+                    </p>
+                  </div>
+                ) : null}
+
+                {canBeCashAccount ? (
+                  <label className="flex items-start gap-2.5 rounded-xl border border-border/70 bg-background/30 p-3">
+                    <input
+                      type="checkbox"
+                      checked={cashAccount}
+                      onChange={(event) => setCashAccount(event.target.checked)}
+                      className="mt-0.5 size-4 shrink-0 accent-primary"
+                    />
+                    <span>
+                      <span className="block text-xs font-semibold text-foreground">Conta corrente</span>
+                      <span className="mt-0.5 block text-[11px] leading-5 text-muted-foreground">
+                        Recebe o dinheiro dos títulos vencidos na hora de liquidar.
+                      </span>
+                    </span>
+                  </label>
+                ) : null}
+
                 {editing ? (
                   <p className="text-[11px] leading-5 text-muted-foreground">
-                    Vencimento e liquidez são do ativo e valem para todos os meses.
+                    Vencimento, liquidez e conta corrente são do ativo e valem para todos os meses.
                   </p>
                 ) : null}
               </>
@@ -1064,4 +1221,10 @@ function StatusLine({
       <span>{children}</span>
     </p>
   );
+}
+
+/** Hoje como AAAA-MM-DD, no relógio do navegador. */
+function todayKey() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 }

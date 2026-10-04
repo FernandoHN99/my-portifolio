@@ -4,11 +4,14 @@
 
 export const BACKUP_FORMAT = "meu-portfolio-backup";
 /**
- * Versão 4 (specs 051 e 052): os dados de um usuário, sem `userId`, com as
- * cotações digitadas à mão e, das compartilhadas, só as dos símbolos dele; sem
- * as execuções da atualização, que são de todos.
+ * Versão 5 (specs 056 a 060): entram as movimentações das posições
+ * (`positionTransactions`), a base de cada mês e o estado do cálculo pelo CDI
+ * nas posições e, nos ativos, a conta corrente, o percentual do CDI e o dia da
+ * aplicação. Desde a 4 (specs 051 e 052), os dados de um usuário, sem
+ * `userId`, com as cotações digitadas à mão e, das compartilhadas, só as dos
+ * símbolos dele; sem as execuções da atualização, que são de todos.
  */
-export const BACKUP_VERSION = 4;
+export const BACKUP_VERSION = 5;
 
 /**
  * Tabelas do backup, na ordem em que a restauração as grava: cada uma depois
@@ -24,6 +27,7 @@ export const BACKUP_TABLES = [
   { key: "portfolioMonths", label: "Competências", shared: false },
   { key: "positions", label: "Posições", shared: false },
   { key: "positionAllocations", label: "Rateios", shared: false },
+  { key: "positionTransactions", label: "Movimentações", shared: false },
   { key: "targetPlans", label: "Metas", shared: false },
   { key: "allocationTargets", label: null, shared: false },
   { key: "manualQuotes", label: "Cotações digitadas", shared: false },
