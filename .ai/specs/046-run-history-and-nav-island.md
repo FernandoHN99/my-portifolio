@@ -1,6 +1,8 @@
 # 046 — Histórico de execuções do mês e ilha do topo
 
 Estado: concluída em 2026-10-03.
+A ilha escura do topo foi substituída pela trilha abaixo das abas e pela aba
+Configuração na [spec 073](073-position-page-applied-value-and-nav-trail.md).
 Definida em: 2026-10-03
 
 ## Problema

@@ -74,8 +74,9 @@ Esta pasta organiza a implementação em fatias pequenas e revisáveis.
 - [068 — Classificação fixa da planilha e tipo do ativo](068-fixed-classification-and-asset-type.md): concluída localmente; listas dependentes, coluna, filtro e painel por tipo.
 - [069 — Campo de data do design system e listas do diálogo de movimentação](069-date-picker-and-dialog-pickers.md): concluída localmente.
 - [070 — Tesouro Direto com preço próprio e valor em reais](070-treasury-own-value.md): concluída localmente; catálogo carregado já na escolha do tipo.
-- [071 — Backup convertido com movimentações](071-backup-with-movements.md): arquivo gerado e validado num schema de teste, fora do Git.
+- [071 — Backup convertido com movimentações](071-backup-with-movements.md): v2 com as regras de 2026-10-05 e o relatório do Inter, restaurada na carteira local; fora do Git.
 - [072 — Branch dev e ferramentas só do desenvolvimento](072-dev-branch-and-local-tools.md): concluída localmente; inclui a causa do CSS corrompido no `pnpm dev`.
+- [073 — Página da posição com valor aplicado, rendimento e nova ordem; trilha do topo](073-position-page-applied-value-and-nav-trail.md): concluída localmente, sem commit.
 
 As specs 063 a 072 são revisões posteriores de 2026-10-04 e 2026-10-05,
 commitadas na branch `dev` e ainda sem publicação. Não confundir esse estado com
