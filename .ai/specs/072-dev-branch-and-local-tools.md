@@ -45,6 +45,15 @@ O `.gitignore` agora ignora `/.next-*/`. Reproduzido e corrigido: com a pasta
 ignorada, o servidor de teste e o do usuário compilam a mesma classe
 (`bottom-[calc(env(safe-area-inset-bottom,0px)+88px)]`) sem erro.
 
+Mais dois cuidados com essas pastas, observados em 2026-10-05:
+
+- o `next dev` acrescenta os tipos da pasta (`.next-e2e/types/**/*.ts`) ao
+  `include` do `tsconfig.json` e reformata o arquivo. Desfaça com
+  `git checkout tsconfig.json` ao parar o servidor;
+- uma pasta de trabalho do Git que sobra em `.claude/worktrees/` com o próprio
+  `.next` faz o `pnpm lint` acusar milhares de erros nesse build. Traga o que
+  ela tiver de novo e remova-a com `git worktree remove`.
+
 ## Verificação
 
 - `tests/unit/selic-reference.test.ts`: o endpoint de produção recusa antes de

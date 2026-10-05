@@ -59,6 +59,9 @@ dia vai para a `dev`; a `main` é a produção ([fluxo de Git](docs/git-workflow
 - o Playwright tem o perfil `mobile-safari` (iPhone 16 Plus, WebKit)
   ([spec 062](.ai/specs/062-iphone-mobile-review.md)); testes que preenchem
   campos esperam a hidratação (`waitForHydration`), porque o WebKit é mais lento;
+- a Configuração não rola na horizontal entre 320 e 430 px: a grade do editor de
+  metas tem coluna `minmax(0,1fr)` abaixo de `xl`, e a matriz de renda fixa vira
+  blocos no celular ([spec 074](.ai/specs/074-settings-narrow-width-overflow.md));
 - o app tem login e mais de um usuário ([spec 050](.ai/specs/050-login-and-user-data.md)):
   as tabelas da carteira têm `user_id`, e o código lê e grava pelo cliente com
   escopo (`getUserDb`, em `src/lib/user-db.ts`); as cotações automáticas são de

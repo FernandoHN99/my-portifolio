@@ -167,7 +167,9 @@ export function TargetEditor({ editor, children }: { editor: TargetEditorData; c
         </div>
       </header>
 
-      <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(420px,0.85fr)]">
+      {/* Abaixo de xl a coluna é `minmax(0,1fr)`: com a trilha `auto` ela crescia até a largura mínima da tabela da
+          prévia (360 px + margens) e empurrava as metas para fora da tela; a tabela rola dentro do próprio painel (spec 074). */}
+      <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(420px,0.85fr)]">
         <div className="space-y-6">
           <ToleranceCard
             text={toleranceText}
@@ -474,9 +476,11 @@ function FixedIncomeMatrix({ items, sum, valueOf, textOf, onChange, changedKeys 
           value: valueOf(item),
         }))}
       />
+      {/* Abaixo de sm cada subclasse vira um bloco (nome e total em cima, três campos embaixo): na tabela, os campos
+          ficavam com ~28 px em 320 px e cortavam o número (spec 074). Do sm em diante é a tabela de sempre. */}
       <div className="mt-4 overflow-x-auto">
-        <table className="w-full border-collapse text-left">
-          <thead>
+        <table className="w-full border-collapse text-left max-sm:block">
+          <thead className="max-sm:hidden">
             <tr className="text-[9px] font-semibold tracking-[0.13em] text-muted-foreground uppercase">
               <th className="py-2 pr-3">Subclasse</th>
               {durations.map((duration) => (
@@ -487,7 +491,7 @@ function FixedIncomeMatrix({ items, sum, valueOf, textOf, onChange, changedKeys 
               <th className="py-2 pl-3 text-right">Total</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody className="max-sm:block max-sm:space-y-4">
             {subclasses.map((subclass) => {
               const rowItems = durations
                 .map((duration) =>
@@ -497,10 +501,18 @@ function FixedIncomeMatrix({ items, sum, valueOf, textOf, onChange, changedKeys 
               const rowTotal = rowItems.reduce((total, item) => total + (Number.isFinite(valueOf(item)) ? valueOf(item) : 0), 0);
 
               return (
-                <tr key={subclass}>
-                  <td className="py-1.5 pr-3 text-xs text-foreground/85">{subclass}</td>
+                <tr key={subclass} className="max-sm:grid max-sm:grid-cols-3 max-sm:items-end max-sm:gap-x-2 max-sm:gap-y-1.5">
+                  <td className="py-1.5 pr-3 text-xs text-foreground/85 max-sm:col-span-2 max-sm:row-start-1 max-sm:p-0">
+                    {subclass}
+                  </td>
                   {rowItems.map((item) => (
-                    <td key={item.key} className="px-1.5 py-1.5">
+                    <td key={item.key} className="px-1.5 py-1.5 max-sm:min-w-0 max-sm:p-0">
+                      <span
+                        aria-hidden="true"
+                        className="mb-1 block text-[9px] font-semibold tracking-[0.13em] text-muted-foreground uppercase sm:hidden"
+                      >
+                        {item.secondaryLabel}
+                      </span>
                       <PercentInput
                         item={item}
                         text={textOf(item)}
@@ -510,7 +522,7 @@ function FixedIncomeMatrix({ items, sum, valueOf, textOf, onChange, changedKeys 
                       />
                     </td>
                   ))}
-                  <td className="py-1.5 pl-3 text-right font-mono text-[11px] text-muted-foreground">
+                  <td className="py-1.5 pl-3 text-right font-mono text-[11px] text-muted-foreground max-sm:col-start-3 max-sm:row-start-1 max-sm:p-0">
                     {formatSharePercent(rowTotal)}
                   </td>
                 </tr>
@@ -650,12 +662,12 @@ const PreviewPanel = memo(function PreviewPanel({
       </div>
 
       <div className="mt-4 overflow-x-auto">
-        <table className="w-full min-w-[360px] border-collapse text-left">
+        <table className="w-full border-collapse text-left">
           <thead>
             <tr className="border-b border-border/60 text-[9px] font-semibold tracking-[0.13em] text-muted-foreground uppercase">
               <th className="py-2.5 pr-2">Item</th>
-              <th className="py-2.5 pr-2 text-right">Atual</th>
-              <th className="py-2.5 pr-2 text-right">Meta</th>
+              <th className="py-2.5 pr-2 max-sm:pr-1.5 text-right">Atual</th>
+              <th className="py-2.5 pr-2 max-sm:pr-1.5 text-right">Meta</th>
               <th className="py-2.5 text-right">Diferença</th>
             </tr>
           </thead>
@@ -668,11 +680,11 @@ const PreviewPanel = memo(function PreviewPanel({
 
               return (
                 <tr key={row.key} className={cn(targetChanged && "bg-warning/15")}>
-                  <td className="py-2.5 pr-2 text-xs text-foreground/85">{row.label}</td>
-                  <td className="py-2.5 pr-2 text-right font-mono text-[11px] text-muted-foreground">
+                  <td className="py-2.5 pr-2 max-sm:pr-1.5 text-xs text-foreground/85">{row.label}</td>
+                  <td className="py-2.5 pr-2 max-sm:pr-1.5 text-right font-mono text-[11px] whitespace-nowrap text-muted-foreground">
                     {formatSharePercent(row.currentShare)}
                   </td>
-                  <td className="py-2.5 pr-2 text-right font-mono text-[11px]">
+                  <td className="py-2.5 pr-2 max-sm:pr-1.5 text-right font-mono text-[11px]">
                     {targetChanged ? (
                       <span>
                         <span className="text-muted-foreground line-through">
@@ -689,11 +701,11 @@ const PreviewPanel = memo(function PreviewPanel({
                   <td className="py-2.5 text-right">
                     <span className="inline-flex flex-col items-end gap-1">
                       <DirectionBadge direction={row.direction} highlight={actionChanged} />
-                      <span className="font-mono text-[11px] text-foreground">
+                      <span className="font-mono text-[11px] whitespace-nowrap text-foreground">
                         {row.differenceBrl === null ? "—" : formatBrl(row.differenceBrl)}
                       </span>
                       {targetChanged && previous?.differenceBrl !== null && previous?.differenceBrl !== undefined ? (
-                        <span className="font-mono text-[9px] text-muted-foreground line-through">
+                        <span className="font-mono text-[9px] whitespace-nowrap text-muted-foreground line-through">
                           {formatBrl(previous.differenceBrl)}
                         </span>
                       ) : null}

@@ -101,8 +101,8 @@ Em 2026-10-05, com o backup v2 restaurado na carteira local:
   teve 247 aprovados e nenhuma falha. Os 108 pulados precisam de um mês aberto
   para editar, e no backup v2 todas as competências estão fechadas.
 - **Problema anterior encontrado:** o editor de metas da Configuração transborda
-  em telas abaixo de 430 px. Foi registrado como tarefa à parte; é anterior a
-  esta spec.
+  em telas abaixo de 430 px. É anterior a esta spec e foi corrigido na
+  [spec 074](074-settings-narrow-width-overflow.md).
 
 ## Arquivos
 
