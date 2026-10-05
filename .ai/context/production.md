@@ -2,10 +2,11 @@
 
 Registrado em: 2026-10-03
 Origem: pedido do usuário de publicar o app, na conversa de 2026-10-03.
-Estado em 2026-10-04, 18:45 UTC: no ar com as specs 053 a 062 (deploy
-`dpl_kdNuafnZUHLzV1Pk4Uwm8ZbHQD64`, commit `4ef7e18`), com a conta do usuário
-e os dados dele restaurados. As cotações e o CDI vêm da função `quotesync`
-do projeto de jobs, de hora em hora.
+Estado em 2026-10-05, 01:00 UTC: no ar com as specs 053 a 072 (deploy
+`dpl_A8ktJetPWa5fUfgWavotxouGh6u9`, commit `28da6fc`), com a conta do usuário
+e os dados dele. As cotações e a meta Selic vêm da função `quotesync` do projeto
+de jobs, de hora em hora. A `main` recebe a branch `dev`, que a Vercel não
+publica ([fluxo de Git](../../docs/git-workflow.md)).
 
 ## Onde está
 
@@ -105,11 +106,37 @@ A produção começa sem usuários. Para entrar:
   produção, o passo do CDI não buscou taxas;
 - 2026-10-04, 19:02 UTC: a função foi republicada (deployment 2) com a conexão
   em `sslmode=verify-full`, para tirar o aviso do `pg` sobre `require`.
+- 2026-10-05, 00:12 UTC: antes de publicar as specs 063 a 072, o agente criou a
+  branch `snapshot-antes-da-063` (`br-polished-glade-b6dbc94y`, sem compute),
+  cópia da produção com 1 usuário, 41 competências, 459 posições,
+  2 movimentações e 52 ativos;
+- 2026-10-05, 00:13 UTC: com a aprovação do usuário ("sobe a dev na main e faz o
+  deploy"), a `main` avançou para a `dev` (commit `28da6fc`). O deploy
+  `dpl_A8ktJetPWa5fUfgWavotxouGh6u9` aplicou as migrações `selic_reference_rate`
+  e `selic_history_and_asset_type` (22 no total) e ficou pronto em cerca de um
+  minuto. Conferido: `/entrar` respondendo, a página inicial levando ao login,
+  as rotas de dados em 401 sem sessão e nenhum erro de execução. Nenhum deploy
+  da branch `dev` foi criado;
+- 2026-10-05, 00:15 UTC: a função `quotesync` foi republicada pela CLI do Neon
+  com o código novo do job (Selic com histórico, sem cálculo do CDI);
+- 2026-10-05, 00:00 UTC, ainda com a função anterior: BTC e SOL falharam
+  porque a CoinGecko excedeu o tempo, e a reserva, a Binance, responde HTTP 451
+  na região `aws-us-east-1`, que ela bloqueia. As execuções das seis horas
+  anteriores não tiveram falhas.
+- 2026-10-05, 01:00 UTC: primeira execução da função nova, em 3 segundos,
+  COMPLETED, sem falhas: a meta Selic entrou com o histórico de dez anos
+  (53 mudanças, a última em 17/09/2026; 13,75% observado em 04/10/2026), e a
+  Visão geral e as Cotações passam a mostrar a Selic de cada competência.
 
 ## Pendente
 
-- as branches `snapshot-antes-da-050` e `snapshot-antes-da-053` podem ser
-  apagadas depois de o usuário conferir os dados na produção;
+- as branches `snapshot-antes-da-050`, `snapshot-antes-da-053` e
+  `snapshot-antes-da-063` podem ser apagadas depois de o usuário conferir os
+  dados na produção;
+- o backup com movimentações ([spec 071](../specs/071-backup-with-movements.md))
+  só entra na produção se o usuário restaurá-lo pela Configuração;
+- a Binance não serve de reserva para a função em `aws-us-east-1` (HTTP 451):
+  sem a CoinGecko, BTC e SOL esperam a execução seguinte;
 - o backup passou à versão 5; arquivos antigos continuam restaurando.
 
 ## Decisões do usuário
@@ -127,6 +154,12 @@ Em 2026-10-04:
 - aprovou os quatro commits das specs 053 a 062 e, depois, a correção do CDI;
 - pediu o deploy de tudo ("Faça o deploy quero ver tudo funcionando!"), o que
   encerrou o "somente local".
+
+Em 2026-10-05:
+
+- aprovou os commits na `dev`, o push dela e a restauração local do backup com
+  movimentações;
+- pediu para subir a `dev` na `main` e fazer o deploy.
 
 ## Observações
 
