@@ -1,3 +1,8 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+
 import { cn } from "@/lib/utils";
 import type { HistorySlot, PresentSlot } from "@/modules/portfolio/domain/position-history";
 import type { RecordedMonth } from "@/modules/portfolio/domain/position-transactions";
@@ -137,18 +142,42 @@ function PresentRow({
   // A volta depois de uma lacuna vale também quando o mês tem movimentações
   // registradas, em que a entrada não é estimada (spec 071).
   const entry = row.first || row.returned || slot.entryBrl !== null;
+  // Cada linha abre a posição naquela competência (spec 073), como o clique no
+  // gráfico de evolução.
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const params = new URLSearchParams(searchParams.toString());
+  params.set("mes", slot.month);
+  const href = `${pathname}?${params.toString()}`;
 
   return (
     <tr
       aria-current={selected ? "date" : undefined}
+      data-month={slot.month}
+      onClick={(event) => {
+        if (!selected && !(event.target as HTMLElement).closest("a, button")) {
+          router.push(href, { scroll: false });
+        }
+      }}
       className={cn(
         "align-top transition-colors duration-150 hover:bg-white/[0.018]",
-        selected && "bg-primary/[0.06] shadow-[inset_2px_0_0_var(--primary)]",
+        selected ? "bg-primary/[0.06] shadow-[inset_2px_0_0_var(--primary)]" : "cursor-pointer",
       )}
     >
       <td className="px-4 py-3 pl-5 sm:pl-6">
         <p className={cn("text-xs font-medium whitespace-nowrap", selected ? "text-primary" : "text-foreground/90")}>
-          {monthLabel(slot.month)}
+          {selected ? (
+            monthLabel(slot.month)
+          ) : (
+            <Link
+              href={href}
+              scroll={false}
+              className="rounded-sm underline-offset-4 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring/50"
+            >
+              {monthLabel(slot.month)}
+            </Link>
+          )}
         </p>
         {entry ? (
           <p className="mt-0.5 text-[10px] text-muted-foreground">
@@ -159,7 +188,8 @@ function PresentRow({
           <p className="mt-0.5 text-[10px] text-muted-foreground">desde {monthLabel(step.fromMonth)}</p>
         ) : null}
         {slot.source === "mixed" || step?.source === "mixed" ? <p className="mt-0.5 text-[10px] text-muted-foreground">origem mista</p> : null}
-        {step?.unexplainedBrl ? <p className="mt-0.5 text-[10px] text-muted-foreground">sem registro {formatSignedBrl(step.unexplainedBrl)}</p> : null}
+        {/* Diferenças de centavos são arredondamento, não falta de registro. */}
+        {step?.unexplainedBrl && Math.abs(step.unexplainedBrl) >= 0.05 ? <p className="mt-0.5 text-[10px] text-muted-foreground">sem registro {formatSignedBrl(step.unexplainedBrl)}</p> : null}
       </td>
       {quoted ? (
         <td className="hidden px-4 py-3 text-right font-mono text-xs whitespace-nowrap text-foreground/85 md:table-cell">
@@ -224,6 +254,12 @@ function PresentRow({
               {recorded.openingBrl !== 0 ? " · saldo inicial" : ""}
               {recorded.internalBrl !== 0 ? " · transferência interna" : ""}
             </p>
+          </>
+        ) : slot.source === "recorded" ? (
+          // Mês acompanhado sem movimentações: nada entrou nem saiu (spec 073).
+          <>
+            <p>{formatSignedBrl(0)}</p>
+            <p className="mt-0.5 text-[10px] text-muted-foreground">sem movimentações</p>
           </>
         ) : quoted && (slot.entryBrl !== null || step?.flowBrl != null) ? (
           <>

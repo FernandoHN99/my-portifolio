@@ -67,19 +67,26 @@ test("a página de um ativo cotado decompõe a variação em preço e aportes", 
   await expect(page.getByTestId("position-allocation")).toHaveCount(0);
   await expect(page.getByTestId("position-maturity")).toHaveCount(0);
 
+  // Valor aplicado e rendimento (spec 073): o saldo inicial de Jun/23 mais as
+  // compras, e o valor da posição menos esse aplicado.
+  await expect.poll(flowValue(page, "position-applied")).toBe("R$ 73.926");
+  await expect(page.getByTestId("position-gain")).toContainText("+R$ 56.530,46");
+
   // A Carteira Cripto virou a Ledger: o Bitcoin 01 tem uma conta só, desde a
-  // entrada em Jun/23. Com as movimentações convertidas do histórico (spec
-  // 071), a decomposição usa as registradas (spec 058): o saldo inicial de
-  // Jun/23 e as compras pela cotação do mês.
+  // entrada em Jun/23. Com as movimentações convertidas do histórico (specs
+  // 071 e 073), a decomposição usa as registradas (spec 058): o saldo inicial
+  // de Jun/23 e as compras pela cotação do mês.
   await expect(page.getByRole("button", { name: "Todas as contas" })).toHaveCount(0);
   const values = page.getByTestId("attribution-values");
   await expect(values).toContainText("Saldo de partida · Jun/23R$ 26.321,77");
-  await expect(values).toContainText("Aportes menos retiradas+R$ 47.604,67");
+  await expect(values).toContainText("Aportes menos retiradas+R$ 47.604,65");
   await expect(values).toContainText("Efeito de preço+R$ 56.530,46");
   await expect(values).toContainText("Valor em Set/26R$ 130.456,88");
   // O saldo inicial de Jun/23 não tem custo de compra (spec 056): o preço médio
   // fica desconhecido em vez de inventar um.
-  await expect(page.getByTestId("position-average-price")).toContainText("Custo de compra desconhecido");
+  // O saldo inicial vale como aplicação no preço médio (spec 073), marcado.
+  await expect(page.getByTestId("position-average-price")).toContainText("Preço médio com saldo inicial");
+  await expect(page.getByTestId("position-average-price")).toContainText("R$ 246.050");
 
   // A volta para a tabela não leva o parâmetro próprio da página.
   await expect(page.getByRole("link", { name: "Voltar para Posições" })).toHaveAttribute("href", "/posicoes?mes=2026-09");
@@ -93,15 +100,15 @@ test("todas as contas soma o ativo de cada instituição", async ({ page }) => {
   await page.getByRole("button", { name: "Todas as contas" }).click();
   await expect(page).toHaveURL(/contas=todas/);
   await expect.poll(flowValue(page, "position-value")).toBe("R$ 9.390");
-  await expect.poll(flowValue(page, "position-growth")).toBe("+6,73%");
+  await expect(page.getByTestId("position-gain")).toContainText("-R$ 246,02");
 
-  // As duas contas somam as movimentações registradas: a entrada na Binance
-  // foi um aporte, e os juros das stablecoins, rendimentos (spec 071).
+  // As duas contas somam as movimentações registradas: cada uma começa com o
+  // próprio saldo inicial, e os juros das stablecoins são rendimentos.
   const values = page.getByTestId("attribution-values");
-  await expect(values).toContainText("Saldo de partida · Fev/24R$ 0,00");
-  await expect(values).toContainText("Aportes menos retiradas+R$ 6.435,97");
+  await expect(values).toContainText("Saldo de partida · Fev/24R$ 18.042,29");
+  await expect(values).toContainText("Aportes menos retiradas-R$ 17.272,07");
   await expect(values).toContainText("Rendimentos incorporados+R$ 468,85");
-  await expect(values).toContainText("Efeito de preço+R$ 2.485,09");
+  await expect(values).toContainText("Saldo inicial registrado+R$ 5.665,74");
   await expect(values).toContainText("Valor em Set/25R$ 9.389,88");
 });
 
@@ -112,8 +119,8 @@ test("meses sem a posição aparecem como lacunas", async ({ page }) => {
   const absent = months.locator("tr[data-gap='absent']");
   await expect(absent).toHaveCount(1);
   await expect(absent).toContainText("Mar/24");
+  // Com movimentações registradas, a saída não é estimada pelo último valor.
   await expect(absent).toContainText("Fora desta conta");
-  await expect(absent).toContainText("saída -R$ 5.354,10");
   await expect(months.getByRole("row", { name: /^Abr\/24/ })).toContainText("Volta");
   await expect(months.getByRole("row", { name: /^Set\/26/ })).toHaveAttribute("aria-current", "date");
   // O histórico preparado não tem meses sem competência (spec 041).
@@ -141,16 +148,20 @@ test("a linha inteira abre a posição de um saldo sem cotação", async ({ page
   await expect(page.getByTestId("balance-change-chart")).toBeVisible();
   await expect(page.getByRole("heading", { name: /^Cotação de/ })).toHaveCount(0);
   await expect(page.getByTestId("position-average-price")).toHaveCount(0);
-  // No Porquinho, uma conta, toda mudança é aporte ou retirada (spec 071).
-  await expect(page.getByTestId("attribution-values")).toContainText("Saldo de partida · Jul/25R$ 0,00");
-  await expect(page.getByTestId("attribution-values")).toContainText("Aportes menos retiradas+R$ 2.427,12");
+  // O Porquinho, um CDB, tem saldo inicial, aportes, retiradas e o rendimento
+  // estimado pelo CDI de cada mês (spec 073).
+  await expect(page.getByTestId("attribution-values")).toContainText("Saldo de partida · Jul/25R$ 6.474,05");
+  await expect(page.getByTestId("attribution-values")).toContainText("Aportes menos retiradas-R$ 5.070,73");
+  await expect(page.getByTestId("attribution-values")).toContainText("Rendimentos incorporados+R$ 1.023,80");
   await expect(page.getByTestId("attribution-values")).toContainText("Valor em Set/26R$ 2.427,12");
   await expect(page.getByRole("button", { name: "Todas as contas" })).toHaveCount(0);
 
-  // Vencimento e liquidez aparecem nos destaques; a edição passa pelo
-  // formulário da posição (spec 043), sem lápis espalhados.
-  await expect(page.getByTestId("position-maturity")).toContainText("Não informado");
-  await expect(page.getByTestId("position-liquidity")).toContainText("Liquidez");
+  // Liquidez e vencimento ficam no cabeçalho, junto da classificação (spec
+  // 073): sem vencimento, não há selo. A edição passa pelo formulário da
+  // posição (spec 043), sem lápis espalhados.
+  await expect(page.getByTestId("position-maturity")).toHaveCount(0);
+  await expect(page.getByTestId("position-chips").getByTestId("position-liquidity")).toContainText("Liquidez");
+  await expect(page.getByTestId("position-presence")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Renomear ativo" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Editar posição" })).toBeVisible();
 });

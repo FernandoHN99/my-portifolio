@@ -37,7 +37,7 @@ export function PositionTransactions({
   transactions: PositionTransactionView[];
   /** Primeira competência com a posição (AAAA-MM), para apontar o trecho sem movimentações. */
   firstMonth: string | null;
-  costSource?: "estimated" | "known" | "unknown";
+  costSource?: "estimated" | "known" | "opening";
   editableAccountId: string;
   showAccountLabels?: boolean;
   quoted: boolean;
@@ -180,7 +180,7 @@ function RecordedTotals({
 }: {
   transactions: PositionTransactionView[];
   firstMonth: string | null;
-  costSource?: "estimated" | "known" | "unknown";
+  costSource?: "estimated" | "known" | "opening";
 }) {
   const totals = [...recordedByMonth(transactions).values()].reduce(
     (sum, month) => ({
@@ -193,7 +193,7 @@ function RecordedTotals({
     { contributions: 0, withdrawals: 0, income: 0, opening: 0, internal: 0 },
   );
   const firstRecorded = transactions.reduce((min, entry) => (entry.month < min ? entry.month : min), transactions[0].month);
-  const unknownCost = costSource === "unknown" || totals.opening > 0 || (firstMonth !== null && firstMonth < firstRecorded);
+  const openingCost = costSource === "opening" || totals.opening > 0 || (firstMonth !== null && firstMonth < firstRecorded);
   const items = [
     { label: "Aportes", value: totals.contributions },
     { label: "Retiradas", value: totals.withdrawals },
@@ -217,10 +217,10 @@ function RecordedTotals({
           (liquidação): não é dinheiro novo na carteira.
         </p>
       ) : null}
-      {unknownCost ? (
-        <p className="text-[11px] text-muted-foreground" data-testid="unknown-cost">
-          Custo anterior desconhecido: o saldo inicial não informa o preço de compra. Os preços executados das
-          operações novas permanecem registrados; o saldo inicial não vira custo de aquisição.
+      {openingCost ? (
+        <p className="text-[11px] text-muted-foreground" data-testid="opening-cost">
+          O saldo inicial entra no valor aplicado pelo valor de entrada, sem o preço de compra real; o preço médio
+          que o inclui é uma estimativa. Os aportes guardam o preço executado de cada operação.
         </p>
       ) : null}
     </div>

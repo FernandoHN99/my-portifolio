@@ -2,7 +2,7 @@ import { ChartDonutIcon, GearSixIcon } from "@phosphor-icons/react/dist/ssr";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
-import { MainTabs, type NavContext, type TabKey } from "@/components/product/main-tabs";
+import { MainTabs, NavTrail, type NavContext, type TabKey } from "@/components/product/main-tabs";
 import { MonthTimeline } from "@/components/product/month-timeline";
 import { QuoteRefreshIndicator } from "@/components/product/quote-refresh-indicator";
 import { TabViewport } from "@/components/product/tab-viewport";
@@ -14,7 +14,7 @@ type AppShellProps = {
   active: TabKey | "none";
   months: PortfolioMonthSummary[];
   selectedMonth: string | null;
-  /** Onde o usuário está dentro da aba, para a ilha do topo (spec 046). */
+  /** Onde o usuário está dentro de Posições, para a trilha abaixo das abas (spec 073). */
   context?: NavContext;
   children: ReactNode;
 };
@@ -27,14 +27,14 @@ export async function AppShell({ active, months, selectedMonth, context, childre
       <header className="sticky top-0 z-30 border-b border-border/70 bg-background/88 backdrop-blur-xl">
         {/* Abaixo de 360 px a marca sai para as abas, a hora das cotações e a
             configuração caberem sem cortar "Posições"; a aba Visão Geral
-            leva ao mesmo endereço. Com a ilha do topo (spec 046), ela sai já
-            abaixo de 420 px, para a ilha caber ao lado das abas. */}
+            leva ao mesmo endereço. Com a aba Configuração aberta (spec 073),
+            ela sai já abaixo de 420 px, para as três abas caberem. */}
         <div className="flex h-16 items-center justify-between gap-2 px-4 sm:gap-3 sm:px-6">
           <Link
             href="/"
             className={cn(
               "inline-flex shrink-0 items-center gap-3 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring/50 max-[359px]:hidden",
-              context ? "max-[419px]:hidden" : null,
+              active === "settings" ? "max-[419px]:hidden" : null,
             )}
           >
             <span className="brand-mark grid size-9 place-items-center rounded-xl text-primary-foreground">
@@ -51,21 +51,26 @@ export async function AppShell({ active, months, selectedMonth, context, childre
           </Link>
 
           <div className="min-w-0 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            <MainTabs active={active} context={context} />
+            <MainTabs active={active} />
           </div>
 
           <div className="flex shrink-0 items-center gap-2">
             {/* As cotações do mês saíram daqui e ficam em Posições (spec 048). */}
             <QuoteRefreshIndicator summary={quoteRefresh} />
-            <Link
-              href="/configuracao"
-              aria-label="Configuração da carteira"
-              className="grid size-9 shrink-0 place-items-center rounded-xl border border-border text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50"
-            >
-              <GearSixIcon aria-hidden="true" size={17} weight="duotone" />
-            </Link>
+            {/* Na Configuração, a engrenagem vira a aba selecionada (spec 073). */}
+            {active === "settings" ? null : (
+              <Link
+                href="/configuracao"
+                aria-label="Configuração da carteira"
+                className="grid size-9 shrink-0 place-items-center rounded-xl border border-border text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50"
+              >
+                <GearSixIcon aria-hidden="true" size={17} weight="duotone" />
+              </Link>
+            )}
           </div>
         </div>
+
+        {context ? <NavTrail context={context} /> : null}
 
         {selectedMonth ? (
           <MonthTimeline months={months} selectedMonth={selectedMonth} />

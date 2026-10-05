@@ -51,7 +51,7 @@ test("confere um backup, mostra o resumo e cancela sem gravar", async ({ page })
     .getByLabel("Arquivo de backup")
     .setInputFiles({ name: "backup.json", mimeType: "application/json", buffer: Buffer.from(JSON.stringify(backup)) });
 
-  const dialog = page.getByRole("dialog", { name: "Restaurar este backup?" });
+  const dialog = page.getByRole("dialog", { name: "Importar este backup?" });
   await expect(dialog).toBeVisible();
   await expect(dialog.getByRole("row", { name: /^Posições/ })).toContainText(
     backup.tables.positions.length.toLocaleString("pt-BR"),

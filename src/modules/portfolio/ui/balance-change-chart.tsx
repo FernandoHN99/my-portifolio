@@ -13,12 +13,19 @@ type ChangeRow = {
   label: string;
   slot: HistorySlot;
   change: number | null;
+  /** Aportes menos retiradas do mês, quando conhecidos. */
+  flow: number | null;
+  /** O restante da variação: rendimento e, nos cotados, o efeito de preço. */
+  income: number | null;
+  /** Variação sem separação, no legado de saldos sem cotação. */
+  mixed: number | null;
 };
 
 /**
- * Saldos sem cotação não têm gráfico de preço: no lugar dele, a variação do
- * saldo de uma competência para a anterior, que mistura rendimentos, aportes e
- * resgates. Lacunas ficam sem barra.
+ * Variação do saldo de uma competência para a anterior, em todas as posições
+ * (spec 073): cada barra separa aportes e retiradas do rendimento do mês, que
+ * nos ativos cotados inclui a variação da cotação. No legado sem movimentações
+ * de um saldo em reais, a variação fica numa barra só. Lacunas ficam sem barra.
  */
 export function BalanceChangeChart({
   slots,
@@ -35,13 +42,25 @@ export function BalanceChangeChart({
   const rows: ChangeRow[] =
     firstIndex === -1
       ? []
-      : slots.slice(firstIndex).map((slot) => ({
-          month: slot.month,
-          label: monthLabel(slot.month),
-          slot,
-          change: slot.kind === "present" && slot.step ? slot.step.changeBrl : null,
-        }));
+      : slots.slice(firstIndex).map((slot) => {
+          const step = slot.kind === "present" ? slot.step : null;
+          const change = step ? step.changeBrl : null;
+          const known = step && (step.source !== "estimated" || step.priceEffectBrl !== null);
+          const flow = step && known ? roundCents((step.flowBrl ?? 0) + (step.internalBrl ?? 0)) : null;
+
+          return {
+            month: slot.month,
+            label: monthLabel(slot.month),
+            slot,
+            change,
+            flow,
+            income: change !== null && flow !== null ? roundCents(change - flow) : null,
+            mixed: change !== null && flow === null ? change : null,
+          };
+        });
   const byLabel = new Map(rows.map((row) => [row.label, row]));
+
+  const hasMixed = rows.some((row) => row.mixed !== null);
 
   if (!rows.some((row) => row.change !== null)) {
     return (
@@ -52,10 +71,32 @@ export function BalanceChangeChart({
   }
 
   return (
-    <div className="h-[260px] w-full" data-testid="balance-change-chart">
+    <div data-testid="balance-change-chart">
+      <ul aria-label="Legenda" className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-1.5">
+        <li className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+          <span className="size-2.5 rounded-[3px] bg-chart-up" />
+          Rendimento
+        </li>
+        <li className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+          <span className="size-2.5 rounded-[3px] bg-chart-down" />
+          Rendimento negativo
+        </li>
+        <li className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+          <span className="size-2.5 rounded-[3px] bg-foreground/30" />
+          Aportes e retiradas
+        </li>
+        {hasMixed ? (
+          <li className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+            <span className="size-2.5 rounded-[3px] bg-foreground/60" />
+            Variação sem movimentações registradas
+          </li>
+        ) : null}
+      </ul>
+      <div className="h-[260px] w-full">
       <ResponsiveContainer height="100%" width="100%">
         <BarChart
           data={rows}
+          stackOffset="sign"
           margin={{ top: 8, right: 4, bottom: 0, left: 4 }}
           onClick={(state) => {
             const row = byLabel.get(String(state?.activeLabel ?? ""));
@@ -108,6 +149,16 @@ export function BalanceChangeChart({
                         {slot.step.changePercent !== null ? `${formatPercent(slot.step.changePercent)} ` : ""}
                         desde {monthLabel(slot.step.fromMonth)} · saldo {formatBrl(slot.valueBrl)}
                       </p>
+                      {row.flow !== null ? (
+                        <div className="mt-2 space-y-0.5 text-[10px]">
+                          <p className="flex justify-between gap-4 text-muted-foreground">
+                            Aportes e retiradas <span className="font-mono text-foreground">{formatSignedBrl(row.flow)}</span>
+                          </p>
+                          <p className="flex justify-between gap-4 text-muted-foreground">
+                            Rendimento <span className="font-mono text-foreground">{formatSignedBrl(row.income ?? 0)}</span>
+                          </p>
+                        </div>
+                      ) : null}
                     </>
                   ) : (
                     <p className="mt-1 text-[11px] text-muted-foreground">
@@ -118,17 +169,32 @@ export function BalanceChangeChart({
               );
             }}
           />
-          <Bar dataKey="change" name="Variação do saldo" radius={[3, 3, 3, 3]} maxBarSize={28}>
+          <Bar dataKey="flow" name="Aportes e retiradas" stackId="change" maxBarSize={28}>
+            {rows.map((row) => (
+              <Cell key={row.month} fill="var(--foreground)" fillOpacity={row.month === selectedMonth ? 0.42 : 0.2} />
+            ))}
+          </Bar>
+          <Bar dataKey="income" name="Rendimento" stackId="change" maxBarSize={28}>
             {rows.map((row) => (
               <Cell
                 key={row.month}
-                fill={(row.change ?? 0) >= 0 ? "var(--chart-up)" : "var(--chart-down)"}
-                fillOpacity={row.month === selectedMonth ? 1 : 0.5}
+                fill={(row.income ?? 0) >= 0 ? "var(--chart-up)" : "var(--chart-down)"}
+                fillOpacity={row.month === selectedMonth ? 1 : 0.55}
               />
+            ))}
+          </Bar>
+          <Bar dataKey="mixed" name="Variação do saldo" stackId="change" maxBarSize={28}>
+            {rows.map((row) => (
+              <Cell key={row.month} fill="var(--foreground)" fillOpacity={row.month === selectedMonth ? 0.75 : 0.45} />
             ))}
           </Bar>
         </BarChart>
       </ResponsiveContainer>
+      </div>
     </div>
   );
+}
+
+function roundCents(value: number) {
+  return Math.round(value * 100) / 100;
 }

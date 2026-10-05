@@ -7,16 +7,19 @@ export function MaturityBadge({
   maturityDate,
   referenceDay,
   className,
+  testId,
 }: {
   maturityDate: string;
   referenceDay: string;
   className?: string;
+  testId?: string;
 }) {
   const status = maturityStatus(maturityDate, referenceDay);
 
   return (
     <span
       title={status.title}
+      data-testid={testId}
       className={cn(
         "inline-flex items-center rounded-full px-2 py-0.5 text-[10px] whitespace-nowrap",
         status.tone === "expired"

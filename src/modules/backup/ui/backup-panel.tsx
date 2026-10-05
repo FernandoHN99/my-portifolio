@@ -126,7 +126,7 @@ export function BackupPanel() {
       </div>
       <p className="mt-1 max-w-2xl text-[11px] leading-5 text-muted-foreground">
         Um arquivo com a sua carteira: posições, rateios, metas, as cotações que você digitou e o histórico das
-        cotações dos seus ativos. Restaurar troca os dados da sua carteira pelos do arquivo.
+        cotações dos seus ativos. Importar troca os dados da sua carteira pelos do arquivo.
       </p>
 
       <div className="mt-5 flex flex-wrap gap-2">
@@ -145,7 +145,7 @@ export function BackupPanel() {
           ) : (
             <UploadSimpleIcon aria-hidden="true" className="mr-2" size={14} weight="bold" />
           )}
-          {checking ? "Conferindo arquivo…" : "Restaurar backup"}
+          {checking ? "Conferindo arquivo…" : "Importar backup"}
         </button>
         <input
           ref={input}
@@ -171,7 +171,7 @@ export function BackupPanel() {
           <Dialog.Popup className={centeredPopupClass}>
             {pending ? (
               <>
-                <Dialog.Title className="text-base font-semibold tracking-[-0.02em]">Restaurar este backup?</Dialog.Title>
+                <Dialog.Title className="text-base font-semibold tracking-[-0.02em]">Importar este backup?</Dialog.Title>
                 <Dialog.Description className="mt-2 text-sm leading-6 text-muted-foreground">
                   Exportado em {formatRefreshDateTime(pending.preview.exportedAt)}
                   {pending.preview.firstMonth && pending.preview.lastMonth
@@ -208,7 +208,7 @@ export function BackupPanel() {
                   </Dialog.Close>
                   <button type="button" className={primaryButtonClass} disabled={restoring} onClick={restore}>
                     {restoring ? <CircleNotchIcon aria-hidden="true" className="animate-spin" size={14} weight="bold" /> : null}
-                    {restoring ? "Restaurando…" : "Restaurar"}
+                    {restoring ? "Importando…" : "Importar"}
                   </button>
                 </div>
               </>

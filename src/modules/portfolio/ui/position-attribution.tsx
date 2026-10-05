@@ -208,8 +208,8 @@ export function PositionAttribution({
               {quoted ? " O efeito de preço inclui a diferença entre o preço executado e a cotação atual." : ""}
               {source === "mixed" ? " As competências anteriores sem movimentações mantêm suas estimativas." : ""}
             </p>
-            {distributedIncome !== 0 ? <p>Rendimento recebido separadamente: {formatSignedBrl(distributedIncome)}. Esse registro não aumenta a quantidade nem o saldo da posição.</p> : null}
-            {(mode === "month" ? summary.monthStep?.unexplainedBrl : summary.unexplainedBrl) ? <p>Diferenças entre saldos mensais independentes ficam como variação sem registro; não são tratadas como aporte ou rendimento.</p> : null}
+            {Math.abs(distributedIncome) >= 0.005 ? <p>Rendimento recebido separadamente: {formatSignedBrl(distributedIncome)}. Esse registro não aumenta a quantidade nem o saldo da posição.</p> : null}
+            {Math.abs((mode === "month" ? summary.monthStep?.unexplainedBrl : summary.unexplainedBrl) ?? 0) >= 0.05 ? <p>Diferenças entre saldos mensais independentes ficam como variação sem registro; não são tratadas como aporte ou rendimento.</p> : null}
           </>
         ) : quoted ? (
           <p>
@@ -306,6 +306,13 @@ function monthBars(summary: PositionSummary, quoted: boolean): WaterfallBar[] | 
 }
 
 function recordedBars(start: number, end: number, startLabel: string, endLabel: string, price: number, flows: number, income: number, internal: number, opening: number, unexplained: number): WaterfallBar[] {
+  // Centavos de arredondamento entram no preço (ou no rendimento, sem cotação)
+  // em vez de aparecer como variação sem registro (spec 073).
+  if (Math.abs(unexplained) < 0.05) {
+    if (price !== 0) price += unexplained;
+    else income += unexplained;
+    unexplained = 0;
+  }
   const entries: Omit<WaterfallBar, "range" | "signed">[] = [
     { key: "start", label: startLabel, description: `Saldo de partida · ${startLabel}`, value: start, tone: "total" },
     { key: "flow", label: "Movimentos", description: "Aportes menos retiradas", value: flows, tone: "flow" },

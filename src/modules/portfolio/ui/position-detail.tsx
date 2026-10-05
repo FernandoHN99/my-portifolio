@@ -25,7 +25,6 @@ import type { MonthPosition } from "@/modules/portfolio/application/get-month-po
 import type { PositionHistoryView } from "@/modules/portfolio/application/get-position-history";
 import type { HistorySlot, PositionSummary, PresentSlot } from "@/modules/portfolio/domain/position-history";
 import { categoryColor } from "@/modules/portfolio/presentation/category-colors";
-import { formatDay, maturityStatus } from "@/modules/portfolio/presentation/maturity";
 import {
   formatBrl,
   formatPercent,
@@ -231,7 +230,18 @@ export function PositionDetail({
                 maturityDate={history.maturityDate}
                 referenceDay={history.referenceDay}
                 className="px-2.5 py-1 text-[11px]"
+                testId="position-maturity"
               />
+            ) : null}
+            {/* Liquidez e vencimento ficam no cabeçalho, junto da classificação (spec 073). */}
+            {history.liquidity ? (
+              <span
+                data-testid="position-liquidity"
+                title="Prazo para o dinheiro ficar disponível no resgate"
+                className="inline-flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-[11px] text-muted-foreground"
+              >
+                Liquidez <span className="font-mono text-foreground/85">{history.liquidity}</span>
+              </span>
             ) : null}
           </div>
         </div>
@@ -352,7 +362,8 @@ export function PositionDetail({
             Evolução da posição
           </h2>
           <p className="mt-1 text-[11px] text-muted-foreground">
-            Valor em cada competência desde a entrada. Clique em um mês para abrir aquela competência.
+            Valor em cada competência desde a entrada, com o valor aplicado pontilhado. Clique em um mês para abrir
+            aquela competência.
           </p>
         </div>
         <div className="mt-5">
@@ -367,6 +378,60 @@ export function PositionDetail({
         </div>
       </section>
 
+      {/* Cotação e variação mensal, um gráfico abaixo do outro (spec 073). */}
+      {history.prices && history.quoteSymbol ? (
+        <section className="premium-panel mt-6 rounded-[24px] p-5 sm:p-7" aria-labelledby="asset-price-title">
+          <h2 id="asset-price-title" className="text-base font-semibold tracking-[-0.025em]">
+            {history.quoteSymbol === "USD" ? "Cotação do dólar" : `Cotação de ${history.ticker ?? history.quoteSymbol}`}
+          </h2>
+          <p className="mt-1 text-[11px] text-muted-foreground">
+            Fechamento de cada mês: a cotação mais recente daquele mês. No mês corrente, a última cotação. As marcas
+            são os aportes e as retiradas, pelo preço executado.
+          </p>
+          <PriceHistoryNotice state={history.history} />
+          <div className="mt-5">
+            <AssetPriceChart
+              prices={history.prices}
+              symbol={history.quoteSymbol}
+              selectedMonth={history.selectedMonth}
+              averagePriceBrl={summary.averagePriceBrl}
+              averageLabel={averagePriceLabel(summary.costSource, dollarBalance)}
+              markers={transactions.flatMap((entry) =>
+                (entry.kind === "CONTRIBUTION" || entry.kind === "WITHDRAWAL") && entry.unitPriceBrl
+                  ? [{ day: entry.occurredOn, kind: entry.kind, unitPriceBrl: entry.unitPriceBrl }]
+                  : [],
+              )}
+            />
+          </div>
+          {history.prices.carriedMonths.length > 0 ? (
+            <p className="mt-3 text-[10px] text-muted-foreground">
+              Fora do gráfico: {history.prices.carriedMonths.map(monthLabel).join(", ")}, com a cotação repetida de
+              outra competência.
+            </p>
+          ) : null}
+        </section>
+      ) : quoted ? (
+        <section className="premium-panel mt-6 rounded-[24px] p-5 sm:p-7" aria-labelledby="asset-price-title">
+          <h2 id="asset-price-title" className="text-base font-semibold tracking-[-0.025em]">
+            Cotação de {history.ticker ?? history.quoteSymbol}
+          </h2>
+          <PriceHistoryNotice state={history.history} />
+        </section>
+      ) : null}
+
+      <section className="premium-panel mt-6 rounded-[24px] p-5 sm:p-7" aria-labelledby="balance-change-title">
+        <h2 id="balance-change-title" className="text-base font-semibold tracking-[-0.025em]">
+          Variação mensal do saldo
+        </h2>
+        <p className="mt-1 text-[11px] text-muted-foreground">
+          Diferença para a competência anterior, separada em aportes e retiradas e no rendimento do mês
+          {quoted ? ", que inclui a variação da cotação" : ""}.
+        </p>
+        <div className="mt-5">
+          <BalanceChangeChart slots={slots} selectedMonth={history.selectedMonth} scope={scope} />
+        </div>
+      </section>
+
       <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.6fr)_minmax(320px,0.9fr)] [&>*]:min-w-0">
         <PositionAttribution
           summary={summary}
@@ -375,79 +440,12 @@ export function PositionDetail({
           scope={scope}
           hasOtherAccounts={history.all !== null}
         />
-        <PositionHighlights
-          summary={summary}
-          quoted={quoted}
-          dollarBalance={dollarBalance}
-          liquidity={history.liquidity}
-          maturityDate={history.maturityDate}
-          referenceDay={history.referenceDay}
-        />
-      </div>
-
-      <div
-        className={cn(
-          "mt-6 grid grid-cols-1 gap-6 [&>*]:min-w-0",
-          !singleAllocation && "xl:grid-cols-[minmax(0,1.6fr)_minmax(320px,0.9fr)]",
-        )}
-      >
-        <section className="premium-panel rounded-[24px] p-5 sm:p-7" aria-labelledby="asset-price-title">
-          <h2 id="asset-price-title" className="text-base font-semibold tracking-[-0.025em]">
-            {history.quoteSymbol === "USD"
-              ? "Cotação do dólar"
-              : history.quoteSymbol
-                ? `Cotação de ${history.ticker ?? history.quoteSymbol}`
-                : "Variação mensal do saldo"}
-          </h2>
-          <p className="mt-1 text-[11px] text-muted-foreground">
-            {!history.prices
-              ? "Saldo em reais, sem cotação de mercado: cada barra é a diferença para a competência anterior, com rendimentos, aportes e resgates juntos."
-              : "Fechamento de cada mês: a cotação mais recente daquele mês. No mês corrente, a última cotação."}
-          </p>
-          {history.history?.state === "pending" ? (
-            <p data-testid="price-history-pending" className="mt-2 text-[11px] text-primary">
-              Preparando o histórico de cotações deste ativo. Ele aparece depois da próxima atualização automática,
-              em até uma hora.
-            </p>
-          ) : history.history?.state === "failed" ? (
-            <p data-testid="price-history-pending" className="mt-2 text-[11px] text-destructive">
-              O histórico de cotações ainda não foi carregado ({history.history.error}). A atualização automática tenta
-              de novo uma vez por dia.
-            </p>
-          ) : null}
-          <div className="mt-5">
-            {history.prices && history.quoteSymbol ? (
-              <AssetPriceChart
-                prices={history.prices}
-                symbol={history.quoteSymbol}
-                selectedMonth={history.selectedMonth}
-                averagePriceBrl={summary.averagePriceBrl}
-                averageLabel={
-                  summary.costSource === "known"
-                    ? dollarBalance ? "Câmbio médio de compra" : "Preço médio de compra"
-                    : dollarBalance ? "Câmbio médio estimado" : "Preço médio estimado"
-                }
-                markers={transactions.flatMap((entry) =>
-                  (entry.kind === "CONTRIBUTION" || entry.kind === "WITHDRAWAL") && entry.unitPriceBrl
-                    ? [{ day: entry.occurredOn, kind: entry.kind, unitPriceBrl: entry.unitPriceBrl }]
-                    : [],
-                )}
-              />
-            ) : (
-              <BalanceChangeChart slots={slots} selectedMonth={history.selectedMonth} scope={scope} />
-            )}
-          </div>
-          {history.prices && history.prices.carriedMonths.length > 0 ? (
-            <p className="mt-3 text-[10px] text-muted-foreground">
-              Fora do gráfico: {history.prices.carriedMonths.map(monthLabel).join(", ")}, com a cotação repetida de
-              outra competência.
-            </p>
-          ) : null}
-        </section>
-
-        {singleAllocation ? null : (
-          <PositionAllocation slot={snapshot} selectedMonth={history.selectedMonth} classTotals={history.classTotals} />
-        )}
+        <div className="grid content-start gap-6 [&>*]:min-w-0">
+          <PositionHighlights summary={summary} quoted={quoted} dollarBalance={dollarBalance} />
+          {singleAllocation ? null : (
+            <PositionAllocation slot={snapshot} selectedMonth={history.selectedMonth} classTotals={history.classTotals} />
+          )}
+        </div>
       </div>
 
       {history.cdi ? <CdiPanel cdi={history.cdi} /> : null}
@@ -568,13 +566,17 @@ function PositionKpis({
 }) {
   const current = summary.current;
   const step = summary.monthStep;
-  const growth = summary.growthPercent;
-  const recordedIncome = !quoted && summary.attributionSource !== "estimated" && summary.recorded
-    ? summary.incomeBrl ?? 0 : null;
-  const sinceLabel = summary.firstMonth ? monthLabel(summary.firstMonth) : null;
+  const applied = summary.appliedBrl ?? null;
+  const gain = summary.gainBrl ?? null;
+  const gainPercent = gain !== null && applied ? (gain / applied) * 100 : null;
+  const absent = !current
+    ? summary.state === "before" && firstEver
+      ? `Entra em ${monthLabel(firstEver)}`
+      : `Sem a posição em ${selectedLabel}`
+    : null;
 
   return (
-    <section aria-label="Indicadores da posição" className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+    <section aria-label="Indicadores da posição" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
       <KpiCard
         label="Valor da posição"
         testId="position-value"
@@ -592,15 +594,59 @@ function PositionKpis({
           )
         }
         detail={
-          !current
-            ? summary.state === "before" && firstEver
-              ? `Entra em ${monthLabel(firstEver)}`
-              : `Sem a posição em ${selectedLabel}`
-            : quoted && current.priceBrl !== null
-              ? `${formatQuantity(current.quantity, quoteSymbol, ticker)} × ${formatPriceBrl(current.priceBrl)}`
-              : usdValue !== null
-                ? `US$ ${formatUsd(usdValue)}`
-                : "Saldo em reais"
+          absent ??
+          (quoted && current!.priceBrl !== null
+            ? `${formatQuantity(current!.quantity, quoteSymbol, ticker)} × ${formatPriceBrl(current!.priceBrl)}`
+            : usdValue !== null
+              ? `US$ ${formatUsd(usdValue)}`
+              : "Saldo em reais")
+        }
+      />
+
+      {/* Valor aplicado e rendimento (spec 073): o quanto entrou de dinheiro e o
+          quanto ele rendeu, com o saldo inicial valendo como aplicação. */}
+      <KpiCard
+        label="Valor aplicado"
+        testId="position-applied"
+        valueText={current && applied !== null ? brlWhole.format(applied) : "—"}
+        icon={<HandCoinsIcon aria-hidden="true" size={18} weight="duotone" />}
+        value={
+          current && applied !== null ? (
+            <NumberFlow value={applied} format={{ style: "currency", currency: "BRL", maximumFractionDigits: 0 }} locales="pt-BR" />
+          ) : (
+            <span className="text-muted-foreground">—</span>
+          )
+        }
+        detail={
+          absent ??
+          (applied === null
+            ? "Sem movimentações para somar"
+            : summary.costSource === "opening"
+              ? `Saldo inicial e aportes, menos retiradas`
+              : summary.costSource === "estimated"
+                ? "Estimado pela cotação de cada mês"
+                : "Aportes menos retiradas, pelo custo médio")
+        }
+      />
+
+      <KpiCard
+        label="Rendimento"
+        testId="position-gain"
+        valueText={current && gain !== null ? formatSignedBrl(gain) : "—"}
+        icon={
+          gain !== null && gain < 0 ? (
+            <TrendDownIcon aria-hidden="true" size={18} weight="duotone" />
+          ) : (
+            <TrendUpIcon aria-hidden="true" size={18} weight="duotone" />
+          )
+        }
+        tone={!current || gain === null ? "neutral" : gain >= 0 ? "up" : "down"}
+        value={current && gain !== null ? <span>{formatSignedBrl(gain)}</span> : <span className="text-muted-foreground">—</span>}
+        detail={
+          absent ??
+          (gainPercent !== null
+            ? `${signedPercent.format(gainPercent / 100)} sobre o valor aplicado`
+            : "Valor da posição menos o aplicado")
         }
       />
 
@@ -611,52 +657,6 @@ function PositionKpis({
         changePercent={step?.changePercent ?? null}
         detailSuffix={step?.acrossMissing ? `desde ${monthLabel(step.fromMonth)}` : undefined}
         emptyDetail={monthChangeEmpty(summary, selectedLabel)}
-      />
-
-      <KpiCard
-        label={
-          recordedIncome !== null ? "Rendimentos registrados" : sinceLabel
-            ? quoted
-              ? `Valorização desde ${sinceLabel}`
-              : `Variação desde ${sinceLabel}`
-            : quoted
-              ? "Valorização desde a entrada"
-              : "Variação desde a entrada"
-        }
-        testId="position-growth"
-        valueText={recordedIncome !== null ? formatSignedBrl(recordedIncome) : growth === null ? "—" : signedPercent.format(growth / 100)}
-        icon={
-          growth !== null && growth < 0 ? (
-            <TrendDownIcon aria-hidden="true" size={18} weight="duotone" />
-          ) : (
-            <TrendUpIcon aria-hidden="true" size={18} weight="duotone" />
-          )
-        }
-        tone={recordedIncome !== null ? recordedIncome >= 0 ? "up" : "down" : growth === null ? "neutral" : growth >= 0 ? "up" : "down"}
-        value={
-          recordedIncome !== null ? <span>{formatSignedBrl(recordedIncome)}</span> : growth === null ? (
-            <span className="text-muted-foreground">—</span>
-          ) : (
-            <NumberFlow
-              value={growth / 100}
-              format={{ style: "percent", maximumFractionDigits: 2, signDisplay: "exceptZero" }}
-              locales="pt-BR"
-            />
-          )
-        }
-        detail={
-          recordedIncome !== null ? "Aportes e retiradas ficam fora deste total" : growth === null
-            ? !summary.firstMonth
-              ? "A posição ainda não existia"
-              : summary.heldMonths === 1 && summary.state === "present"
-                ? "Primeira competência da posição"
-                : "Sem duas competências seguidas com a posição"
-            : quoted && summary.priceGainBrl !== null
-              ? `Ganho de preço: ${formatSignedBrl(summary.priceGainBrl)}`
-              : summary.heldChangeBrl !== null
-                ? `${formatSignedBrl(summary.heldChangeBrl)}, com aportes e rendimentos`
-                : "—"
-        }
       />
 
       <KpiCard
@@ -691,16 +691,10 @@ function PositionHighlights({
   summary,
   quoted,
   dollarBalance,
-  liquidity,
-  maturityDate,
-  referenceDay,
 }: {
   summary: PositionSummary;
   quoted: boolean;
   dollarBalance: boolean;
-  liquidity: string | null;
-  maturityDate: string | null;
-  referenceDay: string;
 }) {
   const current = summary.current;
   const average = summary.averagePriceBrl;
@@ -729,23 +723,15 @@ function PositionHighlights({
         {quoted ? (
           <HighlightRow
             testId="position-average-price"
-            label={
-              summary.costSource === "known"
-                ? dollarBalance ? "Câmbio médio de compra" : "Preço médio de compra"
-                : summary.costSource === "unknown"
-                  ? "Custo de compra desconhecido"
-                  : dollarBalance ? "Câmbio médio estimado" : "Preço médio estimado"
-            }
+            label={averagePriceLabel(summary.costSource, dollarBalance)}
             value={average !== null ? formatEstimatedPrice(average) : "—"}
             detail={
-              summary.costSource === "unknown"
-                ? "A base de abertura não informa o custo de aquisição anterior."
-                : average === null
-                  ? "Sem a posição nesta competência"
+              average === null
+                ? "Sem a posição nesta competência"
                 : aboveAverage !== null
                   ? `Cotação ${formatUnsignedPercent(aboveAverage)} ${aboveAverage >= 0 ? "acima" : "abaixo"} ${
                       dollarBalance ? "do câmbio médio" : "do preço médio"
-                    }`
+                    }${summary.costSource === "opening" ? "; inclui o saldo inicial" : ""}`
                   : undefined
             }
           />
@@ -764,35 +750,37 @@ function PositionHighlights({
           detail={summary.worst ? stepDetail(summary.worst) : "Poucas competências para comparar"}
           tone={summary.worst ? (bestMetric(summary.worst) >= 0 ? "up" : "down") : "neutral"}
         />
-        <HighlightRow
-          testId="position-presence"
-          label="Presença"
-          value={summary.firstMonth ? `${summary.heldMonths} de ${summary.monthsSinceFirst}` : "—"}
-          detail={
-            summary.firstMonth
-              ? `Competências com a posição desde ${monthLabel(summary.firstMonth)}${
-                  summary.segments > 1 ? `, em ${summary.segments} períodos` : ""
-                }`
-              : "A posição ainda não existia"
-          }
-        />
-        <HighlightRow
-          testId="position-liquidity"
-          label="Liquidez"
-          value={liquidity ?? "—"}
-          detail={liquidity ? "Prazo para o dinheiro ficar disponível no resgate" : "Não informada"}
-        />
-        {!quoted || dollarBalance ? (
-          <HighlightRow
-            testId="position-maturity"
-            label="Vencimento"
-            value={maturityDate ? formatDay(parseDay(maturityDate)) : "—"}
-            detail={maturityDate ? maturityStatus(maturityDate, referenceDay).title : "Não informado"}
-          />
-        ) : null}
       </div>
     </section>
   );
+}
+
+/** Rótulo do preço médio pela origem do custo (spec 073). */
+function averagePriceLabel(costSource: PositionSummary["costSource"], dollarBalance: boolean) {
+  const subject = dollarBalance ? "Câmbio médio" : "Preço médio";
+  return costSource === "known" ? `${subject} de compra` : costSource === "opening" ? `${subject} com saldo inicial` : `${subject} estimado`;
+}
+
+function PriceHistoryNotice({ state }: { state: PositionHistoryView["history"] }) {
+  if (state?.state === "pending") {
+    return (
+      <p data-testid="price-history-pending" className="mt-2 text-[11px] text-primary">
+        Preparando o histórico de cotações deste ativo. Ele aparece depois da próxima atualização automática, em até
+        uma hora.
+      </p>
+    );
+  }
+
+  if (state?.state === "failed") {
+    return (
+      <p data-testid="price-history-pending" className="mt-2 text-[11px] text-destructive">
+        O histórico de cotações ainda não foi carregado ({state.error}). A atualização automática tenta de novo uma
+        vez por dia.
+      </p>
+    );
+  }
+
+  return null;
 }
 
 function BackLink({ href, className }: { href: string; className?: string }) {
@@ -847,9 +835,4 @@ function allAccountLabels(history: PositionHistoryView) {
 
 function formatUnsignedPercent(value: number) {
   return new Intl.NumberFormat("pt-BR", { style: "percent", maximumFractionDigits: 2 }).format(Math.abs(value) / 100);
-}
-
-function parseDay(value: string) {
-  const [year, month, day] = value.split("-").map(Number);
-  return new Date(Date.UTC(year, month - 1, day));
 }

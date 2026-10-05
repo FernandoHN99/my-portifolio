@@ -168,10 +168,18 @@ export async function getPositionHistory({
         recordedByMonth(transactions.filter((entry) => entry.accountId === id).reverse()),
       ]),
     );
+    // O acompanhamento começa na primeira movimentação da conta: depois dela, um
+    // mês sem movimentações é um mês em que nada aconteceu, não uma fotografia
+    // estimada (spec 073).
+    const trackedSince = new Map(
+      [...recordedByAccount].map(([id, byMonth]) => [id, [...byMonth.keys()].sort()[0] ?? null]),
+    );
     const observations: PositionObservation[] = positions.map((position) => {
       const month = monthKey(position.portfolioMonth.referenceDate);
       const movements = recordedByAccount.get(position.accountId)?.get(month) ?? null;
-      const recorded = movements ?? (position.calculationStartDate ? emptyRecordedMonth() : null);
+      const since = trackedSince.get(position.accountId) ?? null;
+      const tracked = since !== null && month >= since;
+      const recorded = movements ?? (position.calculationStartDate || tracked ? emptyRecordedMonth() : null);
       if (recorded && position.calculationStartDate) {
         const calculated = position.calculatedIncomeBrl.toNumber();
         // O CDI calculado é um fato de avaliação, sem criar uma transação de

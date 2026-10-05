@@ -109,8 +109,17 @@ export type PresentSlot = {
   /** Valor que entrou na volta à conta, quando a posição retorna depois de uma ausência. */
   entryBrl: number | null;
   step: HistoryStep | null;
-  /** Entrada mais aportes menos resgates estimados, para ativos cotados. */
+  /**
+   * Valor aplicado (spec 073): saldo inicial e aportes, menos a parte
+   * proporcional das retiradas, pelo custo médio. Rendimentos mudam o valor,
+   * não o aplicado. No legado sem movimentações, a estimativa pela cotação
+   * do mês, só para ativos cotados.
+   */
   appliedBrl: number | null;
+  /** Unidades (ou saldo, nos ativos sem cotação) que o valor aplicado cobre. */
+  appliedUnits: number | null;
+  /** O valor aplicado inclui um saldo inicial, cujo custo de compra real não é conhecido. */
+  appliedFromOpening: boolean;
 };
 
 export type HistorySlot = MissingSlot | AbsentSlot | PresentSlot;
@@ -150,8 +159,15 @@ export type PositionSummary = {
   worst: StepHighlight | null;
   averagePriceBrl: number | null;
   costBasisBrl: number | null;
-  /** Preço médio legado estimado, real conhecido ou indisponível por base desconhecida. */
-  costSource?: "estimated" | "known" | "unknown";
+  /**
+   * De onde vem o preço médio: estimado no legado, conhecido pelas compras, ou
+   * com o saldo inicial valendo como aplicação (spec 073).
+   */
+  costSource?: "estimated" | "known" | "opening";
+  /** Valor aplicado na competência selecionada. */
+  appliedBrl?: number | null;
+  /** Rendimento acumulado: valor da posição menos o valor aplicado. */
+  gainBrl?: number | null;
   attributionSource?: HistorySource;
   recorded?: RecordedMonth;
   incomeBrl?: number;
@@ -221,6 +237,8 @@ export function buildHistorySlots({
   let broken = false;
   let missingSincePrevious = false;
   let applied: number | null = null;
+  // Custo médio das movimentações registradas (spec 073).
+  let cost: Cost | null = null;
 
   for (const month of calendarMonths(sorted[0].month, sorted.at(-1)!.month)) {
     const portfolioTotal = totals.get(month);
@@ -255,10 +273,12 @@ export function buildHistorySlots({
         broken = true;
       }
 
+      cost = null;
       continue;
     }
 
     const slot = aggregate(month, portfolioTotal, inScope, quoted);
+    const appliedBefore = applied;
 
     if (!previous) {
       applied = quoted && slot.source === "estimated" ? slot.valueBrl : null;
@@ -282,8 +302,27 @@ export function buildHistorySlots({
       }
     }
 
-    if (slot.source !== "estimated" || (slot.step && slot.step.source !== "estimated")) {
-      applied = null;
+    if (slot.recorded) {
+      // Começo do acompanhamento no meio do histórico: a base que já existia
+      // vale como aplicação, pelo valor estimado até ali ou pelo da posição.
+      const base = slot.openingQuantity ?? slot.quantity - slot.recorded.quantityDelta - slot.recorded.openingQuantity;
+      if (!cost) {
+        const carried = previous && !broken ? appliedBefore ?? previous.valueBrl : quoted ? base * (slot.priceBrl ?? 0) : base;
+        cost = { value: base > QUANTITY_TOLERANCE ? carried : 0, units: base, fromOpening: base > QUANTITY_TOLERANCE };
+      } else if (Math.abs(base - cost.units) > QUANTITY_TOLERANCE) {
+        // Bases mensais independentes: o custo segue, nas unidades da base.
+        cost.units = base;
+      }
+      applyMovements(cost, slot.recorded);
+      applied = roundCents(cost.value);
+      slot.appliedUnits = cost.units;
+      slot.appliedFromOpening = cost.fromOpening;
+    } else {
+      cost = null;
+      if (slot.source !== "estimated" || (slot.step && slot.step.source !== "estimated")) {
+        applied = null;
+      }
+      slot.appliedUnits = applied === null ? null : slot.quantity;
     }
     slot.appliedBrl = applied;
     slots.push(slot);
@@ -355,7 +394,45 @@ function aggregate(
     entryBrl: null,
     step: null,
     appliedBrl: null,
+    appliedUnits: null,
+    appliedFromOpening: false,
   };
+}
+
+const QUANTITY_TOLERANCE = 5e-13;
+
+type Cost = { value: number; units: number; fromOpening: boolean };
+
+/**
+ * Custo médio pelas movimentações do mês, em ordem de data: saldo inicial e
+ * aportes somam o valor; retiradas tiram a parte proporcional às unidades; o
+ * rendimento muda as unidades (ou o saldo), não o valor aplicado.
+ */
+function applyMovements(cost: Cost, recorded: RecordedMonth) {
+  for (const entry of recorded.movements) {
+    const moved = entry.quantity ?? 0;
+
+    if (entry.kind === "OPENING") {
+      cost.value += entry.amountBrl;
+      cost.units += moved;
+      cost.fromOpening = true;
+    } else if (entry.kind === "CONTRIBUTION") {
+      cost.value += entry.amountBrl;
+      cost.units += moved;
+    } else if (entry.kind === "WITHDRAWAL") {
+      if (cost.units > QUANTITY_TOLERANCE) {
+        cost.value -= cost.value * Math.min(moved / cost.units, 1);
+      }
+      cost.units -= moved;
+    } else {
+      cost.units += entry.amountBrl < 0 ? -moved : moved;
+    }
+
+    if (cost.units <= QUANTITY_TOLERANCE) {
+      cost.units = 0;
+      cost.value = 0;
+    }
+  }
 }
 
 function computeStep(previous: PresentSlot, current: PresentSlot, acrossMissing: boolean, quoted: boolean): HistoryStep {
@@ -601,8 +678,11 @@ export function summarizeHistory(slots: HistorySlot[], selectedMonth: string, qu
 function withRecordedSummary(summary: PositionSummary, slots: HistorySlot[], quoted: boolean): PositionSummary {
   const present = slots.filter((slot): slot is PresentSlot => slot.kind === "present");
   const recordedSlots = present.filter((slot) => slot.recorded !== null);
+  const current = summary.current;
+  const applied = current?.appliedBrl ?? null;
+  const gain = current && applied !== null ? roundCents(current.valueBrl - applied) : null;
   if (recordedSlots.length === 0) {
-    return { ...summary, costSource: "estimated", attributionSource: "estimated" };
+    return { ...summary, costSource: "estimated", attributionSource: "estimated", appliedBrl: applied, gainBrl: gain };
   }
 
   const recorded = mergeRecordedMonths(recordedSlots.map((slot) => slot.recorded!));
@@ -655,7 +735,7 @@ function withRecordedSummary(summary: PositionSummary, slots: HistorySlot[], quo
 
   const end = summary.endValueBrl ?? 0;
   const ranked = [...steps].sort((left, right) => metric(right, quoted) - metric(left, quoted));
-  const cost = knownCost(present);
+  const units = current?.appliedUnits ?? 0;
   return {
     ...summary,
     startValueBrl: roundCents(start),
@@ -676,76 +756,14 @@ function withRecordedSummary(summary: PositionSummary, slots: HistorySlot[], quo
     worst: ranked.length >= 2 ? ranked.at(-1)! : null,
     attributionSource: present.every((slot) => slot.source === "recorded") ? "recorded" : "mixed",
     recorded,
-    costSource: cost.known ? "known" : "unknown",
-    averagePriceBrl: quoted && summary.current && cost.known && cost.quantity > 0 ? cost.value / cost.quantity : null,
-    costBasisBrl: quoted && summary.current && cost.known ? roundCents(cost.value) : null,
+    // O saldo inicial vale como aplicação pelo valor de entrada (spec 073): o
+    // preço médio existe para toda posição, marcado quando o inclui.
+    costSource: current?.appliedFromOpening ? "opening" : "known",
+    averagePriceBrl: quoted && current && applied !== null && units > QUANTITY_TOLERANCE ? applied / units : null,
+    costBasisBrl: quoted && current ? applied : null,
+    appliedBrl: applied,
+    gainBrl: gain,
   };
-}
-
-function knownCost(slots: PresentSlot[]) {
-  // A precisão das unidades é de 12 casas; um saldo pequeno de cripto ainda
-  // é uma base desconhecida, não uma posição zerada.
-  const quantityTolerance = 5e-13;
-  let known = false;
-  let value = 0;
-  let quantity = 0;
-  let previous: PresentSlot | null = null;
-
-  for (const slot of slots) {
-    const recorded = slot.recorded;
-    const base = slot.openingQuantity ?? slot.quantity - (recorded?.quantityDelta ?? 0) - (recorded?.openingQuantity ?? 0);
-    const continuous = previous !== null && calendarMonths(previous.month, slot.month).length === 2
-      && Math.abs(base - quantity) < quantityTolerance;
-    if (!continuous) {
-      quantity = base;
-      value = 0;
-      known = Math.abs(base) < quantityTolerance;
-    }
-    if (!recorded) {
-      // Um mês sem operações pode manter custo conhecido apenas se sua base
-      // e seu fechamento conservarem as unidades; não adivinhar operações.
-      if (Math.abs(slot.quantity - quantity) >= quantityTolerance) {
-        known = false;
-        quantity = slot.quantity;
-      }
-      previous = slot;
-      continue;
-    }
-
-    for (const entry of recorded.movements) {
-      const moved = entry.quantity;
-      if (moved === undefined) {
-        known = false;
-        continue;
-      }
-      if (entry.kind === "WITHDRAWAL") {
-        if (known && quantity > quantityTolerance) {
-          value -= (value / quantity) * moved;
-        }
-        quantity -= moved;
-      } else if (moved !== 0) {
-        if (entry.kind !== "CONTRIBUTION" || entry.transferId !== null) {
-          // Saldo inicial e unidades recebidas/transferidas não provam preço
-          // de aquisição. Não aplicar convenção tributária à categoria genérica.
-          known = false;
-        } else if (known) {
-          value += entry.amountBrl;
-        }
-        quantity += entry.amountBrl < 0 ? -moved : moved;
-      }
-      if (Math.abs(quantity) < quantityTolerance) {
-        quantity = 0;
-        value = 0;
-        known = true;
-      }
-    }
-    if (Math.abs(slot.quantity - quantity) >= quantityTolerance) {
-      known = false;
-      quantity = slot.quantity;
-    }
-    previous = slot;
-  }
-  return { known, value, quantity };
 }
 
 function metric(step: HistoryStep, quoted: boolean) {

@@ -35,10 +35,9 @@ export default async function SettingsPage({
 
   return (
     <AppShell
-      active="none"
+      active="settings"
       months={months}
       selectedMonth={selected?.month ?? null}
-      context={{ kind: "settings", label: "Configuração" }}
     >
       {result.state === "ready" ? (
         <TargetEditor editor={result.editor}>

@@ -47,7 +47,7 @@ export function EmptyPortfolio({
         )}
         <Link href="/configuracao#backup" className={secondaryClass}>
           <ArchiveIcon aria-hidden="true" className="text-primary" size={16} weight="duotone" />
-          Restaurar backup
+          Importar backup
         </Link>
       </div>
     </div>

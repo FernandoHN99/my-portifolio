@@ -422,13 +422,16 @@ function TransactionForm({
       </div>
 
       <footer className="flex items-center gap-2 border-t border-border/70 bg-background/30 px-5 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-6">
-        <span className="mr-auto hidden text-[11px] text-muted-foreground sm:inline">Etapa {step + 1} de 3</span>
-        {step === 0 ? <Dialog.Close className={secondaryButtonClass}>Cancelar</Dialog.Close> : <button type="button" onClick={() => setStep(step - 1)} disabled={isSaving} className={secondaryButtonClass}>Voltar</button>}
-        {step < 2 ? <button type="button" onClick={() => setStep(step + 1)} disabled={step === 0 ? !kindSelected && !opening : !modeSelected || !canSave} className={cn(primaryButtonClass, "ml-auto")}>
-          {step === 1 ? "Conferir movimento" : "Continuar"}
-        </button> : <button type="button" onClick={save} disabled={!canSave} className={cn(primaryButtonClass, "ml-auto")}>
-          {isSaving ? "Salvando…" : edit ? "Salvar correção" : `Registrar ${TRANSACTION_LABELS[plan.kind].toLocaleLowerCase("pt-BR")}`}
-        </button>}
+        <span className="hidden text-[11px] text-muted-foreground sm:inline">Etapa {step + 1} de 3</span>
+        {/* As ações ficam juntas à direita (spec 073); a etapa fica à esquerda. */}
+        <div className="ml-auto flex items-center gap-2">
+          {step === 0 ? <Dialog.Close className={secondaryButtonClass}>Cancelar</Dialog.Close> : <button type="button" onClick={() => setStep(step - 1)} disabled={isSaving} className={secondaryButtonClass}>Voltar</button>}
+          {step < 2 ? <button type="button" onClick={() => setStep(step + 1)} disabled={step === 0 ? !kindSelected && !opening : !modeSelected || !canSave} className={primaryButtonClass}>
+            {step === 1 ? "Conferir movimento" : "Continuar"}
+          </button> : <button type="button" onClick={save} disabled={!canSave} className={primaryButtonClass}>
+            {isSaving ? "Salvando…" : edit ? "Salvar correção" : `Registrar ${TRANSACTION_LABELS[plan.kind].toLocaleLowerCase("pt-BR")}`}
+          </button>}
+        </div>
       </footer>
     </>
   );

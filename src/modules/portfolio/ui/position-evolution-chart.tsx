@@ -72,6 +72,11 @@ export function PositionEvolutionChart({
   }
 
   const selectedRow = rows.find((row) => row.month === selectedMonth);
+  // Valor aplicado em toda posição que o tenha (spec 073), não só nas cotadas.
+  const hasApplied = rows.some((row) => row.applied !== null);
+  const appliedEstimated = rows.some(
+    (row) => row.slot.kind === "present" && row.applied !== null && row.slot.recorded === null,
+  );
   const byLabel = new Map(rows.map((row) => [row.label, row]));
 
   const applyPreset = (months: number | "ytd" | "all") => {
@@ -100,10 +105,10 @@ export function PositionEvolutionChart({
             <span className="h-0.5 w-3.5 rounded-full bg-primary" />
             Valor da posição
           </li>
-          {quoted ? (
-            <li className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+          {hasApplied ? (
+            <li className="flex items-center gap-1.5 text-[11px] text-muted-foreground" data-testid="applied-legend">
               <span className="w-3.5 border-t border-dashed border-muted-foreground" />
-              Valor aplicado (estimado)
+              {appliedEstimated ? "Valor aplicado (estimado)" : "Valor aplicado"}
             </li>
           ) : null}
           {missingRuns.length > 0 ? (
@@ -212,10 +217,10 @@ export function PositionEvolutionChart({
               dot={(props) => <ValueDot {...props} rows={rows} selectedMonth={selectedMonth} />}
               activeDot={{ r: 4, fill: "var(--primary)", stroke: "var(--card)", strokeWidth: 2 }}
             />
-            {quoted ? (
+            {hasApplied ? (
               <Line
                 dataKey="applied"
-                name="Valor aplicado (estimado)"
+                name="Valor aplicado"
                 type="stepAfter"
                 stroke="var(--muted-foreground)"
                 strokeOpacity={0.8}
@@ -407,8 +412,11 @@ function EvolutionTooltip({
             </p>
           ) : null}
           <div className={cn("mt-2 space-y-1")}>
-            {quoted && slot.appliedBrl !== null ? (
-              <TooltipRow label="Valor aplicado" value={formatBrl(slot.appliedBrl)} />
+            {slot.appliedBrl !== null ? (
+              <>
+                <TooltipRow label="Valor aplicado" value={formatBrl(slot.appliedBrl)} />
+                <TooltipRow label="Rendimento" value={formatBrl(slot.valueBrl - slot.appliedBrl)} />
+              </>
             ) : null}
             <TooltipRow label="Da carteira" value={formatSharePercent(slot.share)} />
           </div>
