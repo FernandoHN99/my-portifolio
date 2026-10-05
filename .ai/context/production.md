@@ -2,8 +2,8 @@
 
 Registrado em: 2026-10-03
 Origem: pedido do usuário de publicar o app, na conversa de 2026-10-03.
-Estado em 2026-10-05, 01:00 UTC: no ar com as specs 053 a 072 (deploy
-`dpl_A8ktJetPWa5fUfgWavotxouGh6u9`, commit `28da6fc`), com a conta do usuário
+Estado em 2026-10-05: no ar com as specs 053 a 073 (deploy
+`dpl_2QjZJVRfxEEgZ49BkLzYcP1V3uca`, commit `37c7e43`), com a conta do usuário
 e os dados dele. As cotações e a meta Selic vêm da função `quotesync` do projeto
 de jobs, de hora em hora. A `main` recebe a branch `dev`, que a Vercel não
 publica ([fluxo de Git](../../docs/git-workflow.md)).
@@ -127,14 +127,21 @@ A produção começa sem usuários. Para entrar:
   COMPLETED, sem falhas: a meta Selic entrou com o histórico de dez anos
   (53 mudanças, a última em 17/09/2026; 13,75% observado em 04/10/2026), e a
   Visão geral e as Cotações passam a mostrar a Selic de cada competência.
+- 2026-10-05: o usuário autorizou apagar as cópias `snapshot-antes-da-050`,
+  `snapshot-antes-da-053` e `snapshot-antes-da-063`; o projeto ficou só com a
+  branch `main`;
+- 2026-10-05: com a aprovação do usuário ("sobe a dev na main e faz o deploy"),
+  a `main` avançou para `37c7e43` (spec 073, sem migração). O deploy
+  `dpl_2QjZJVRfxEEgZ49BkLzYcP1V3uca` ficou pronto em cerca de 50 segundos.
+  Conferido: `/entrar` respondendo, páginas sem sessão levando ao login, rotas
+  de dados em 401 e nenhum erro de execução. A função do job não mudou.
 
 ## Pendente
 
-- as branches `snapshot-antes-da-050`, `snapshot-antes-da-053` e
-  `snapshot-antes-da-063` podem ser apagadas depois de o usuário conferir os
-  dados na produção;
-- o backup com movimentações ([spec 071](../specs/071-backup-with-movements.md))
-  só entra na produção se o usuário restaurá-lo pela Configuração;
+- o backup com movimentações v2 ([spec 071](../specs/071-backup-with-movements.md))
+  só entra na produção se o usuário importá-lo pela Configuração; sem ele, a
+  página da posição na produção calcula o valor aplicado só a partir das
+  movimentações já registradas lá;
 - a Binance não serve de reserva para a função em `aws-us-east-1` (HTTP 451):
   sem a CoinGecko, BTC e SOL esperam a execução seguinte;
 - o backup passou à versão 5; arquivos antigos continuam restaurando.

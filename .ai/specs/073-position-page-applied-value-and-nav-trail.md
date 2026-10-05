@@ -1,6 +1,7 @@
 # 073 — Página da posição com valor aplicado, rendimento e nova ordem; trilha do topo
 
-Estado: implementada e validada localmente em 2026-10-05. Sem commit ou deploy.
+Estado: implementada e validada em 2026-10-05; na produção desde o mesmo dia
+(deploy `dpl_2QjZJVRfxEEgZ49BkLzYcP1V3uca`).
 Origem: pedidos do usuário em 2026-10-05, depois de restaurar o backup com
 movimentações ([spec 071](071-backup-with-movements.md)).
 

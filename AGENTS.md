@@ -16,8 +16,8 @@ Estado em 2026-10-04: specs 016 e 028 a 062 no `main` e na produção
 no Neon, e o job das cotações roda como função do Neon
 ([Produção](.ai/context/production.md)).
 
-Revisões posteriores: specs 063 a 072 no `main` e na produção desde
-2026-10-05; a 073 (página da posição e topo) só local, sem commit. O trabalho do dia a
+Revisões posteriores: specs 063 a 073 no `main` e na produção desde
+2026-10-05. O trabalho do dia a
 dia vai para a `dev`; a `main` é a produção ([fluxo de Git](docs/git-workflow.md)).
 
 - as cotações são atualizadas só pelo job agendado (`pnpm quotes:sync`,
