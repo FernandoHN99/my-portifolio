@@ -17,7 +17,7 @@ no Neon, e o job das cotações roda como função do Neon
 ([Produção](.ai/context/production.md)).
 
 Revisões posteriores: specs 063 a 073 no `main` e na produção desde
-2026-10-05; specs 074 a 076 na `dev`. O trabalho do dia a
+2026-10-05; specs 074 a 077 na `dev`. O trabalho do dia a
 dia vai para a `dev`; a `main` é a produção ([fluxo de Git](docs/git-workflow.md)).
 
 - as cotações são atualizadas só pelo job agendado (`pnpm quotes:sync`,
@@ -101,6 +101,10 @@ dia vai para a `dev`; a `main` é a produção ([fluxo de Git](docs/git-workflow
   mês da saída como liquidada e não passa ao seguinte; remover apaga o registro.
   O rendimento soma o lucro realizado nas retiradas, e a conta corrente saiu da
   interface ([spec 076](.ai/specs/076-position-liquidation.md));
+- dentro de uma posição, setas ligam a aba Posições à trilha e a trilha à faixa
+  de competências; no celular, os filtros de Posições abrem numa folha, e as
+  abas só trocam pelo toque, sem arraste
+  ([spec 077](.ai/specs/077-header-trail-and-mobile-filters.md));
 - transações dentro das posições foram implementadas; a previdência, que o
   usuário indicou como próximo assunto, continua em `.ai/context/backlog.md`;
 - as respostas do usuário, o backlog e o que ainda aguarda resposta estão em

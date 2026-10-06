@@ -1,6 +1,8 @@
 # 062 — Revisão mobile com referência no Safari do iPhone 16 Plus
 
 Estado: emulação concluída localmente em 2026-10-04; falta a conferência no iPhone físico. Sem deploy.
+Em 2026-10-06, o arraste para trocar de aba saiu a pedido do usuário: as abas só
+trocam pelo toque ([spec 077](077-header-trail-and-mobile-filters.md)).
 Origem: briefing dos próximos ajustes e confirmação do aparelho/navegador pelo usuário.
 
 ## Objetivo
