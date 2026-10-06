@@ -1,7 +1,6 @@
 import type { PresentSlot } from "@/modules/portfolio/domain/position-history";
 import { categoryColor } from "@/modules/portfolio/presentation/category-colors";
 import { formatBrl, formatSharePercent } from "@/modules/portfolio/presentation/portfolio-format";
-import { monthLabel } from "@/modules/portfolio/presentation/position-page";
 
 /**
  * Rateio da posição na competência: a parte de cada classificação, com o valor
@@ -20,17 +19,10 @@ export function PositionAllocation({
   const sameMonth = slot?.month === selectedMonth;
 
   return (
-    <section className="premium-panel rounded-[24px] p-5 sm:p-6" aria-labelledby="allocation-title">
+    <section className="premium-panel mt-6 rounded-[24px] p-5 sm:p-6" aria-labelledby="allocation-title">
       <h2 id="allocation-title" className="text-base font-semibold tracking-[-0.025em]">
         Rateio
       </h2>
-      <p className="mt-1 text-[11px] text-muted-foreground">
-        {!slot
-          ? "Sem classificação conhecida."
-          : sameMonth
-            ? `Classificação em ${monthLabel(slot.month)}.`
-            : `Última classificação conhecida, de ${monthLabel(slot.month)}.`}
-      </p>
 
       {!slot || slot.allocations.length === 0 ? (
         <div className="mt-5 grid h-[120px] place-items-center rounded-xl border border-dashed border-border/70 text-[11px] text-muted-foreground">
@@ -48,7 +40,7 @@ export function PositionAllocation({
             ))}
           </div>
 
-          <ul className="mt-5 space-y-3.5" data-testid="position-allocation">
+          <ul className="mt-5 grid gap-x-8 gap-y-3.5 sm:grid-cols-2 xl:grid-cols-3" data-testid="position-allocation">
             {slot.allocations.map((slice) => {
               const classTotal = classTotals[slice.assetClass];
               const classShare = sameMonth && classTotal ? (slice.valueBrl / classTotal) * 100 : null;

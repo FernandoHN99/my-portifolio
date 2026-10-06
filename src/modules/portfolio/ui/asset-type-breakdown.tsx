@@ -13,12 +13,9 @@ export function AssetTypeBreakdown({ rows }: { rows: OverviewData["byType"] }) {
 
   return (
     <section className="premium-panel rounded-[24px] p-5 sm:p-6" aria-labelledby="asset-type-title" data-testid="asset-type-breakdown">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 id="asset-type-title" className="text-base font-semibold tracking-[-0.025em]">
-          Tipo de ativo
-        </h2>
-        <p className="text-[11px] text-muted-foreground">Participação no patrimônio da competência</p>
-      </div>
+      <h2 id="asset-type-title" className="text-base font-semibold tracking-[-0.025em]">
+        Tipo de ativo
+      </h2>
 
       <div className="mt-5 flex h-2.5 w-full overflow-hidden rounded-full bg-white/[0.04]" aria-hidden="true">
         {rows.map((row) => (

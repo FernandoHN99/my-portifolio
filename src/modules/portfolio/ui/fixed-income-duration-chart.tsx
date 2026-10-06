@@ -45,9 +45,6 @@ export function FixedIncomeDurationChart({ duration }: { duration: FixedIncomeDu
       <h2 id="duration-title" className="text-base font-semibold tracking-[-0.025em]">
         Renda fixa por resgate
       </h2>
-      <p className="mt-1 text-[11px] text-muted-foreground">
-        Percentual sobre o total de renda fixa, atual e ideal na mesma escala.
-      </p>
 
       <ul aria-label="Prazos" className="mt-4 flex flex-wrap gap-x-4 gap-y-1.5">
         {durations.map((entry) => (

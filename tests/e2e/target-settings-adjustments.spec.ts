@@ -193,7 +193,8 @@ test("a moeda sobre o patrimônio total é calculada, sem campo", async ({ page 
   const currency = page.getByRole("region", { name: "Moeda", exact: true });
   await expect(currency.getByRole("textbox")).toHaveCount(0);
   await expect(currency.getByRole("slider")).toHaveCount(0);
-  await expect(currency).toContainText("calculada pela moeda dentro de cada classe");
+  // Sem a descrição do quadro (spec 075): o rótulo de cada meta diz que é calculada.
+  await expect(currency).not.toContainText("calculada pela moeda dentro de cada classe");
 
   const brl = currency.getByLabel("Meta calculada de BRL");
   const before = await brl.textContent();

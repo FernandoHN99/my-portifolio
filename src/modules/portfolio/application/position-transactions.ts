@@ -1,10 +1,7 @@
-import { randomUUID } from "node:crypto";
-
 import { PositionTransactionKind, Prisma } from "@/generated/prisma/client";
 import { SCOPED_USER } from "@/lib/user-db";
 import { valueCdiPositions } from "@/modules/portfolio/application/cdi-positions";
 import { MonthEditError, parseDecimal, withUndo } from "@/modules/portfolio/application/month-editing";
-import { USD_SYMBOL } from "@/modules/portfolio/domain/asset-kinds";
 import { AUTOMATIC_FIXED_INCOME_ENABLED } from "@/modules/portfolio/domain/fixed-income-policy";
 import type { TransactionKind } from "@/modules/portfolio/domain/position-transactions";
 import { calendarDay, lastDayOf, toDateKey } from "@/modules/quotes/domain/calendar";
@@ -96,10 +93,7 @@ export async function removeTransaction(input: { monthId: string; transactionId:
 }
 
 export type LiquidationInput = {
-  /** Posição do título vencido. */
   positionId: string;
-  /** Posição da conta corrente que recebe o dinheiro. */
-  destinationPositionId: string;
   /** AAAA-MM-DD */
   occurredOn: string;
   /** Valor recebido em reais. */
@@ -107,75 +101,63 @@ export type LiquidationInput = {
 };
 
 /**
- * Liquida um título vencido (spec 059): zera a posição dele e põe o valor
- * recebido na conta corrente escolhida, numa operação só, com desfazer. As
- * pernas ficam ligadas como transferência interna: não são aporte externo nem
- * rendimento novo. Um valor recebido diferente do saldo registra a diferença
- * como rendimento do título antes da retirada (negativo quando chega menos,
- * como imposto retido). Caixa e título precisam ter a mesma moeda, sem
- * conversão implícita.
+ * Liquida uma posição (spec 076): uma retirada total, com desfazer. A posição
+ * fica zerada no mês, com todo o histórico, e não passa ao mês seguinte. Num
+ * saldo em reais, um valor recebido diferente do saldo registra a diferença
+ * como rendimento antes da retirada (negativo quando chega menos, como imposto
+ * retido); num ativo cotado, a diferença fica no preço executado da venda.
+ * Diferente de remover, que apaga o registro do mês.
  */
 export async function liquidatePosition(input: { monthId: string; liquidation: LiquidationInput }) {
   return withUndo(input.monthId, async (transaction, month) => {
     const { liquidation } = input;
-
-    if (liquidation.positionId === liquidation.destinationPositionId) {
-      throw new MonthEditError("Escolha uma conta corrente diferente do título.");
-    }
-
-    const [position, destination] = await Promise.all([
-      findPosition(transaction, month.id, liquidation.positionId),
-      findPosition(transaction, month.id, liquidation.destinationPositionId),
-    ]);
-
-    if (!destination.asset.cashAccount) {
-      throw new MonthEditError("O destino precisa ser um caixa marcado como conta corrente.");
-    }
-
-    if (currencyOf(position) !== currencyOf(destination)) {
-      throw new MonthEditError("O caixa de destino precisa ter a mesma moeda do título.");
-    }
-
+    const position = await findPosition(transaction, month.id, liquidation.positionId);
     const occurredOn = parseOccurredOn(liquidation.occurredOn, month.referenceDate);
 
-    if (!position.asset.maturityDate || position.asset.maturityDate > occurredOn) {
-      throw new MonthEditError(`${position.asset.name} ainda não venceu nesta data.`);
-    }
-
-    // Uma segunda submissão encontra o título já zerado e não credita de novo.
+    // Uma segunda submissão encontra a posição já zerada e não retira de novo.
     if (!position.quantity.greaterThan(0)) {
-      throw new MonthEditError(`${position.asset.name} já está zerado.`);
+      throw new MonthEditError(`${position.asset.name} já está liquidada.`);
     }
 
-    if (destination.asset.quoteSymbol && !destination.unitPriceBrl) {
-      throw new MonthEditError(`${destination.asset.name} está sem cotação no mês.`);
+    // Sem cascata: liquidar antes de um mês que ainda tem a posição deixaria
+    // os meses seguintes com um saldo que não existe mais.
+    const later = await transaction.position.findFirst({
+      where: {
+        accountId: position.accountId,
+        assetId: position.assetId,
+        portfolioMonth: { referenceDate: { gt: month.referenceDate } },
+      },
+      select: { id: true },
+    });
+
+    if (later) {
+      throw new MonthEditError(`${position.asset.name} continua nos meses seguintes. Liquide no último mês em que ela aparece.`);
     }
 
     const received = parseAmount(liquidation.amountBrl);
-    const transferId = randomUUID();
-    const note = `Liquidação de ${position.asset.name}`;
-    const units = (amount: Prisma.Decimal, price: Prisma.Decimal | null) =>
-      price ? amount.div(price).toDecimalPlaces(12) : amount;
-    const titlePrice = position.asset.quoteSymbol ? position.unitPriceBrl : null;
-    const difference = received.minus(position.totalBrl);
+    const note = "Liquidação";
+    const quoted = Boolean(position.asset.quoteSymbol);
 
-    if (!difference.isZero()) {
-      await transaction.positionTransaction.create({
-        data: {
-          userId: SCOPED_USER,
-          positionId: position.id,
-          kind: PositionTransactionKind.INCOME,
-          occurredOn,
-          quantity: units(difference.abs(), titlePrice),
-          unitPriceBrl: titlePrice,
-          amountBrl: difference,
-          note: difference.isNegative() ? `${note}: recebido abaixo do saldo` : note,
-          transferId,
-        },
-      });
+    if (!quoted) {
+      const difference = received.minus(position.totalBrl);
+
+      if (!difference.isZero()) {
+        await transaction.positionTransaction.create({
+          data: {
+            userId: SCOPED_USER,
+            positionId: position.id,
+            kind: PositionTransactionKind.INCOME,
+            occurredOn,
+            quantity: difference.abs(),
+            unitPriceBrl: null,
+            amountBrl: difference,
+            note: difference.isNegative() ? `${note}: recebido abaixo do saldo` : note,
+          },
+        });
+      }
     }
 
-    // A retirada leva o título exatamente a zero: a quantidade dela é o que
+    // A retirada leva a posição exatamente a zero: a quantidade dela é o que
     // sobra depois da base e das outras movimentações do mês.
     const rest = await quantityOf(transaction, position.id);
     await transaction.positionTransaction.create({
@@ -185,29 +167,12 @@ export async function liquidatePosition(input: { monthId: string; liquidation: L
         kind: PositionTransactionKind.WITHDRAWAL,
         occurredOn,
         quantity: rest,
-        unitPriceBrl: titlePrice,
+        unitPriceBrl: quoted ? received.div(rest).toDecimalPlaces(8) : null,
         amountBrl: received,
         note,
-        transferId,
       },
     });
-    await recomputePosition(transaction, position.id, `${position.asset.name} não pôde ser zerado.`);
-
-    const destinationPrice = destination.asset.quoteSymbol ? destination.unitPriceBrl : null;
-    await transaction.positionTransaction.create({
-      data: {
-        userId: SCOPED_USER,
-        positionId: destination.id,
-        kind: PositionTransactionKind.CONTRIBUTION,
-        occurredOn,
-        quantity: units(received, destinationPrice),
-        unitPriceBrl: destinationPrice,
-        amountBrl: received,
-        note,
-        transferId,
-      },
-    });
-    await recomputePosition(transaction, destination.id, "Não foi possível creditar a conta corrente.");
+    await recomputePosition(transaction, position.id, `${position.asset.name} não pôde ser zerada.`);
   });
 }
 
@@ -216,10 +181,12 @@ async function findPosition(transaction: Transaction, monthId: string, positionI
     where: { id: positionId, portfolioMonthId: monthId },
     select: {
       id: true,
+      accountId: true,
+      assetId: true,
       quantity: true,
       unitPriceBrl: true,
       totalBrl: true,
-      asset: { select: { quoteSymbol: true, name: true, maturityDate: true, cashAccount: true } },
+      asset: { select: { quoteSymbol: true, name: true } },
     },
   });
 
@@ -364,10 +331,6 @@ function parseValues(
     amountBrl: amount,
     note: input.note?.trim().slice(0, MAX_NOTE_LENGTH) || null,
   };
-}
-
-function currencyOf(position: PositionForValues) {
-  return position.asset.quoteSymbol === USD_SYMBOL ? "USD" : position.asset.quoteSymbol ? "OTHER" : "BRL";
 }
 
 function parseOccurredOn(raw: string, referenceDate: Date) {

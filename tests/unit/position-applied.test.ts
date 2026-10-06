@@ -41,7 +41,7 @@ function history(
   return { slots, at: (month: string) => summarizeHistory(slots, month, quoted) };
 }
 
-test("saldo em reais: saldo inicial e aportes somam, o rendimento não, a retirada tira a parte proporcional", () => {
+test("saldo em reais: saldo inicial e aportes somam, o rendimento não, a retirada tira a parte proporcional e realiza o ganho", () => {
   const { slots, at } = history(
     [
       { month: "2026-01", quantity: 1000, opening: 0, price: null },
@@ -62,7 +62,10 @@ test("saldo em reais: saldo inicial e aportes somam, o rendimento não, a retira
   // Um mês acompanhado sem movimentações é registrado, não estimado.
   assert.equal(present[2].source, "recorded");
   assert.equal(at("2026-02").gainBrl, 10);
-  assert.equal(at("2026-04").gainBrl, 5);
+  // A retirada leva metade do rendimento como lucro realizado (spec 076): o
+  // rendimento da posição continua sendo os R$ 10 que ela rendeu.
+  assert.equal(present[3].realizedBrl, 5);
+  assert.equal(at("2026-04").gainBrl, 10);
   assert.equal(at("2026-01").startValueBrl, 1000);
   assert.equal(at("2026-04").costSource, "opening");
 });
@@ -106,6 +109,53 @@ test("ativo cotado: preço médio pelo custo, staking sem custo e venda pelo pre
   assert.equal(march.appliedBrl, 175);
   assert.equal(march.averagePriceBrl, 28);
   assert.equal(march.costSource, "opening");
+  // Vendeu metade por R$ 312,50 com custo de R$ 175: o ganho realizado soma ao
+  // que continua na posição.
+  assert.equal(march.gainBrl, 6.25 * 50 - 175 + (312.5 - 175));
+});
+
+test("retirada total liquida a posição: ela fica no mês da saída, com o resultado", () => {
+  const { slots, at } = history(
+    [
+      { month: "2026-01", quantity: 1000, opening: 0, price: null },
+      { month: "2026-02", quantity: 1020, opening: 1000, price: null },
+      { month: "2026-03", quantity: 0, opening: 1020, price: null },
+    ],
+    [
+      { month: "2026-01", kind: "OPENING", quantity: 1000, amountBrl: 1000, occurredOn: "2026-01-31" },
+      { month: "2026-02", kind: "INCOME", quantity: 20, amountBrl: 20, occurredOn: "2026-02-28" },
+      { month: "2026-03", kind: "WITHDRAWAL", quantity: 1020, amountBrl: 1020, occurredOn: "2026-03-01" },
+    ],
+    false,
+  );
+  const present = slots.filter((slot): slot is PresentSlot => slot.kind === "present");
+  assert.deepEqual(present.map((slot) => slot.liquidated), [false, false, true]);
+  assert.equal(present[2].liquidatedOn, "2026-03-01");
+  const march = at("2026-03");
+  assert.equal(march.current?.valueBrl, 0);
+  assert.equal(march.appliedBrl, 0);
+  assert.equal(march.gainBrl, 20);
+  // A saída explica toda a variação do mês: nada sem registro.
+  assert.equal(march.monthStep?.flowBrl, -1020);
+  assert.equal(march.monthStep?.unexplainedBrl, 0);
+});
+
+test("retirada total de um ativo cotado pelo último valor não inventa efeito de preço", () => {
+  const { at } = history(
+    [
+      { month: "2026-01", quantity: 2, opening: 0, price: 100 },
+      { month: "2026-02", quantity: 0, opening: 2, price: 100 },
+    ],
+    [
+      { month: "2026-01", kind: "OPENING", quantity: 2, amountBrl: 150, occurredOn: "2026-01-31" },
+      { month: "2026-02", kind: "WITHDRAWAL", quantity: 2, amountBrl: 200, occurredOn: "2026-02-01" },
+    ],
+    true,
+  );
+  const february = at("2026-02");
+  assert.equal(february.current?.liquidated, true);
+  assert.equal(february.gainBrl, 50);
+  assert.equal(february.monthStep?.priceEffectBrl, 0);
 });
 
 test("só aportes, sem saldo inicial, dão preço médio de compra conhecido", () => {

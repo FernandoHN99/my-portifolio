@@ -29,9 +29,6 @@ export function OverviewDashboard({ overview, selic }: { overview: OverviewData 
           <h1 className="mt-3 text-3xl font-semibold tracking-[-0.05em] sm:text-[2.65rem]">
             Patrimônio consolidado
           </h1>
-          <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground">
-            Posições separadas por conta, consolidadas em uma única visão.
-          </p>
         </div>
         <DevQuoteSyncButton />
       </header>
@@ -46,14 +43,9 @@ export function OverviewDashboard({ overview, selic }: { overview: OverviewData 
         aria-labelledby="evolution-title"
       >
         <div className="mb-1 flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 id="evolution-title" className="text-base font-semibold tracking-[-0.025em]">
-              Evolução do patrimônio
-            </h2>
-            <p className="mt-1 text-[11px] text-muted-foreground">
-              Clique em uma coluna para abrir aquela competência.
-            </p>
-          </div>
+          <h2 id="evolution-title" className="text-base font-semibold tracking-[-0.025em]">
+            Evolução do patrimônio
+          </h2>
         </div>
 
         <div className="mt-5">
@@ -77,10 +69,7 @@ export function OverviewDashboard({ overview, selic }: { overview: OverviewData 
       {/* min-w-0 nos itens: a tabela de comprar e vender tem largura mínima e
           rola dentro do painel, sem alargar a página no celular. */}
       <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.6fr)_minmax(320px,0.9fr)] [&>*]:min-w-0">
-        <RebalancePanel
-          groups={overview.rebalanceGroups}
-          tolerance={overview.offTargetTolerance}
-        />
+        <RebalancePanel groups={overview.rebalanceGroups} />
         <FixedIncomeDurationChart duration={overview.fixedIncomeDuration} />
       </div>
     </div>

@@ -177,7 +177,6 @@ function PositionForm({
   const [valueKind, setValueKind] = useState<"quantity" | "amount">("quantity");
   const [maturity, setMaturity] = useState(editing?.maturityDate ?? "");
   const [liquidity, setLiquidity] = useState(editing?.liquidity ?? "");
-  const [cashAccount, setCashAccount] = useState(editing?.cashAccount ?? false);
   // Tipo do ativo (spec 068): na edição, escolhido numa lista fixa; na
   // inclusão, é o próprio tipo escolhido na primeira etapa.
   const [assetType, setAssetType] = useState<AssetType | null>(editing?.assetType ?? null);
@@ -478,7 +477,6 @@ function PositionForm({
               name: typedName,
               liquidity: normalizeLiquidity(liquidity),
               maturityDate,
-              ...(canBeCashAccount ? { cashAccount } : {}),
               ...(assetType ? { assetType } : {}),
             },
           },
@@ -500,7 +498,6 @@ function PositionForm({
                     quoteCheckToken:
                       response?.status === "found" || response?.status === "unavailable" ? response.token : null,
                     manualPriceBrl: needsManualPrice || ownTreasuryPrice ? manualPrice.trim() : null,
-                    cashAccount: canBeCashAccount && cashAccount,
                   },
                 }),
             value: value.trim(),
@@ -533,11 +530,6 @@ function PositionForm({
   const market = !editing && definition?.ticker === "market";
   const baseCurrency = editing?.baseCurrency ?? catalogAsset?.baseCurrency ?? (kind ? baseCurrencyOf(kind, symbol) : null);
   const canEditMaturity = !treasuryMaturity && kind !== "treasury" && (editing ? allowsMaturityOf(editing) : Boolean(definition?.allowsMaturity));
-  // Conta corrente (spec 059): caixa em reais ou em dólar. Na edição, qualquer
-  // ativo sem cotação de mercado, porque o ativo não guarda o tipo.
-  const canBeCashAccount = editing
-    ? !editing.quoteSymbol || editing.quoteSymbol === "USD"
-    : isNewAsset && (kind === "brl-cash" || kind === "usd-balance");
 
 
   return (
@@ -814,29 +806,6 @@ function PositionForm({
                   </Field>
                 ) : catalogAsset ? (
                   <ReadOnly label="Liquidez do ativo" value={catalogAsset.liquidity ?? "Não informada"} />
-                ) : null}
-
-                {canBeCashAccount ? (
-                  <label className="flex items-start gap-2.5 rounded-xl border border-border/70 bg-background/30 p-3">
-                    <input
-                      type="checkbox"
-                      checked={cashAccount}
-                      onChange={(event) => setCashAccount(event.target.checked)}
-                      className="mt-0.5 size-4 shrink-0 accent-primary"
-                    />
-                    <span>
-                      <span className="block text-xs font-semibold text-foreground">Conta corrente</span>
-                      <span className="mt-0.5 block text-[11px] leading-5 text-muted-foreground">
-                        Recebe o dinheiro dos títulos vencidos na hora de liquidar.
-                      </span>
-                    </span>
-                  </label>
-                ) : null}
-
-                {editing ? (
-                  <p className="text-[11px] leading-5 text-muted-foreground">
-                    Vencimento, liquidez e conta corrente são do ativo e valem para todos os meses.
-                  </p>
                 ) : null}
               </>
             )}

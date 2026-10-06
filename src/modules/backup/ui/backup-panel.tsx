@@ -124,10 +124,6 @@ export function BackupPanel() {
           Backup dos dados
         </h2>
       </div>
-      <p className="mt-1 max-w-2xl text-[11px] leading-5 text-muted-foreground">
-        Um arquivo com a sua carteira: posições, rateios, metas, as cotações que você digitou e o histórico das
-        cotações dos seus ativos. Importar troca os dados da sua carteira pelos do arquivo.
-      </p>
 
       <div className="mt-5 flex flex-wrap gap-2">
         <a href="/api/backup" download className={primaryButtonClass}>

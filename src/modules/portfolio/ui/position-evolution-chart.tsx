@@ -415,7 +415,7 @@ function EvolutionTooltip({
             {slot.appliedBrl !== null ? (
               <>
                 <TooltipRow label="Valor aplicado" value={formatBrl(slot.appliedBrl)} />
-                <TooltipRow label="Rendimento" value={formatBrl(slot.valueBrl - slot.appliedBrl)} />
+                <TooltipRow label="Rendimento" value={formatBrl(slot.gainBrl ?? slot.valueBrl - slot.appliedBrl)} />
               </>
             ) : null}
             <TooltipRow label="Da carteira" value={formatSharePercent(slot.share)} />

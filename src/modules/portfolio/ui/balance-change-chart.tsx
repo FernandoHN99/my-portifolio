@@ -1,9 +1,10 @@
 "use client";
 
 import { useQueryState } from "nuqs";
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { Bar, BarChart, Cell, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
+import { cn } from "@/lib/utils";
 import type { HistorySlot } from "@/modules/portfolio/domain/position-history";
 import { formatBrl, formatPercent } from "@/modules/portfolio/presentation/portfolio-format";
 import { formatSignedBrl, monthLabel } from "@/modules/portfolio/presentation/position-page";
@@ -21,11 +22,22 @@ type ChangeRow = {
   mixed: number | null;
 };
 
+type Period = "6m" | "12m" | "ytd" | "all";
+
+const PERIODS: { key: Period; label: string }[] = [
+  { key: "6m", label: "6M" },
+  { key: "12m", label: "12M" },
+  { key: "ytd", label: "YTD" },
+  { key: "all", label: "Tudo" },
+];
+
 /**
  * Variação do saldo de uma competência para a anterior, em todas as posições
  * (spec 073): cada barra separa aportes e retiradas do rendimento do mês, que
  * nos ativos cotados inclui a variação da cotação. No legado sem movimentações
  * de um saldo em reais, a variação fica numa barra só. Lacunas ficam sem barra.
+ * O período (spec 075) termina na competência selecionada; "Tudo" mostra o
+ * histórico inteiro.
  */
 export function BalanceChangeChart({
   slots,
@@ -38,8 +50,9 @@ export function BalanceChangeChart({
 }) {
   const [, startTransition] = useTransition();
   const [, setMonth] = useQueryState("mes", { shallow: false, startTransition });
+  const [period, setPeriod] = useState<Period>("12m");
   const firstIndex = slots.findIndex((slot) => slot.kind === "present");
-  const rows: ChangeRow[] =
+  const allRows: ChangeRow[] =
     firstIndex === -1
       ? []
       : slots.slice(firstIndex).map((slot) => {
@@ -58,21 +71,23 @@ export function BalanceChangeChart({
             mixed: change !== null && flow === null ? change : null,
           };
         });
+  const rows = periodRows(allRows, selectedMonth, period);
   const byLabel = new Map(rows.map((row) => [row.label, row]));
 
   const hasMixed = rows.some((row) => row.mixed !== null);
 
-  if (!rows.some((row) => row.change !== null)) {
+  if (!allRows.some((row) => row.change !== null)) {
     return (
       <div className="grid h-[220px] place-items-center rounded-xl border border-dashed border-border/70 px-6 text-center text-[11px] leading-5 text-muted-foreground">
-        Ainda não há duas competências seguidas com a posição para comparar o saldo.
+        Sem competências seguidas para comparar.
       </div>
     );
   }
 
   return (
     <div data-testid="balance-change-chart">
-      <ul aria-label="Legenda" className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-1.5">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+      <ul aria-label="Legenda" className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
         <li className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
           <span className="size-2.5 rounded-[3px] bg-chart-up" />
           Rendimento
@@ -92,6 +107,23 @@ export function BalanceChangeChart({
           </li>
         ) : null}
       </ul>
+      <div role="group" aria-label="Período da variação mensal" className="flex items-center gap-0.5 rounded-lg border border-border bg-card/60 p-0.5">
+        {PERIODS.map((option) => (
+          <button
+            key={option.key}
+            type="button"
+            aria-pressed={period === option.key}
+            onClick={() => setPeriod(option.key)}
+            className={cn(
+              "rounded-md px-2.5 py-1 text-[11px] font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring/50",
+              period === option.key ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+      </div>
       <div className="h-[260px] w-full">
       <ResponsiveContainer height="100%" width="100%">
         <BarChart
@@ -193,6 +225,24 @@ export function BalanceChangeChart({
       </div>
     </div>
   );
+}
+
+/** Meses do período, terminando na competência selecionada. */
+function periodRows(rows: ChangeRow[], selectedMonth: string, period: Period) {
+  if (period === "all" || rows.length === 0) {
+    return rows;
+  }
+
+  const selectedIndex = rows.findIndex((row) => row.month === selectedMonth);
+  const end = selectedIndex === -1 ? rows.length - 1 : selectedIndex;
+
+  if (period === "ytd") {
+    const year = rows[end].month.slice(0, 4);
+    return rows.slice(0, end + 1).filter((row) => row.month.startsWith(`${year}-`));
+  }
+
+  const size = period === "6m" ? 6 : 12;
+  return rows.slice(Math.max(end - size + 1, 0), end + 1);
 }
 
 function roundCents(value: number) {

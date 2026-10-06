@@ -50,7 +50,9 @@ export async function getAllocationOverview(
         select: {
           referenceDate: true,
           status: true,
+          // Posições liquidadas (spec 076) ficam fora da alocação.
           positions: {
+            where: { quantity: { gt: 0 } },
             select: {
               totalBrl: true,
               strategy: true,

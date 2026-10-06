@@ -120,6 +120,20 @@ export type PresentSlot = {
   appliedUnits: number | null;
   /** O valor aplicado inclui um saldo inicial, cujo custo de compra real não é conhecido. */
   appliedFromOpening: boolean;
+  /**
+   * Lucro realizado nas retiradas até este mês (spec 076): o valor de cada
+   * retirada menos o custo médio que ela tirou. Nulo sem movimentações.
+   */
+  realizedBrl: number | null;
+  /** Rendimento acumulado: valor menos o aplicado, mais o realizado. */
+  gainBrl: number | null;
+  /**
+   * Liquidada (spec 076): uma retirada zerou a posição neste mês. Ela fica no
+   * histórico, mas não passa ao mês seguinte nem conta como posição ativa.
+   */
+  liquidated: boolean;
+  /** Dia da retirada que zerou a posição (AAAA-MM-DD). */
+  liquidatedOn: string | null;
 };
 
 export type HistorySlot = MissingSlot | AbsentSlot | PresentSlot;
@@ -166,7 +180,7 @@ export type PositionSummary = {
   costSource?: "estimated" | "known" | "opening";
   /** Valor aplicado na competência selecionada. */
   appliedBrl?: number | null;
-  /** Rendimento acumulado: valor da posição menos o valor aplicado. */
+  /** Rendimento acumulado: valor da posição menos o aplicado, mais o realizado nas retiradas. */
   gainBrl?: number | null;
   attributionSource?: HistorySource;
   recorded?: RecordedMonth;
@@ -239,6 +253,9 @@ export function buildHistorySlots({
   let applied: number | null = null;
   // Custo médio das movimentações registradas (spec 073).
   let cost: Cost | null = null;
+  // Lucro realizado em toda a vida da posição, inclusive antes de uma saída
+  // e volta (spec 076).
+  let realized: number | null = null;
 
   for (const month of calendarMonths(sorted[0].month, sorted.at(-1)!.month)) {
     const portfolioTotal = totals.get(month);
@@ -313,10 +330,14 @@ export function buildHistorySlots({
         // Bases mensais independentes: o custo segue, nas unidades da base.
         cost.units = base;
       }
-      applyMovements(cost, slot.recorded);
+      realized = roundCents((realized ?? 0) + applyMovements(cost, slot.recorded));
       applied = roundCents(cost.value);
       slot.appliedUnits = cost.units;
       slot.appliedFromOpening = cost.fromOpening;
+      slot.realizedBrl = realized;
+      const exit = liquidationOf(slot);
+      slot.liquidated = exit !== null;
+      slot.liquidatedOn = exit;
     } else {
       cost = null;
       if (slot.source !== "estimated" || (slot.step && slot.step.source !== "estimated")) {
@@ -325,6 +346,7 @@ export function buildHistorySlots({
       slot.appliedUnits = applied === null ? null : slot.quantity;
     }
     slot.appliedBrl = applied;
+    slot.gainBrl = applied === null ? null : roundCents(slot.valueBrl - applied + (slot.realizedBrl ?? 0));
     slots.push(slot);
     previous = slot;
     broken = false;
@@ -396,7 +418,24 @@ function aggregate(
     appliedBrl: null,
     appliedUnits: null,
     appliedFromOpening: false,
+    realizedBrl: null,
+    gainBrl: null,
+    liquidated: false,
+    liquidatedOn: null,
   };
+}
+
+/**
+ * Dia da liquidação (spec 076): a posição terminou o mês zerada por uma
+ * retirada registrada. Uma posição zerada sem retirada não é liquidação.
+ */
+function liquidationOf(slot: PresentSlot) {
+  if (slot.quantity > QUANTITY_TOLERANCE || !slot.recorded) {
+    return null;
+  }
+
+  const exit = slot.recorded.movements.findLast((entry) => entry.kind === "WITHDRAWAL");
+  return exit ? (exit.occurredOn ?? `${slot.month}-01`) : null;
 }
 
 const QUANTITY_TOLERANCE = 5e-13;
@@ -406,9 +445,12 @@ type Cost = { value: number; units: number; fromOpening: boolean };
 /**
  * Custo médio pelas movimentações do mês, em ordem de data: saldo inicial e
  * aportes somam o valor; retiradas tiram a parte proporcional às unidades; o
- * rendimento muda as unidades (ou o saldo), não o valor aplicado.
+ * rendimento muda as unidades (ou o saldo), não o valor aplicado. Devolve o
+ * lucro realizado no mês: o valor de cada retirada menos o custo que ela tirou.
  */
 function applyMovements(cost: Cost, recorded: RecordedMonth) {
+  let realized = 0;
+
   for (const entry of recorded.movements) {
     const moved = entry.quantity ?? 0;
 
@@ -420,10 +462,10 @@ function applyMovements(cost: Cost, recorded: RecordedMonth) {
       cost.value += entry.amountBrl;
       cost.units += moved;
     } else if (entry.kind === "WITHDRAWAL") {
-      if (cost.units > QUANTITY_TOLERANCE) {
-        cost.value -= cost.value * Math.min(moved / cost.units, 1);
-      }
+      const removed = cost.units > QUANTITY_TOLERANCE ? cost.value * Math.min(moved / cost.units, 1) : 0;
+      cost.value -= removed;
       cost.units -= moved;
+      realized += entry.amountBrl - removed;
     } else {
       cost.units += entry.amountBrl < 0 ? -moved : moved;
     }
@@ -433,6 +475,8 @@ function applyMovements(cost: Cost, recorded: RecordedMonth) {
       cost.value = 0;
     }
   }
+
+  return realized;
 }
 
 function computeStep(previous: PresentSlot, current: PresentSlot, acrossMissing: boolean, quoted: boolean): HistoryStep {
@@ -680,7 +724,7 @@ function withRecordedSummary(summary: PositionSummary, slots: HistorySlot[], quo
   const recordedSlots = present.filter((slot) => slot.recorded !== null);
   const current = summary.current;
   const applied = current?.appliedBrl ?? null;
-  const gain = current && applied !== null ? roundCents(current.valueBrl - applied) : null;
+  const gain = current?.gainBrl ?? null;
   if (recordedSlots.length === 0) {
     return { ...summary, costSource: "estimated", attributionSource: "estimated", appliedBrl: applied, gainBrl: gain };
   }

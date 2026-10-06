@@ -161,8 +161,7 @@ export function TargetEditor({ editor, children }: { editor: TargetEditorData; c
           <p className="text-[11px] font-semibold tracking-[0.16em] text-primary uppercase">Configuração</p>
           <h1 className="mt-3 text-3xl font-semibold tracking-[-0.05em] sm:text-[2.65rem]">Metas da carteira</h1>
           <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground">
-            Mude um percentual e veja as ações de compra e venda mudarem na hora. Última alteração em{" "}
-            <span className="text-foreground">{VERSION_DATE_FORMAT.format(editor.updatedAt)}</span>.
+            Última alteração em <span className="text-foreground">{VERSION_DATE_FORMAT.format(editor.updatedAt)}</span>
           </p>
         </div>
       </header>
@@ -179,7 +178,7 @@ export function TargetEditor({ editor, children }: { editor: TargetEditorData; c
             onChange={setToleranceDraft}
           />
 
-          {TARGET_SCOPES.map(({ scope, title, description }) => {
+          {TARGET_SCOPES.map(({ scope, title }) => {
             const items = editor.items.filter((item) => item.scope === scope);
 
             if (items.length === 0) {
@@ -189,7 +188,6 @@ export function TargetEditor({ editor, children }: { editor: TargetEditorData; c
             return (
               <section key={scope} className="premium-panel rounded-[24px] p-5 sm:p-6" aria-label={title}>
                 <h2 className="text-base font-semibold tracking-[-0.025em]">{title}</h2>
-                <p className="mt-1 text-[11px] text-muted-foreground">{description}</p>
 
                 {scope === "CURRENCY" ? (
                   <DerivedCurrencyGroup items={items} valueOf={valueOf} />
@@ -245,9 +243,6 @@ export function TargetEditor({ editor, children }: { editor: TargetEditorData; c
                 <ClockCounterClockwiseIcon aria-hidden="true" className="text-primary" size={16} weight="duotone" />
                 <h2 className="text-base font-semibold tracking-[-0.025em]">Versões</h2>
               </div>
-              <p className="mt-1 text-[11px] text-muted-foreground">
-                Cada backup restaurado troca todos os dados e aparece aqui. Salvar as metas não cria versões.
-              </p>
               <ol className="mt-4 space-y-2">
                 {editor.versions.map((version) => (
                   <li
@@ -638,10 +633,11 @@ const PreviewPanel = memo(function PreviewPanel({
   return (
     <section className="premium-panel rounded-[24px] p-5 sm:p-6">
       <div>
-        <h2 className="text-base font-semibold tracking-[-0.025em]">Prévia de comprar e vender</h2>
-        <p className="mt-1 text-[11px] text-muted-foreground">
-          {monthLabel ? `Carteira de ${monthLabel}, com as metas em edição.` : "Sem competência para simular."}
-        </p>
+        <h2 className="flex items-baseline gap-2 text-base font-semibold tracking-[-0.025em]">
+          Prévia de comprar e vender
+          {monthLabel ? <span className="font-mono text-[11px] font-normal text-muted-foreground">{monthLabel}</span> : null}
+        </h2>
+        {monthLabel ? null : <p className="mt-1 text-[11px] text-muted-foreground">Sem competência para simular.</p>}
       </div>
 
       <div className="mt-4 flex flex-wrap gap-0.5 rounded-lg border border-border bg-card/60 p-0.5">
@@ -761,9 +757,6 @@ const ToleranceCard = memo(function ToleranceCard({
   return (
     <section className="premium-panel rounded-[24px] p-5 sm:p-6" aria-label="Tolerância">
       <h2 className="text-base font-semibold tracking-[-0.025em]">Tolerância</h2>
-      <p className="mt-1 text-[11px] text-muted-foreground">
-        Diferença, em pontos percentuais, até a qual um item fica equilibrado em vez de pedir compra ou venda.
-      </p>
 
       <div className="mt-5 grid grid-cols-[minmax(0,1fr)_84px] items-center gap-3">
         <StepSlider

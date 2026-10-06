@@ -365,8 +365,8 @@ test("a página da posição edita pelo mesmo formulário", async ({ page }) => 
   await expect(dialog.getByText("Saldo (R$)")).toBeVisible();
   await formTab(dialog, "Ativo").click();
   await expect(dialog.getByRole("textbox", { name: "Vencimento", exact: true })).toBeVisible();
-  // Um saldo em reais pode ser marcado como conta corrente (spec 059).
-  await expect(dialog.getByRole("checkbox", { name: /Conta corrente/ })).toBeVisible();
+  // A opção de conta corrente saiu do formulário (spec 075).
+  await expect(dialog.getByRole("checkbox", { name: /Conta corrente/ })).toHaveCount(0);
 
   await dialog.getByRole("button", { name: "Cancelar" }).click();
   await expect(dialog).toHaveCount(0);

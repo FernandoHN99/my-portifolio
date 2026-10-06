@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import { cn } from "@/lib/utils";
+import { CollapsibleSection } from "@/modules/portfolio/ui/collapsible-section";
 import type { HistorySlot, PresentSlot } from "@/modules/portfolio/domain/position-history";
 import type { RecordedMonth } from "@/modules/portfolio/domain/position-transactions";
 import {
@@ -26,7 +27,8 @@ type TableRow =
 
 /**
  * Mês a mês, do mais recente para o mais antigo. Meses sem a posição e meses
- * sem competência aparecem como lacunas agrupadas, nunca como zero.
+ * sem competência aparecem como lacunas agrupadas, nunca como zero. Começa
+ * recolhido (spec 075).
  */
 export function PositionMonthsTable({
   slots,
@@ -53,16 +55,12 @@ export function PositionMonthsTable({
   const columnCount = quoted ? 8 : 5;
 
   return (
-    <section className="premium-panel mt-6 overflow-hidden rounded-[24px]" aria-labelledby="months-title">
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 border-b border-border/60 px-5 py-4 sm:px-6">
-        <h2 id="months-title" className="text-sm font-semibold text-foreground">
-          Mês a mês
-        </h2>
-        <span className="text-[11px] text-muted-foreground">
-          {presentCount} {presentCount === 1 ? "competência" : "competências"} com a posição
-        </span>
-      </div>
-
+    <CollapsibleSection
+      id="months"
+      title="Mês a mês"
+      summary={`${presentCount} ${presentCount === 1 ? "competência" : "competências"}`}
+      testId="position-months-section"
+    >
       <div className="overflow-x-auto">
         <table className="w-full border-collapse text-left" data-testid="position-months">
           <thead>
@@ -118,7 +116,7 @@ export function PositionMonthsTable({
           </tbody>
         </table>
       </div>
-    </section>
+    </CollapsibleSection>
   );
 }
 
@@ -186,6 +184,11 @@ function PresentRow({
           </p>
         ) : step?.acrossMissing ? (
           <p className="mt-0.5 text-[10px] text-muted-foreground">desde {monthLabel(step.fromMonth)}</p>
+        ) : null}
+        {slot.liquidated ? (
+          <p className="mt-0.5 text-[10px] text-muted-foreground" data-testid="month-liquidated">
+            Liquidada
+          </p>
         ) : null}
         {slot.source === "mixed" || step?.source === "mixed" ? <p className="mt-0.5 text-[10px] text-muted-foreground">origem mista</p> : null}
         {/* Diferenças de centavos são arredondamento, não falta de registro. */}
@@ -291,7 +294,9 @@ function buildTableRows(slots: HistorySlot[]): TableRow[] {
     const last = rows.at(-1);
 
     if (slot.kind === "present") {
-      const returned = previousExisting?.kind === "absent";
+      // Volta depois de uma ausência ou de uma liquidação no mês anterior (spec 076).
+      const returned =
+        previousExisting?.kind === "absent" || (previousExisting?.kind === "present" && previousExisting.liquidated);
       rows.push({
         kind: "present",
         slot,

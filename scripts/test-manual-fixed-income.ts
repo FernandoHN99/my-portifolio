@@ -89,17 +89,22 @@ async function main() {
     await removeTransaction({ monthId: month.id, transactionId: fullWithdrawal.id });
     await balance(position.id, "2070.30");
 
-    // Liquidação pelo saldo e com acerto para cima/baixo: crédito único,
-    // título zerado e exclusão atômica de todas as pernas.
-    for (const [received, cashBalance] of [["2070.30", "2170.30"], ["2000.00", "2100.00"], ["2100.00", "2200.00"]]) {
-      await liquidatePosition({ monthId: month.id, liquidation: { positionId: position.id, destinationPositionId: destination.id, occurredOn: "2026-10-02", amountBrl: received } });
+    // Liquidação (spec 076) pelo saldo e com acerto para cima/baixo: retirada
+    // total, posição zerada, sem conta de destino e sem liquidar duas vezes.
+    for (const received of ["2070.30", "2000.00", "2100.00"]) {
+      await liquidatePosition({ monthId: month.id, liquidation: { positionId: position.id, occurredOn: "2026-10-02", amountBrl: received } });
       await balance(position.id, "0.00");
-      await balance(destination.id, cashBalance);
-      await assert.rejects(liquidatePosition({ monthId: month.id, liquidation: { positionId: position.id, destinationPositionId: destination.id, occurredOn: "2026-10-02", amountBrl: received } }), /já está zerado/);
-      const liquidation = await prisma.positionTransaction.findFirstOrThrow({ where: { positionId: position.id, transferId: { not: null }, kind: "WITHDRAWAL" } });
-      await removeTransaction({ monthId: month.id, transactionId: liquidation.id });
-      await balance(position.id, "2070.30");
       await balance(destination.id, "100.00");
+      await assert.rejects(liquidatePosition({ monthId: month.id, liquidation: { positionId: position.id, occurredOn: "2026-10-02", amountBrl: received } }), /já está liquidada/);
+      // A retirada sai antes do acerto: sem ela, o acerto sozinho não deixa a posição negativa.
+      const legs = (await prisma.positionTransaction.findMany({ where: { positionId: position.id, note: { startsWith: "Liquidação" } } }))
+        .sort((left, right) => Number(right.kind === "WITHDRAWAL") - Number(left.kind === "WITHDRAWAL"));
+      assert.equal(legs.length, received === "2070.30" ? 1 : 2);
+      assert.ok(legs.every((leg) => leg.transferId === null));
+      for (const leg of legs) {
+        await removeTransaction({ monthId: month.id, transactionId: leg.id });
+      }
+      await balance(position.id, "2070.30");
     }
 
     const backup = await exportBackup();

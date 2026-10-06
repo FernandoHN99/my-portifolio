@@ -45,13 +45,7 @@ const CLASSIFICATIONS: { key: string; label: string; slices: SliceDefinition[] }
   },
 ];
 
-export function RebalancePanel({
-  groups,
-  tolerance,
-}: {
-  groups: AllocationGroup[];
-  tolerance: number;
-}) {
+export function RebalancePanel({ groups }: { groups: AllocationGroup[] }) {
   const [classification, setClassification] = useQueryState("corte", {
     defaultValue: "geral",
     clearOnDefault: true,
@@ -92,9 +86,6 @@ export function RebalancePanel({
           <h2 id="rebalance-title" className="text-base font-semibold tracking-[-0.025em]">
             Comprar e vender
           </h2>
-          <p className="mt-1 text-[11px] text-muted-foreground">
-            Diferença entre o valor atual e o ideal. Itens dentro de ±{tolerance.toLocaleString("pt-BR")}% ficam equilibrados.
-          </p>
         </div>
       </div>
 

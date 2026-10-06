@@ -267,13 +267,12 @@ const liquidationSchema = z.object({
   ...monthScope,
   liquidation: z.object({
     positionId: z.string().uuid(),
-    destinationPositionId: z.string().uuid(),
     occurredOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
     amountBrl: z.string().trim().min(1).max(40),
   }),
 });
 
-/** Liquida um título vencido na conta corrente escolhida (spec 059). */
+/** Liquida uma posição com uma retirada total (spec 076). */
 export async function liquidatePositionAction(input: unknown): Promise<EditActionResult> {
   const parsed = liquidationSchema.safeParse(input);
 
@@ -283,7 +282,7 @@ export async function liquidatePositionAction(input: unknown): Promise<EditActio
 
   return run(async () => {
     const result = await liquidatePosition(parsed.data);
-    return { ok: true, message: "Título liquidado na conta corrente.", undoToken: result.undoToken };
+    return { ok: true, message: "Posição liquidada.", undoToken: result.undoToken };
   });
 }
 

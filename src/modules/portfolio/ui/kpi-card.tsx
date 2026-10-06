@@ -25,6 +25,7 @@ export function ChangeKpiCard({
   emptyDetail,
   detailSuffix,
   testId,
+  footer,
 }: {
   label: string;
   changeBrl: number | null;
@@ -32,11 +33,13 @@ export function ChangeKpiCard({
   emptyDetail: string;
   detailSuffix?: string;
   testId?: string;
+  footer?: ReactNode;
 }) {
   return (
     <KpiCard
       label={label}
       testId={testId}
+      footer={footer}
       icon={
         (changeBrl ?? 0) >= 0 ? (
           <ArrowUpRightIcon aria-hidden="true" size={18} weight="bold" />
@@ -76,6 +79,7 @@ export function KpiCard({
   tone = "neutral",
   testId,
   valueText,
+  footer,
 }: {
   label: string;
   icon: ReactNode;
@@ -85,6 +89,8 @@ export function KpiCard({
   testId?: string;
   /** Valor formatado, para leitura fora da animação. */
   valueText?: string;
+  /** Um complemento discreto abaixo do detalhe, como os destaques da posição. */
+  footer?: ReactNode;
 }) {
   return (
     <article className="metric-card rounded-2xl p-4 sm:p-5">
@@ -114,6 +120,7 @@ export function KpiCard({
         {value}
       </p>
       <p className="mt-1.5 text-xs text-muted-foreground">{detail}</p>
+      {footer}
     </article>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useState } from "react";
 import { Bar, BarChart, Cell, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 import { cn } from "@/lib/utils";
@@ -29,26 +29,8 @@ const FLOW_COLOR = "#cc79a7";
  * Decomposição da variação em cascata: valor de partida, ganho de preço,
  * aportes e resgates e valor de chegada. Em saldos sem cotação, só a variação.
  */
-export function PositionAttribution({
-  summary,
-  quoted,
-  dollarBalance,
-  scope,
-  hasOtherAccounts,
-}: {
-  summary: PositionSummary;
-  quoted: boolean;
-  /** Caixa em dólar: a cotação é o câmbio. */
-  dollarBalance: boolean;
-  scope: "account" | "all";
-  hasOtherAccounts: boolean;
-}) {
+export function PositionAttribution({ summary, quoted }: { summary: PositionSummary; quoted: boolean }) {
   const [mode, setMode] = useState<Mode>("since-entry");
-  const source = (mode === "month" ? summary.monthStep?.source : summary.attributionSource) ?? "estimated";
-  const tracked = source !== "estimated";
-  const distributedIncome = mode === "month"
-    ? (summary.monthStep?.incomeBrl ?? 0) - (summary.monthStep?.capitalizedIncomeBrl ?? 0)
-    : (summary.incomeBrl ?? 0) - (summary.capitalizedIncomeBrl ?? 0);
   const bars = mode === "since-entry" ? sinceEntryBars(summary, quoted) : monthBars(summary, quoted);
   const emptyText =
     mode === "month"
@@ -58,18 +40,11 @@ export function PositionAttribution({
         : "A posição tem uma única competência até aqui.";
 
   return (
-    <section className="premium-panel rounded-[24px] p-5 sm:p-7" aria-labelledby="attribution-title">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2 id="attribution-title" className="text-base font-semibold tracking-[-0.025em]">
-            De onde veio a variação
-          </h2>
-          <p className="mt-1 text-[11px] text-muted-foreground">
-            {tracked
-              ? source === "mixed" ? "Movimentações registradas e competências antigas estimadas." : "Variação explicada pelas movimentações registradas."
-              : quoted ? "Preço contra aportes e resgates, estimados pelas competências." : "Variação do saldo informado."}
-          </p>
-        </div>
+    <section className="premium-panel @container rounded-[24px] p-5 sm:p-7" aria-labelledby="attribution-title">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 id="attribution-title" className="text-base font-semibold tracking-[-0.025em]">
+          De onde veio a variação
+        </h2>
         <div role="group" aria-label="Período da decomposição" className="flex items-center gap-0.5 rounded-lg border border-border bg-card/60 p-0.5">
           {(
             [
@@ -98,7 +73,7 @@ export function PositionAttribution({
           {emptyText}
         </div>
       ) : (
-        <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1.3fr)_minmax(220px,1fr)] lg:items-center">
+        <div className="mt-6 grid grid-cols-1 gap-6 @3xl:grid-cols-[minmax(0,1.3fr)_minmax(220px,1fr)] @3xl:items-center">
           <div className="w-full overflow-x-auto" data-testid="attribution-chart">
             <div className="h-[220px]" style={{ minWidth: bars.length > 5 ? 560 : undefined }}>
             <ResponsiveContainer height="100%" width="100%">
@@ -200,41 +175,6 @@ export function PositionAttribution({
         </div>
       )}
 
-      <div className="mt-5 space-y-1.5 border-t border-border/60 pt-4 text-[11px] leading-5 text-muted-foreground">
-        {tracked ? (
-          <>
-            <p>
-              Aportes e retiradas usam os valores das transações. Rendimentos incorporados e transferências internas aparecem separadamente.
-              {quoted ? " O efeito de preço inclui a diferença entre o preço executado e a cotação atual." : ""}
-              {source === "mixed" ? " As competências anteriores sem movimentações mantêm suas estimativas." : ""}
-            </p>
-            {Math.abs(distributedIncome) >= 0.005 ? <p>Rendimento recebido separadamente: {formatSignedBrl(distributedIncome)}. Esse registro não aumenta a quantidade nem o saldo da posição.</p> : null}
-            {Math.abs((mode === "month" ? summary.monthStep?.unexplainedBrl : summary.unexplainedBrl) ?? 0) >= 0.05 ? <p>Diferenças entre saldos mensais independentes ficam como variação sem registro; não são tratadas como aporte ou rendimento.</p> : null}
-          </>
-        ) : quoted ? (
-          <p>
-            Ganho de preço é a quantidade do mês anterior vezes a variação da cotação. Aportes e resgates é o
-            restante: a variação da quantidade valorizada pela cotação do mês em que aparece. É uma estimativa,
-            porque o histórico guarda a posição de cada mês, sem as compras e vendas.
-            {dollarBalance ? " Num saldo em dólar, o preço é o câmbio, e rendimentos creditados contam como aporte." : ""}
-          </p>
-        ) : (
-          <p>
-            Saldo em reais, sem cotação: o histórico guarda só o valor de cada mês, então rendimentos, aportes e
-            resgates aparecem juntos na variação.
-          </p>
-        )}
-        {!tracked && (summary.segments > 1 || summary.state === "absent") ? (
-          <p>
-            {scope === "account"
-              ? "Quando a posição sai desta conta, a saída conta como resgate do último valor conhecido e a volta, como aporte do primeiro valor."
-              : "Quando o ativo sai da carteira, a saída conta como resgate do último valor conhecido e a volta, como aporte do primeiro valor."}
-            {scope === "account" && hasOtherAccounts
-              ? " Em “Todas as contas”, uma transferência entre contas não aparece como resgate e aporte."
-              : ""}
-          </p>
-        ) : null}
-      </div>
     </section>
   );
 }
@@ -375,23 +315,4 @@ function compactValue(bar: WaterfallBar) {
   }).format(bar.value);
 
   return formatted;
-}
-
-export function HighlightRow({ label, value, detail, tone = "neutral", testId }: { label: string; value: ReactNode; detail?: ReactNode; tone?: "up" | "down" | "neutral"; testId?: string }) {
-  return (
-    <div data-testid={testId} className="flex items-start justify-between gap-4 py-3 first:pt-0 last:pb-0">
-      <div className="min-w-0">
-        <p className="text-[10px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">{label}</p>
-        {detail ? <p className="mt-1 text-[11px] text-muted-foreground">{detail}</p> : null}
-      </div>
-      <p
-        className={cn(
-          "shrink-0 text-right font-mono text-sm",
-          tone === "up" ? "text-primary" : tone === "down" ? "text-destructive" : "text-foreground",
-        )}
-      >
-        {value}
-      </p>
-    </div>
-  );
 }

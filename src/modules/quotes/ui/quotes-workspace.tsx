@@ -187,9 +187,6 @@ export function QuotesWorkspace({
             Posições
           </Link>
           <h1 className="mt-3 text-3xl font-semibold tracking-[-0.05em] sm:text-[2.65rem]">Cotações do mês</h1>
-          <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground">
-            Valores em reais usados para calcular as posições com ticker nesta competência.
-          </p>
         </div>
         <div className="flex flex-col items-start gap-3 sm:items-end">
           <DevQuoteSyncButton />

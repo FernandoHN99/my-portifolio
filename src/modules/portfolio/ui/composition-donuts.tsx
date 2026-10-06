@@ -16,7 +16,6 @@ export function CompositionDonuts({ groups }: { groups: CompositionGroup[] }) {
       {groups.map((group) => (
         <section key={group.key} className="premium-panel rounded-[24px] p-5 sm:p-6">
           <h2 className="text-base font-semibold tracking-[-0.025em]">{group.title}</h2>
-          <p className="mt-1 text-[11px] text-muted-foreground">Atual contra ideal</p>
 
           <div className="mt-5 grid grid-cols-2 gap-3">
             <Donut rows={group.rows} mode="current" />

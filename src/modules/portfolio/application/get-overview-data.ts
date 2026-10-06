@@ -97,7 +97,9 @@ export async function getOverviewData(referenceDate?: Date): Promise<OverviewDat
       select: {
         referenceDate: true,
         status: true,
+        // Posições liquidadas (spec 076) ficam no histórico, fora do patrimônio.
         positions: {
+          where: { quantity: { gt: 0 } },
           select: {
             totalBrl: true,
             asset: { select: { baseCurrency: true, assetType: true, quoteSymbol: true, name: true, cashAccount: true } },

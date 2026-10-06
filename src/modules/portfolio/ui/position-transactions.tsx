@@ -8,6 +8,7 @@ import { recordedByMonth, TRANSACTION_LABELS } from "@/modules/portfolio/domain/
 import { formatDay } from "@/modules/portfolio/presentation/maturity";
 import { formatBrl, formatPriceBrl } from "@/modules/portfolio/presentation/portfolio-format";
 import { monthLabel } from "@/modules/portfolio/presentation/position-page";
+import { CollapsibleSection } from "@/modules/portfolio/ui/collapsible-section";
 
 const QUANTITY = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 8 });
 
@@ -19,15 +20,13 @@ function dayLabel(day: string) {
  * Movimentações da posição nesta conta (specs 056 a 059): saldo inicial,
  * aportes, retiradas e rendimentos, com o dia, a quantidade, o preço executado
  * e o valor. Só as do mês aberto podem ser corrigidas ou apagadas; as pernas de
- * uma liquidação aparecem como transferência interna e saem juntas.
+ * uma transferência interna antiga saem juntas. Começa recolhido (spec 075).
  */
 export function PositionTransactions({
   transactions,
   quoted,
   dollars,
   editableMonthId,
-  firstMonth,
-  costSource,
   editableAccountId,
   showAccountLabels = false,
   removing,
@@ -35,9 +34,6 @@ export function PositionTransactions({
   onRemove,
 }: {
   transactions: PositionTransactionView[];
-  /** Primeira competência com a posição (AAAA-MM), para apontar o trecho sem movimentações. */
-  firstMonth: string | null;
-  costSource?: "estimated" | "known" | "opening";
   editableAccountId: string;
   showAccountLabels?: boolean;
   quoted: boolean;
@@ -49,26 +45,19 @@ export function PositionTransactions({
   onRemove: (entry: PositionTransactionView) => void;
 }) {
   return (
-    <section className="premium-panel mt-6 rounded-[24px] p-5 sm:p-7" aria-labelledby="position-transactions-title">
-      <div className="flex items-center gap-2">
-        <ArrowsDownUpIcon aria-hidden="true" className="text-primary" size={16} weight="bold" />
-        <h2 id="position-transactions-title" className="text-base font-semibold tracking-[-0.025em]">
-          Movimentações
-        </h2>
-      </div>
-      <p className="mt-1 text-[11px] text-muted-foreground">
-        Saldo inicial, aportes, retiradas e rendimentos registrados. Só os do mês aberto podem ser corrigidos ou
-        apagados; os meses sem movimentações mostram só o saldo de cada mês.
-      </p>
-
-      {transactions.length > 0 ? (
-        <RecordedTotals transactions={transactions} firstMonth={firstMonth} costSource={costSource} />
-      ) : null}
+    <CollapsibleSection
+      id="position-transactions"
+      title="Movimentações"
+      summary={`${transactions.length} ${transactions.length === 1 ? "registro" : "registros"}`}
+      icon={<ArrowsDownUpIcon aria-hidden="true" className="text-primary" size={16} weight="bold" />}
+      testId="position-transactions-section"
+    >
+      <div className="px-5 pt-1 pb-5 sm:px-6">
+      {transactions.length > 0 ? <RecordedTotals transactions={transactions} /> : null}
 
       {transactions.length === 0 ? (
         <p className="mt-4 rounded-xl border border-dashed border-border/70 px-4 py-6 text-center text-[11px] text-muted-foreground">
-          Nenhuma movimentação registrada: os valores vêm do saldo de cada mês. Use Movimentar para registrar um
-          aporte, uma retirada ou um rendimento.
+          Nenhuma movimentação registrada.
         </p>
       ) : (
         <div className="mt-4 overflow-x-auto">
@@ -163,37 +152,25 @@ export function PositionTransactions({
           </table>
         </div>
       )}
-    </section>
+      </div>
+    </CollapsibleSection>
   );
 }
 
 /**
  * Totais registrados (spec 058): aportes, retiradas e rendimentos separados, e o
- * saldo inicial, que não é aporte. A transferência interna de uma liquidação
- * aparece à parte. Quando a posição tem meses anteriores às movimentações ou
- * começa por saldo inicial, o custo anterior é desconhecido, e o aviso diz isso.
+ * saldo inicial, que não é aporte.
  */
-function RecordedTotals({
-  transactions,
-  firstMonth,
-  costSource,
-}: {
-  transactions: PositionTransactionView[];
-  firstMonth: string | null;
-  costSource?: "estimated" | "known" | "opening";
-}) {
+function RecordedTotals({ transactions }: { transactions: PositionTransactionView[] }) {
   const totals = [...recordedByMonth(transactions).values()].reduce(
     (sum, month) => ({
       contributions: sum.contributions + month.contributionsBrl,
       withdrawals: sum.withdrawals + month.withdrawalsBrl,
       income: sum.income + month.incomeBrl,
       opening: sum.opening + month.openingBrl,
-      internal: sum.internal + month.internalBrl,
     }),
-    { contributions: 0, withdrawals: 0, income: 0, opening: 0, internal: 0 },
+    { contributions: 0, withdrawals: 0, income: 0, opening: 0 },
   );
-  const firstRecorded = transactions.reduce((min, entry) => (entry.month < min ? entry.month : min), transactions[0].month);
-  const openingCost = costSource === "opening" || totals.opening > 0 || (firstMonth !== null && firstMonth < firstRecorded);
   const items = [
     { label: "Aportes", value: totals.contributions },
     { label: "Retiradas", value: totals.withdrawals },
@@ -202,27 +179,13 @@ function RecordedTotals({
   ];
 
   return (
-    <div className="mt-4 space-y-2" data-testid="recorded-totals">
-      <dl className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-        {items.map((item) => (
-          <div key={item.label} className="rounded-xl border border-border/70 px-3 py-2">
-            <dt className="text-[10px] tracking-[0.08em] text-muted-foreground uppercase">{item.label}</dt>
-            <dd className="mt-0.5 font-mono text-xs text-foreground">{formatBrl(item.value)}</dd>
-          </div>
-        ))}
-      </dl>
-      {totals.internal !== 0 ? (
-        <p className="text-[11px] text-muted-foreground">
-          {formatBrl(Math.abs(totals.internal))} em {totals.internal > 0 ? "entrada" : "saída"} por transferência interna
-          (liquidação): não é dinheiro novo na carteira.
-        </p>
-      ) : null}
-      {openingCost ? (
-        <p className="text-[11px] text-muted-foreground" data-testid="opening-cost">
-          O saldo inicial entra no valor aplicado pelo valor de entrada, sem o preço de compra real; o preço médio
-          que o inclui é uma estimativa. Os aportes guardam o preço executado de cada operação.
-        </p>
-      ) : null}
-    </div>
+    <dl className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4" data-testid="recorded-totals">
+      {items.map((item) => (
+        <div key={item.label} className="rounded-xl border border-border/70 px-3 py-2">
+          <dt className="text-[10px] tracking-[0.08em] text-muted-foreground uppercase">{item.label}</dt>
+          <dd className="mt-0.5 font-mono text-xs text-foreground">{formatBrl(item.value)}</dd>
+        </div>
+      ))}
+    </dl>
   );
 }

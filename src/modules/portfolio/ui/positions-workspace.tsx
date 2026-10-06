@@ -70,7 +70,7 @@ import {
 } from "@/modules/portfolio/ui/edit-dialogs";
 import { EditToast, type EditToastState } from "@/modules/portfolio/ui/edit-toast";
 import { EmptyPortfolio } from "@/modules/portfolio/ui/empty-portfolio";
-import { cashCurrencyOf, LiquidationDialog, type LiquidationTarget } from "@/modules/portfolio/ui/liquidation-dialog";
+import { LiquidationDialog, type LiquidationTarget } from "@/modules/portfolio/ui/liquidation-dialog";
 import { MaturityBadge } from "@/modules/portfolio/ui/maturity-badge";
 import { MultiSelectFilter } from "@/modules/portfolio/ui/multi-select-filter";
 import { PositionFormDialog, type PositionFormTarget } from "@/modules/portfolio/ui/position-form-dialog";
@@ -240,6 +240,8 @@ export function PositionsWorkspace({
     filters.liquidities.length +
     (filters.search ? 1 : 0);
   const occupied = new Set(month.positions.map((position) => `${position.accountId}:${position.assetId}`));
+  const liquidatedCount = month.positions.filter((position) => position.liquidated).length;
+  const activeCount = month.positions.length - liquidatedCount;
 
   const notify = (result: EditActionResult) =>
     setToast({
@@ -345,22 +347,18 @@ export function PositionsWorkspace({
         }))
       }
       onRemove={(target) => setRemoval({ open: true, position: target })}
-      onLiquidate={
-        // Título vencido e com saldo no mês aberto (spec 059).
-        position.maturityDate && position.maturityDate <= month.referenceDay && position.totalBrl > 0
-          ? (target) =>
-              setLiquidation((current) => ({
-                open: true,
-                key: current.key + 1,
-                target: {
-                  positionId: target.id,
-                  assetName: target.assetName,
-                  totalBrl: target.totalBrl,
-                  maturityDate: target.maturityDate!,
-                  currency: cashCurrencyOf(target.quoteSymbol),
-                },
-              }))
-          : undefined
+      onLiquidate={(target) =>
+        setLiquidation((current) => ({
+          open: true,
+          key: current.key + 1,
+          target: {
+            positionId: target.id,
+            assetName: target.assetName,
+            quantity: target.quantity,
+            quoteSymbol: target.quoteSymbol,
+            totalBrl: target.totalBrl,
+          },
+        }))
       }
     />
   );
@@ -375,8 +373,9 @@ export function PositionsWorkspace({
         <div>
           <p className="text-[11px] font-semibold tracking-[0.16em] text-primary uppercase">Posições</p>
           <h1 className="mt-3 text-3xl font-semibold tracking-[-0.05em] sm:text-[2.65rem]">Carteira do mês</h1>
-          <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground">
-            {month.positions.length} posições separadas por instituição.
+          <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground" data-testid="positions-count">
+            {activeCount} {activeCount === 1 ? "posição" : "posições"}
+            {liquidatedCount > 0 ? ` · ${liquidatedCount} ${liquidatedCount === 1 ? "liquidada" : "liquidadas"}` : ""}
           </p>
         </div>
         <div className="flex flex-col items-start gap-3 sm:items-end">
@@ -554,7 +553,7 @@ export function PositionsWorkspace({
                       </th>
                     );
                   })}
-                  <th className={cn("py-3 pr-3 pl-0 sm:pr-4", canEdit ? "w-[66px]" : "w-2")}>
+                  <th className={cn("py-3 pr-3 pl-0 sm:pr-4", canEdit ? "w-[122px]" : "w-2")}>
                     <span className="sr-only">Ações</span>
                   </th>
                 </tr>
@@ -638,14 +637,6 @@ export function PositionsWorkspace({
         target={liquidation.target}
         formKey={liquidation.key}
         month={transactionMonthOf(month.id, month.referenceDate)}
-        cashAccounts={month.positions
-          .filter((position) => position.cashAccount)
-          .map((position) => ({
-            positionId: position.id,
-            label: `${position.assetName} · ${position.institutionName}`,
-            totalBrl: position.totalBrl,
-            currency: cashCurrencyOf(position.quoteSymbol),
-          }))}
         onSaved={notify}
       />
 
@@ -668,14 +659,41 @@ export function PositionsWorkspace({
             <Dialog.Title className="text-base font-semibold tracking-[-0.02em]">
               Remover {removal.position?.assetName ?? "posição"}?
             </Dialog.Title>
+            {/* Remover apaga o registro do mês; liquidar encerra a posição com uma
+                retirada total e guarda o histórico (spec 076). */}
             <Dialog.Description className="mt-2 text-sm leading-6 text-muted-foreground">
-              A posição em {removal.position?.institutionName} sai de {monthLabel}. As outras competências não
-              mudam, e dá para desfazer logo depois.
+              Apaga o registro de {removal.position?.institutionName} em {monthLabel}.
+              {removal.position && !removal.position.liquidated ? " Para encerrar a posição e manter o histórico, liquide." : ""}
             </Dialog.Description>
             <div className="mt-6 flex justify-end gap-2">
               <Dialog.Close className={secondaryButtonClass} disabled={isSaving}>
                 Cancelar
               </Dialog.Close>
+              {removal.position && !removal.position.liquidated ? (
+                <button
+                  type="button"
+                  disabled={isSaving}
+                  onClick={() => {
+                    const target = removal.position!;
+                    setRemoval((current) => ({ ...current, open: false }));
+                    setLiquidation((current) => ({
+                      open: true,
+                      key: current.key + 1,
+                      target: {
+                        positionId: target.id,
+                        assetName: target.assetName,
+                        quantity: target.quantity,
+                        quoteSymbol: target.quoteSymbol,
+                        totalBrl: target.totalBrl,
+                      },
+                    }));
+                  }}
+                  className={cn(secondaryButtonClass, "gap-2")}
+                >
+                  <HandCoinsIcon aria-hidden="true" size={14} weight="bold" />
+                  Liquidar
+                </button>
+              ) : null}
               <button
                 type="button"
                 onClick={confirmRemoval}
@@ -724,8 +742,8 @@ function PositionRow({
   onEdit: (position: MonthPosition) => void;
   onMove: (position: MonthPosition) => void;
   onRemove: (position: MonthPosition) => void;
-  /** Só nos títulos vencidos com saldo (spec 059). */
-  onLiquidate?: (position: MonthPosition) => void;
+  /** Retirada total que encerra a posição, mantendo o histórico (spec 076). */
+  onLiquidate: (position: MonthPosition) => void;
 }) {
   const isPartial = Math.abs(valueBrl - position.totalBrl) > 0.005;
   const [first, ...others] = [...position.allocations].sort((left, right) => right.weight - left.weight);
@@ -763,6 +781,7 @@ function PositionRow({
         className={cn(
           "group cursor-pointer transition-[background-color,opacity] duration-150 hover:bg-white/[0.018]",
           expanded && "bg-white/[0.018]",
+          position.liquidated && "text-muted-foreground opacity-60 hover:opacity-90",
           opening && "bg-primary/[0.04] opacity-70",
         )}
       >
@@ -798,6 +817,14 @@ function PositionRow({
           >
             {position.assetName}
           </Link>
+          {position.liquidated ? (
+            <span
+              data-testid="position-liquidated"
+              className="ml-2 inline-flex items-center rounded-full border border-border px-1.5 py-px align-middle text-[9px] font-semibold tracking-[0.08em] text-muted-foreground uppercase"
+            >
+              Liquidada
+            </span>
+          ) : null}
           <p className="mt-1 font-mono text-[9px] text-muted-foreground">
             {position.ticker ?? "SALDO"}
             <span className="font-sans 2xl:hidden"> · {typeOf(position)}</span>
@@ -875,26 +902,23 @@ function PositionRow({
         </Cell>
         <td className="py-3.5 pr-3 pl-0 align-top sm:pr-4">
           {canEdit ? (
-            // Movimentar, lápis e lixeira aparecem ao passar o mouse, ao focar e
-            // sempre em telas de toque, sem hover (specs 043 e 056). Liquidar,
-            // num título vencido, fica sempre à vista (spec 059).
-            <div className="flex justify-end gap-0.5">
-              {onLiquidate ? (
+            // Movimentar, liquidar, lápis e lixeira aparecem ao passar o mouse,
+            // ao focar e sempre em telas de toque, sem hover (specs 043, 056 e 076).
+            <div className="flex justify-end gap-0.5 opacity-0 transition-opacity duration-150 group-focus-within:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100">
+              <IconButton label={`Movimentar ${position.assetName}`} onClick={() => onMove(position)}>
+                <ArrowsDownUpIcon aria-hidden="true" size={14} weight="bold" />
+              </IconButton>
+              {position.liquidated ? null : (
                 <IconButton label={`Liquidar ${position.assetName}`} onClick={() => onLiquidate(position)}>
-                  <HandCoinsIcon aria-hidden="true" size={14} weight="bold" className="text-warning-foreground" />
+                  <HandCoinsIcon aria-hidden="true" size={14} weight="bold" />
                 </IconButton>
-              ) : null}
-              <div className="flex gap-0.5 opacity-0 transition-opacity duration-150 group-focus-within:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100">
-                <IconButton label={`Movimentar ${position.assetName}`} onClick={() => onMove(position)}>
-                  <ArrowsDownUpIcon aria-hidden="true" size={14} weight="bold" />
-                </IconButton>
-                <IconButton label={`Editar ${position.assetName}`} onClick={() => onEdit(position)}>
-                  <PencilSimpleIcon aria-hidden="true" size={14} weight="bold" />
-                </IconButton>
-                <IconButton label={`Remover ${position.assetName}`} tone="danger" onClick={() => onRemove(position)}>
-                  <TrashIcon aria-hidden="true" size={14} />
-                </IconButton>
-              </div>
+              )}
+              <IconButton label={`Editar ${position.assetName}`} onClick={() => onEdit(position)}>
+                <PencilSimpleIcon aria-hidden="true" size={14} weight="bold" />
+              </IconButton>
+              <IconButton label={`Remover ${position.assetName}`} tone="danger" onClick={() => onRemove(position)}>
+                <TrashIcon aria-hidden="true" size={14} />
+              </IconButton>
             </div>
           ) : null}
         </td>

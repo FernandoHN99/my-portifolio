@@ -5,7 +5,6 @@ import { formatBrl } from "@/modules/portfolio/presentation/portfolio-format";
 
 const DAY = new Intl.DateTimeFormat("pt-BR", { timeZone: "UTC" });
 const PERCENT = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 3 });
-const RATE = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 6 });
 
 function day(key: string) {
   return DAY.format(new Date(`${key}T00:00:00.000Z`));
@@ -25,10 +24,6 @@ export function CdiPanel({ cdi }: { cdi: CdiView }) {
           {PERCENT.format(cdi.percent)}% do CDI
         </h2>
       </div>
-      <p className="mt-1 text-[11px] text-muted-foreground">
-        Cálculo bruto, sem IR nem IOF, pelo CDI diário do Banco Central (série 12), desde {day(cdi.start)} neste mês.
-        Cada aporte e retirada rende a partir do próprio dia.
-      </p>
 
       <dl className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
         <Item label="Base do mês" value={formatBrl(cdi.baseBrl)} />
@@ -48,11 +43,6 @@ export function CdiPanel({ cdi }: { cdi: CdiView }) {
           <p className="text-xs text-foreground">
             Projeção {cdi.projection.toMaturity ? "no vencimento" : "em 12 meses"}, {day(cdi.projection.until)}:{" "}
             <span className="font-mono">{formatBrl(cdi.projection.balanceBrl)}</span>
-          </p>
-          <p className="mt-1 text-[11px] text-muted-foreground">
-            Hipótese: o último CDI diário ({RATE.format(cdi.projection.dailyPercent)}% ao dia) mantido em{" "}
-            {cdi.projection.businessDays} dias úteis, de segunda a sexta, sem feriados. Não é o saldo de hoje nem uma
-            promessa de rendimento.
           </p>
         </div>
       ) : null}

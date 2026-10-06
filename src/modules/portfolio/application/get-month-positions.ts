@@ -41,6 +41,11 @@ export type MonthPosition = {
   incomeCalculationError?: string | null;
   quantity: number;
   quantityText: string;
+  /**
+   * Liquidada (spec 076): uma retirada zerou a posição neste mês. Ela aparece
+   * no mês da saída e não passa ao seguinte.
+   */
+  liquidated: boolean;
   unitPriceBrl: number | null;
   totalBrl: number;
   totalUsd: number | null;
@@ -211,6 +216,7 @@ export async function getMonthPositions(
             incomeCalculationError: position.incomeCalculationError,
             quantity: position.quantity.toNumber(),
             quantityText: position.quantity.toString(),
+            liquidated: !position.quantity.greaterThan(0),
             unitPriceBrl: position.unitPriceBrl ? position.unitPriceBrl.toNumber() : null,
             totalBrl: positionTotal,
             totalUsd: usdRate === null || usdRate === 0 ? null : positionTotal / usdRate,
