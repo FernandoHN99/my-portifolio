@@ -189,6 +189,12 @@ financeiras para a diferença entre duas fotografias independentes.
 
 ## 5. Caixa comum manual; liquidação de vencimento integrada
 
+> Atualização de 2026-10-05: a pedido do usuário, a liquidação passou a ser uma
+> retirada total de qualquer posição, sem conta de destino, e a opção Conta
+> corrente saiu do formulário ([spec 076](../specs/076-position-liquidation.md)
+> e [spec 075](../specs/075-position-page-cleanup-and-month-strip.md)). O texto
+> abaixo é o pedido original da spec 059.
+
 Aportes e retiradas comuns não debitam/creditam outra posição automaticamente
 nesta etapa. Eu faço essas movimentações de caixa manualmente. Não exija
 conta de origem/destino nesses formulários.

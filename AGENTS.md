@@ -17,7 +17,7 @@ no Neon, e o job das cotações roda como função do Neon
 ([Produção](.ai/context/production.md)).
 
 Revisões posteriores: specs 063 a 073 no `main` e na produção desde
-2026-10-05. O trabalho do dia a
+2026-10-05; specs 074 a 076 na `dev`. O trabalho do dia a
 dia vai para a `dev`; a `main` é a produção ([fluxo de Git](docs/git-workflow.md)).
 
 - as cotações são atualizadas só pelo job agendado (`pnpm quotes:sync`,
@@ -82,16 +82,25 @@ dia vai para a `dev`; a `main` é a produção ([fluxo de Git](docs/git-workflow
   [docs/backup-format.md](docs/backup-format.md), que mantém o formato do
   backup e as conversões de versões antigas;
 - o backup mais recente dos dados reais é
-  `backups/meu-portfolio-backup-2026-10-05-movimentacoes-v2.json` (versão 5, com
+  `backups/meu-portfolio-backup-2026-10-05-movimentacoes-v3.json` (versão 5, com
   movimentações convertidas pelas regras do usuário e pelo relatório do Inter,
-  [spec 071](.ai/specs/071-backup-with-movements.md)), restaurado na carteira
-  local em 2026-10-05; a produção ainda não o recebeu. Nele todas as
-  competências estão fechadas: os testes que editam ficam pulados até o usuário
-  abrir um mês;
+  [spec 071](.ai/specs/071-backup-with-movements.md), e as liquidações das
+  posições que saíram, [spec 076](.ai/specs/076-position-liquidation.md)),
+  restaurado na carteira local em 2026-10-05; a produção ainda não o recebeu.
+  Nele todas as competências estão fechadas: os testes que editam ficam pulados
+  até o usuário abrir um mês;
 - a página da posição mostra valor aplicado (saldo inicial e aportes, menos a
   parte proporcional das retiradas), rendimento e preço médio por um custo
   médio único; o topo tem a trilha da posição abaixo das abas e a aba
   Configuração ([spec 073](.ai/specs/073-position-page-applied-value-and-nav-trail.md));
+- a interface não tem textos explicativos nos quadros; na página da posição, mês
+  a mês e movimentações começam recolhidos, melhor e pior mês ficam no card da
+  variação, e a faixa de competências mostra só os meses com a posição
+  ([spec 075](.ai/specs/075-position-page-cleanup-and-month-strip.md));
+- liquidar é uma retirada total que preserva o histórico: a posição aparece no
+  mês da saída como liquidada e não passa ao seguinte; remover apaga o registro.
+  O rendimento soma o lucro realizado nas retiradas, e a conta corrente saiu da
+  interface ([spec 076](.ai/specs/076-position-liquidation.md));
 - transações dentro das posições foram implementadas; a previdência, que o
   usuário indicou como próximo assunto, continua em `.ai/context/backlog.md`;
 - as respostas do usuário, o backlog e o que ainda aguarda resposta estão em

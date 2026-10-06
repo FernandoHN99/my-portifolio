@@ -138,10 +138,11 @@ A produção começa sem usuários. Para entrar:
 
 ## Pendente
 
-- o backup com movimentações v2 ([spec 071](../specs/071-backup-with-movements.md))
-  só entra na produção se o usuário importá-lo pela Configuração; sem ele, a
-  página da posição na produção calcula o valor aplicado só a partir das
-  movimentações já registradas lá;
+- o backup com movimentações v3 ([spec 071](../specs/071-backup-with-movements.md)
+  e [spec 076](../specs/076-position-liquidation.md)), que substituiu a v2, só
+  entra na produção se o usuário importá-lo pela Configuração; sem ele, a página
+  da posição na produção calcula o valor aplicado só a partir das movimentações
+  já registradas lá;
 - a Binance não serve de reserva para a função em `aws-us-east-1` (HTTP 451):
   sem a CoinGecko, BTC e SOL esperam a execução seguinte;
 - o backup passou à versão 5; arquivos antigos continuam restaurando.

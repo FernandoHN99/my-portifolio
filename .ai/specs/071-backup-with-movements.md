@@ -1,8 +1,9 @@
 # 071 — Backup convertido com movimentações
 
 Estado: v1 gerada, validada e restaurada na carteira local em 2026-10-05. No
-mesmo dia, a v2 a substituiu com as regras novas do usuário (seção "Versão 2")
-e também foi restaurada localmente. A produção não foi alterada.
+mesmo dia, a v2 a substituiu com as regras novas do usuário (seção "Versão 2"),
+e a v3 acrescentou as liquidações (seção "Versão 3"). As duas foram restauradas
+localmente. A produção não foi alterada.
 Origem: pedido do usuário em 2026-10-04. O backup fiel dele vinha do tempo
 anterior às movimentações; ele pediu um arquivo novo em que cada posição tenha
 pelo menos uma movimentação, para usar daqui em diante, perguntando cada dúvida
@@ -111,10 +112,19 @@ As telas que mostram esses dados estão na
 [spec 073](073-position-page-applied-value-and-nav-trail.md), com a conferência
 de todas as posições e competências.
 
+## Versão 3 (2026-10-05)
+
+A v3 parte da v2 e só acrescenta as liquidações: cada posição que deixou de
+existir termina com uma retirada total no mês da saída
+([spec 076](076-position-liquidation.md)). Ela substitui a v2 como backup em
+uso.
+
 ## Arquivos fora do Git
 
-- `backups/meu-portfolio-backup-2026-10-05-movimentacoes-v2.json`: o backup em
-  uso (v2).
+- `backups/meu-portfolio-backup-2026-10-05-movimentacoes-v3.json`: o backup em
+  uso (v3, [spec 076](076-position-liquidation.md)).
+- `backups/meu-portfolio-backup-2026-10-05-movimentacoes-v2.json`: a v2, base da
+  v3.
 - `backups/revisao-movimentacoes-2026-10-05-v2.md`: cada movimentação da v2,
   com o motivo da classificação.
 - `backups/meu-portfolio-backup-2026-10-05-movimentacoes.json` e

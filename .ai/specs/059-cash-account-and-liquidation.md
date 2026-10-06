@@ -1,6 +1,9 @@
 # 059 — Conta corrente e liquidação de títulos vencidos
 
-Estado: concluída localmente em 2026-10-04 (sem deploy).
+Estado: concluída em 2026-10-04. Em 2026-10-05, a liquidação com conta corrente
+foi substituída pela retirada total da [spec 076](076-position-liquidation.md),
+e a opção Conta corrente saiu do formulário
+([spec 075](075-position-page-cleanup-and-month-strip.md)).
 Definida em: 2026-10-04
 
 ## Problema
