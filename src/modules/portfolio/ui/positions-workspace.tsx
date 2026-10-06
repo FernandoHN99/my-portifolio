@@ -1,6 +1,5 @@
 "use client";
 
-import { Dialog } from "@base-ui/react/dialog";
 import {
   ArrowDownIcon,
   ArrowUpIcon,
@@ -9,12 +8,8 @@ import {
   CurrencyCircleDollarIcon,
   LockKeyIcon,
   MagnifyingGlassIcon,
-  ArrowsDownUpIcon,
-  HandCoinsIcon,
-  PencilSimpleIcon,
   PlusIcon,
   TableIcon,
-  TrashIcon,
   XIcon,
 } from "@phosphor-icons/react/dist/ssr";
 import {
@@ -28,11 +23,10 @@ import {
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { parseAsArrayOf, parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
-import { Fragment, useCallback, useRef, useState, useTransition, type MouseEvent, type ReactNode } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState, useTransition, type MouseEvent, type ReactNode } from "react";
 
 import {
   cloneLatestMonthAction,
-  removePositionAction,
   startPortfolioAction,
   undoChangeAction,
   type EditActionResult,
@@ -62,24 +56,13 @@ import {
 } from "@/modules/portfolio/presentation/portfolio-format";
 import { positionHref } from "@/modules/portfolio/presentation/position-page";
 import { parseMonthParam, toMonthParam } from "@/modules/portfolio/presentation/reference-month";
-import {
-  backdropClass,
-  centeredPopupClass,
-  headerPrimaryButtonClass,
-  secondaryButtonClass,
-} from "@/modules/portfolio/ui/edit-dialogs";
-import { EditToast, type EditToastState } from "@/modules/portfolio/ui/edit-toast";
+import { headerPrimaryButtonClass } from "@/modules/portfolio/ui/edit-dialogs";
+import { EditToast, takeHandedOffToast, type EditToastState } from "@/modules/portfolio/ui/edit-toast";
 import { EmptyPortfolio } from "@/modules/portfolio/ui/empty-portfolio";
-import { LiquidationDialog, type LiquidationTarget } from "@/modules/portfolio/ui/liquidation-dialog";
 import { MaturityBadge } from "@/modules/portfolio/ui/maturity-badge";
 import { MultiSelectFilter } from "@/modules/portfolio/ui/multi-select-filter";
 import { PositionsFilterSheet, type FilterGroup } from "@/modules/portfolio/ui/positions-filter-sheet";
 import { PositionFormDialog, type PositionFormTarget } from "@/modules/portfolio/ui/position-form-dialog";
-import {
-  PositionTransactionDialog,
-  transactionMonthOf,
-  type TransactionTarget,
-} from "@/modules/portfolio/ui/position-transaction-dialog";
 
 const QUICK_CLASSES = ["Caixa", "Cripto", "Renda Fixa", "Renda Variável", "Reserva"];
 const GROUP_OPTIONS = ["instituicao", "classe", "tipo"] as const;
@@ -132,8 +115,8 @@ const columns = helper.columns([
   helper.accessor("share", { header: "%" }),
 ]);
 
-// Seta de expansão, colunas e ações.
-const COLUMN_COUNT = columns.length + 2;
+// Seta de expansão e colunas; as ações ficam na página da posição.
+const COLUMN_COUNT = columns.length + 1;
 
 type FormState = { open: boolean; target: PositionFormTarget | null; key: number };
 
@@ -164,20 +147,6 @@ export function PositionsWorkspace({
   );
 
   const [form, setForm] = useState<FormState>({ open: false, target: null, key: 0 });
-  const [movement, setMovement] = useState<{ open: boolean; target: TransactionTarget | null; key: number }>({
-    open: false,
-    target: null,
-    key: 0,
-  });
-  const [liquidation, setLiquidation] = useState<{ open: boolean; target: LiquidationTarget | null; key: number }>({
-    open: false,
-    target: null,
-    key: 0,
-  });
-  const [removal, setRemoval] = useState<{ open: boolean; position: MonthPosition | null }>({
-    open: false,
-    position: null,
-  });
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
   const [toast, setToast] = useState<EditToastState | null>(null);
   const [isSaving, startSaving] = useTransition();
@@ -187,6 +156,33 @@ export function PositionsWorkspace({
   const sequence = useRef(0);
 
   const dismissToast = useCallback(() => setToast(null), []);
+
+  const notify = (result: EditActionResult) =>
+    setToast({
+      id: ++sequence.current,
+      tone: result.ok ? "success" : "error",
+      message: result.message,
+      undoToken: result.ok ? result.undoToken : undefined,
+    });
+
+  const undo = (token: string) =>
+    startUndo(async () => {
+      const result = await undoChangeAction(token);
+      notify(result);
+
+      if (result.ok && !result.month) {
+        router.replace("/posicoes");
+      }
+    });
+
+  // Uma remoção feita na página da posição volta para cá com o desfazer (spec 080).
+  useEffect(() => {
+    const handed = takeHandedOffToast();
+
+    if (handed) {
+      setToast({ id: ++sequence.current, ...handed });
+    }
+  }, []);
 
   const filters: PositionFilters = {
     classes: query.classe,
@@ -219,7 +215,12 @@ export function PositionsWorkspace({
   });
 
   if (!month || month.positions.length === 0) {
-    return <EmptyPositions month={month} catalog={catalog} />;
+    return (
+      <>
+        <EmptyPositions month={month} catalog={catalog} />
+        <EditToast toast={toast} onDismiss={dismissToast} onUndo={undo} undoing={isUndoing} />
+      </>
+    );
   }
 
   const canEdit = !month.isLocked;
@@ -254,30 +255,8 @@ export function PositionsWorkspace({
   ];
   const activeCount = month.positions.length - liquidatedCount;
 
-  const notify = (result: EditActionResult) =>
-    setToast({
-      id: ++sequence.current,
-      tone: result.ok ? "success" : "error",
-      message: result.message,
-      undoToken: result.ok ? result.undoToken : undefined,
-    });
-
   const openForm = (target: PositionFormTarget) =>
     setForm((current) => ({ open: true, target, key: current.key + 1 }));
-
-  const confirmRemoval = () => {
-    const position = removal.position;
-
-    if (!position) {
-      return;
-    }
-
-    startSaving(async () => {
-      const result = await removePositionAction({ monthId: month.id, positionId: position.id });
-      setRemoval((current) => ({ ...current, open: false }));
-      notify(result);
-    });
-  };
 
   const cloneMonth = () =>
     startSaving(async () => {
@@ -286,16 +265,6 @@ export function PositionsWorkspace({
 
       if (result.ok && result.month) {
         router.push(`/posicoes?mes=${result.month}`);
-      }
-    });
-
-  const undo = (token: string) =>
-    startUndo(async () => {
-      const result = await undoChangeAction(token);
-      notify(result);
-
-      if (result.ok && !result.month) {
-        router.replace("/posicoes");
       }
     });
 
@@ -338,40 +307,9 @@ export function PositionsWorkspace({
       usdRate={month.usdRate}
       href={positionHref(position.accountId, position.assetId, searchParams)}
       expanded={expanded.has(position.id)}
-      canEdit={canEdit}
       opening={isOpening && openingId === position.id}
       onOpen={openPosition}
       onToggle={toggleExpanded}
-      onEdit={(target) => openForm({ mode: "edit", position: target })}
-      onMove={(target) =>
-        setMovement((current) => ({
-          open: true,
-          key: current.key + 1,
-          target: {
-            positionId: target.id,
-            assetName: target.assetName,
-            quoteSymbol: target.quoteSymbol,
-            quantity: target.quantity,
-            unitPriceBrl: target.unitPriceBrl,
-            totalBrl: target.totalBrl,
-            autoIncome: Boolean(target.autoIncome && target.calculationStartDate),
-          },
-        }))
-      }
-      onRemove={(target) => setRemoval({ open: true, position: target })}
-      onLiquidate={(target) =>
-        setLiquidation((current) => ({
-          open: true,
-          key: current.key + 1,
-          target: {
-            positionId: target.id,
-            assetName: target.assetName,
-            quantity: target.quantity,
-            quoteSymbol: target.quoteSymbol,
-            totalBrl: target.totalBrl,
-          },
-        }))
-      }
     />
   );
 
@@ -582,9 +520,6 @@ export function PositionsWorkspace({
                       </th>
                     );
                   })}
-                  <th className={cn("py-3 pr-3 pl-0 sm:pr-4", canEdit ? "w-[122px]" : "w-2")}>
-                    <span className="sr-only">Ações</span>
-                  </th>
                 </tr>
               ))}
             </thead>
@@ -660,83 +595,6 @@ export function PositionsWorkspace({
         onSaved={notify}
       />
 
-      <LiquidationDialog
-        open={liquidation.open}
-        onOpenChange={(open) => setLiquidation((current) => ({ ...current, open }))}
-        target={liquidation.target}
-        formKey={liquidation.key}
-        month={transactionMonthOf(month.id, month.referenceDate)}
-        onSaved={notify}
-      />
-
-      <PositionTransactionDialog
-        open={movement.open}
-        onOpenChange={(open) => setMovement((current) => ({ ...current, open }))}
-        target={movement.target}
-        formKey={movement.key}
-        month={transactionMonthOf(month.id, month.referenceDate)}
-        onSaved={notify}
-      />
-
-      <Dialog.Root
-        open={removal.open}
-        onOpenChange={(open) => !isSaving && setRemoval((current) => ({ ...current, open }))}
-      >
-        <Dialog.Portal>
-          <Dialog.Backdrop className={backdropClass} />
-          <Dialog.Popup className={centeredPopupClass}>
-            <Dialog.Title className="text-base font-semibold tracking-[-0.02em]">
-              Remover {removal.position?.assetName ?? "posição"}?
-            </Dialog.Title>
-            {/* Remover apaga o registro do mês; liquidar encerra a posição com uma
-                retirada total e guarda o histórico (spec 076). */}
-            <Dialog.Description className="mt-2 text-sm leading-6 text-muted-foreground">
-              Apaga o registro de {removal.position?.institutionName} em {monthLabel}.
-              {removal.position && !removal.position.liquidated ? " Para encerrar a posição e manter o histórico, liquide." : ""}
-            </Dialog.Description>
-            <div className="mt-6 flex justify-end gap-2">
-              <Dialog.Close className={secondaryButtonClass} disabled={isSaving}>
-                Cancelar
-              </Dialog.Close>
-              {removal.position && !removal.position.liquidated ? (
-                <button
-                  type="button"
-                  disabled={isSaving}
-                  onClick={() => {
-                    const target = removal.position!;
-                    setRemoval((current) => ({ ...current, open: false }));
-                    setLiquidation((current) => ({
-                      open: true,
-                      key: current.key + 1,
-                      target: {
-                        positionId: target.id,
-                        assetName: target.assetName,
-                        quantity: target.quantity,
-                        quoteSymbol: target.quoteSymbol,
-                        totalBrl: target.totalBrl,
-                      },
-                    }));
-                  }}
-                  className={cn(secondaryButtonClass, "gap-2")}
-                >
-                  <HandCoinsIcon aria-hidden="true" size={14} weight="bold" />
-                  Liquidar
-                </button>
-              ) : null}
-              <button
-                type="button"
-                onClick={confirmRemoval}
-                disabled={isSaving}
-                className="inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-destructive px-3.5 text-xs font-semibold text-white outline-none transition-[background-color,transform] duration-150 hover:bg-destructive/90 focus-visible:ring-3 focus-visible:ring-destructive/40 active:scale-[0.98] disabled:opacity-50"
-              >
-                <TrashIcon aria-hidden="true" size={14} />
-                {isSaving ? "Removendo…" : "Remover"}
-              </button>
-            </div>
-          </Dialog.Popup>
-        </Dialog.Portal>
-      </Dialog.Root>
-
       <EditToast toast={toast} onDismiss={dismissToast} onUndo={undo} undoing={isUndoing} />
     </div>
   );
@@ -749,14 +607,9 @@ function PositionRow({
   usdRate,
   href,
   expanded,
-  canEdit,
   opening,
   onOpen,
   onToggle,
-  onEdit,
-  onMove,
-  onRemove,
-  onLiquidate,
 }: {
   position: MonthPosition;
   referenceDay: string;
@@ -764,15 +617,9 @@ function PositionRow({
   usdRate: number | null;
   href: string;
   expanded: boolean;
-  canEdit: boolean;
   opening: boolean;
   onOpen: (position: MonthPosition, href: string) => void;
   onToggle: (position: MonthPosition) => void;
-  onEdit: (position: MonthPosition) => void;
-  onMove: (position: MonthPosition) => void;
-  onRemove: (position: MonthPosition) => void;
-  /** Retirada total que encerra a posição, mantendo o histórico (spec 076). */
-  onLiquidate: (position: MonthPosition) => void;
 }) {
   const isPartial = Math.abs(valueBrl - position.totalBrl) > 0.005;
   const [first, ...others] = [...position.allocations].sort((left, right) => right.weight - left.weight);
@@ -929,28 +776,6 @@ function PositionRow({
         <Cell id="share">
           <span className="font-mono text-xs text-muted-foreground">{formatSharePercent(position.share)}</span>
         </Cell>
-        <td className="py-3.5 pr-3 pl-0 align-top sm:pr-4">
-          {canEdit ? (
-            // Movimentar, liquidar, lápis e lixeira aparecem ao passar o mouse,
-            // ao focar e sempre em telas de toque, sem hover (specs 043, 056 e 076).
-            <div className="flex justify-end gap-0.5 opacity-0 transition-opacity duration-150 group-focus-within:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100">
-              <IconButton label={`Movimentar ${position.assetName}`} onClick={() => onMove(position)}>
-                <ArrowsDownUpIcon aria-hidden="true" size={14} weight="bold" />
-              </IconButton>
-              {position.liquidated ? null : (
-                <IconButton label={`Liquidar ${position.assetName}`} onClick={() => onLiquidate(position)}>
-                  <HandCoinsIcon aria-hidden="true" size={14} weight="bold" />
-                </IconButton>
-              )}
-              <IconButton label={`Editar ${position.assetName}`} onClick={() => onEdit(position)}>
-                <PencilSimpleIcon aria-hidden="true" size={14} weight="bold" />
-              </IconButton>
-              <IconButton label={`Remover ${position.assetName}`} tone="danger" onClick={() => onRemove(position)}>
-                <TrashIcon aria-hidden="true" size={14} />
-              </IconButton>
-            </div>
-          ) : null}
-        </td>
       </tr>
       {expanded ? (
         <tr id={detailsId} data-testid="position-details" className="bg-white/[0.012]">
@@ -1045,33 +870,6 @@ function QuantityText({ position }: { position: MonthPosition }) {
         ? position.quantity.toLocaleString("pt-BR", { maximumFractionDigits: 8 })
         : formatBrl(position.quantity)}
     </span>
-  );
-}
-
-function IconButton({
-  label,
-  tone = "neutral",
-  onClick,
-  children,
-}: {
-  label: string;
-  tone?: "neutral" | "danger";
-  onClick: () => void;
-  children: ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      aria-label={label}
-      title={label}
-      onClick={onClick}
-      className={cn(
-        "grid size-7 place-items-center rounded-md text-muted-foreground outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring/50",
-        tone === "danger" ? "hover:bg-destructive/10 hover:text-destructive" : "hover:bg-white/[0.06] hover:text-foreground",
-      )}
-    >
-      {children}
-    </button>
   );
 }
 

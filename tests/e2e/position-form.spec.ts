@@ -4,7 +4,7 @@ import type { TickerCheckRequest, TickerCheckResponse } from "@/modules/quotes/d
 
 import {
   chooseKind, closeForm, continueForm, expectFormStep, formTab, issueCount,
-  openAddForm, openEditableMonth, openEditForm, pick, positionRow,
+  openAddForm, openEditableMonth, openEditForm, openPositionPage, pick, positionRow,
 } from "./support/position-form";
 import { stubQuoteChecks } from "./support/quote-checks";
 
@@ -78,8 +78,11 @@ test("num mês fechado não há incluir, lápis nem lixeira", async ({ page }) =
   await page.goto("/posicoes?mes=2026-08");
   await expect(page.getByTestId("month-locked")).toBeVisible();
   await expect(page.getByRole("button", { name: "Adicionar posição" })).toHaveCount(0);
-  await expect(positionRow(page, "Bitcoin 01").getByRole("button", { name: "Editar Bitcoin 01" })).toHaveCount(0);
-  await expect(positionRow(page, "Bitcoin 01").getByRole("button", { name: "Remover Bitcoin 01" })).toHaveCount(0);
+  await expect(positionRow(page, "Bitcoin 01").getByRole("button", { name: /^(Movimentar|Liquidar|Editar|Remover) / })).toHaveCount(0);
+  // Na página da posição, o mês fechado desliga a edição e esconde o remover.
+  await openPositionPage(page, "Bitcoin 01");
+  await expect(page.getByRole("button", { name: "Editar posição" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Remover", exact: true })).toHaveCount(0);
 });
 
 test("instituição aceita valor novo e renda fixa manual não mostra cálculo CDI", async ({ page }) => {
@@ -334,17 +337,19 @@ test("o lápis da linha abre o mesmo formulário com a posição preenchida", as
   await expect(dialog).toHaveCount(0);
 });
 
-test("a lixeira pede confirmação antes de remover", async ({ page }) => {
+test("remover, na página da posição, pede confirmação", async ({ page }) => {
   await openPositions(page);
-  const row = positionRow(page, "Porquinho");
-  await row.hover();
-  await row.getByRole("button", { name: "Remover Porquinho" }).click();
+  // As ações saíram da linha da tabela (spec 080).
+  await expect(positionRow(page, "Porquinho").getByRole("button", { name: /^(Movimentar|Liquidar|Editar|Remover) / })).toHaveCount(0);
+  await openPositionPage(page, "Porquinho");
+  await page.getByRole("button", { name: "Remover", exact: true }).click();
 
   const confirm = page.getByRole("dialog", { name: "Remover Porquinho?" });
-  await expect(confirm).toContainText("dá para desfazer");
+  await expect(confirm).toContainText("Apaga o registro");
+  await expect(confirm.getByRole("button", { name: "Liquidar" })).toBeVisible();
   await confirm.getByRole("button", { name: "Cancelar" }).click();
   await expect(confirm).toHaveCount(0);
-  await expect(positionRow(page, "Porquinho")).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "Porquinho" })).toBeVisible();
 });
 
 test("a página da posição edita pelo mesmo formulário", async ({ page }) => {

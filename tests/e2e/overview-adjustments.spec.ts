@@ -246,3 +246,18 @@ test("os cards respondem ao ponteiro como os indicadores", async ({ page }) => {
   await kpi.hover();
   await expect.poll(() => style(kpi, "transform")).toBe("none");
 });
+
+test("no celular, comprar e vender mostra só o item e a diferença", async ({ page }) => {
+  // Spec 080: as colunas de atual e ideal ficam para telas maiores.
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/?mes=2026-09");
+
+  const panel = page.getByRole("region", { name: "Comprar e vender" });
+  await panel.scrollIntoViewIfNeeded();
+  await expect(panel.getByRole("columnheader", { name: "Item" })).toBeVisible();
+  await expect(panel.getByRole("columnheader", { name: "Diferença" })).toBeVisible();
+  for (const hidden of ["% atual", "% ideal", "R$ atual", "R$ ideal"]) {
+    await expect(panel.getByRole("columnheader", { name: hidden })).toBeHidden();
+  }
+  expect(await pageWidth(page)).toBeLessThanOrEqual(390);
+});

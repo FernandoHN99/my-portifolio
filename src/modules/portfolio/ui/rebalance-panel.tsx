@@ -8,6 +8,9 @@ import { formatBrl, formatSharePercent } from "@/modules/portfolio/presentation/
  * nas abas da alocação, fora deste quadro, que também escolhem o gráfico de
  * cima.
  */
+/** Colunas que saem no celular. */
+const WIDE = "hidden sm:table-cell";
+
 export function RebalancePanel({ rows }: { rows: AllocationRow[] }) {
   const toSell = rows
     .filter((row) => row.direction === "SELL")
@@ -31,15 +34,16 @@ export function RebalancePanel({ rows }: { rows: AllocationRow[] }) {
         Comprar e vender
       </h2>
 
+      {/* No celular, só o item e a diferença (spec 080). */}
       <div className="mt-4 overflow-x-auto">
-        <table className="w-full min-w-[640px] border-collapse text-left">
+        <table className="w-full border-collapse text-left sm:min-w-[640px]">
           <thead>
             <tr className="border-b border-border/60 text-[9px] font-semibold tracking-[0.13em] text-muted-foreground uppercase">
               <th className="py-3 pr-3">Item</th>
-              <th className="py-3 pr-3 text-right">% atual</th>
-              <th className="py-3 pr-3 text-right">% ideal</th>
-              <th className="py-3 pr-3 text-right">R$ atual</th>
-              <th className="py-3 pr-3 text-right">R$ ideal</th>
+              <th className={cn("py-3 pr-3 text-right", WIDE)}>% atual</th>
+              <th className={cn("py-3 pr-3 text-right", WIDE)}>% ideal</th>
+              <th className={cn("py-3 pr-3 text-right", WIDE)}>R$ atual</th>
+              <th className={cn("py-3 pr-3 text-right", WIDE)}>R$ ideal</th>
               <th className="py-3 text-right">Diferença</th>
             </tr>
           </thead>
@@ -115,16 +119,16 @@ function RebalanceRow({ row, maxDifference }: { row: AllocationRow; maxDifferenc
           <span className="text-xs text-foreground/90">{row.label}</span>
         </div>
       </td>
-      <td className="py-3 pr-3 text-right font-mono text-[11px] text-foreground/80">
+      <td className={cn("py-3 pr-3 text-right font-mono text-[11px] text-foreground/80", WIDE)}>
         {formatSharePercent(row.currentShare)}
       </td>
-      <td className="py-3 pr-3 text-right font-mono text-[11px] text-muted-foreground">
+      <td className={cn("py-3 pr-3 text-right font-mono text-[11px] text-muted-foreground", WIDE)}>
         {row.targetShare === null ? "—" : formatSharePercent(row.targetShare)}
       </td>
-      <td className="py-3 pr-3 text-right font-mono text-[11px] text-foreground/80">
+      <td className={cn("py-3 pr-3 text-right font-mono text-[11px] text-foreground/80", WIDE)}>
         {formatBrl(row.currentBrl)}
       </td>
-      <td className="py-3 pr-3 text-right font-mono text-[11px] text-muted-foreground">
+      <td className={cn("py-3 pr-3 text-right font-mono text-[11px] text-muted-foreground", WIDE)}>
         {row.targetBrl === null ? "—" : formatBrl(row.targetBrl)}
       </td>
       <td className="py-3">

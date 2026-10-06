@@ -14,6 +14,30 @@ export type EditToastState = {
 };
 
 const AUTO_DISMISS_MS = 9000;
+const HANDOFF_KEY = "portfolio:edit-toast";
+
+/**
+ * Guarda o aviso para a próxima página (spec 080): remover na página da
+ * posição volta para a tabela, que mostra o aviso com o desfazer.
+ */
+export function handOffToast(toast: Omit<EditToastState, "id">) {
+  try {
+    sessionStorage.setItem(HANDOFF_KEY, JSON.stringify(toast));
+  } catch {
+    // Sem armazenamento da sessão, o aviso só não aparece.
+  }
+}
+
+/** O aviso deixado pela página anterior, lido uma vez. */
+export function takeHandedOffToast(): Omit<EditToastState, "id"> | null {
+  try {
+    const raw = sessionStorage.getItem(HANDOFF_KEY);
+    sessionStorage.removeItem(HANDOFF_KEY);
+    return raw ? (JSON.parse(raw) as Omit<EditToastState, "id">) : null;
+  } catch {
+    return null;
+  }
+}
 
 export function EditToast({
   toast,

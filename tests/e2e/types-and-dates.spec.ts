@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { expectFormStep, openEditableMonth, positionRow, waitForHydration } from "./support/position-form";
+import { expectFormStep, openEditableMonth, openPositionPage, waitForHydration } from "./support/position-form";
 import { chooseFilter, openFilterGroup, usesFilterSheet } from "./support/position-filters";
 import { stubQuoteChecks } from "./support/quote-checks";
 
@@ -39,9 +39,8 @@ test("Posições filtra e agrupa pelo tipo do ativo", async ({ page }) => {
 
 test("o dia da movimentação usa o calendário do app e não aceita dia fora da competência", async ({ page }) => {
   test.skip(!(await openEditableMonth(page)), "Nenhum mês aberto para editar.");
-  const row = positionRow(page, "ETF - VOO");
-  await row.hover();
-  await row.getByRole("button", { name: "Movimentar ETF - VOO" }).click();
+  await openPositionPage(page, "ETF - VOO");
+  await page.getByRole("button", { name: "Movimentar", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "Movimentar ETF - VOO" });
   await dialog.getByRole("combobox", { name: "Tipo de movimentação" }).click();
   await page.getByRole("option", { name: /^Aporte/ }).click();

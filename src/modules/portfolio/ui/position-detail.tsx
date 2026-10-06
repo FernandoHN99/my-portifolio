@@ -1,5 +1,6 @@
 "use client";
 
+import { Dialog } from "@base-ui/react/dialog";
 import NumberFlow from "@number-flow/react";
 import {
   ArrowLeftIcon,
@@ -10,6 +11,7 @@ import {
   InfoIcon,
   MagnifyingGlassIcon,
   PencilSimpleIcon,
+  TrashIcon,
   TrendDownIcon,
   TrendUpIcon,
 } from "@phosphor-icons/react/dist/ssr";
@@ -18,7 +20,12 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { parseAsStringLiteral, useQueryState } from "nuqs";
 import { useCallback, useRef, useState, useTransition } from "react";
 
-import { removeTransactionAction, undoChangeAction, type EditActionResult } from "@/app/actions/edit-month";
+import {
+  removePositionAction,
+  removeTransactionAction,
+  undoChangeAction,
+  type EditActionResult,
+} from "@/app/actions/edit-month";
 import { cn } from "@/lib/utils";
 import type { EditingCatalog } from "@/modules/portfolio/application/get-editing-catalog";
 import type { MonthPosition } from "@/modules/portfolio/application/get-month-positions";
@@ -43,7 +50,8 @@ import {
 } from "@/modules/portfolio/presentation/position-page";
 import { AssetPriceChart } from "@/modules/portfolio/ui/asset-price-chart";
 import { BalanceChangeChart } from "@/modules/portfolio/ui/balance-change-chart";
-import { EditToast, type EditToastState } from "@/modules/portfolio/ui/edit-toast";
+import { backdropClass, centeredPopupClass, secondaryButtonClass } from "@/modules/portfolio/ui/edit-dialogs";
+import { EditToast, handOffToast, type EditToastState } from "@/modules/portfolio/ui/edit-toast";
 import { ChangeKpiCard, KpiCard } from "@/modules/portfolio/ui/kpi-card";
 import { MaturityBadge } from "@/modules/portfolio/ui/maturity-badge";
 import { PositionAttribution } from "@/modules/portfolio/ui/position-attribution";
@@ -109,6 +117,9 @@ export function PositionDetail({
     edit: null,
   });
   const [liquidation, setLiquidation] = useState({ open: false, key: 0 });
+  // Remover apaga o registro do mês (spec 080); as ações saíram da tabela.
+  const [removal, setRemoval] = useState(false);
+  const [isDeleting, startDeleting] = useTransition();
   const [isRemoving, startRemoving] = useTransition();
   const [toast, setToast] = useState<EditToastState | null>(null);
   const [isUndoing, startUndo] = useTransition();
@@ -319,6 +330,17 @@ export function PositionDetail({
               <PencilSimpleIcon aria-hidden="true" size={14} weight="bold" />
               Editar posição
             </button>
+            {editBlocked === null ? (
+              <button
+                type="button"
+                onClick={() => setRemoval(true)}
+                title={`Remover o registro de ${selectedLabel}`}
+                className="inline-flex h-9 items-center gap-2 rounded-xl border border-border bg-card/70 px-3.5 text-xs font-semibold text-muted-foreground outline-none transition-colors hover:bg-destructive/10 hover:text-destructive focus-visible:ring-2 focus-visible:ring-ring/50"
+              >
+                <TrashIcon aria-hidden="true" size={14} />
+                Remover
+              </button>
+            ) : null}
           </div>
         </div>
       </header>
@@ -549,6 +571,65 @@ export function PositionDetail({
           occupied={new Set(editing.occupied)}
           onSaved={notify}
         />
+      ) : null}
+      {editing && editPosition ? (
+        <Dialog.Root open={removal} onOpenChange={(open) => !isDeleting && setRemoval(open)}>
+          <Dialog.Portal>
+            <Dialog.Backdrop className={backdropClass} />
+            <Dialog.Popup className={centeredPopupClass}>
+              <Dialog.Title className="text-base font-semibold tracking-[-0.02em]">
+                Remover {editPosition.assetName}?
+              </Dialog.Title>
+              {/* Remover apaga o registro do mês; liquidar encerra a posição com
+                  uma retirada total e guarda o histórico (spec 076). */}
+              <Dialog.Description className="mt-2 text-sm leading-6 text-muted-foreground">
+                Apaga o registro de {editPosition.institutionName} em {selectedLabel}.
+                {editPosition.liquidated ? "" : " Para encerrar a posição e manter o histórico, liquide."}
+              </Dialog.Description>
+              <div className="mt-6 flex flex-wrap justify-end gap-2">
+                <Dialog.Close className={secondaryButtonClass} disabled={isDeleting}>
+                  Cancelar
+                </Dialog.Close>
+                {editPosition.liquidated ? null : (
+                  <button
+                    type="button"
+                    disabled={isDeleting}
+                    onClick={() => {
+                      setRemoval(false);
+                      setLiquidation((value) => ({ open: true, key: value.key + 1 }));
+                    }}
+                    className={cn(secondaryButtonClass, "gap-2")}
+                  >
+                    <HandCoinsIcon aria-hidden="true" size={14} weight="bold" />
+                    Liquidar
+                  </button>
+                )}
+                <button
+                  type="button"
+                  disabled={isDeleting}
+                  onClick={() =>
+                    startDeleting(async () => {
+                      const result = await removePositionAction({ monthId: editing.month.id, positionId: editPosition.id });
+                      setRemoval(false);
+                      if (result.ok) {
+                        // Sem o registro, a página iria a outro mês: a tabela do
+                        // mês mostra o aviso, com o desfazer (spec 080).
+                        handOffToast({ tone: "success", message: result.message, undoToken: result.undoToken });
+                        router.push(backHref);
+                      } else {
+                        notify(result);
+                      }
+                    })
+                  }
+                  className="inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-destructive px-3.5 text-xs font-semibold text-white outline-none transition-[background-color,transform] duration-150 hover:bg-destructive/90 focus-visible:ring-3 focus-visible:ring-destructive/40 active:scale-[0.98] disabled:opacity-50"
+                >
+                  <TrashIcon aria-hidden="true" size={14} />
+                  {isDeleting ? "Removendo…" : "Remover"}
+                </button>
+              </div>
+            </Dialog.Popup>
+          </Dialog.Portal>
+        </Dialog.Root>
       ) : null}
       <EditToast toast={toast} onDismiss={dismissToast} onUndo={undo} undoing={isUndoing} />
     </div>

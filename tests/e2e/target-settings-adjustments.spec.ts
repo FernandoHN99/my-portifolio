@@ -143,6 +143,7 @@ test("o valor quebrado digitado fica no deslizante até ele ser movido", async (
 });
 
 test("editar uma meta não troca a aba da prévia", async ({ page }) => {
+  test.skip((page.viewportSize()?.width ?? 0) < 768, "No celular, a prévia sai (spec 080).");
   await openSettings(page);
 
   const preview = page.getByRole("complementary", { name: "Prévia do rebalanceamento" });

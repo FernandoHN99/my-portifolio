@@ -266,7 +266,8 @@ export function TargetEditor({ editor, children }: { editor: TargetEditorData; c
           {children}
         </div>
 
-        <aside className="xl:sticky xl:top-[148px] xl:self-start" aria-label="Prévia do rebalanceamento">
+        {/* No celular, a prévia sai (spec 080): comprar e vender fica na Visão geral. */}
+        <aside className="hidden md:block xl:sticky xl:top-[148px] xl:self-start" aria-label="Prévia do rebalanceamento">
           <PreviewPanel
             scope={previewScope}
             onScopeChange={setPreviewScope}

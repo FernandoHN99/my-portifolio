@@ -53,10 +53,20 @@ export function positionRow(page: Page, asset: string, institution?: string) {
   return (institution ? rows.filter({ hasText: institution }) : rows).first();
 }
 
+/**
+ * Abre a página da posição pela linha da tabela. As ações (movimentar,
+ * liquidar, editar e remover) ficam só nela (spec 080).
+ */
+export async function openPositionPage(page: Page, asset: string, institution?: string) {
+  await waitForHydration(page);
+  await positionRow(page, asset, institution).getByRole("link", { name: asset, exact: true }).click();
+  await expect(page.getByRole("heading", { level: 1, name: asset })).toBeVisible({ timeout: 15_000 });
+  await waitForHydration(page);
+}
+
 export async function openEditForm(page: Page, asset: string, institution?: string) {
-  const row = positionRow(page, asset, institution);
-  await row.hover();
-  await row.getByRole("button", { name: `Editar ${asset}` }).click();
+  await openPositionPage(page, asset, institution);
+  await page.getByRole("button", { name: "Editar posição" }).click();
   const dialog = page.getByRole("dialog", { name: `Editar ${asset}` });
   await expect(dialog).toBeVisible();
   return dialog;

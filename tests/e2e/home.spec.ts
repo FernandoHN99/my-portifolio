@@ -48,6 +48,7 @@ test("um mês inexistente cai para a competência mais recente", async ({ page }
 
 test("a visão geral alterna o empilhamento do gráfico", async ({ page }) => {
   await page.goto("/?mes=2026-05");
+  await waitForHydration(page);
 
   await expect(page.getByTestId("portfolio-total")).toContainText("R$");
 
@@ -124,7 +125,12 @@ test("a configuração simula metas antes de salvar", async ({ page }) => {
 
   await expect(page.getByRole("heading", { level: 1, name: "Metas da carteira" })).toBeVisible();
   const preview = page.getByRole("complementary", { name: "Prévia do rebalanceamento" });
-  await expect(preview).toContainText("Set/26");
+  // No celular, a prévia sai (spec 080).
+  if ((page.viewportSize()?.width ?? 0) >= 768) {
+    await expect(preview).toContainText("Set/26");
+  } else {
+    await expect(preview).toBeHidden();
+  }
 
   const caixa = page.getByRole("textbox", { name: "Percentual de Caixa" });
   const original = await caixa.inputValue();
@@ -138,6 +144,7 @@ test("a configuração simula metas antes de salvar", async ({ page }) => {
 });
 
 test("a tolerância muda a prévia antes de salvar", async ({ page }) => {
+  test.skip((page.viewportSize()?.width ?? 0) < 768, "No celular, a prévia sai (spec 080).");
   await page.goto("/configuracao?mes=2026-09");
   await waitForHydration(page);
 

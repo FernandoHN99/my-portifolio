@@ -44,7 +44,7 @@ test("as movimentações filtram por tipo, com a contagem de cada um", async ({ 
   // Só os tipos que a posição tem viram filtro.
   await expect(filters.getByRole("button")).toHaveCount(
     1 + (await section.getByTestId("position-transactions").evaluate((table) =>
-      new Set([...table.querySelectorAll("tbody tr")].map((row) => row.getAttribute("data-transaction-kind"))).size,
+      new Set([...table.querySelectorAll("tbody tr")].map((row) => row.getAttribute("data-transaction-filter"))).size,
     )),
   );
 
@@ -52,7 +52,7 @@ test("as movimentações filtram por tipo, com a contagem de cada um", async ({ 
   await expect(contributions).toHaveAttribute("aria-pressed", "true");
   await expect(all).toHaveAttribute("aria-pressed", "false");
   await expect(rows).toHaveCount(await chipCount(contributions));
-  await expect(rows.and(page.locator('[data-transaction-kind="CONTRIBUTION"]'))).toHaveCount(await chipCount(contributions));
+  await expect(rows.and(page.locator('[data-transaction-filter="CONTRIBUTION"]'))).toHaveCount(await chipCount(contributions));
 
   await opening.click();
   await expect(rows).toHaveCount(await chipCount(opening));
@@ -125,4 +125,28 @@ test("cada classificação compatível tem a própria rentabilidade, e a flag ex
   await expect(dialog.getByText("Informe a rentabilidade para calcular o rendimento automaticamente.")).toBeVisible();
 
   await closeForm(dialog);
+});
+
+test("o rendimento calculado pela taxa aparece como Rendimento automático, com filtro próprio", async ({ page }) => {
+  await page.goto("/posicoes");
+  await waitForHydration(page);
+  const asset = await page
+    .getByTestId("position-row")
+    .filter({ hasText: /· Renda fixa|Caixa em reais/ })
+    .first()
+    .getByRole("link")
+    .first()
+    .innerText()
+    .catch(() => null);
+  test.skip(!asset, "Nenhuma renda fixa ou caixa em reais no mês.");
+  await positionRow(page, asset!.trim()).getByRole("link", { name: asset!.trim(), exact: true }).click();
+  await expect(page.getByRole("heading", { level: 1, name: asset!.trim() })).toBeVisible({ timeout: 15_000 });
+  const section = await openMovements(page);
+  const automatic = section.getByTestId("position-transactions").locator('tbody tr[data-transaction-filter="AUTO_INCOME"]');
+  test.skip((await automatic.count()) === 0, "Nenhum rendimento automático nesta posição.");
+
+  await expect(automatic.first()).toContainText("Rendimento automático");
+  const chip = section.getByRole("group", { name: "Tipo de movimentação" }).getByRole("button", { name: /^Rendimento automático/ });
+  await chip.click();
+  await expect(section.getByTestId("position-transactions").locator("tbody tr")).toHaveCount(await chipCount(chip));
 });

@@ -716,7 +716,7 @@ function PositionForm({
                 <Picker aria-label="Estratégia" options={strategyOptions} value={strategy} onValueChange={setStrategy} />
               </Field>
             </div>
-            {editing ? <p className="-mt-1.5 text-[11px] text-muted-foreground" data-testid="position-form-value-hint">Para mudar a quantidade ou o saldo, use Movimentar (as setas ao lado do lápis).</p> : null}
+            {editing ? <p className="-mt-1.5 text-[11px] text-muted-foreground" data-testid="position-form-value-hint">Para mudar a quantidade ou o saldo, use Movimentar.</p> : null}
 
           </Tabs.Panel>
 

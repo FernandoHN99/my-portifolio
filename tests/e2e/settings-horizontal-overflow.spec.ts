@@ -77,8 +77,6 @@ async function expectTablesFit(page: Page, width: number) {
   }
 }
 
-const PREVIEW_SCOPES = ["Classe", "Moeda", "Estratégia", "Moeda/classe", "Renda fixa", "Renda variável"];
-
 async function openSettings(page: Page, width: number) {
   await page.setViewportSize({ width, height: HEIGHT });
   await page.goto("/configuracao?mes=2026-09");
@@ -105,11 +103,10 @@ test("as metas em edição, com a soma fora de 100%, também cabem na largura", 
     await page.getByRole("textbox", { name: "Percentual de Cripto" }).fill("10");
     await expect(page.getByRole("button", { name: "Descartar" })).toBeVisible();
 
-    for (const scope of PREVIEW_SCOPES) {
-      await page.getByRole("complementary", { name: "Prévia do rebalanceamento" }).getByRole("button", { name: scope, exact: true }).click();
-      await expectNoHorizontalScroll(page, width);
-      await expectTablesFit(page, width);
-    }
+    // No celular, a prévia de comprar e vender sai (spec 080).
+    await expect(page.getByRole("complementary", { name: "Prévia do rebalanceamento" })).toBeHidden();
+    await expectNoHorizontalScroll(page, width);
+    await expectTablesFit(page, width);
 
     await page.getByRole("button", { name: "Descartar" }).click();
     await expect(page.getByRole("button", { name: "Descartar" })).toHaveCount(0);

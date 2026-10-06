@@ -13,16 +13,29 @@ import { CollapsibleSection } from "@/modules/portfolio/ui/collapsible-section";
 
 const QUANTITY = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 8 });
 
-type KindFilter = "all" | PositionTransactionView["kind"];
+type KindFilter = "all" | PositionTransactionView["kind"] | "AUTO_INCOME";
 
 /** Filtros por tipo (spec 079), na ordem de uso. */
 const FILTERS: { key: KindFilter; label: string }[] = [
   { key: "all", label: "Todos" },
   { key: "CONTRIBUTION", label: "Aportes" },
   { key: "INCOME", label: "Rendimentos" },
+  { key: "AUTO_INCOME", label: "Rendimento automático" },
   { key: "WITHDRAWAL", label: "Retiradas" },
   { key: "OPENING", label: "Saldo inicial" },
 ];
+
+/**
+ * Rendimento calculado pela taxa (spec 079): o do mês, só de leitura, e o que
+ * o cálculo guardou ao ser desligado ou na liquidação.
+ */
+function isAutomaticIncome(entry: PositionTransactionView) {
+  return Boolean(entry.automatic) || (entry.kind === "INCOME" && Boolean(entry.note?.startsWith("Rendimento automático")));
+}
+
+function filterKey(entry: PositionTransactionView): KindFilter {
+  return isAutomaticIncome(entry) ? "AUTO_INCOME" : entry.kind;
+}
 
 function dayLabel(day: string) {
   return formatDay(new Date(`${day}T00:00:00.000Z`));
@@ -57,8 +70,8 @@ export function PositionTransactions({
   onRemove: (entry: PositionTransactionView) => void;
 }) {
   const [filter, setFilter] = useState<KindFilter>("all");
-  const kinds = new Set(transactions.map((entry) => entry.kind));
-  const shown = filter === "all" ? transactions : transactions.filter((entry) => entry.kind === filter);
+  const kinds = new Set(transactions.map(filterKey));
+  const shown = filter === "all" ? transactions : transactions.filter((entry) => filterKey(entry) === filter);
 
   return (
     <CollapsibleSection
@@ -73,7 +86,7 @@ export function PositionTransactions({
 
       {transactions.length > 0 ? (
         <div role="group" aria-label="Tipo de movimentação" className="mt-4 flex flex-wrap items-center gap-1.5">
-          {FILTERS.filter((option) => option.key === "all" || kinds.has(option.key as PositionTransactionView["kind"])).map((option) => (
+          {FILTERS.filter((option) => option.key === "all" || kinds.has(option.key)).map((option) => (
             <button
               key={option.key}
               type="button"
@@ -89,7 +102,7 @@ export function PositionTransactions({
               {option.label}
               {option.key === "all" ? null : (
                 <span className="ml-1.5 font-mono text-[10px] opacity-70">
-                  {transactions.filter((entry) => entry.kind === option.key).length}
+                  {transactions.filter((entry) => filterKey(entry) === option.key).length}
                 </span>
               )}
             </button>
@@ -123,7 +136,7 @@ export function PositionTransactions({
                   !entry.automatic && editableMonthId !== null && entry.monthId === editableMonthId && entry.accountId === editableAccountId;
 
                 return (
-                  <tr key={entry.id} className="border-t border-border/60" data-transaction-kind={entry.kind}>
+                  <tr key={entry.id} className="border-t border-border/60" data-transaction-kind={entry.kind} data-transaction-filter={filterKey(entry)}>
                     <td className="py-2.5 pr-3 font-mono whitespace-nowrap text-muted-foreground">
                       {dayLabel(entry.occurredOn)}
                       <span className="ml-1.5 text-[10px] text-muted-foreground/70">{monthLabel(entry.month)}</span>
@@ -131,7 +144,7 @@ export function PositionTransactions({
                     <td className="py-2.5 pr-3">
                       <span
                         className={cn(
-                          "rounded-full px-2 py-0.5 text-[10px] font-semibold",
+                          "rounded-full px-2 py-0.5 text-[10px] font-semibold whitespace-nowrap",
                           entry.kind === "CONTRIBUTION" || (entry.kind === "INCOME" && entry.amountBrl >= 0)
                             ? "bg-chart-up/12 text-chart-up"
                             : entry.kind === "WITHDRAWAL"
@@ -139,14 +152,10 @@ export function PositionTransactions({
                               : "bg-white/[0.06] text-muted-foreground",
                         )}
                       >
-                        {TRANSACTION_LABELS[entry.kind]}
+                        {isAutomaticIncome(entry) ? "Rendimento automático" : TRANSACTION_LABELS[entry.kind]}
                       </span>
                       {entry.transferId ? (
                         <span className="ml-1.5 text-[10px] text-muted-foreground">transferência interna</span>
-                      ) : entry.automatic ? (
-                        <span className="ml-1.5 text-[10px] text-muted-foreground" data-testid="automatic-income">
-                          automático
-                        </span>
                       ) : null}
                       {showAccountLabels ? (
                         <p className="mt-1 text-[10px] text-muted-foreground">{entry.accountLabel}</p>

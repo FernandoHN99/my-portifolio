@@ -83,6 +83,7 @@ Esta pasta organiza a implementação em fatias pequenas e revisáveis.
 - [077 — Topo ligado à posição, filtros do celular e abas sem arraste](077-header-trail-and-mobile-filters.md): concluída localmente em 2026-10-06; folha de filtros no celular e troca de aba só pelo toque (as setas do topo saíram na 078).
 - [078 — Alocação por abas na Visão geral, virada com confirmação e gráficos de toque](078-overview-allocation-tabs-and-touch-charts.md): concluída localmente em 2026-10-06; gráfico e comprar e vender pela mesma aba, confirmação antes de criar o mês, indicação que some ao tirar o dedo, movimentações completas na posição.
 - [079 — Rendimento automático como nos bancos, prefixado e filtros das movimentações](079-auto-income-prefixed-and-movement-filters.md): concluída localmente em 2026-10-06, sem deploy; flag por ativo, rentabilidade em cada classificação, CDI diário × % e prefixado em base 252 com feriados, Prefixado nas subclasses e metas, filtros por tipo nas movimentações.
+- [080 — Ações só na página da posição e ajustes do celular](080-position-actions-on-page-and-mobile-trims.md): concluída e validada localmente em 2026-10-06, na `dev`, sem deploy; ações na página, remover com desfazer na tabela inclusive na última posição, prévia das metas oculta no celular, comprar e vender enxuto e filtro próprio do rendimento automático.
 
 As specs 063 a 073 são revisões posteriores de 2026-10-04 e 2026-10-05, no
 `main` e na produção desde 2026-10-05 ([Produção](../context/production.md)).

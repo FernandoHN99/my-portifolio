@@ -1,6 +1,6 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
-import { closeForm, expectFormStep, openAddForm, openEditableMonth, positionRow } from "./support/position-form";
+import { closeForm, expectFormStep, openAddForm, openEditableMonth, openPositionPage, positionRow } from "./support/position-form";
 import { stubQuoteChecks } from "./support/quote-checks";
 
 // Spec 066: escolhas obrigatórias, cálculo flexível e conferência antes da
@@ -8,9 +8,10 @@ import { stubQuoteChecks } from "./support/quote-checks";
 test.beforeEach(async ({ page }) => { await stubQuoteChecks(page); });
 
 async function openMovement(page: Page, asset: string) {
-  const row = positionRow(page, asset);
-  await row.hover();
-  await row.getByRole("button", { name: `Movimentar ${asset}` }).click();
+  if (!(await page.getByRole("heading", { level: 1, name: asset, exact: true }).isVisible())) {
+    await openPositionPage(page, asset);
+  }
+  await page.getByRole("button", { name: "Movimentar", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: `Movimentar ${asset}` });
   await expect(dialog).toBeVisible();
   await expectFormStep(dialog, "Movimento");

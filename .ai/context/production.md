@@ -147,6 +147,16 @@ A produção começa sem usuários. Para entrar:
 
 ## Pendente
 
+- as specs [079](../specs/079-auto-income-prefixed-and-movement-filters.md) e
+  [080](../specs/080-position-actions-on-page-and-mobile-trims.md) continuam na
+  `dev`. Para publicar o rendimento automático, o deploy do app deve aplicar
+  primeiro as migrações `20261006150000_auto_income_and_fixed_rate` e
+  `20261006190000_allocation_rate`; depois, republicar a função `quotesync`
+  ([operação](../../docs/quote-sync-job.md)). Conferência pelo MCP do Neon em
+  2026-10-06: a produção ainda não tem `assets.auto_income` nem
+  `position_allocations.rate_percent`, e a função ativa é o deployment 3,
+  de 2026-10-05. O gatilho segue habilitado; a execução de 2026-10-06 às
+  21:00 UTC concluiu com 8 cotações atualizadas;
 - o backup com movimentações v3 ([spec 071](../specs/071-backup-with-movements.md)
   e [spec 076](../specs/076-position-liquidation.md)), que substituiu a v2, só
   entra na produção se o usuário importá-lo pela Configuração. O código já está
