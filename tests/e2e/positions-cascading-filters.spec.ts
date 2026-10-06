@@ -1,5 +1,6 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
+import { chooseFilter, filterOptions as optionsOf } from "./support/position-filters";
 import { stubQuoteChecks } from "./support/quote-checks";
 
 // Filtros em cascata e vencimento em Posições (spec 031). Só leitura: a
@@ -7,16 +8,6 @@ import { stubQuoteChecks } from "./support/quote-checks";
 test.beforeEach(async ({ page }) => {
   await stubQuoteChecks(page);
 });
-
-async function optionsOf(page: Page, label: string) {
-  await page.getByRole("combobox", { name: new RegExp(`^${label}`) }).click();
-  const list = page.getByRole("listbox");
-  await expect(list).toBeVisible();
-  const options = await list.getByRole("option").allTextContents();
-  await page.keyboard.press("Escape");
-  await expect(list).toHaveCount(0);
-  return options.map((option) => option.trim());
-}
 
 test("a classe escolhida primeiro limita as subclasses", async ({ page }) => {
   await page.goto("/posicoes?mes=2026-09&classe=Caixa");
@@ -61,13 +52,7 @@ test("pela tela, a instituição só oferece as que têm a classe escolhida", as
   await page.goto("/posicoes?mes=2026-09");
   await expect(page.getByRole("heading", { level: 1, name: "Carteira do mês" })).toBeVisible();
 
-  await page.getByRole("combobox", { name: /^Instituição/ }).click();
-  await page.getByRole("option", { name: "Inter" }).click();
-  // Fecha a lista só depois de a escolha chegar à URL: um Escape no meio da
-  // atualização pode se perder e deixar a lista aberta.
-  await expect(page).toHaveURL(/inst=Inter/);
-  await page.keyboard.press("Escape");
-  await expect(page.getByRole("listbox")).toHaveCount(0);
+  await chooseFilter(page, "Instituição", "Inter", /inst=Inter/);
 
   // A classe fica à esquerda da instituição: escolher Inter não a encolhe.
   expect(await optionsOf(page, "Classe")).toContain("Cripto");
@@ -79,6 +64,37 @@ test("pela tela, a instituição só oferece as que têm a classe escolhida", as
   const institutions = await optionsOf(page, "Instituição");
   expect(institutions).toContain("Inter");
   expect(institutions).not.toContain("Ledger");
+});
+
+test("no celular, busca e filtros dividem a linha e os filtros abrem numa folha", async ({ page, isMobile }) => {
+  test.skip(!isMobile, "Folha de filtros do celular (spec 077).");
+  await page.goto("/posicoes?mes=2026-09");
+  const search = page.getByRole("searchbox", { name: "Buscar posição" });
+  const filters = page.getByRole("button", { name: /^Filtros/ });
+  await expect(search).toBeVisible();
+  await expect(filters).toBeVisible();
+  await expect(page.getByRole("combobox", { name: /^Subclasse/ })).toBeHidden();
+  // As duas caixas lidas de uma vez: a página ainda pode deslizar na entrada.
+  const [searchBox, filtersBox] = await page.evaluate(() => {
+    const box = (element: Element | null) => {
+      const rect = element!.getBoundingClientRect();
+      return { center: rect.top + rect.height / 2, width: rect.width };
+    };
+    const button = [...document.querySelectorAll("button")].find((entry) => entry.textContent?.trim().startsWith("Filtros"));
+    return [box(document.querySelector('input[type="search"]')), box(button ?? null)];
+  });
+  expect(Math.abs(searchBox.center - filtersBox.center)).toBeLessThan(2);
+  expect(searchBox.width).toBeGreaterThan(200);
+
+  await filters.click();
+  const sheet = page.getByTestId("positions-filter-sheet");
+  await sheet.getByRole("group", { name: /^Moeda/ }).getByRole("button", { name: "USD", exact: true }).click();
+  await expect(page).toHaveURL(/moeda=USD/);
+  await sheet.getByRole("group", { name: /^Agrupar/ }).getByRole("button", { name: "Instituição", exact: true }).click();
+  await expect(page).toHaveURL(/agrupar=instituicao/);
+  await sheet.getByRole("button", { name: /^Ver \d+ posiç/ }).click();
+  await expect(sheet).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Filtros, 1 ativo" })).toBeVisible();
 });
 
 test("em tela de toque os campos usam 16 px para o Safari não ampliar", async ({ page }, testInfo) => {

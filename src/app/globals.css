@@ -108,6 +108,15 @@
     font-feature-settings: "ss01" 1, "cv02" 1, "cv03" 1;
   }
 
+  /* No toque, o arraste lateral não navega (spec 077): nem entre abas, nem no
+     histórico do navegador por excesso de rolagem. */
+  @media (pointer: coarse) {
+    html,
+    body {
+      overscroll-behavior-x: none;
+    }
+  }
+
   :where(button, a, [role="button"]) {
     touch-action: manipulation;
     user-select: none;

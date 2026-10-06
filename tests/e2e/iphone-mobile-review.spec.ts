@@ -75,45 +75,20 @@ test("o trilho de metas usa uma linha inteira no celular", async ({ page }) => {
   await assertInputSize(page.locator("body"));
 });
 
-test("swipe em conteúdo livre troca a aba e preserva a competência", async ({ page }) => {
+test("arrastar para o lado não troca a aba; só o toque na aba troca", async ({ page }) => {
+  // O arraste entre abas da spec 062 saiu (spec 077): mudava de tela sem querer.
   await page.goto("/?mes=2026-09");
   const heading = page.getByRole("heading", { name: "Patrimônio consolidado" });
   await expect(heading).toBeVisible();
   await swipe(heading, -100);
+  await swipe(heading, 100);
+  await expect(page).toHaveURL(/\/\?mes=2026-09$/);
+  await expect(heading).toBeVisible();
+
+  await page.getByRole("navigation", { name: "Navegação principal" }).getByRole("link", { name: "Posições" }).click();
   await expect(page).toHaveURL(/\/posicoes\?mes=2026-09$/);
   await swipe(page.getByRole("heading", { name: "Carteira do mês" }), 100);
-  await expect(page).toHaveURL(/\/\?mes=2026-09$/);
-});
-
-test("campo e tabela horizontal não acionam swipe de abas", async ({ page }) => {
-  await page.goto("/posicoes?mes=2026-09");
-  const search = page.getByRole("searchbox");
-  await expect(search).toBeVisible();
-  await swipe(search, 100);
   await expect(page).toHaveURL(/\/posicoes\?mes=2026-09$/);
-
-  // A tabela compacta de Posições pode caber; o rebalanceamento exige rolagem.
-  await page.goto("/?mes=2026-09");
-  const table = page.getByRole("region", { name: "Comprar e vender" }).getByRole("table");
-  await expect(table).toBeVisible();
-  expect(await table.evaluate((element) => element.parentElement!.scrollWidth > element.parentElement!.clientWidth)).toBe(true);
-  await swipe(table.getByRole("cell").filter({ hasText: "R$" }).first(), -100);
-  await expect(page).toHaveURL(/\/\?mes=2026-09$/);
-});
-
-test("cancelar ou usar dois dedos não troca a aba", async ({ page }) => {
-  await page.goto("/");
-  const heading = page.getByRole("heading", { name: "Patrimônio consolidado" });
-  await expect(heading).toBeVisible();
-  const touch = { identifier: 1, clientX: 210, clientY: 220 };
-  await heading.dispatchEvent("touchstart", { touches: [touch], changedTouches: [touch] });
-  await heading.dispatchEvent("touchcancel", { touches: [], changedTouches: [touch] });
-  await heading.dispatchEvent("touchend", { touches: [], changedTouches: [{ ...touch, clientX: 80 }] });
-  await expect(page).toHaveURL(/\/$/);
-
-  await heading.dispatchEvent("touchstart", { touches: [touch, { ...touch, identifier: 2 }], changedTouches: [touch] });
-  await heading.dispatchEvent("touchend", { touches: [], changedTouches: [{ ...touch, clientX: 80 }] });
-  await expect(page).toHaveURL(/\/$/);
 });
 
 test("faixa de competências mantém mês ativo visível e alvo de toque", async ({ page }) => {

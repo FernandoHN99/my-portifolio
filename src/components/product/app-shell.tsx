@@ -73,11 +73,11 @@ export async function AppShell({ active, months, selectedMonth, context, childre
         {context ? <NavTrail context={context} /> : null}
 
         {selectedMonth ? (
-          <MonthTimeline months={months} selectedMonth={selectedMonth} />
+          <MonthTimeline months={months} selectedMonth={selectedMonth} scoped={context?.kind === "position"} />
         ) : null}
       </header>
 
-      <TabViewport active={active}>{children}</TabViewport>
+      <TabViewport>{children}</TabViewport>
     </main>
   );
 }

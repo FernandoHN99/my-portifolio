@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 import { waitForHydration } from "./support/position-form";
+import { chooseFilter, usesFilterSheet } from "./support/position-filters";
 import { stubQuoteChecks } from "./support/quote-checks";
 
 // A checagem de abertura grava no banco; aqui ela é substituída por uma
@@ -63,17 +64,19 @@ test("os filtros de posições combinam e somam o recorte", async ({ page }) => 
 
   await expect(page.getByText("21 de 21 posições")).toBeVisible();
 
-  await page.getByRole("combobox", { name: "Instituição", exact: true }).click();
-  await page.getByRole("option", { name: "Inter" }).click();
-  await page.keyboard.press("Escape");
-  await expect(page).toHaveURL(/inst=Inter/);
+  await chooseFilter(page, "Instituição", "Inter", /inst=Inter/);
   await expect(page.getByText(/^\d+ de 21 posições$/)).not.toHaveText("21 de 21 posições");
 
   await page.goto("/posicoes?mes=2026-09&classe=Renda%20Vari%C3%A1vel&agrupar=classe");
   await expect(page.getByText("Parcela nas classes selecionadas")).toBeVisible();
 
   await page.reload();
-  await expect(page.getByRole("combobox", { name: /Classe\s*1/ })).toBeVisible();
+  // No celular, a contagem fica no botão Filtros (spec 077).
+  await expect(
+    (await usesFilterSheet(page))
+      ? page.getByRole("button", { name: "Filtros, 1 ativo" })
+      : page.getByRole("combobox", { name: /Classe\s*1/ }),
+  ).toBeVisible();
 });
 
 test("a tabela mostra classe, subclasse e resgate e a seta expande a linha", async ({ page }) => {

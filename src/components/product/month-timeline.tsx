@@ -23,6 +23,11 @@ import { formatMonth, formatPercent } from "@/modules/portfolio/presentation/por
 type MonthTimelineProps = {
   months: PortfolioMonthSummary[];
   selectedMonth: string;
+  /**
+   * Faixa restrita aos meses de uma posição (specs 075 e 077): ganha o
+   * destaque da trilha e os meses entram com uma animação curta.
+   */
+  scoped?: boolean;
 };
 
 type YearGroup = {
@@ -49,13 +54,25 @@ const PANEL_MOTION: Record<"full" | "reduced", { enter: Transition; exit: Transi
   },
 };
 
-export function MonthTimeline({ months, selectedMonth }: MonthTimelineProps) {
+export function MonthTimeline({ months, selectedMonth, scoped = false }: MonthTimelineProps) {
   const [isPending, startTransition] = useTransition();
   const [monthParam, setMonth] = useQueryState("mes", { shallow: false, startTransition });
   const reduceMotion = useReducedMotion() ?? false;
   const stripRef = useRef<HTMLElement>(null);
   const [browsing, setBrowsing] = useState<{ year: number; from: string } | null>(null);
   const [edges, setEdges] = useState({ start: false, end: false });
+  // A entrada animada vale só para a primeira montagem da faixa restrita, não
+  // para cada ano aberto depois.
+  const [intro, setIntro] = useState(scoped);
+
+  useEffect(() => {
+    if (!intro) {
+      return;
+    }
+
+    const done = window.setTimeout(() => setIntro(false), 700);
+    return () => window.clearTimeout(done);
+  }, [intro]);
 
   // O parâmetro da URL muda na hora; o servidor só confirma a competência
   // quando a transição termina. Destacar o mês pedido já no clique evita que o
@@ -244,6 +261,7 @@ export function MonthTimeline({ months, selectedMonth }: MonthTimelineProps) {
         ref={stripRef}
         aria-label="Competências"
         data-hydrated={hydrated || undefined}
+        data-scoped={scoped || undefined}
         onScroll={updateEdges}
         className="flex min-w-0 flex-1 flex-row-reverse overflow-x-auto overscroll-x-contain [scrollbar-width:none] xl:col-start-2 [&::-webkit-scrollbar]:hidden"
         style={{ maskImage: fade, WebkitMaskImage: fade }}
@@ -254,6 +272,8 @@ export function MonthTimeline({ months, selectedMonth }: MonthTimelineProps) {
               key={group.year}
               group={group}
               expanded={group.year === expandedYear}
+              scoped={scoped}
+              intro={intro && !reduceMotion}
               activeMonth={activeMonth}
               panelMotion={panelMotion}
               onExpand={() => expandYear(group.year)}
@@ -276,6 +296,8 @@ export function MonthTimeline({ months, selectedMonth }: MonthTimelineProps) {
 function YearCapsule({
   group,
   expanded,
+  scoped,
+  intro,
   activeMonth,
   panelMotion,
   onExpand,
@@ -284,6 +306,8 @@ function YearCapsule({
 }: {
   group: YearGroup;
   expanded: boolean;
+  scoped: boolean;
+  intro: boolean;
   activeMonth: string;
   panelMotion: { enter: Transition; exit: Transition };
   onExpand: () => void;
@@ -304,7 +328,7 @@ function YearCapsule({
       data-expanded={expanded || undefined}
       className={cn(
         "flex items-center rounded-xl border bg-card/70 p-[3px] transition-colors duration-150",
-        holdsActive && !expanded ? "border-primary/35" : "border-border",
+        holdsActive && !expanded ? "border-primary/35" : scoped && expanded ? "border-primary/30" : "border-border",
       )}
     >
       <button
@@ -353,12 +377,13 @@ function YearCapsule({
             className="-my-[3px] flex justify-end overflow-hidden"
           >
             <div className="flex w-max shrink-0 items-center gap-0.5 py-[3px] pr-0.5 pl-1">
-              {group.months.map((month) => (
+              {group.months.map((month, index) => (
                 <MonthButton
                   key={month.month}
                   month={month}
                   active={month.month === activeMonth}
                   onSelect={onSelect}
+                  intro={intro ? Math.min(index, 12) * 0.025 : null}
                 />
               ))}
             </div>
@@ -373,13 +398,19 @@ function MonthButton({
   month,
   active,
   onSelect,
+  intro,
 }: {
   month: PortfolioMonthSummary;
   active: boolean;
   onSelect: (month: string) => void;
+  /** Atraso da entrada animada, na faixa restrita a uma posição; nulo sem animação. */
+  intro: number | null;
 }) {
   return (
-    <button
+    <motion.button
+      initial={intro === null ? false : { opacity: 0, scale: 0.8 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ type: "spring", stiffness: 420, damping: 30, delay: intro ?? 0 }}
       type="button"
       aria-label={describeMonth(month)}
       aria-current={active ? "date" : undefined}
@@ -396,7 +427,7 @@ function MonthButton({
         aria-hidden="true"
         className={cn("mt-1 h-0.5 w-4 rounded-full transition-colors", markerClass(month, active))}
       />
-    </button>
+    </motion.button>
   );
 }
 

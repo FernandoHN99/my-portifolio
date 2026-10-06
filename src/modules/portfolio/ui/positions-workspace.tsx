@@ -73,6 +73,7 @@ import { EmptyPortfolio } from "@/modules/portfolio/ui/empty-portfolio";
 import { LiquidationDialog, type LiquidationTarget } from "@/modules/portfolio/ui/liquidation-dialog";
 import { MaturityBadge } from "@/modules/portfolio/ui/maturity-badge";
 import { MultiSelectFilter } from "@/modules/portfolio/ui/multi-select-filter";
+import { PositionsFilterSheet, type FilterGroup } from "@/modules/portfolio/ui/positions-filter-sheet";
 import { PositionFormDialog, type PositionFormTarget } from "@/modules/portfolio/ui/position-form-dialog";
 import {
   PositionTransactionDialog,
@@ -241,6 +242,16 @@ export function PositionsWorkspace({
     (filters.search ? 1 : 0);
   const occupied = new Set(month.positions.map((position) => `${position.accountId}:${position.assetId}`));
   const liquidatedCount = month.positions.filter((position) => position.liquidated).length;
+  const filterGroups: FilterGroup[] = [
+    { key: "classe", label: "Classe", options: options.classes, selected: filters.classes, onChange: (next) => void setQuery({ classe: next }) },
+    { key: "subclasse", label: "Subclasse", options: options.subclasses, selected: filters.subclasses, onChange: (next) => void setQuery({ subclasse: next }) },
+    { key: "tipo", label: "Tipo", options: options.types, selected: filters.types, onChange: (next) => void setQuery({ tipo: next }) },
+    { key: "inst", label: "Instituição", options: options.institutions, selected: filters.institutions, onChange: (next) => void setQuery({ inst: next }) },
+    { key: "estrategia", label: "Estratégia", options: options.strategies, selected: filters.strategies, onChange: (next) => void setQuery({ estrategia: next }) },
+    { key: "moeda", label: "Moeda", options: options.currencies, selected: filters.currencies, onChange: (next) => void setQuery({ moeda: next }) },
+    { key: "venc", label: "Vencimento", options: options.maturities, selected: filters.maturities, onChange: (next) => void setQuery({ venc: next }) },
+    { key: "liq", label: "Liquidez", options: options.liquidities, selected: filters.liquidities, onChange: (next) => void setQuery({ liq: next }) },
+  ];
   const activeCount = month.positions.length - liquidatedCount;
 
   const notify = (result: EditActionResult) =>
@@ -421,8 +432,11 @@ export function PositionsWorkspace({
         </div>
       ) : null}
 
+      {/* No celular (spec 077), as classes rolam numa linha só, a busca ocupa a
+          linha com o botão Filtros, e os filtros e o agrupamento abrem numa folha
+          de baixo para cima. No computador, tudo continua na própria linha. */}
       <section aria-label="Filtros" className="mt-6 space-y-3">
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="-mx-5 flex items-center gap-2 overflow-x-auto px-5 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 [&::-webkit-scrollbar]:hidden">
           {QUICK_CLASSES.filter((assetClass) => options.classes.includes(assetClass)).map((assetClass) => {
             const active = filters.classes.includes(assetClass);
 
@@ -433,7 +447,7 @@ export function PositionsWorkspace({
                 aria-pressed={active}
                 onClick={() => toggleQuickClass(assetClass)}
                 className={cn(
-                  "inline-flex h-8 items-center gap-2 rounded-full border px-3 text-[11px] font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring/50",
+                  "inline-flex h-9 shrink-0 items-center gap-2 rounded-full border px-3 text-[11px] font-medium whitespace-nowrap outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring/50 sm:h-8",
                   active
                     ? "border-transparent bg-foreground text-background"
                     : "border-border bg-card/60 text-muted-foreground hover:text-foreground",
@@ -447,61 +461,75 @@ export function PositionsWorkspace({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <label className="relative flex h-8 min-w-[200px] flex-1 items-center sm:max-w-[280px]">
+          <label className="relative flex h-10 min-w-0 flex-1 items-center sm:h-8 sm:min-w-[200px] sm:max-w-[280px]">
             <span className="sr-only">Buscar posição</span>
             <MagnifyingGlassIcon
               aria-hidden="true"
-              className="pointer-events-none absolute left-2.5 text-muted-foreground"
+              className="pointer-events-none absolute left-3 text-muted-foreground sm:left-2.5"
               size={14}
             />
             <input
               type="search"
               value={filters.search}
               onChange={(event) => void setQuery({ q: event.target.value || null })}
-              placeholder="Buscar ativo, ticker ou instituição"
-              className="h-8 w-full rounded-lg border border-border bg-card/60 pr-2.5 pl-8 text-xs text-foreground outline-none placeholder:text-muted-foreground/70 focus-visible:ring-2 focus-visible:ring-ring/50"
+              placeholder="Buscar posição"
+              className="h-10 w-full rounded-xl border border-border bg-card/60 pr-2.5 pl-9 text-xs text-foreground outline-none placeholder:text-muted-foreground/70 focus-visible:ring-2 focus-visible:ring-ring/50 sm:h-8 sm:rounded-lg sm:pl-8"
             />
           </label>
 
-          <MultiSelectFilter label="Classe" options={options.classes} selected={filters.classes} onChange={(next) => void setQuery({ classe: next })} />
-          <MultiSelectFilter label="Subclasse" options={options.subclasses} selected={filters.subclasses} onChange={(next) => void setQuery({ subclasse: next })} />
-          <MultiSelectFilter label="Tipo" options={options.types} selected={filters.types} onChange={(next) => void setQuery({ tipo: next })} />
-          <MultiSelectFilter label="Instituição" options={options.institutions} selected={filters.institutions} onChange={(next) => void setQuery({ inst: next })} />
-          <MultiSelectFilter label="Estratégia" options={options.strategies} selected={filters.strategies} onChange={(next) => void setQuery({ estrategia: next })} />
-          <MultiSelectFilter label="Moeda" options={options.currencies} selected={filters.currencies} onChange={(next) => void setQuery({ moeda: next })} />
-          <MultiSelectFilter label="Vencimento" options={options.maturities} selected={filters.maturities} onChange={(next) => void setQuery({ venc: next })} />
-          <MultiSelectFilter label="Liquidez" options={options.liquidities} selected={filters.liquidities} onChange={(next) => void setQuery({ liq: next })} />
+          <PositionsFilterSheet
+            className="sm:hidden"
+            groups={filterGroups}
+            grouping={{
+              value: query.agrupar,
+              options: [{ value: null, label: "Nenhum" }, ...GROUP_OPTIONS.map((option) => ({ value: option, label: GROUP_LABELS[option] }))],
+              onChange: (value) => void setQuery({ agrupar: value as (typeof GROUP_OPTIONS)[number] | null }),
+            }}
+            resultCount={sortedPositions.length}
+            onClear={clearFilters}
+          />
 
-          {activeFilterCount > 0 ? (
-            <button
-              type="button"
-              onClick={clearFilters}
-              className="inline-flex h-8 items-center gap-1.5 rounded-lg px-2 text-[11px] font-medium text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50"
-            >
-              <XIcon aria-hidden="true" size={12} weight="bold" />
-              Limpar filtros
-            </button>
-          ) : null}
+          <div className="hidden sm:contents">
+            <MultiSelectFilter label="Classe" options={options.classes} selected={filters.classes} onChange={(next) => void setQuery({ classe: next })} />
+            <MultiSelectFilter label="Subclasse" options={options.subclasses} selected={filters.subclasses} onChange={(next) => void setQuery({ subclasse: next })} />
+            <MultiSelectFilter label="Tipo" options={options.types} selected={filters.types} onChange={(next) => void setQuery({ tipo: next })} />
+            <MultiSelectFilter label="Instituição" options={options.institutions} selected={filters.institutions} onChange={(next) => void setQuery({ inst: next })} />
+            <MultiSelectFilter label="Estratégia" options={options.strategies} selected={filters.strategies} onChange={(next) => void setQuery({ estrategia: next })} />
+            <MultiSelectFilter label="Moeda" options={options.currencies} selected={filters.currencies} onChange={(next) => void setQuery({ moeda: next })} />
+            <MultiSelectFilter label="Vencimento" options={options.maturities} selected={filters.maturities} onChange={(next) => void setQuery({ venc: next })} />
+            <MultiSelectFilter label="Liquidez" options={options.liquidities} selected={filters.liquidities} onChange={(next) => void setQuery({ liq: next })} />
 
-          <div className="ml-auto flex flex-wrap items-center gap-2">
-            <div className="flex items-center gap-0.5 rounded-lg border border-border bg-card/60 p-0.5">
-              <span className="px-2 text-[10px] tracking-[0.08em] text-muted-foreground uppercase">Agrupar</span>
-              {([null, ...GROUP_OPTIONS] as const).map((option) => (
-                <button
-                  key={option ?? "nenhum"}
-                  type="button"
-                  aria-pressed={query.agrupar === option}
-                  onClick={() => void setQuery({ agrupar: option })}
-                  className={cn(
-                    "rounded-md px-2.5 py-1 text-[11px] font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring/50",
-                    query.agrupar === option
-                      ? "bg-primary text-primary-foreground"
-                      : "text-muted-foreground hover:text-foreground",
-                  )}
-                >
-                  {option === null ? "Nenhum" : GROUP_LABELS[option]}
-                </button>
-              ))}
+            {activeFilterCount > 0 ? (
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="inline-flex h-8 items-center gap-1.5 rounded-lg px-2 text-[11px] font-medium text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50"
+              >
+                <XIcon aria-hidden="true" size={12} weight="bold" />
+                Limpar filtros
+              </button>
+            ) : null}
+
+            <div className="ml-auto flex flex-wrap items-center gap-2">
+              <div className="flex items-center gap-0.5 rounded-lg border border-border bg-card/60 p-0.5">
+                <span className="px-2 text-[10px] tracking-[0.08em] text-muted-foreground uppercase">Agrupar</span>
+                {([null, ...GROUP_OPTIONS] as const).map((option) => (
+                  <button
+                    key={option ?? "nenhum"}
+                    type="button"
+                    aria-pressed={query.agrupar === option}
+                    onClick={() => void setQuery({ agrupar: option })}
+                    className={cn(
+                      "rounded-md px-2.5 py-1 text-[11px] font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring/50",
+                      query.agrupar === option
+                        ? "bg-primary text-primary-foreground"
+                        : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    {option === null ? "Nenhum" : GROUP_LABELS[option]}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         </div>

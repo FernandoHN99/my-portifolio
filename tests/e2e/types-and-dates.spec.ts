@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 import { expectFormStep, openEditableMonth, positionRow, waitForHydration } from "./support/position-form";
+import { chooseFilter, openFilterGroup, usesFilterSheet } from "./support/position-filters";
 import { stubQuoteChecks } from "./support/quote-checks";
 
 // Specs 068 e 069: tipo do ativo na tabela, no filtro, no agrupamento e na
@@ -22,10 +23,7 @@ test("a Visão geral mostra a participação por tipo de ativo", async ({ page }
 test("Posições filtra e agrupa pelo tipo do ativo", async ({ page }) => {
   await page.goto("/posicoes?mes=2026-09");
   await waitForHydration(page);
-  await page.getByRole("combobox", { name: /^Tipo/ }).click();
-  await page.getByRole("option", { name: /ETF dos EUA/ }).click();
-  await page.keyboard.press("Escape");
-  await expect(page).toHaveURL(/tipo=ETF/);
+  await chooseFilter(page, "Tipo", "ETF dos EUA", /tipo=ETF/);
   const rows = page.getByTestId("position-row");
   await expect(rows.first()).toBeVisible();
   for (const text of await rows.allTextContents()) {
@@ -34,7 +32,9 @@ test("Posições filtra e agrupa pelo tipo do ativo", async ({ page }) => {
 
   await page.goto("/posicoes?mes=2026-09&agrupar=tipo");
   await waitForHydration(page);
-  await expect(page.getByRole("button", { name: "Tipo", exact: true, pressed: true })).toBeVisible();
+  // No celular, o agrupamento fica na folha de filtros (spec 077).
+  const grouping = (await usesFilterSheet(page)) ? await openFilterGroup(page, "Agrupar") : page;
+  await expect(grouping.getByRole("button", { name: "Tipo", exact: true, pressed: true })).toBeVisible();
 });
 
 test("o dia da movimentação usa o calendário do app e não aceita dia fora da competência", async ({ page }) => {

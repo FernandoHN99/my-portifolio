@@ -9,7 +9,8 @@ test.beforeEach(async ({ page }) => {
   await stubQuoteChecks(page);
 });
 
-test("os filtros abrem com busca e marcam as opções", async ({ page }) => {
+test("os filtros abrem com busca e marcam as opções", async ({ page, isMobile }) => {
+  test.skip(isMobile, "No celular, os filtros ficam numa folha com chips (spec 077).");
   await page.goto("/posicoes?mes=2026-09");
   await expect(page.getByText("21 de 21 posições")).toBeVisible();
 
