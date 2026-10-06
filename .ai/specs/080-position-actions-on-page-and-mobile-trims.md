@@ -1,6 +1,6 @@
 # 080 — Ações só na página da posição e ajustes do celular
 
-Estado: concluída e validada localmente em 2026-10-06, na `dev`; sem deploy.
+Estado: concluída, validada e publicada na produção em 2026-10-06.
 Origem: pedidos do usuário em 2026-10-06.
 
 ## Pedidos e decisões
@@ -61,6 +61,6 @@ Restaurado e exportado de novo num schema descartável: as tabelas batem, e as
 
 ## Produção
 
-As specs 079 e 080 continuam na `dev`. O job novo depende das duas migrações
-da 079: publicar o app primeiro e republicar `quotesync` depois. A conferência
-do Neon e a pendência ficam em [Produção](../context/production.md#pendente).
+As specs 079 e 080 estão na `main` e na produção desde 2026-10-06. O app foi
+publicado com as duas migrações da 079; a função `quotesync` foi republicada
+depois. Registro e conferência em [Produção](../context/production.md).

@@ -17,7 +17,7 @@ no Neon, e o job das cotações roda como função do Neon
 ([Produção](.ai/context/production.md)).
 
 Revisões posteriores: specs 063 a 073 no `main` e na produção desde
-2026-10-05; specs 074 a 078 desde 2026-10-06; spec 079 só na `dev`. O trabalho do dia a
+2026-10-05; specs 074 a 080 desde 2026-10-06. O trabalho do dia a
 dia vai para a `dev`; a `main` é a produção ([fluxo de Git](docs/git-workflow.md)).
 
 - as cotações são atualizadas só pelo job agendado (`pnpm quotes:sync`,
@@ -42,7 +42,7 @@ dia vai para a `dev`; a `main` é a produção ([fluxo de Git](docs/git-workflow
   posição nova recebe saldo inicial automaticamente, sem escolhas contábeis
   ([spec 066](.ai/specs/066-guided-position-and-movement-dialogs.md));
 - **rendimento automático** ([spec 079](.ai/specs/079-auto-income-prefixed-and-movement-filters.md),
-  na `dev`, sem deploy):
+  na produção desde 2026-10-06, inclusive no job do Neon):
   - abrange renda fixa e caixa em reais, com uma flag por ativo que substituiu
     a pausa global da [spec 065](.ai/specs/065-manual-fixed-income.md);
   - a rentabilidade é de cada classificação do rateio
@@ -98,14 +98,18 @@ dia vai para a `dev`; a `main` é a produção ([fluxo de Git](docs/git-workflow
   movimentações convertidas pelas regras do usuário e pelo relatório do Inter,
   [spec 071](.ai/specs/071-backup-with-movements.md), e as liquidações das
   posições que saíram, [spec 076](.ai/specs/076-position-liquidation.md)),
-  restaurado na carteira local em 2026-10-05; a produção já tem o código, mas
-  ainda não recebeu o arquivo.
+  restaurado na carteira local em 2026-10-05; o estado observado dos dados da
+  produção fica em [Produção](.ai/context/production.md). Deploy não restaura backup.
   Nele todas as competências estão fechadas: os testes que editam ficam pulados
   até o usuário abrir um mês;
 - a página da posição mostra valor aplicado (saldo inicial e aportes, menos a
   parte proporcional das retiradas), rendimento e preço médio por um custo
   médio único; o topo tem a trilha da posição abaixo das abas e a aba
   Configuração ([spec 073](.ai/specs/073-position-page-applied-value-and-nav-trail.md));
+- movimentar, liquidar, editar e remover ficam só na página da posição; remover
+  volta à tabela do mês com Desfazer, inclusive na última posição. No celular,
+  comprar e vender tem só Item e Diferença, e a Configuração não mostra a prévia
+  ([spec 080](.ai/specs/080-position-actions-on-page-and-mobile-trims.md));
 - a interface não tem textos explicativos nos quadros; na página da posição, mês
   a mês e movimentações começam recolhidos, melhor e pior mês ficam no card da
   variação, e a faixa de competências mostra só os meses com a posição

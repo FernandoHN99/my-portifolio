@@ -2,10 +2,11 @@
 
 Registrado em: 2026-10-03
 Origem: pedido do usuário de publicar o app, na conversa de 2026-10-03.
-Estado em 2026-10-06: no ar com as specs 053 a 078 (deploy
-`dpl_Cd6RUzGWBe9kVnPcqTevpKq4RP1T`, commit `f0ca051`), com a conta do usuário
-e os dados dele, ainda na v2 do backup. As cotações e a meta Selic vêm da função `quotesync` do projeto
-de jobs, de hora em hora. A `main` recebe a branch `dev`, que a Vercel não
+Estado em 2026-10-06: no ar com as specs 053 a 080 (deploy funcional
+`dpl_HUFFir3tGM9xTKXgTrZyTCQnqS8B`, commit `e2fa3c3`), com a conta do usuário
+e os dados atuais dele. As cotações, a meta Selic e o cálculo dos ativos com
+rendimento automático vêm da função `quotesync` do projeto de jobs
+(deployment 4), de hora em hora. A `main` recebe a branch `dev`, que a Vercel não
 publica ([fluxo de Git](../../docs/git-workflow.md)).
 
 ## Onde está
@@ -144,24 +145,46 @@ A produção começa sem usuários. Para entrar:
   - A partir deste deploy, a abertura não cria mais a competência sozinha: ela
     pergunta antes ([spec 078](../specs/078-overview-allocation-tabs-and-touch-charts.md)).
   - A produção tem o código das liquidações, mas os dados continuam na v2.
+- 2026-10-06, 21:29 UTC: criada `snapshot-antes-da-079`
+  (`br-damp-mountain-b66ebvtf`, sem compute), preservando a produção antes
+  das duas migrações da spec 079. A conferência encontrou 69 ativos,
+  66 competências, 837 posições, 896 rateios e 739 movimentações; o estado
+  atual dos dados já difere da antiga anotação de v2.
+- 2026-10-06, 21:30 UTC: com a autorização do usuário para push e deploy
+  completo, a `dev` foi enviada e a `main` avançou para `e2fa3c3`, com as
+  specs 079 e 080. O build de produção local e os 43 testes unitários
+  passaram antes do push da `main`. A Vercel publicou
+  `dpl_HUFFir3tGM9xTKXgTrZyTCQnqS8B` e aplicou
+  `20261006150000_auto_income_and_fixed_rate` e
+  `20261006190000_allocation_rate` (24 migrações finalizadas).
+  - O deploy ficou READY às 21:31 UTC; `/api/health` confirmou app e banco
+    online, `/entrar` respondeu 200 e as páginas sem sessão levaram ao login.
+    A checagem de abertura respondeu 401 sem sessão; nenhum erro de execução
+    apareceu nos logs do novo deploy.
+  - Comparação antes/depois por hashes: movimentações, competências, bases
+    das posições e rateios existentes iguais. Saldos e quantidades também
+    iguais. A flag nasceu desligada nos 69 ativos, e a taxa vazia nos
+    896 rateios; nenhum ativo começou a render automaticamente por causa
+    do deploy.
+- 2026-10-06, 21:31:45 UTC: depois do app e das migrações, `quotesync`
+  foi republicada como deployment 4, com Node 24 e apenas o código novo.
+  Segredos, conexão pooled com `verify-full` e `TZ=America/Sao_Paulo`
+  foram herdados do deployment anterior.
+  - Conferência pelo gatilho às 21:33 UTC (18h33 em Brasília), concluída
+    em 6 segundos: COMPLETED, BTC e SOL atualizados, Selic em dia e nenhum
+    erro. Não houve cálculo de rendimento porque nenhum ativo estava com
+    a flag ligada.
+  - O cron foi ajustado temporariamente para a conferência e restaurado
+    em seguida; confirmado `0 * * * *`, habilitado, próxima execução às
+    22:00 UTC (19h em Brasília).
 
 ## Pendente
 
-- as specs [079](../specs/079-auto-income-prefixed-and-movement-filters.md) e
-  [080](../specs/080-position-actions-on-page-and-mobile-trims.md) continuam na
-  `dev`. Para publicar o rendimento automático, o deploy do app deve aplicar
-  primeiro as migrações `20261006150000_auto_income_and_fixed_rate` e
-  `20261006190000_allocation_rate`; depois, republicar a função `quotesync`
-  ([operação](../../docs/quote-sync-job.md)). Conferência pelo MCP do Neon em
-  2026-10-06: a produção ainda não tem `assets.auto_income` nem
-  `position_allocations.rate_percent`, e a função ativa é o deployment 3,
-  de 2026-10-05. O gatilho segue habilitado; a execução de 2026-10-06 às
-  21:00 UTC concluiu com 8 cotações atualizadas;
 - o backup com movimentações v3 ([spec 071](../specs/071-backup-with-movements.md)
-  e [spec 076](../specs/076-position-liquidation.md)), que substituiu a v2, só
-  entra na produção se o usuário importá-lo pela Configuração. O código já está
-  lá desde o deploy de 2026-10-06. A importação substitui os dados da
-  produção, inclusive as 2 movimentações registradas lá;
+  e [spec 076](../specs/076-position-liquidation.md)) está disponível fora do
+  Git. O arquivo da última restauração de produção não foi confirmado;
+  a conferência deste deploy encontrou 739 movimentações e preservou esses
+  dados. Uma nova importação pela Configuração substitui a carteira atual;
 - a Binance não serve de reserva para a função em `aws-us-east-1` (HTTP 451):
   sem a CoinGecko, BTC e SOL esperam a execução seguinte;
 - o backup passou à versão 5; arquivos antigos continuam restaurando.
@@ -187,6 +210,11 @@ Em 2026-10-05:
 - aprovou os commits na `dev`, o push dela e a restauração local do backup com
   movimentações;
 - pediu para subir a `dev` na `main` e fazer o deploy.
+
+Em 2026-10-06:
+
+- autorizou o push da `dev`, a publicação completa das specs 079 e 080 na
+  `main` e a republicação do job no Neon.
 
 ## Observações
 

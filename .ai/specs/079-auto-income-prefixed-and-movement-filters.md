@@ -1,6 +1,7 @@
 # 079 — Rendimento automático como nos bancos, prefixado e filtros das movimentações
 
-Estado: implementada e validada localmente em 2026-10-06; sem deploy.
+Estado: concluída e publicada na produção em 2026-10-06, inclusive na função
+`quotesync` do Neon. Registro em [Produção](../context/production.md).
 Origem: pedido do usuário em 2026-10-06.
 
 ## Pedidos
@@ -168,7 +169,8 @@ Origem: pedido do usuário em 2026-10-06.
 
 - **Filtros:** Todos, Aportes, Rendimentos, Retiradas e Saldo inicial.
   - Só aparecem os tipos que a posição tem, cada um com a contagem.
-  - O rendimento automático entra em Rendimentos.
+  - A [spec 080](080-position-actions-on-page-and-mobile-trims.md) passou o
+    rendimento automático para um filtro próprio.
 
 ### Outros
 
@@ -238,10 +240,17 @@ Em 2026-10-06:
 
 ## Produção
 
-- A migração é aditiva e roda no build da Vercel.
-- A função `quotesync` do Neon precisa ser empacotada e publicada de novo
-  (`pnpm jobs:build` e `neon deploy`, [operação](../../docs/quote-sync-job.md))
-  para voltar a calcular. Até lá, o cálculo só roda ao editar ou movimentar.
+- Publicada em 2026-10-06 com a spec 080: o build da Vercel aplicou as duas
+  migrações e, depois, a função `quotesync` foi republicada com o cálculo novo
+  (deployment 4). O registro e a conferência ficam em
+  [Produção](../context/production.md).
+- A migração deixou a flag desligada nos 69 ativos existentes; saldos,
+  movimentações, bases e rateios foram preservados. O cálculo só liga por
+  escolha do usuário no ativo.
+- A execução do job pelo gatilho às 18h33 (Brasília) concluiu em 6 segundos,
+  atualizando BTC e SOL, sem erro. O agendamento de hora em hora foi
+  confirmado depois da conferência. Sem ativos habilitados, o job não
+  calculou rendimento nesse teste.
 
 ## Fora do escopo
 
