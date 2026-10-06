@@ -2,9 +2,9 @@
 
 Registrado em: 2026-10-03
 Origem: pedido do usuário de publicar o app, na conversa de 2026-10-03.
-Estado em 2026-10-05: no ar com as specs 053 a 073 (deploy
-`dpl_2QjZJVRfxEEgZ49BkLzYcP1V3uca`, commit `37c7e43`), com a conta do usuário
-e os dados dele. As cotações e a meta Selic vêm da função `quotesync` do projeto
+Estado em 2026-10-06: no ar com as specs 053 a 078 (deploy
+`dpl_Cd6RUzGWBe9kVnPcqTevpKq4RP1T`, commit `f0ca051`), com a conta do usuário
+e os dados dele, ainda na v2 do backup. As cotações e a meta Selic vêm da função `quotesync` do projeto
 de jobs, de hora em hora. A `main` recebe a branch `dev`, que a Vercel não
 publica ([fluxo de Git](../../docs/git-workflow.md)).
 
@@ -135,14 +135,23 @@ A produção começa sem usuários. Para entrar:
   `dpl_2QjZJVRfxEEgZ49BkLzYcP1V3uca` ficou pronto em cerca de 50 segundos.
   Conferido: `/entrar` respondendo, páginas sem sessão levando ao login, rotas
   de dados em 401 e nenhum erro de execução. A função do job não mudou.
+- 2026-10-06: com o pedido do usuário ("faça o deploy em produção"), a `main`
+  avançou para `f0ca051`, com as specs 074 a 078. Não houve migração, mudança
+  no job nem nas dependências, e o build de produção passou localmente antes.
+  O deploy `dpl_Cd6RUzGWBe9kVnPcqTevpKq4RP1T` ficou pronto em cerca de 55
+  segundos. Conferido: `/entrar` respondendo, páginas sem sessão levando ao
+  login, a checagem de abertura em 401 sem sessão e nenhum erro de execução.
+  - A partir deste deploy, a abertura não cria mais a competência sozinha: ela
+    pergunta antes ([spec 078](../specs/078-overview-allocation-tabs-and-touch-charts.md)).
+  - A produção tem o código das liquidações, mas os dados continuam na v2.
 
 ## Pendente
 
 - o backup com movimentações v3 ([spec 071](../specs/071-backup-with-movements.md)
   e [spec 076](../specs/076-position-liquidation.md)), que substituiu a v2, só
-  entra na produção se o usuário importá-lo pela Configuração; sem ele, a página
-  da posição na produção calcula o valor aplicado só a partir das movimentações
-  já registradas lá;
+  entra na produção se o usuário importá-lo pela Configuração. O código já está
+  lá desde o deploy de 2026-10-06. A importação substitui os dados da
+  produção, inclusive as 2 movimentações registradas lá;
 - a Binance não serve de reserva para a função em `aws-us-east-1` (HTTP 451):
   sem a CoinGecko, BTC e SOL esperam a execução seguinte;
 - o backup passou à versão 5; arquivos antigos continuam restaurando.

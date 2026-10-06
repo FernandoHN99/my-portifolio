@@ -77,7 +77,7 @@ Esta pasta organiza a implementação em fatias pequenas e revisáveis.
 - [071 — Backup convertido com movimentações](071-backup-with-movements.md): v2 com as regras de 2026-10-05 e o relatório do Inter, restaurada na carteira local; fora do Git.
 - [072 — Branch dev e ferramentas só do desenvolvimento](072-dev-branch-and-local-tools.md): concluída localmente; inclui a causa do CSS corrompido no `pnpm dev`.
 - [073 — Página da posição com valor aplicado, rendimento e nova ordem; trilha do topo](073-position-page-applied-value-and-nav-trail.md): concluída; na produção desde 2026-10-05.
-- [074 — Configuração sem rolagem horizontal em telas estreitas](074-settings-narrow-width-overflow.md): concluída em 2026-10-05, na `dev`; coluna da grade, matriz de renda fixa e prévia ajustadas de 320 a 430 px.
+- [074 — Configuração sem rolagem horizontal em telas estreitas](074-settings-narrow-width-overflow.md): concluída em 2026-10-05, na produção desde 2026-10-06; coluna da grade, matriz de renda fixa e prévia ajustadas de 320 a 430 px.
 - [075 — Página da posição mais limpa, sem textos explicativos e com os meses da posição](075-position-page-cleanup-and-month-strip.md): concluída localmente em 2026-10-05; seções recolhidas, destaques no card da variação, períodos na variação mensal, sem conta corrente no formulário.
 - [076 — Liquidação de posições](076-position-liquidation.md): concluída localmente em 2026-10-05; retirada total que preserva o histórico, rendimento com o realizado e backup v3 com as liquidações antigas.
 - [077 — Topo ligado à posição, filtros do celular e abas sem arraste](077-header-trail-and-mobile-filters.md): concluída localmente em 2026-10-06; folha de filtros no celular e troca de aba só pelo toque (as setas do topo saíram na 078).
@@ -85,7 +85,8 @@ Esta pasta organiza a implementação em fatias pequenas e revisáveis.
 
 As specs 063 a 073 são revisões posteriores de 2026-10-04 e 2026-10-05, no
 `main` e na produção desde 2026-10-05 ([Produção](../context/production.md)).
-As specs 074 a 078 estão na `dev`, ainda fora da produção.
+As specs 074 a 078 estão no `main` e na produção desde 2026-10-06
+(deploy `dpl_Cd6RUzGWBe9kVnPcqTevpKq4RP1T`).
 
 Conferência conjunta das specs 063 a 072, em 2026-10-05:
 

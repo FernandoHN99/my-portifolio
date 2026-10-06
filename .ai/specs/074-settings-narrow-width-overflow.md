@@ -1,6 +1,7 @@
 # 074 — Configuração sem rolagem horizontal em telas estreitas
 
-Estado: implementada e validada em 2026-10-05; na `dev`, ainda fora da produção.
+Estado: implementada e validada em 2026-10-05; na produção desde 2026-10-06
+(deploy `dpl_Cd6RUzGWBe9kVnPcqTevpKq4RP1T`).
 Origem: relato do usuário em 2026-10-05: em `/configuracao` com 390 px de largura,
 `document.documentElement.scrollWidth` passava 32 px de `window.innerWidth`; os
 sufixos "%" dos campos de percentual saíam da borda e o contêiner `space-y-6`

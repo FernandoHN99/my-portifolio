@@ -1,7 +1,7 @@
 # 078 — Alocação por abas na Visão geral, virada com confirmação e gráficos de toque
 
-Estado: implementada e validada localmente em 2026-10-06; na `dev`, ainda fora
-da produção.
+Estado: implementada e validada localmente em 2026-10-06; na produção desde
+2026-10-06 (deploy `dpl_Cd6RUzGWBe9kVnPcqTevpKq4RP1T`).
 Origem: pedidos do usuário em 2026-10-06.
 
 ## Pedidos

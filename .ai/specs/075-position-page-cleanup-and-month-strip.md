@@ -1,7 +1,7 @@
 # 075 — Página da posição mais limpa, sem textos explicativos e com os meses da posição
 
-Estado: implementada e validada localmente em 2026-10-05; na `dev`, ainda fora
-da produção.
+Estado: implementada e validada localmente em 2026-10-05; na produção desde
+2026-10-06 (deploy `dpl_Cd6RUzGWBe9kVnPcqTevpKq4RP1T`).
 Origem: pedidos do usuário em 2026-10-05, depois de ver a página da
 [spec 073](073-position-page-applied-value-and-nav-trail.md) no app.
 

@@ -17,7 +17,7 @@ no Neon, e o job das cotações roda como função do Neon
 ([Produção](.ai/context/production.md)).
 
 Revisões posteriores: specs 063 a 073 no `main` e na produção desde
-2026-10-05; specs 074 a 078 na `dev`. O trabalho do dia a
+2026-10-05; specs 074 a 078 desde 2026-10-06. O trabalho do dia a
 dia vai para a `dev`; a `main` é a produção ([fluxo de Git](docs/git-workflow.md)).
 
 - as cotações são atualizadas só pelo job agendado (`pnpm quotes:sync`,
@@ -86,7 +86,8 @@ dia vai para a `dev`; a `main` é a produção ([fluxo de Git](docs/git-workflow
   movimentações convertidas pelas regras do usuário e pelo relatório do Inter,
   [spec 071](.ai/specs/071-backup-with-movements.md), e as liquidações das
   posições que saíram, [spec 076](.ai/specs/076-position-liquidation.md)),
-  restaurado na carteira local em 2026-10-05; a produção ainda não o recebeu.
+  restaurado na carteira local em 2026-10-05; a produção já tem o código, mas
+  ainda não recebeu o arquivo.
   Nele todas as competências estão fechadas: os testes que editam ficam pulados
   até o usuário abrir um mês;
 - a página da posição mostra valor aplicado (saldo inicial e aportes, menos a

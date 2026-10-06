@@ -1,7 +1,7 @@
 # 076 — Liquidação de posições: retirada total que preserva o histórico
 
-Estado: implementada e validada localmente em 2026-10-05; na `dev`, ainda fora
-da produção. O backup v3 foi restaurado só na carteira local.
+Estado: implementada e validada localmente em 2026-10-05; na produção desde
+2026-10-06 (deploy `dpl_Cd6RUzGWBe9kVnPcqTevpKq4RP1T`). O backup v3 foi restaurado só na carteira local.
 Origem: pedido do usuário em 2026-10-05.
 
 ## Regra do usuário
