@@ -1,3 +1,4 @@
+import { confirmMonthRolloverAction } from "@/app/actions/edit-month";
 import { showAppToast } from "@/components/product/app-toaster";
 import { hasPendingChanges } from "@/components/product/unsaved-changes";
 import type { MonthRolloverOutcome, OpenCheckResponse } from "@/modules/portfolio/domain/month-rollover";
@@ -11,12 +12,19 @@ import { providerLabel, type QuoteRefreshRunView, type QuoteRefreshSummary } fro
 // agendado (spec 053): a checagem traz o resumo da última execução, e o
 // navegador recarrega os dados quando ele mostra cotações novas.
 
+export type PendingRollover = { latestMonth: string; months: string[] };
+
 export type QuoteRefreshClientState = {
   running: boolean;
   summary: QuoteRefreshSummary | null;
+  /** Competências que faltam até o mês corrente, à espera da confirmação (spec 078). */
+  pendingRollover: PendingRollover | null;
+  /** A confirmação está criando as competências. */
+  rollingOver: boolean;
 };
 
-const SERVER_STATE: QuoteRefreshClientState = { running: false, summary: null };
+const SERVER_STATE: QuoteRefreshClientState = { running: false, summary: null, pendingRollover: null, rollingOver: false };
+const DISMISSED_ROLLOVER_KEY = "rollover:dismissed";
 const REQUEST_TIMEOUT_MS = 60 * 1000;
 /** Intervalo mínimo entre checagens de uma aba. */
 const OPEN_CHECK_INTERVAL_MS = 5 * 60 * 1000;
@@ -81,6 +89,52 @@ export function runOpenCheck(onDataChanged: () => void, serverSummary: QuoteRefr
   void execute(onDataChanged);
 }
 
+/** Cria as competências pendentes depois da confirmação (spec 078). */
+export async function confirmRollover(onDataChanged: () => void) {
+  if (state.rollingOver) {
+    return;
+  }
+
+  setState({ rollingOver: true });
+
+  try {
+    const outcome = await confirmMonthRolloverAction();
+    setState({ pendingRollover: null });
+    announceRollover(outcome);
+
+    if (outcome.state === "created") {
+      onDataChanged();
+    }
+  } catch {
+    showAppToast({ tone: "error", title: "Não foi possível criar a competência do mês", description: "Tente de novo em instantes." });
+  } finally {
+    setState({ rollingOver: false });
+  }
+}
+
+/** "Agora não": não pergunta de novo pelo mesmo mês nesta sessão. */
+export function dismissRollover() {
+  const target = state.pendingRollover?.months.at(-1);
+
+  if (target) {
+    try {
+      window.sessionStorage.setItem(DISMISSED_ROLLOVER_KEY, target);
+    } catch {
+      // Sem armazenamento, a pergunta volta na próxima checagem.
+    }
+  }
+
+  setState({ pendingRollover: null });
+}
+
+function wasDismissed(month: string) {
+  try {
+    return window.sessionStorage.getItem(DISMISSED_ROLLOVER_KEY) === month;
+  } catch {
+    return false;
+  }
+}
+
 // Recarrega os dados da tela, exceto quando há edições pendentes, que seriam
 // descartadas se a competência exibida mudasse. Pedidos feitos no mesmo ciclo,
 // pelo topo e pela página de cotações, viram um único recarregamento.
@@ -119,7 +173,15 @@ async function execute(onDataChanged: () => void) {
       setState({ summary: payload.summary });
     }
 
-    if (payload.rollover) {
+    if (payload.rollover?.state === "pending") {
+      // Pergunta antes de virar o mês (spec 078), a menos que o usuário já
+      // tenha dito "agora não" para o mesmo mês nesta sessão.
+      const target = payload.rollover.months.at(-1);
+      setState({
+        pendingRollover: target && wasDismissed(target) ? null : { latestMonth: payload.rollover.latestMonth, months: payload.rollover.months },
+      });
+    } else if (payload.rollover) {
+      setState({ pendingRollover: null });
       announceRollover(payload.rollover);
     }
 

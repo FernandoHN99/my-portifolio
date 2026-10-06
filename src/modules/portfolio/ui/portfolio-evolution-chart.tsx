@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils";
 import type { OverviewHistoryPoint } from "@/modules/portfolio/application/get-overview-data";
 import { categoryColor } from "@/modules/portfolio/presentation/category-colors";
 import { formatBrl, formatMonthCompact } from "@/modules/portfolio/presentation/portfolio-format";
+import { useTouchTooltip } from "@/modules/portfolio/ui/use-touch-tooltip";
 
 type StackMode = "total" | "class" | "currency";
 
@@ -52,6 +53,7 @@ export function PortfolioEvolutionChart({
 }) {
   const [, startTransition] = useTransition();
   const [, setMonth] = useQueryState("mes", { shallow: false, startTransition });
+  const touch = useTouchTooltip();
   const [stackMode, setStackMode] = useState<StackMode>("total");
   const [range, setRange] = useState<[number, number]>([
     Math.max(history.length - 12, 0),
@@ -132,7 +134,7 @@ export function PortfolioEvolutionChart({
         </div>
       </div>
 
-      <div className="h-[300px] w-full">
+      <div className="h-[300px] w-full" {...touch.containerProps}>
         <ResponsiveContainer height="100%" width="100%">
           <BarChart
             data={data}
@@ -140,7 +142,9 @@ export function PortfolioEvolutionChart({
             onClick={(state) => {
               const month = monthByLabel.get(String(state?.activeLabel ?? ""));
 
-              if (month) {
+              // No toque (spec 078), tocar mostra a indicação; o mês muda pela
+              // faixa de competências. No mouse, o clique abre a competência.
+              if (month && !touch.isTouch()) {
                 void setMonth(month);
               }
             }}

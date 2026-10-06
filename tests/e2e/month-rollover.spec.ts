@@ -85,3 +85,39 @@ test("uma falha na virada de mês é avisada sem quebrar a página", async ({ pa
   await expect(page.getByTestId("app-toast")).toContainText("Não foi possível criar a competência do mês");
   await expect(page.getByRole("heading", { level: 1, name: "Patrimônio consolidado" })).toBeVisible();
 });
+
+test("a virada de mês pergunta antes de criar a competência", async ({ page }) => {
+  // Spec 078: a abertura só avisa o que falta; nada é criado sem o "Criar".
+  await stubQuoteChecks(page, {
+    openCheck: { rollover: { state: "pending", latestMonth: "2026-10", months: ["2026-11"] }, summary: null },
+  });
+  await page.goto("/");
+
+  const prompt = page.getByTestId("month-rollover-prompt");
+  await expect(prompt).toContainText("Começar novembro de 2026?");
+  await expect(prompt).toContainText("As posições e os rateios de Out/26 passam para Nov/26, e Out/26 fica fechado.");
+  await expect(prompt.getByRole("button", { name: "Criar Nov/26" })).toBeVisible();
+
+  await prompt.getByRole("button", { name: "Agora não" }).click();
+  await expect(prompt).toHaveCount(0);
+  await expect(page.getByTestId("app-toast")).toHaveCount(0);
+
+  // "Agora não" vale para o mesmo mês na sessão: recarregar não pergunta de novo.
+  await page.reload();
+  await expect(page.getByRole("heading", { level: 1, name: "Patrimônio consolidado" })).toBeVisible();
+  await page.waitForTimeout(800);
+  await expect(prompt).toHaveCount(0);
+});
+
+test("com vários meses faltando, a pergunta lista todos", async ({ page }) => {
+  await stubQuoteChecks(page, {
+    openCheck: { rollover: { state: "pending", latestMonth: "2026-10", months: ["2026-11", "2026-12"] }, summary: null },
+  });
+  await page.goto("/");
+
+  const prompt = page.getByTestId("month-rollover-prompt");
+  await expect(prompt).toContainText("Criar 2 competências?");
+  await expect(prompt).toContainText("Nov/26 e Dez/26, cada uma a partir da anterior, desde Out/26.");
+  await prompt.getByRole("button", { name: "Agora não" }).click();
+  await expect(prompt).toHaveCount(0);
+});

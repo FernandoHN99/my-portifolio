@@ -32,18 +32,6 @@ export type OverviewHistoryPoint = {
   byCurrency: Record<string, number>;
 };
 
-export type CompositionRow = {
-  label: string;
-  currentShare: number;
-  targetShare: number | null;
-};
-
-export type CompositionGroup = {
-  key: string;
-  title: string;
-  rows: CompositionRow[];
-};
-
 export type OverviewData = {
   referenceDate: Date;
   monthStatus: PortfolioMonthStatus;
@@ -69,19 +57,12 @@ export type OverviewData = {
   institutionCount: number;
   offTargetTolerance: number;
   history: OverviewHistoryPoint[];
-  composition: CompositionGroup[];
   /** Patrimônio por tipo do ativo na competência (spec 068), do maior para o menor. */
   byType: { label: string; valueBrl: number; share: number }[];
   rebalanceGroups: AllocationGroup[];
   fixedIncomeDuration: FixedIncomeDuration;
   classLabels: string[];
   currencyLabels: string[];
-};
-
-const COMPOSITION_TITLES: Record<string, string> = {
-  ASSET_CLASS: "Classe de ativos",
-  CURRENCY: "Moeda",
-  STRATEGY: "Estratégia",
 };
 
 export async function getOverviewData(referenceDate?: Date): Promise<OverviewData | null> {
@@ -188,17 +169,6 @@ export async function getOverviewData(referenceDate?: Date): Promise<OverviewDat
     const btcRate = quotes.get("BTC")?.valueBrl.toNumber() ?? null;
 
     const allocation = await getAllocationOverview(selected.referenceDate);
-    const composition = (allocation?.groups ?? [])
-      .filter((group) => group.key in COMPOSITION_TITLES)
-      .map((group) => ({
-        key: group.key,
-        title: COMPOSITION_TITLES[group.key],
-        rows: group.rows.map((row) => ({
-          label: row.label,
-          currentShare: row.currentShare,
-          targetShare: row.targetShare,
-        })),
-      }));
 
     return {
       referenceDate: selected.referenceDate,
@@ -234,7 +204,6 @@ export async function getOverviewData(referenceDate?: Date): Promise<OverviewDat
       ).size,
       offTargetTolerance: allocation?.tolerance ?? DEFAULT_REBALANCE_TOLERANCE,
       history,
-      composition,
       byType,
       rebalanceGroups: allocation?.groups ?? [],
       fixedIncomeDuration: buildFixedIncomeDuration(

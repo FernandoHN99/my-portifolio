@@ -86,7 +86,8 @@ test("uma meta sem posição aparece para comprar", async ({ page }) => {
 });
 
 test("a Visão Geral cabe na largura da tela", async ({ page }) => {
-  await page.goto("/?mes=2026-09");
+  // O gráfico de renda fixa fica na aba Renda Fixa da alocação (spec 078).
+  await page.goto("/?mes=2026-09&corte=renda-fixa");
 
   await expect(page.getByRole("region", { name: "Comprar e vender" })).toBeVisible();
   await expect(
@@ -96,8 +97,8 @@ test("a Visão Geral cabe na largura da tela", async ({ page }) => {
   expect(await pageWidth(page)).toBeLessThanOrEqual(page.viewportSize()?.width ?? 0);
 });
 
-test("renda fixa por resgate mostra o atual em cima e o ideal embaixo na mesma escala", async ({ page }) => {
-  await page.goto("/?mes=2026-09");
+test("renda fixa por resgate mostra o atual e o ideal na mesma escala", async ({ page }) => {
+  await page.goto("/?mes=2026-09&corte=renda-fixa");
 
   const card = page.getByRole("region", { name: "Renda fixa por resgate" });
   await card.scrollIntoViewIfNeeded();
@@ -112,9 +113,14 @@ test("renda fixa por resgate mostra o atual em cima e o ideal embaixo na mesma e
   await expect(current.locator(".recharts-bar-rectangle").first()).toBeVisible();
   await expect(target.locator(".recharts-bar-rectangle").first()).toBeVisible();
 
-  const currentBox = await current.boundingBox();
-  const targetBox = await target.boundingBox();
-  expect(currentBox && targetBox && currentBox.y + currentBox.height <= targetBox.y).toBe(true);
+  // Na largura toda (spec 078), lado a lado a partir de 1024 px; abaixo, o
+  // atual em cima e o ideal embaixo.
+  const currentBox = (await current.boundingBox())!;
+  const targetBox = (await target.boundingBox())!;
+  const sideBySide = (page.viewportSize()?.width ?? 0) >= 1024;
+  expect(
+    sideBySide ? currentBox.x + currentBox.width <= targetBox.x && Math.abs(currentBox.y - targetBox.y) < 2 : currentBox.y + currentBox.height <= targetBox.y,
+  ).toBe(true);
 
   const ticks = (chart: Locator) =>
     chart.locator(".recharts-yAxis .recharts-cartesian-axis-tick-value").allTextContents();
@@ -134,7 +140,7 @@ test("um prazo fora do padrão ocupa a mesma posição nos dois gráficos", asyn
   // histórico preparado (spec 041) corrigiu. O cenário só roda quando os dados
   // reais voltarem a ter renda fixa sem prazo, por exemplo um rateio com
   // resgate "Nenhum".
-  await page.goto("/?mes=2025-10");
+  await page.goto("/?mes=2025-10&corte=renda-fixa");
 
   const card = page.getByRole("region", { name: "Renda fixa por resgate" });
   await card.scrollIntoViewIfNeeded();
@@ -169,7 +175,7 @@ test("um prazo fora do padrão ocupa a mesma posição nos dois gráficos", asyn
 
 test("num celular de 360 px, toda barra da renda fixa tem rótulo", async ({ page }) => {
   await page.setViewportSize({ width: 360, height: 800 });
-  await page.goto("/?mes=2026-09");
+  await page.goto("/?mes=2026-09&corte=renda-fixa");
 
   const card = page.getByRole("region", { name: "Renda fixa por resgate" });
   await card.scrollIntoViewIfNeeded();

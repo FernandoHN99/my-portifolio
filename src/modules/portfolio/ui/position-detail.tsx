@@ -14,7 +14,7 @@ import {
   TrendUpIcon,
 } from "@phosphor-icons/react/dist/ssr";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { parseAsStringLiteral, useQueryState } from "nuqs";
 import { useCallback, useRef, useState, useTransition } from "react";
 
@@ -96,6 +96,7 @@ export function PositionDetail({
   editing: PositionEditing | null;
 }) {
   const searchParams = useSearchParams();
+  const pathname = usePathname();
   const router = useRouter();
   // Sem rolagem rasa: a faixa de competências mostra só os meses com a posição
   // no recorte escolhido, e o servidor recalcula (spec 075).
@@ -148,7 +149,9 @@ export function PositionDetail({
   const scope: "account" | "all" = scopeParam === "todas" && history.all ? "all" : "account";
   const view = scope === "all" && history.all ? history.all : history.account;
   const { summary, slots } = view;
-  const transactions = view.transactions.filter((entry) => entry.month <= history.selectedMonth);
+  // Todas as movimentações da posição, não só até o mês selecionado (spec 078):
+  // a liquidação aparece como a última, em qualquer mês aberto.
+  const transactions = view.transactions;
   const quoted = Boolean(history.quoteSymbol);
   const dollarBalance = history.quoteSymbol === "USD";
   const current = summary.current;
@@ -172,6 +175,16 @@ export function PositionDetail({
   // Qualquer posição com saldo no mês aberto pode ser liquidada (spec 076).
   const canLiquidate = editBlocked === null && editPosition !== null && !editPosition.liquidated;
   const usdValue = current && history.usdRate ? current.valueBrl / history.usdRate : null;
+  // A posição terminou numa liquidação (spec 076): o selo aparece em qualquer
+  // mês dela e leva ao mês da saída, onde fica a retirada total.
+  // No próprio mês de uma liquidação, o selo aparece também quando a posição
+  // voltou depois.
+  const lastSlot = [...slots].reverse().find((slot): slot is PresentSlot => slot.kind === "present") ?? null;
+  const exit = current?.liquidated ? current : lastSlot?.liquidated ? lastSlot : null;
+  const exitParams = new URLSearchParams(searchParams.toString());
+  if (exit) {
+    exitParams.set("mes", exit.month);
+  }
 
   return (
     <div className="relative mx-auto w-full max-w-[1472px] px-5 py-8 pb-24 sm:px-7 sm:py-10 xl:px-12 xl:py-12">
@@ -194,13 +207,23 @@ export function PositionDetail({
             </span>
           </p>
           <div className="mt-3 flex flex-wrap items-center gap-1.5" data-testid="position-chips">
-            {current?.liquidated ? (
-              <span
-                data-testid="position-liquidated"
-                className="inline-flex items-center rounded-full border border-border px-2.5 py-1 text-[11px] font-medium text-foreground/85"
-              >
-                Liquidada em {formatDayKey(current.liquidatedOn)}
-              </span>
+            {exit ? (
+              exit.month === history.selectedMonth ? (
+                <span
+                  data-testid="position-liquidated"
+                  className="inline-flex items-center rounded-full border border-border px-2.5 py-1 text-[11px] font-medium text-foreground/85"
+                >
+                  Liquidada em {formatDayKey(exit.liquidatedOn)}
+                </span>
+              ) : (
+                <Link
+                  href={`${pathname}?${exitParams.toString()}`}
+                  data-testid="position-liquidated"
+                  className="inline-flex items-center rounded-full border border-border px-2.5 py-1 text-[11px] font-medium text-foreground/85 outline-none transition-colors hover:border-primary/40 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50"
+                >
+                  Liquidada em {formatDayKey(exit.liquidatedOn)}
+                </Link>
+              )
             ) : null}
             {singleAllocation ? (
               <span

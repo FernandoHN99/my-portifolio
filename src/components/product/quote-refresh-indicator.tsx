@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 
+import { MonthRolloverPrompt } from "@/components/product/month-rollover-prompt";
 import { runOpenCheck } from "@/components/product/quote-refresh-client";
 import { useQuoteRefresh } from "@/components/product/use-quote-refresh";
 import { cn } from "@/lib/utils";
@@ -16,7 +17,7 @@ const OPEN_CHECK_POLL_MS = 60 * 1000;
  * de mês e o resumo da última execução.
  */
 export function QuoteRefreshIndicator({ summary: serverSummary }: { summary: QuoteRefreshSummary | null }) {
-  const { summary, time, hasIssues, issueText, onDataChanged } = useQuoteRefresh(serverSummary);
+  const { client, summary, time, hasIssues, issueText, onDataChanged } = useQuoteRefresh(serverSummary);
 
   useEffect(() => {
     runOpenCheck(onDataChanged, serverSummary);
@@ -47,6 +48,7 @@ export function QuoteRefreshIndicator({ summary: serverSummary }: { summary: Quo
     .join(". ");
 
   return (
+    <>
     <div
       data-testid="quote-refresh"
       title={title || undefined}
@@ -79,5 +81,7 @@ export function QuoteRefreshIndicator({ summary: serverSummary }: { summary: Quo
         />
       ) : null}
     </div>
+    <MonthRolloverPrompt pending={client.pendingRollover} creating={client.rollingOver} onDataChanged={onDataChanged} />
+    </>
   );
 }

@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import type { PositionSummary } from "@/modules/portfolio/domain/position-history";
 import { formatBrl } from "@/modules/portfolio/presentation/portfolio-format";
 import { formatSignedBrl, monthLabel } from "@/modules/portfolio/presentation/position-page";
+import { useTouchTooltip } from "@/modules/portfolio/ui/use-touch-tooltip";
 
 type Mode = "since-entry" | "month";
 type Tone = "total" | "price" | "flow" | "change" | "neutral";
@@ -31,6 +32,7 @@ const FLOW_COLOR = "#cc79a7";
  */
 export function PositionAttribution({ summary, quoted }: { summary: PositionSummary; quoted: boolean }) {
   const [mode, setMode] = useState<Mode>("since-entry");
+  const touch = useTouchTooltip();
   const bars = mode === "since-entry" ? sinceEntryBars(summary, quoted) : monthBars(summary, quoted);
   const emptyText =
     mode === "month"
@@ -75,7 +77,7 @@ export function PositionAttribution({ summary, quoted }: { summary: PositionSumm
       ) : (
         <div className="mt-6 grid grid-cols-1 gap-6 @3xl:grid-cols-[minmax(0,1.3fr)_minmax(220px,1fr)] @3xl:items-center">
           <div className="w-full overflow-x-auto" data-testid="attribution-chart">
-            <div className="h-[220px]" style={{ minWidth: bars.length > 5 ? 560 : undefined }}>
+            <div className="h-[220px]" style={{ minWidth: bars.length > 5 ? 560 : undefined }} {...touch.containerProps}>
             <ResponsiveContainer height="100%" width="100%">
               <BarChart data={bars} margin={{ top: 22, right: 4, bottom: 0, left: 4 }} barCategoryGap="22%">
                 <XAxis

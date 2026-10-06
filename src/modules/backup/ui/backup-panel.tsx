@@ -127,7 +127,8 @@ export function BackupPanel() {
 
       <div className="mt-5 flex flex-wrap gap-2">
         <a href="/api/backup" download className={primaryButtonClass}>
-          <DownloadSimpleIcon aria-hidden="true" size={14} weight="bold" />
+          {/* Exportar sai do app (seta para fora); importar entra (spec 078). */}
+          <UploadSimpleIcon aria-hidden="true" size={14} weight="bold" />
           Exportar backup
         </a>
         <button
@@ -139,7 +140,7 @@ export function BackupPanel() {
           {checking ? (
             <CircleNotchIcon aria-hidden="true" className="mr-2 animate-spin" size={14} weight="bold" />
           ) : (
-            <UploadSimpleIcon aria-hidden="true" className="mr-2" size={14} weight="bold" />
+            <DownloadSimpleIcon aria-hidden="true" className="mr-2" size={14} weight="bold" />
           )}
           {checking ? "Conferindo arquivo…" : "Importar backup"}
         </button>

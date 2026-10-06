@@ -30,6 +30,13 @@ const CATEGORY_COLORS: Record<string, string> = {
   "Core-Satellite": OKABE_ITO.orange,
   Hedge: OKABE_ITO.grey,
   Satellite: OKABE_ITO.yellow,
+  // Subclasses da renda variável, que aparecem juntas no gráfico da alocação
+  // (spec 078): sem cores repetidas entre elas.
+  "Ações EUA": OKABE_ITO.blue,
+  "Ações BR": OKABE_ITO.green,
+  "Ações - Ex: USA": OKABE_ITO.vermillion,
+  "Imobiliário BR": OKABE_ITO.purple,
+  Commoditie: OKABE_ITO.yellow,
   // Prazos de resgate, como no gráfico da planilha: curto azul, médio laranja,
   // longo cinza.
   Curto: OKABE_ITO.sky,

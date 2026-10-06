@@ -4,8 +4,8 @@ import { positionRow } from "./support/position-form";
 import { stubQuoteChecks } from "./support/quote-checks";
 
 // Spec 073, no lugar da ilha da spec 046, e spec 077: dentro de Posições, a
-// posição ou as cotações abertas aparecem numa trilha abaixo das abas, ligada a
-// elas por setas, nas cores do projeto;
+// posição ou as cotações abertas aparecem numa trilha abaixo das abas, nas
+// cores do projeto;
 // a Configuração vira uma aba selecionada, e a engrenagem do canto some. Só
 // leitura.
 test.beforeEach(async ({ page }) => {
@@ -26,12 +26,10 @@ test("a trilha abaixo das abas mostra a posição e as cotações; a configuraç
   await expect(page.getByRole("heading", { level: 1, name: "Porquinho" })).toBeVisible();
   await expect(trail).toHaveAttribute("data-kind", "position");
   await expect(trail).toContainText("Você está em Porquinho");
-  // Sem repetir "Posições" (spec 077): setas ligam a aba à posição e a posição
-  // à faixa de competências, que mostra só os meses dela.
+  // Sem repetir "Posições" (spec 077) e sem as setas, que saíram (spec 078); a
+  // faixa de competências mostra só os meses da posição.
   await expect(trail).not.toContainText("Posições");
-  const connectors = page.getByTestId("nav-trail-connectors");
-  await expect(connectors).toHaveAttribute("data-to-months", "true");
-  await expect(connectors.locator("path")).toHaveCount(3);
+  await expect(page.getByTestId("nav-trail-connectors")).toHaveCount(0);
   await expect(page.getByRole("navigation", { name: "Competências" })).toHaveAttribute("data-scoped", "true");
   await expect(nav.getByRole("link", { name: "Posições" })).toHaveAttribute("aria-current", "page");
   // A trilha fica fora das abas, abaixo delas.
@@ -42,9 +40,7 @@ test("a trilha abaixo das abas mostra a posição e as cotações; a configuraç
   await page.goto("/posicoes/cotacoes?mes=2026-09");
   await expect(trail).toHaveAttribute("data-kind", "quotes");
   await expect(trail).toContainText("Cotações · Set/26");
-  // Nas cotações, a faixa é a de sempre: só a seta da aba até a trilha.
-  await expect(connectors.locator("path")).toHaveCount(1);
-  await expect(connectors).not.toHaveAttribute("data-to-months", "true");
+  // Nas cotações, a faixa é a de sempre.
   await expect(page.getByRole("navigation", { name: "Competências" })).not.toHaveAttribute("data-scoped", "true");
   await expect(gear).toBeVisible();
 

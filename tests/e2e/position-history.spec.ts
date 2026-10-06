@@ -242,6 +242,50 @@ test("o seletor global troca a competência e só mostra os meses com a posiçã
   await expect(page.getByTestId("position-liquidated")).toBeVisible();
 });
 
+test("antes da saída, o selo da liquidação leva ao mês dela", async ({ page }) => {
+  // O USDC da Binance foi liquidado em Out/25 (spec 076).
+  await openPosition(page, "USDC", "mes=2025-09", "Binance");
+  await page.getByTestId("position-liquidated").click();
+  await expect(page).toHaveURL(/mes=2025-10/);
+  await expect(page.getByTestId("position-liquidated")).toHaveText("Liquidada em 01/10/2025");
+  await page.getByRole("button", { name: /^Movimentações/ }).click();
+  await expect(page.getByTestId("position-transactions").locator("tr[data-transaction-kind='WITHDRAWAL']").first()).toContainText(
+    "Liquidação",
+  );
+});
+
+test("tocar ou clicar nos gráficos da posição não troca de mês", async ({ page }) => {
+  // Spec 078: o mês muda pela faixa de competências ou pelo mês a mês.
+  await openBitcoin01(page);
+  const url = page.url();
+  for (const testId of ["position-evolution-chart", "balance-change-chart"]) {
+    const chart = page.getByTestId(testId).locator(".recharts-wrapper").first();
+    const box = (await chart.boundingBox())!;
+    await page.mouse.click(box.x + box.width * 0.4, box.y + box.height * 0.5);
+  }
+  await page.waitForTimeout(600);
+  expect(page.url()).toBe(url);
+});
+
+test("no toque, a indicação do gráfico some quando o dedo sai", async ({ page, isMobile }) => {
+  test.skip(!isMobile, "Gesto de toque (spec 078).");
+  await openBitcoin01(page);
+  const chart = page.getByTestId("position-evolution-chart");
+  const wrapper = chart.locator(".recharts-wrapper").first();
+  await wrapper.scrollIntoViewIfNeeded();
+  const box = (await wrapper.boundingBox())!;
+  const touch = { identifier: 1, clientX: box.x + box.width * 0.5, clientY: box.y + box.height * 0.5 };
+  const tooltip = chart.locator(".recharts-tooltip-wrapper");
+
+  await wrapper.dispatchEvent("touchstart", { touches: [touch], changedTouches: [touch], targetTouches: [touch] });
+  await wrapper.dispatchEvent("touchmove", { touches: [touch], changedTouches: [touch], targetTouches: [touch] });
+  await expect(tooltip).toContainText("R$");
+  await expect(tooltip).toBeVisible();
+
+  await wrapper.dispatchEvent("touchend", { touches: [], changedTouches: [touch], targetTouches: [] });
+  await expect(tooltip).toBeHidden();
+});
+
 test("a liquidação aparece na tabela do mês da saída e não no seguinte", async ({ page }) => {
   // A LCI BRB saiu em Out/26 (spec 076).
   await page.goto("/posicoes?mes=2026-10");

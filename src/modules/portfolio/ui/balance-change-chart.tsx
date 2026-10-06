@@ -1,13 +1,13 @@
 "use client";
 
-import { useQueryState } from "nuqs";
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { Bar, BarChart, Cell, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 import { cn } from "@/lib/utils";
 import type { HistorySlot } from "@/modules/portfolio/domain/position-history";
 import { formatBrl, formatPercent } from "@/modules/portfolio/presentation/portfolio-format";
 import { formatSignedBrl, monthLabel } from "@/modules/portfolio/presentation/position-page";
+import { useTouchTooltip } from "@/modules/portfolio/ui/use-touch-tooltip";
 
 type ChangeRow = {
   month: string;
@@ -48,8 +48,7 @@ export function BalanceChangeChart({
   selectedMonth: string;
   scope: "account" | "all";
 }) {
-  const [, startTransition] = useTransition();
-  const [, setMonth] = useQueryState("mes", { shallow: false, startTransition });
+  const touch = useTouchTooltip();
   const [period, setPeriod] = useState<Period>("12m");
   const firstIndex = slots.findIndex((slot) => slot.kind === "present");
   const allRows: ChangeRow[] =
@@ -124,19 +123,12 @@ export function BalanceChangeChart({
         ))}
       </div>
       </div>
-      <div className="h-[260px] w-full">
+      <div className="h-[260px] w-full" {...touch.containerProps}>
       <ResponsiveContainer height="100%" width="100%">
         <BarChart
           data={rows}
           stackOffset="sign"
           margin={{ top: 8, right: 4, bottom: 0, left: 4 }}
-          onClick={(state) => {
-            const row = byLabel.get(String(state?.activeLabel ?? ""));
-
-            if (row && row.slot.kind !== "missing" && row.month !== selectedMonth) {
-              void setMonth(row.month);
-            }
-          }}
         >
           <XAxis
             axisLine={false}

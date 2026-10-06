@@ -1,68 +1,14 @@
-"use client";
-
-import { useQueryState } from "nuqs";
-
 import { cn } from "@/lib/utils";
-import type {
-  AllocationGroup,
-  AllocationGroupKey,
-  AllocationRow,
-} from "@/modules/portfolio/domain/rebalance";
+import type { AllocationRow } from "@/modules/portfolio/domain/rebalance";
 import { categoryColor } from "@/modules/portfolio/presentation/category-colors";
 import { formatBrl, formatSharePercent } from "@/modules/portfolio/presentation/portfolio-format";
 
-type SliceDefinition = {
-  key: string;
-  label: string;
-  group: AllocationGroupKey;
-  parentClass?: string;
-};
-
-const CLASSIFICATIONS: { key: string; label: string; slices: SliceDefinition[] }[] = [
-  {
-    key: "geral",
-    label: "Geral",
-    slices: [
-      { key: "classe", label: "Classe", group: "ASSET_CLASS" },
-      { key: "moeda", label: "Moeda", group: "CURRENCY" },
-      { key: "estrategia", label: "Estratégia", group: "STRATEGY" },
-    ],
-  },
-  {
-    key: "caixa",
-    label: "Caixa",
-    slices: [{ key: "moeda", label: "Moeda", group: "CLASS_CURRENCY", parentClass: "Caixa" }],
-  },
-  {
-    key: "renda-fixa",
-    label: "Renda Fixa",
-    slices: [{ key: "subclasse", label: "Subclasse", group: "FIXED_INCOME" }],
-  },
-  {
-    key: "renda-variavel",
-    label: "Renda Variável",
-    slices: [{ key: "subclasse", label: "Subclasse", group: "VARIABLE_INCOME" }],
-  },
-];
-
-export function RebalancePanel({ groups }: { groups: AllocationGroup[] }) {
-  const [classification, setClassification] = useQueryState("corte", {
-    defaultValue: "geral",
-    clearOnDefault: true,
-  });
-  const [slice, setSlice] = useQueryState("sub", { defaultValue: "", clearOnDefault: true });
-
-  const activeClassification =
-    CLASSIFICATIONS.find((entry) => entry.key === classification) ?? CLASSIFICATIONS[0];
-  const activeSlice =
-    activeClassification.slices.find((entry) => entry.key === slice) ?? activeClassification.slices[0];
-
-  const group = groups.find((entry) => entry.key === activeSlice.group);
-  const allRows = group?.rows ?? [];
-  const rows = activeSlice.parentClass
-    ? allRows.filter((row) => row.label.startsWith(`${activeSlice.parentClass} ·`))
-    : allRows;
-
+/**
+ * Comprar e vender de um recorte (spec 078): as linhas vêm do recorte escolhido
+ * nas abas da alocação, fora deste quadro, que também escolhem o gráfico de
+ * cima.
+ */
+export function RebalancePanel({ rows }: { rows: AllocationRow[] }) {
   const toSell = rows
     .filter((row) => row.direction === "SELL")
     .sort((left, right) => Math.abs(right.differenceBrl ?? 0) - Math.abs(left.differenceBrl ?? 0));
@@ -81,60 +27,11 @@ export function RebalancePanel({ groups }: { groups: AllocationGroup[] }) {
       className="premium-panel scroll-mt-32 rounded-[24px] p-5 sm:p-7"
       aria-labelledby="rebalance-title"
     >
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h2 id="rebalance-title" className="text-base font-semibold tracking-[-0.025em]">
-            Comprar e vender
-          </h2>
-        </div>
-      </div>
+      <h2 id="rebalance-title" className="text-base font-semibold tracking-[-0.025em]">
+        Comprar e vender
+      </h2>
 
-      <div className="mt-5 flex flex-col gap-2">
-        <div className="flex flex-wrap items-center gap-0.5 rounded-lg border border-border bg-card/60 p-0.5">
-          {CLASSIFICATIONS.map((entry) => (
-            <button
-              key={entry.key}
-              type="button"
-              aria-pressed={entry.key === activeClassification.key}
-              onClick={() => {
-                void setClassification(entry.key);
-                void setSlice("");
-              }}
-              className={cn(
-                "rounded-md px-3 py-1.5 text-[11px] font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring/50",
-                entry.key === activeClassification.key
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              {entry.label}
-            </button>
-          ))}
-        </div>
-
-        {activeClassification.slices.length > 1 ? (
-          <div className="flex flex-wrap items-center gap-0.5 rounded-lg border border-border bg-card/60 p-0.5">
-            {activeClassification.slices.map((entry) => (
-              <button
-                key={entry.key}
-                type="button"
-                aria-pressed={entry.key === activeSlice.key}
-                onClick={() => void setSlice(entry.key)}
-                className={cn(
-                  "rounded-md px-3 py-1.5 text-[11px] font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring/50",
-                  entry.key === activeSlice.key
-                    ? "bg-secondary text-secondary-foreground"
-                    : "text-muted-foreground hover:text-foreground",
-                )}
-              >
-                {entry.label}
-              </button>
-            ))}
-          </div>
-        ) : null}
-      </div>
-
-      <div className="mt-6 overflow-x-auto">
+      <div className="mt-4 overflow-x-auto">
         <table className="w-full min-w-[640px] border-collapse text-left">
           <thead>
             <tr className="border-b border-border/60 text-[9px] font-semibold tracking-[0.13em] text-muted-foreground uppercase">

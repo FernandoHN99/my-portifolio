@@ -1,12 +1,10 @@
 import type { OverviewData } from "@/modules/portfolio/application/get-overview-data";
 import { toMonthParam } from "@/modules/portfolio/presentation/reference-month";
+import { AllocationExplorer } from "@/modules/portfolio/ui/allocation-explorer";
 import { AssetTypeBreakdown } from "@/modules/portfolio/ui/asset-type-breakdown";
-import { CompositionDonuts } from "@/modules/portfolio/ui/composition-donuts";
 import { EmptyPortfolio } from "@/modules/portfolio/ui/empty-portfolio";
-import { FixedIncomeDurationChart } from "@/modules/portfolio/ui/fixed-income-duration-chart";
 import { OverviewKpis } from "@/modules/portfolio/ui/overview-kpis";
 import { PortfolioEvolutionChart } from "@/modules/portfolio/ui/portfolio-evolution-chart";
-import { RebalancePanel } from "@/modules/portfolio/ui/rebalance-panel";
 import type { SelicMonthView } from "@/modules/quotes/application/selic-reference";
 import { DevQuoteSyncButton } from "@/modules/quotes/ui/dev-quote-sync-button";
 
@@ -58,20 +56,13 @@ export function OverviewDashboard({ overview, selic }: { overview: OverviewData 
         </div>
       </section>
 
-      <div className="mt-6">
-        <CompositionDonuts groups={overview.composition} />
-      </div>
-
+      {/* Sempre à vista: evolução e tipo de ativo. O resto depende do recorte
+          escolhido nas abas da alocação (spec 078). */}
       <div className="mt-6">
         <AssetTypeBreakdown rows={overview.byType} />
       </div>
 
-      {/* min-w-0 nos itens: a tabela de comprar e vender tem largura mínima e
-          rola dentro do painel, sem alargar a página no celular. */}
-      <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.6fr)_minmax(320px,0.9fr)] [&>*]:min-w-0">
-        <RebalancePanel groups={overview.rebalanceGroups} />
-        <FixedIncomeDurationChart duration={overview.fixedIncomeDuration} />
-      </div>
+      <AllocationExplorer groups={overview.rebalanceGroups} fixedIncomeDuration={overview.fixedIncomeDuration} />
     </div>
   );
 }

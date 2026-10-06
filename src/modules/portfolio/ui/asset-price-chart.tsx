@@ -18,6 +18,7 @@ import { monthFromKey } from "@/modules/portfolio/domain/position-history";
 import { formatBrl, formatPercent, formatPriceBrl } from "@/modules/portfolio/presentation/portfolio-format";
 import { formatUsd, monthLabel } from "@/modules/portfolio/presentation/position-page";
 import type { PriceHistory, PricePoint } from "@/modules/quotes/domain/price-history";
+import { useTouchTooltip } from "@/modules/portfolio/ui/use-touch-tooltip";
 
 type Currency = "BRL" | "USD";
 
@@ -57,6 +58,7 @@ export function AssetPriceChart({
 }) {
   const canUseUsd = symbol !== "USD" && prices.points.some((point) => point.valueUsd !== null);
   const [currency, setCurrency] = useState<Currency>("BRL");
+  const touch = useTouchTooltip();
   const [rangeKey, setRangeKey] = useState<RangeKey>("all");
   const activeCurrency: Currency = canUseUsd ? currency : "BRL";
   const activeRange: RangeKey = rangeKey;
@@ -167,7 +169,7 @@ export function AssetPriceChart({
         ) : null}
       </ul>
 
-      <div className="h-[260px] w-full" data-testid="asset-price-chart">
+      <div className="h-[260px] w-full" data-testid="asset-price-chart" {...touch.containerProps}>
         <ResponsiveContainer height="100%" width="100%">
           <LineChart data={rows} margin={{ top: 16, right: 8, bottom: 0, left: 4 }}>
             <XAxis

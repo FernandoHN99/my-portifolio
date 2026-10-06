@@ -1,7 +1,6 @@
 "use client";
 
-import { useQueryState } from "nuqs";
-import { useMemo, useState, useTransition } from "react";
+import { useMemo, useState } from "react";
 import {
   Area,
   AreaChart,
@@ -19,6 +18,7 @@ import { cn } from "@/lib/utils";
 import type { HistorySlot } from "@/modules/portfolio/domain/position-history";
 import { formatBrl, formatPriceBrl, formatSharePercent } from "@/modules/portfolio/presentation/portfolio-format";
 import { formatQuantity, monthLabel } from "@/modules/portfolio/presentation/position-page";
+import { useTouchTooltip } from "@/modules/portfolio/ui/use-touch-tooltip";
 
 type EvolutionRow = {
   month: string;
@@ -58,8 +58,7 @@ export function PositionEvolutionChart({
   /** "desta conta" ou "da carteira", para o texto das ausências. */
   scopeLabel: "account" | "all";
 }) {
-  const [, startTransition] = useTransition();
-  const [, setMonth] = useQueryState("mes", { shallow: false, startTransition });
+  const touch = useTouchTooltip();
 
   const { rows, bridges, missingRuns, defaultEnd } = useMemo(() => buildRows(slots, selectedMonth), [slots, selectedMonth]);
   const [rangeState, setRange] = useState<{ key: string; range: [number, number] } | null>(null);
@@ -133,18 +132,13 @@ export function PositionEvolutionChart({
         </div>
       </div>
 
-      <div className="h-[300px] w-full" data-testid="position-evolution-chart">
+      {/* Sem clique para trocar de mês (spec 078): o gráfico só mostra a
+          indicação, e o mês muda pela faixa de competências ou pelo mês a mês. */}
+      <div className="h-[300px] w-full" data-testid="position-evolution-chart" {...touch.containerProps}>
         <ResponsiveContainer height="100%" width="100%">
           <AreaChart
             data={rows}
             margin={{ top: 8, right: 4, bottom: 0, left: 4 }}
-            onClick={(state) => {
-              const row = byLabel.get(String(state?.activeLabel ?? ""));
-
-              if (row && row.slot.kind !== "missing" && row.month !== selectedMonth) {
-                void setMonth(row.month);
-              }
-            }}
           >
             <defs>
               <linearGradient id="position-value-fill" x1="0" x2="0" y1="0" y2="1">

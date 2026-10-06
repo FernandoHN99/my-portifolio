@@ -18,6 +18,7 @@ import type {
 } from "@/modules/portfolio/domain/fixed-income-duration";
 import { categoryColor } from "@/modules/portfolio/presentation/category-colors";
 import { formatSharePercent } from "@/modules/portfolio/presentation/portfolio-format";
+import { useTouchTooltip } from "@/modules/portfolio/ui/use-touch-tooltip";
 
 type Mode = "current" | "target";
 
@@ -55,7 +56,8 @@ export function FixedIncomeDurationChart({ duration }: { duration: FixedIncomeDu
         ))}
       </ul>
 
-      <div className="mt-5 space-y-5">
+      {/* Na largura toda (spec 078), atual e ideal lado a lado, na mesma escala. */}
+      <div className="mt-5 grid gap-5 lg:grid-cols-[minmax(0,1fr)_1px_minmax(0,1fr)]">
         <DurationBars
           mode="current"
           title="Atual"
@@ -65,7 +67,7 @@ export function FixedIncomeDurationChart({ duration }: { duration: FixedIncomeDu
           rows={rows}
           scale={scale}
         />
-        <div aria-hidden="true" className="h-px bg-border/60" />
+        <div aria-hidden="true" className="h-px bg-border/60 lg:h-auto lg:w-px" />
         <DurationBars
           mode="target"
           title="Ideal"
@@ -123,6 +125,7 @@ function DurationBars({
   rows: FixedIncomeDurationRow[];
   scale: { top: number; ticks: number[] };
 }) {
+  const touch = useTouchTooltip();
   const sharesOf = (row: FixedIncomeDurationRow) => (mode === "current" ? row.current : row.target);
   // Os dois gráficos usam as mesmas séries, inclusive prazos fora do padrão que só ocorrem num
   // deles, para que cada subclasse e prazo fique na mesma posição e largura no atual e no ideal.
@@ -138,7 +141,7 @@ function DurationBars({
         {title}
       </figcaption>
 
-      <div className="mt-2 h-[184px] w-full">
+      <div className="mt-2 h-[184px] w-full" {...touch.containerProps}>
         {empty ? (
           <div className="grid h-full place-items-center rounded-xl border border-dashed border-border/70 text-[11px] text-muted-foreground">
             {emptyText}

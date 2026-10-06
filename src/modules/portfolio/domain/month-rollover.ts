@@ -17,6 +17,11 @@ export type GeneratedMonthView = {
 
 export type MonthRolloverOutcome =
   | { state: "up-to-date"; latestMonth: string | null }
+  /**
+   * Faltam competências até o mês corrente (spec 078): a abertura só avisa, e
+   * o usuário confirma antes de o app criá-las.
+   */
+  | { state: "pending"; latestMonth: string; months: string[] }
   | { state: "created"; months: GeneratedMonthView[] }
   /** Primeira competência de um usuário novo, vazia e aberta (spec 055). */
   | { state: "started"; month: string }

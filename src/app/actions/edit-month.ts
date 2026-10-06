@@ -24,6 +24,7 @@ import {
 import { requireSessionUser } from "@/modules/auth/session";
 import { ASSET_KINDS } from "@/modules/portfolio/domain/asset-kinds";
 import { ASSET_TYPES } from "@/modules/portfolio/domain/classification";
+import type { MonthRolloverOutcome } from "@/modules/portfolio/domain/month-rollover";
 import { TRANSACTION_KINDS } from "@/modules/portfolio/domain/position-transactions";
 import { toMonthParam } from "@/modules/portfolio/presentation/reference-month";
 
@@ -284,6 +285,25 @@ export async function liquidatePositionAction(input: unknown): Promise<EditActio
     const result = await liquidatePosition(parsed.data);
     return { ok: true, message: "Posição liquidada.", undoToken: result.undoToken };
   });
+}
+
+/**
+ * Cria as competências que faltam até o mês corrente, depois de o usuário
+ * confirmar a virada de mês (spec 078). Devolve o resultado da virada para o
+ * aviso de competências criadas.
+ */
+export async function confirmMonthRolloverAction(): Promise<MonthRolloverOutcome> {
+  await requireSessionUser();
+
+  try {
+    const outcome = await ensureMonthsUpToDate();
+    revalidatePath("/");
+    revalidatePath("/posicoes");
+    return outcome;
+  } catch (error) {
+    unstable_rethrow(error);
+    return { state: "unavailable", message: "Não foi possível criar a competência do mês." };
+  }
 }
 
 /**

@@ -9,6 +9,41 @@ import { addMonths, calendarDay, lastDayOf, monthOf, toDateKey } from "@/modules
 type Transaction = Prisma.TransactionClient;
 
 
+/**
+ * Confere a virada de mês sem gravar nada (spec 078): diz quais competências
+ * faltam até o mês corrente, para o usuário confirmar antes de criá-las. Um
+ * usuário novo, sem competência nenhuma, recebe a primeira na hora (spec 055).
+ */
+export async function checkMonthsUpToDate(today: Date = new Date()): Promise<MonthRolloverOutcome> {
+  const prisma = await getUserDb();
+
+  if (!prisma) {
+    return { state: "unavailable", message: "O banco de dados não está configurado." };
+  }
+
+  const target = monthOf(calendarDay(today));
+  const latest = await prisma.portfolioMonth.findFirst({
+    orderBy: { referenceDate: "desc" },
+    select: { referenceDate: true },
+  });
+
+  if (!latest) {
+    return ensureMonthsUpToDate(today);
+  }
+
+  if (latest.referenceDate.getTime() >= target.getTime()) {
+    return { state: "up-to-date", latestMonth: toMonthParam(latest.referenceDate) };
+  }
+
+  const months: string[] = [];
+
+  for (let month = addMonths(latest.referenceDate, 1); month.getTime() <= target.getTime(); month = addMonths(month, 1)) {
+    months.push(toMonthParam(month));
+  }
+
+  return { state: "pending", latestMonth: toMonthParam(latest.referenceDate), months };
+}
+
 // Garante que exista a competência do mês de `today`, copiando a anterior para
 // cada mês que faltar depois da mais recente. Competências passadas geradas
 // aqui usam a cotação do último dia do mês disponível no histórico diário; na

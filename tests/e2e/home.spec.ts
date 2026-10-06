@@ -163,18 +163,33 @@ test("a tolerância muda a prévia antes de salvar", async ({ page }) => {
   await expect.poll(() => actions.count()).toBe(before);
 });
 
-test("o rebalanceamento troca de recorte", async ({ page }) => {
+test("as abas da alocação trocam o gráfico e o comprar e vender juntos", async ({ page }) => {
   await page.goto("/?mes=2026-09");
 
-  const panel = page.locator("#rebalanceamento");
+  // Spec 078: as abas ficam fora de comprar e vender e escolhem o gráfico de
+  // cima. Evolução e tipo de ativo ficam sempre à vista.
+  const tabs = page.getByRole("group", { name: "Recorte da alocação" });
+  const division = page.getByRole("group", { name: "Divisão do recorte" });
+  const chart = page.getByTestId("composition-chart");
   await expect(page.getByRole("heading", { name: "Comprar e vender" })).toBeVisible();
-  await expect(panel.getByRole("button", { name: "Estratégia", exact: true })).toBeVisible();
+  await expect(chart.getByRole("heading", { name: "Classe de ativos" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Tipo de ativo" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Moeda", exact: true })).toHaveCount(0);
 
-  await panel.getByRole("button", { name: "Renda Fixa", exact: true }).click();
-  await expect(page).toHaveURL(/corte=renda-fixa/);
-  await expect(panel.getByRole("button", { name: "Estratégia", exact: true })).toHaveCount(0);
-
-  await panel.getByRole("button", { name: "Geral", exact: true }).click();
-  await panel.getByRole("button", { name: "Moeda", exact: true }).click();
+  await division.getByRole("button", { name: "Moeda", exact: true }).click();
   await expect(page).toHaveURL(/sub=moeda/);
+  await expect(chart.getByRole("heading", { name: "Moeda", exact: true })).toBeVisible();
+
+  await tabs.getByRole("button", { name: "Renda Fixa", exact: true }).click();
+  await expect(page).toHaveURL(/corte=renda-fixa/);
+  // A divisão fica sempre embaixo do recorte, mesmo com uma opção só.
+  await expect(division.getByRole("button", { name: "Subclasse", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByRole("region", { name: "Renda fixa por resgate" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Comprar e vender" }).getByRole("row").filter({ hasText: "IPCA ·" }).first()).toBeVisible();
+
+  await tabs.getByRole("button", { name: "Caixa", exact: true }).click();
+  await expect(chart.getByRole("heading", { name: "Caixa por moeda" })).toBeVisible();
+  await tabs.getByRole("button", { name: "Renda Variável", exact: true }).click();
+  await expect(chart.getByRole("heading", { name: "Renda variável por subclasse" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Evolução do patrimônio" })).toBeVisible();
 });
