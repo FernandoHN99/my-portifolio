@@ -4,6 +4,7 @@ import { PortfolioMonthStatus, PositionTransactionKind, Prisma, QuoteUpdateStatu
 import { currentUserId, getUserDb, SCOPED_USER } from "@/lib/user-db";
 import {
   parseCdiPercent,
+  parseFixedRate,
   applyAssetAttributes,
   AssetAttributeError,
   restoreAssetState,
@@ -23,7 +24,8 @@ import {
   type AssetKind,
 } from "@/modules/portfolio/domain/asset-kinds";
 import { MAX_LIQUIDITY_LENGTH, normalizeLiquidity } from "@/modules/portfolio/domain/liquidity";
-import { AUTOMATIC_FIXED_INCOME_ENABLED } from "@/modules/portfolio/domain/fixed-income-policy";
+import { autoIncomeParts, indexerOfSubclass, supportsAutoIncome } from "@/modules/portfolio/domain/fixed-income-policy";
+import { assetTypeOf } from "@/modules/portfolio/domain/classification";
 import { classificationIssue } from "@/modules/portfolio/domain/classification";
 import { valueCdiPositions } from "@/modules/portfolio/application/cdi-positions";
 import { readVerifiedTicker } from "@/modules/quotes/application/check-ticker";
@@ -58,8 +60,11 @@ export type NewAssetInput = {
   manualPriceBrl: string | null;
   /** Conta corrente (spec 059), só no caixa em reais e no caixa em dólar. */
   cashAccount?: boolean;
-  /** Renda fixa pelo CDI (spec 060): percentual, como "105", e o dia da aplicação. */
-  cdiPercent?: string | null;
+  /**
+   * Rendimento automático (spec 079) e o dia da aplicação, desde quando o
+   * valor rende. A rentabilidade é de cada classificação do rateio.
+   */
+  autoIncome?: boolean;
   appliedOn?: string | null;
 };
 /** Inclusão pelo formulário da posição (spec 043), já com o rateio completo. */
@@ -91,11 +96,6 @@ export type PositionAddition = {
  */
 export type PositionEdit = {
   positionId: string;
-  /**
-   * Início do cálculo pelo CDI nesta posição (spec 060), AAAA-MM-DD; nulo
-   * desliga. Ausente, fica como está. O percentual é do ativo.
-   */
-  cdiStartDate?: string | null;
   strategy: string | null;
   allocations: AllocationInput[];
   asset: AssetAttributes;
@@ -105,6 +105,11 @@ export type AllocationInput = {
   subclass: string;
   duration: string;
   weightPercent: string;
+  /**
+   * Rentabilidade da classificação (spec 079): % do CDI no pós-fixado, taxa ao
+   * ano no prefixado. Opcional.
+   */
+  ratePercent?: string | null;
 };
 export type QuoteInput = { symbol: string; valueBrl: string };
 
@@ -128,6 +133,7 @@ type SnapshotPosition = {
     subclass: string;
     duration: string;
     weight: Prisma.Decimal;
+    ratePercent: Prisma.Decimal | null;
   }[];
 };
 
@@ -270,6 +276,7 @@ export async function addPosition(input: { monthId: string; addition: PositionAd
     await transaction.positionAllocation.createMany({
       data: allocations.map((allocation) => ({ ...allocation, userId: SCOPED_USER, positionId: created.id })),
     });
+    const income = await assertIncomeRates(transaction, asset.id, allocations);
 
     // A posição nasce com o movimento inicial (spec 056): saldo inicial, o
     // valor que ela já tinha ao começar o acompanhamento, ou aporte. A base do
@@ -280,7 +287,7 @@ export async function addPosition(input: { monthId: string; addition: PositionAd
       const dates = batch.created.assetIds.includes(asset.id)
         ? await transaction.asset.findUnique({
             where: { id: asset.id },
-            select: { appliedOn: true, cdiPercent: true },
+            select: { appliedOn: true },
           })
         : null;
 
@@ -310,10 +317,13 @@ export async function addPosition(input: { monthId: string; addition: PositionAd
         },
       });
 
-      // Renda fixa pelo CDI (spec 060): o valor informado é o aplicado no dia da
-      // aplicação, e o saldo bruto sai do cálculo até hoje.
-      if (AUTOMATIC_FIXED_INCOME_ENABLED && dates?.cdiPercent && dates.appliedOn && !asset.quoteSymbol) {
-        await transaction.position.update({ where: { id: created.id }, data: { calculationStartDate: dates.appliedOn } });
+      // Rendimento automático (spec 079): o valor informado é o aplicado no dia
+      // da aplicação, e o saldo bruto sai do cálculo pela taxa de cada
+      // classificação até hoje. Uma aplicação de antes da competência rende
+      // desde o próprio dia.
+      if (income) {
+        const start = dates?.appliedOn && dates.appliedOn < month.referenceDate ? dates.appliedOn : month.referenceDate;
+        await transaction.position.update({ where: { id: created.id }, data: { calculationStartDate: start } });
         await valueCdiPositions(transaction, { where: { id: created.id } });
       }
     }
@@ -371,54 +381,83 @@ export async function editPosition(input: { monthId: string; edit: PositionEdit 
       throw error;
     }
 
-    await applyCdiStart(transaction, month, position, input.edit.cdiStartDate);
+    await applyAutoIncome(transaction, month, position, await assertIncomeRates(transaction, position.assetId, allocations));
 
     return previous ? { assets: [previous] } : undefined;
   });
 }
 
 /**
- * Liga, muda ou desliga o cálculo pelo CDI de uma posição (spec 060). Ligado,
- * a base do mês rende a partir do dia escolhido, dentro da competência; num
- * ativo legado, a base é o saldo conhecido, sem inventar a aplicação. Desligar
- * guarda o rendimento já calculado como um rendimento registrado, para o saldo
- * não sumir. O percentual é do ativo e chega pelos atributos.
+ * Liga, recalcula ou desliga o rendimento automático da posição (spec 079),
+ * pela flag e pela taxa do ativo, que chegam pelos atributos. Ligado, a base do
+ * mês rende desde o dia 1, como no banco: ela é o saldo de fechamento do mês
+ * anterior, e cada movimentação rende desde o próprio dia. Desligar guarda o
+ * rendimento já calculado como um rendimento registrado, para o saldo não
+ * sumir.
  */
-async function applyCdiStart(
+async function applyAutoIncome(
   transaction: Transaction,
   month: { id: string; referenceDate: Date },
   position: { id: string; assetId: string; calculationStartDate: Date | null },
-  next: string | null | undefined,
+  automatic: boolean,
 ) {
-  // A pausa global não desliga nem converte os dados existentes: editar
-  // atributos continua sem alterar saldo ou fabricar rendimentos (spec 065).
-  if (!AUTOMATIC_FIXED_INCOME_ENABLED) {
-    return;
-  }
-
-  const asset = await transaction.asset.findUniqueOrThrow({
-    where: { id: position.assetId },
-    select: { cdiPercent: true, quoteSymbol: true },
-  });
-  const enabled = Boolean(asset.cdiPercent) && !asset.quoteSymbol;
-  const wanted = next === undefined ? (enabled ? position.calculationStartDate : null) : enabled ? next : null;
-  const start = typeof wanted === "string" ? parseCdiStart(wanted, month.referenceDate) : wanted;
-
-  if (!start) {
+  if (!automatic) {
     if (position.calculationStartDate) {
       await foldCalculatedIncome(transaction, month, position.id);
     }
     return;
   }
 
-  if (position.calculationStartDate?.getTime() !== start.getTime()) {
-    await transaction.position.update({ where: { id: position.id }, data: { calculationStartDate: start } });
+  if (!position.calculationStartDate) {
+    // Uma posição liquidada no mês fechou o cálculo no dia do resgate.
+    const liquidated = await transaction.positionTransaction.count({
+      where: { positionId: position.id, note: { startsWith: LIQUIDATION_NOTE } },
+    });
+
+    if (liquidated > 0) {
+      return;
+    }
+
+    // Um rendimento manual no mês somaria duas vezes com o calculado. O que o
+    // próprio cálculo guardou ao ser desligado volta a ser calculado.
+    const manual = await transaction.positionTransaction.count({
+      where: {
+        positionId: position.id,
+        kind: PositionTransactionKind.INCOME,
+        // Sem observação também conta: no SQL, NOT LIKE de nulo não é verdadeiro.
+        OR: [{ note: null }, { NOT: { note: { startsWith: AUTO_INCOME_NOTE } } }],
+      },
+    });
+
+    if (manual > 0) {
+      throw new MonthEditError(
+        "Este mês já tem rendimento registrado à mão. Apague-o nas movimentações antes de ligar o cálculo automático.",
+      );
+    }
+
+    await transaction.positionTransaction.deleteMany({
+      where: { positionId: position.id, kind: PositionTransactionKind.INCOME, note: { startsWith: AUTO_INCOME_NOTE } },
+    });
+    await transaction.position.update({ where: { id: position.id }, data: { calculationStartDate: month.referenceDate } });
   }
 
   await valueCdiPositions(transaction, { where: { id: position.id } });
 }
 
-async function foldCalculatedIncome(transaction: Transaction, month: { referenceDate: Date }, positionId: string) {
+const AUTO_INCOME_NOTE = "Rendimento automático";
+const LIQUIDATION_NOTE = "Liquidação";
+
+/**
+ * Desliga o cálculo da posição no mês e guarda o rendimento já calculado como
+ * um rendimento registrado, "Rendimento automático até…", para o saldo não
+ * sumir. Na liquidação, o registro fica no dia do resgate.
+ */
+export async function foldCalculatedIncome(
+  transaction: Transaction,
+  month: { referenceDate: Date },
+  positionId: string,
+  occurredOn: Date = transactionDay(month.referenceDate),
+) {
   const current = await transaction.position.findUniqueOrThrow({
     where: { id: positionId },
     select: { calculatedIncomeBrl: true, incomeCalculatedThrough: true },
@@ -431,10 +470,10 @@ async function foldCalculatedIncome(transaction: Transaction, month: { reference
         userId: SCOPED_USER,
         positionId,
         kind: PositionTransactionKind.INCOME,
-        occurredOn: transactionDay(month.referenceDate),
+        occurredOn,
         quantity: income,
         amountBrl: income,
-        note: `Rendimento bruto pelo CDI${current.incomeCalculatedThrough ? ` até ${toDateKey(current.incomeCalculatedThrough)}` : ""}`,
+        note: `${AUTO_INCOME_NOTE}${current.incomeCalculatedThrough ? ` até ${formatDay(current.incomeCalculatedThrough)}` : ""}`,
       },
     });
   }
@@ -445,53 +484,63 @@ async function foldCalculatedIncome(transaction: Transaction, month: { reference
   });
 }
 
-/**
- * Dia do início do cálculo: nunca no futuro e sempre dentro da competência,
- * para a base não render antes de existir nem depois de o mês fechar.
- */
-function parseCdiStart(raw: string, referenceDate: Date) {
-  const day = /^\d{4}-\d{2}-\d{2}$/.test(raw) ? new Date(`${raw}T00:00:00.000Z`) : null;
-
-  if (!day || Number.isNaN(day.getTime()) || toDateKey(day) !== raw || day > calendarDay(new Date())) {
-    throw new MonthEditError("Informe um dia válido, até hoje, para o início do cálculo pelo CDI.");
-  }
-
-  if (day < referenceDate || day > lastDayOf(referenceDate)) {
-    throw new MonthEditError(
-      `O cálculo pelo CDI começa dentro da competência, de ${formatDay(referenceDate)} a ${formatDay(lastDayOf(referenceDate))}.`,
-    );
-  }
-
-  return day;
-}
-
 /** Dia como DD/MM/AAAA, nas mensagens. */
 function formatDay(day: Date) {
   const [year, month, date] = toDateKey(day).split("-");
   return `${date}/${month}/${year}`;
 }
 
-/** Percentual e dia da aplicação de uma renda fixa nova pelo CDI (spec 060). */
-function cdiOfNewAsset(input: NewAssetInput) {
-  if (!AUTOMATIC_FIXED_INCOME_ENABLED || input.kind !== "fixed-income" || !input.cdiPercent) {
+/**
+ * Rendimento automático e dia da aplicação de um ativo novo (spec 079): só
+ * renda fixa e caixa em reais. O dia da aplicação é pedido com o cálculo
+ * ligado, desde quando o valor rende; a taxa vem de cada classificação.
+ */
+function incomeOfNewAsset(input: NewAssetInput) {
+  if (!input.autoIncome) {
     return {};
   }
 
-  let percent: Prisma.Decimal | null;
-
-  try {
-    percent = parseCdiPercent(input.cdiPercent);
-  } catch (error) {
-    throw new MonthEditError(error instanceof Error ? error.message : "Revise o percentual do CDI.");
+  if (!supportsAutoIncome(input.kind)) {
+    throw new MonthEditError("Só renda fixa e caixa em reais têm rendimento automático.");
   }
 
   const applied = input.appliedOn && /^\d{4}-\d{2}-\d{2}$/.test(input.appliedOn) ? new Date(`${input.appliedOn}T00:00:00.000Z`) : null;
 
   if (!applied || Number.isNaN(applied.getTime()) || toDateKey(applied) !== input.appliedOn || applied > calendarDay(new Date()) || input.appliedOn < "2000-01-01") {
-    throw new MonthEditError("Informe o dia da aplicação, até hoje, para calcular pelo CDI.");
+    throw new MonthEditError("Informe o dia da aplicação, até hoje, para calcular o rendimento.");
   }
 
-  return { cdiPercent: percent, appliedOn: applied };
+  return { autoIncome: true, appliedOn: applied };
+}
+
+/**
+ * Confere as taxas do rateio contra o ativo (spec 079): só renda fixa e caixa
+ * em reais, sem cotação de mercado, têm rentabilidade, e o rendimento
+ * automático exige a taxa em cada classificação. Devolve se o cálculo fica
+ * ligado.
+ */
+async function assertIncomeRates(
+  transaction: Transaction,
+  assetId: string,
+  allocations: { subclass: string; weight: Prisma.Decimal; ratePercent: Prisma.Decimal | null }[],
+) {
+  const asset = await transaction.asset.findUniqueOrThrow({
+    where: { id: assetId },
+    select: { autoIncome: true, quoteSymbol: true, assetType: true, baseCurrency: true, name: true, cashAccount: true },
+  });
+  const supported = !asset.quoteSymbol && supportsAutoIncome(assetTypeOf(asset));
+
+  if (allocations.some((allocation) => allocation.ratePercent !== null) && !supported) {
+    throw new MonthEditError("Só renda fixa e caixa em reais, sem cotação de mercado, têm rentabilidade.");
+  }
+
+  if (asset.autoIncome && !autoIncomeParts(asset, allocations)) {
+    throw new MonthEditError(
+      "Com o rendimento automático, cada classificação precisa ser pós-fixada ou prefixada e ter a rentabilidade.",
+    );
+  }
+
+  return Boolean(autoIncomeParts(asset, allocations));
 }
 
 /** Remove uma posição da competência (spec 043), com desfazer. */
@@ -711,7 +760,7 @@ async function resolveAdditionAsset(
       cashAccount: Boolean(input.cashAccount) && (input.kind === "brl-cash" || input.kind === "usd-balance"),
       // O tipo da inclusão é o tipo do ativo (spec 068).
       assetType: input.kind,
-      ...cdiOfNewAsset(input),
+      ...incomeOfNewAsset(input),
     },
     select: { id: true },
   });
@@ -911,12 +960,17 @@ async function removeUnusedCreated(transaction: Transaction, created: CreatedEnt
  * repetições, com pesos positivos que somam 100%. Devolve os pesos em fração.
  */
 function parseAllocations(inputs: AllocationInput[]) {
-  const parsed = inputs.map((allocation) => ({
-    assetClass: normalizeLabel(allocation.assetClass, "classe"),
-    subclass: normalizeLabel(allocation.subclass, "subclasse"),
-    duration: normalizeLabel(allocation.duration, "resgate"),
-    weight: parsePositive(allocation.weightPercent, 8).div(100),
-  }));
+  const parsed = inputs.map((allocation) => {
+    const subclass = normalizeLabel(allocation.subclass, "subclasse");
+
+    return {
+      assetClass: normalizeLabel(allocation.assetClass, "classe"),
+      subclass,
+      duration: normalizeLabel(allocation.duration, "resgate"),
+      weight: parsePositive(allocation.weightPercent, 8).div(100),
+      ratePercent: parseAllocationRate(subclass, allocation.ratePercent ?? null),
+    };
+  });
 
   if (parsed.length === 0) {
     throw new MonthEditError("Informe ao menos uma classificação.");
@@ -937,6 +991,28 @@ function parseAllocations(inputs: AllocationInput[]) {
   }
 
   return parsed;
+}
+
+/**
+ * Rentabilidade de uma classificação (spec 079), pelo indexador da subclasse:
+ * % do CDI no pós-fixado, taxa ao ano no prefixado.
+ */
+function parseAllocationRate(subclass: string, raw: string | null) {
+  if (raw === null || raw.trim() === "") {
+    return null;
+  }
+
+  const indexer = indexerOfSubclass(subclass);
+
+  if (!indexer) {
+    throw new MonthEditError("Só as classificações pós-fixadas ou prefixadas têm rentabilidade.");
+  }
+
+  try {
+    return indexer === "CDI" ? parseCdiPercent(raw) : parseFixedRate(raw);
+  } catch (error) {
+    throw new MonthEditError(error instanceof Error ? error.message : "Revise a rentabilidade.");
+  }
 }
 
 export async function updateMonthQuotes(input: {
@@ -1056,7 +1132,6 @@ export async function cloneLatestMonth() {
           positions: {
             where: { quantity: { gt: 0 } },
             select: {
-              calculationStartDate: true,
               accountId: true,
               assetId: true,
               quantity: true,
@@ -1064,8 +1139,9 @@ export async function cloneLatestMonth() {
               exchangeRateBrl: true,
               totalBrl: true,
               strategy: true,
+              asset: { select: { quoteSymbol: true, autoIncome: true } },
               allocations: {
-                select: { assetClass: true, subclass: true, duration: true, weight: true },
+                select: { assetClass: true, subclass: true, duration: true, weight: true, ratePercent: true },
               },
             },
           },
@@ -1088,15 +1164,15 @@ export async function cloneLatestMonth() {
       });
 
       for (const position of latest.positions) {
-        const { allocations, calculationStartDate, ...fields } = position;
+        const { allocations, asset, ...fields } = position;
         // O mês novo herda uma vez o fechamento do anterior como base, sem as
-        // movimentações dele (spec 056); no CDI, o cálculo recomeça no dia 1
-        // (spec 060).
+        // movimentações dele (spec 056); com o rendimento automático ligado, o
+        // cálculo recomeça no dia 1 (specs 060 e 079).
         const created = await transaction.position.create({
           data: {
             ...fields,
             openingQuantity: fields.quantity,
-            calculationStartDate: calculationStartDate ? target : null,
+            calculationStartDate: autoIncomeParts(asset, allocations) ? target : null,
             userId: SCOPED_USER,
             portfolioMonthId: month.id,
           },
@@ -1366,6 +1442,7 @@ async function readSnapshot(
             subclass: true,
             duration: true,
             weight: true,
+            ratePercent: true,
           },
         },
       },

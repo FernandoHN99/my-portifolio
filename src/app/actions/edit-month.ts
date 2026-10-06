@@ -50,6 +50,8 @@ const allocationsSchema = z
       subclass: z.string().max(80),
       duration: z.string().max(80),
       weightPercent: value,
+      // Rentabilidade da classificação (spec 079): % do CDI ou taxa ao ano.
+      ratePercent: z.string().trim().max(12).nullable().optional(),
     }),
   )
   .min(1)
@@ -74,7 +76,7 @@ const newAssetSchema = z.object({
   quoteCheckToken: z.string().min(1).max(4096).nullable(),
   manualPriceBrl: value.nullable(),
   cashAccount: z.boolean().optional(),
-  cdiPercent: z.string().trim().max(12).nullable().optional(),
+  autoIncome: z.boolean().optional(),
   appliedOn: day.nullable().optional(),
 });
 
@@ -102,7 +104,6 @@ const editSchema = z.object({
   // Sem quantidade nem saldo: o lápis edita só atributos (spec 057).
   edit: z.object({
     positionId: z.string().uuid(),
-    cdiStartDate: day.nullable().optional(),
     strategy,
     allocations: allocationsSchema,
     asset: z.object({
@@ -110,7 +111,7 @@ const editSchema = z.object({
       liquidity: z.string().trim().max(60).nullable(),
       maturityDate: day.nullable(),
       cashAccount: z.boolean().optional(),
-      cdiPercent: z.string().trim().max(12).nullable().optional(),
+      autoIncome: z.boolean().optional(),
       assetType: z.enum(ASSET_TYPES).optional(),
     }),
   }),

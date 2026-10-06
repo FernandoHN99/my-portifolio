@@ -4,6 +4,7 @@ import { getUserDb, SCOPED_USER } from "@/lib/user-db";
 import type { GeneratedMonthView, MonthRolloverOutcome } from "@/modules/portfolio/domain/month-rollover";
 import { toMonthParam } from "@/modules/portfolio/presentation/reference-month";
 import { valueCdiPositions } from "@/modules/portfolio/application/cdi-positions";
+import { autoIncomeParts } from "@/modules/portfolio/domain/fixed-income-policy";
 import { addMonths, calendarDay, lastDayOf, monthOf, toDateKey } from "@/modules/quotes/domain/calendar";
 
 type Transaction = Prisma.TransactionClient;
@@ -161,10 +162,10 @@ async function copyMonth(
         exchangeRateBrl: true,
         totalBrl: true,
         strategy: true,
-        asset: { select: { quoteSymbol: true } },
+        asset: { select: { quoteSymbol: true, autoIncome: true } },
         allocations: {
           orderBy: { id: "asc" },
-          select: { assetClass: true, subclass: true, duration: true, weight: true },
+          select: { assetClass: true, subclass: true, duration: true, weight: true, ratePercent: true },
         },
       },
     }),
@@ -314,8 +315,9 @@ async function copyMonth(
           // O fechamento do mês anterior vira, uma vez, a base do mês novo; as
           // movimentações dele não são copiadas (spec 056).
           openingQuantity: position.quantity,
-          // No CDI, o cálculo do mês novo começa no primeiro dia dele (spec 060).
-          calculationStartDate: position.calculationStartDate ? month : null,
+          // Com o rendimento automático ligado no ativo, o cálculo do mês novo
+          // começa no primeiro dia dele, sobre o fechamento (specs 060 e 079).
+          calculationStartDate: autoIncomeParts(position.asset, position.allocations) ? month : null,
           unitPriceBrl: repriced ?? position.unitPriceBrl,
           exchangeRateBrl:
             position.exchangeRateBrl !== null && usd?.fromHistory ? usd.valueBrl : position.exchangeRateBrl,

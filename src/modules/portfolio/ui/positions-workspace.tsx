@@ -354,6 +354,7 @@ export function PositionsWorkspace({
             quantity: target.quantity,
             unitPriceBrl: target.unitPriceBrl,
             totalBrl: target.totalBrl,
+            autoIncome: Boolean(target.autoIncome && target.calculationStartDate),
           },
         }))
       }

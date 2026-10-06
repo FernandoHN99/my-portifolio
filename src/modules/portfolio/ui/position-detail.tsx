@@ -59,6 +59,7 @@ import {
 } from "@/modules/portfolio/ui/position-transaction-dialog";
 import { PositionTransactions } from "@/modules/portfolio/ui/position-transactions";
 import { CdiPanel } from "@/modules/portfolio/ui/cdi-panel";
+import { ratesLabel } from "@/modules/portfolio/presentation/income-rate";
 import { recordedByMonth } from "@/modules/portfolio/domain/position-transactions";
 import { LiquidationDialog } from "@/modules/portfolio/ui/liquidation-dialog";
 
@@ -260,6 +261,16 @@ export function PositionDetail({
               />
             ) : null}
             {/* Liquidez e vencimento ficam no cabeçalho, junto da classificação (spec 073). */}
+            {/* Rentabilidade das classificações (spec 079), com o cálculo automático marcado. */}
+            {history.rate ? (
+              <span
+                data-testid="position-rate"
+                className="inline-flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-[11px] text-muted-foreground"
+              >
+                <span className="text-foreground/85">{ratesLabel(history.rate.parts)}</span>
+                {history.rate.automatic ? <span className="text-primary">· automático</span> : null}
+              </span>
+            ) : null}
             {history.liquidity ? (
               <span
                 data-testid="position-liquidity"
@@ -518,6 +529,7 @@ export function PositionDetail({
             quantity: editPosition.quantity,
             unitPriceBrl: editPosition.unitPriceBrl,
             totalBrl: editPosition.totalBrl,
+            autoIncome: Boolean(editPosition.autoIncome && editPosition.calculationStartDate),
           }}
           edit={movement.edit}
           formKey={movement.key}

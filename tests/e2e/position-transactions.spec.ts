@@ -148,7 +148,8 @@ test("a página da posição abre o mesmo fluxo guiado de movimentação", async
   test.skip(!(await openEditableMonth(page)), "Nenhum mês aberto para editar.");
   await positionRow(page, "ETF - VOO").getByRole("link", { name: "ETF - VOO" }).click();
   await expect(page.getByRole("heading", { level: 1, name: "ETF - VOO" })).toBeVisible();
-  await expect(page.getByRole("region", { name: "Movimentações" })).toBeVisible();
+  // Recolhida desde a spec 075: o cartão aparece, e o conteúdo abre no clique.
+  await expect(page.getByTestId("position-transactions-section")).toBeVisible();
   await page.getByRole("button", { name: "Movimentar", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "Movimentar ETF - VOO" });
   await expectFormStep(dialog, "Movimento");

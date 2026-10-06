@@ -1,8 +1,8 @@
 import { Prisma } from "@/generated/prisma/client";
 import { cleanName, normalizeKey, USD_SYMBOL } from "@/modules/portfolio/domain/asset-kinds";
 import { MAX_LIQUIDITY_LENGTH, normalizeLiquidity } from "@/modules/portfolio/domain/liquidity";
-import { AUTOMATIC_FIXED_INCOME_ENABLED } from "@/modules/portfolio/domain/fixed-income-policy";
-import { isAssetType } from "@/modules/portfolio/domain/classification";
+import { assetTypeOf, isAssetType } from "@/modules/portfolio/domain/classification";
+import { supportsAutoIncome } from "@/modules/portfolio/domain/fixed-income-policy";
 
 // Atributos do ativo editados pelo formulário da posição (spec 043): nome
 // (spec 040), liquidez (spec 039), vencimento (spec 026) e conta corrente
@@ -36,10 +36,10 @@ export type AssetAttributes = {
    */
   cashAccount?: boolean;
   /**
-   * Percentual do CDI da renda fixa pós-fixada (spec 060), como "105"; nulo
-   * desliga. Ausente, fica como está.
+   * Rendimento automático (spec 079), só na renda fixa e no caixa em reais; a
+   * taxa é de cada classificação do rateio. Ausente, fica como está.
    */
-  cdiPercent?: string | null;
+  autoIncome?: boolean;
   /** Tipo do ativo (spec 068), uma das chaves de `ASSET_TYPES`. Ausente, fica como está. */
   assetType?: string;
 };
@@ -52,7 +52,7 @@ export type AssetState = {
   liquidity: string | null;
   maturityDate: Date | null;
   cashAccount: boolean;
-  cdiPercent: Prisma.Decimal | null;
+  autoIncome: boolean;
   assetType: string | null;
 };
 
@@ -75,8 +75,9 @@ export async function applyAssetAttributes(
       maturityDate: true,
       quoteSymbol: true,
       cashAccount: true,
-      cdiPercent: true,
+      autoIncome: true,
       assetType: true,
+      baseCurrency: true,
     },
   });
 
@@ -119,13 +120,14 @@ export async function applyAssetAttributes(
     throw new AssetAttributeError("Só caixas em reais ou em dólar podem ser conta corrente.");
   }
 
-  const cdiPercent = !AUTOMATIC_FIXED_INCOME_ENABLED || next.cdiPercent === undefined ? asset.cdiPercent : parseCdiPercent(next.cdiPercent);
+  // Rendimento automático (spec 079): só renda fixa e caixa em reais, sem
+  // cotação de mercado. A taxa de cada classificação é conferida com o rateio.
+  const autoIncome = next.autoIncome ?? asset.autoIncome;
+  const typeForIncome = next.assetType ?? assetTypeOf({ ...asset, name: asset.name });
 
-  if (cdiPercent && asset.quoteSymbol) {
-    throw new AssetAttributeError("Só a renda fixa sem cotação de mercado é calculada pelo CDI.");
+  if (autoIncome && (asset.quoteSymbol || !supportsAutoIncome(typeForIncome))) {
+    throw new AssetAttributeError("Só renda fixa e caixa em reais, sem cotação de mercado, têm rendimento automático.");
   }
-
-  const sameCdi = (asset.cdiPercent === null && cdiPercent === null) || Boolean(asset.cdiPercent && cdiPercent?.equals(asset.cdiPercent));
 
   if (next.assetType !== undefined && !isAssetType(next.assetType)) {
     throw new AssetAttributeError("Escolha um tipo de ativo da lista.");
@@ -138,7 +140,7 @@ export async function applyAssetAttributes(
     asset.liquidity === liquidity &&
     currentMaturity === maturity &&
     asset.cashAccount === cashAccount &&
-    sameCdi &&
+    asset.autoIncome === autoIncome &&
     asset.assetType === assetType
   ) {
     return null;
@@ -172,7 +174,7 @@ export async function applyAssetAttributes(
       liquidity,
       maturityDate: maturity ? new Date(`${maturity}T00:00:00.000Z`) : null,
       cashAccount,
-      cdiPercent,
+      autoIncome,
       assetType,
     },
   });
@@ -184,7 +186,7 @@ export async function applyAssetAttributes(
     liquidity: asset.liquidity,
     maturityDate: asset.maturityDate,
     cashAccount: asset.cashAccount,
-    cdiPercent: asset.cdiPercent,
+    autoIncome: asset.autoIncome,
     assetType: asset.assetType,
   };
 }
@@ -205,7 +207,7 @@ export async function restoreAssetState(transaction: Prisma.TransactionClient, s
       liquidity: state.liquidity,
       maturityDate: state.maturityDate,
       cashAccount: state.cashAccount,
-      cdiPercent: state.cdiPercent,
+      autoIncome: state.autoIncome,
       assetType: state.assetType,
     },
   });
@@ -237,6 +239,28 @@ export function parseCdiPercent(raw: string | null) {
 
   if (!value.greaterThan(0) || value.greaterThan(1000) || value.decimalPlaces() > 3) {
     throw new AssetAttributeError("Use um percentual do CDI maior que zero e até 1.000%, com até três casas.");
+  }
+
+  return value;
+}
+
+/** Taxa ao ano do prefixado (spec 079): maior que zero, até 100%, com até quatro casas. */
+export function parseFixedRate(raw: string | null) {
+  if (raw === null || raw.trim() === "") {
+    return null;
+  }
+
+  const normalized = raw.trim().replace(/\s/g, "").replace("%", "");
+  const text = normalized.includes(",") ? normalized.replace(/\./g, "").replace(",", ".") : normalized;
+
+  if (!/^\d+(?:\.\d+)?$/.test(text)) {
+    throw new AssetAttributeError("Informe a taxa ao ano, como 12,5 para 12,5% a.a.");
+  }
+
+  const value = new Prisma.Decimal(text);
+
+  if (!value.greaterThan(0) || value.greaterThan(100) || value.decimalPlaces() > 4) {
+    throw new AssetAttributeError("Use uma taxa ao ano maior que zero e até 100%, com até quatro casas.");
   }
 
   return value;

@@ -1,8 +1,8 @@
 import { PositionTransactionKind, Prisma } from "@/generated/prisma/client";
 import { SCOPED_USER } from "@/lib/user-db";
 import { valueCdiPositions } from "@/modules/portfolio/application/cdi-positions";
-import { MonthEditError, parseDecimal, withUndo } from "@/modules/portfolio/application/month-editing";
-import { AUTOMATIC_FIXED_INCOME_ENABLED } from "@/modules/portfolio/domain/fixed-income-policy";
+import { foldCalculatedIncome, MonthEditError, parseDecimal, withUndo } from "@/modules/portfolio/application/month-editing";
+import { WITHDRAWAL_ABOVE_BALANCE } from "@/modules/portfolio/domain/cdi-valuation";
 import type { TransactionKind } from "@/modules/portfolio/domain/position-transactions";
 import { calendarDay, lastDayOf, toDateKey } from "@/modules/quotes/domain/calendar";
 
@@ -33,6 +33,13 @@ const MAX_NOTE_LENGTH = 200;
 export async function addTransaction(input: { monthId: string; transaction: TransactionInput }) {
   return withUndo(input.monthId, async (transaction, month) => {
     const position = await findPosition(transaction, month.id, input.transaction.positionId);
+
+    // O rendimento de uma aplicação com cálculo automático vem da taxa (spec
+    // 079): um rendimento manual somaria duas vezes.
+    if (input.transaction.kind === PositionTransactionKind.INCOME && automatic(position)) {
+      throw new MonthEditError(`O rendimento de ${position.asset.name} é calculado automaticamente.`);
+    }
+
     const values = parseValues(position, month.referenceDate, input.transaction.kind, input.transaction);
     await transaction.positionTransaction.create({
       data: { userId: SCOPED_USER, positionId: position.id, ...values },
@@ -64,6 +71,11 @@ export async function updateTransaction(input: {
     const position = await findPosition(transaction, month.id, entry.positionId);
     // O saldo inicial continua saldo inicial; os demais trocam de tipo à vontade.
     const kind = entry.kind === PositionTransactionKind.OPENING ? PositionTransactionKind.OPENING : input.transaction.kind;
+
+    if (kind === PositionTransactionKind.INCOME && entry.kind !== PositionTransactionKind.INCOME && automatic(position)) {
+      throw new MonthEditError(`O rendimento de ${position.asset.name} é calculado automaticamente.`);
+    }
+
     const values = parseValues(position, month.referenceDate, kind, input.transaction);
     await transaction.positionTransaction.update({ where: { id: entry.id }, data: values });
     await recomputePosition(transaction, position.id, "A correção deixaria a posição negativa.");
@@ -137,9 +149,20 @@ export async function liquidatePosition(input: { monthId: string; liquidation: L
     const received = parseAmount(liquidation.amountBrl);
     const note = "Liquidação";
     const quoted = Boolean(position.asset.quoteSymbol);
+    let balance = position.totalBrl;
+
+    // Rendimento automático (spec 079): como no resgate do banco, o cálculo
+    // fecha no dia da liquidação, com o rendimento até a véspera guardado como
+    // "Rendimento automático até…"; o que o banco pagou a mais ou a menos
+    // (o imposto retido, por exemplo) entra como acerto, abaixo.
+    if (automatic(position)) {
+      await valueCdiPositions(transaction, { where: { id: position.id }, asOf: toDateKey(occurredOn) });
+      await foldCalculatedIncome(transaction, month, position.id, occurredOn);
+      balance = (await transaction.position.findUniqueOrThrow({ where: { id: position.id }, select: { totalBrl: true } })).totalBrl;
+    }
 
     if (!quoted) {
-      const difference = received.minus(position.totalBrl);
+      const difference = received.minus(balance);
 
       if (!difference.isZero()) {
         await transaction.positionTransaction.create({
@@ -176,6 +199,14 @@ export async function liquidatePosition(input: { monthId: string; liquidation: L
   });
 }
 
+/**
+ * Rendimento automático ligado na posição (spec 079): a flag do ativo e o
+ * início do cálculo no mês, que só existe com a taxa de cada classificação.
+ */
+function automatic(position: { calculationStartDate: Date | null; asset: { autoIncome: boolean; quoteSymbol: string | null } }) {
+  return Boolean(position.calculationStartDate && position.asset.autoIncome && !position.asset.quoteSymbol);
+}
+
 async function findPosition(transaction: Transaction, monthId: string, positionId: string) {
   const position = await transaction.position.findFirst({
     where: { id: positionId, portfolioMonthId: monthId },
@@ -186,7 +217,8 @@ async function findPosition(transaction: Transaction, monthId: string, positionI
       quantity: true,
       unitPriceBrl: true,
       totalBrl: true,
-      asset: { select: { quoteSymbol: true, name: true } },
+      calculationStartDate: true,
+      asset: { select: { quoteSymbol: true, name: true, autoIncome: true } },
     },
   });
 
@@ -252,7 +284,7 @@ export async function recomputePosition(transaction: Transaction, positionId: st
       select: {
         unitPriceBrl: true,
         calculationStartDate: true,
-        asset: { select: { quoteSymbol: true, cdiPercent: true } },
+        asset: { select: { quoteSymbol: true, autoIncome: true } },
       },
     }),
   ]);
@@ -261,7 +293,9 @@ export async function recomputePosition(transaction: Transaction, positionId: st
     throw new MonthEditError(negativeMessage);
   }
 
-  const cdi = AUTOMATIC_FIXED_INCOME_ENABLED && Boolean(position.calculationStartDate && position.asset.cdiPercent && !position.asset.quoteSymbol);
+  // Com o rendimento automático (spec 079), a movimentação nova rende desde o
+  // próprio dia: a posição é recalculada pela taxa até hoje.
+  const cdi = automatic(position);
   const quantity = plain;
 
   let totalBrl: Prisma.Decimal;
@@ -278,7 +312,12 @@ export async function recomputePosition(transaction: Transaction, positionId: st
   await transaction.position.update({ where: { id: positionId }, data: { quantity, totalBrl } });
 
   if (cdi) {
-    await valueCdiPositions(transaction, { where: { id: positionId } });
+    const [result] = await valueCdiPositions(transaction, { where: { id: positionId } });
+
+    // Pelo cálculo, cada retirada sai do saldo do próprio dia.
+    if (result?.state === "unavailable" && result.message === WITHDRAWAL_ABOVE_BALANCE) {
+      throw new MonthEditError(negativeMessage);
+    }
   }
 
   return { quantity, totalBrl };

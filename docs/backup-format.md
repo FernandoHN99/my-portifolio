@@ -73,6 +73,15 @@ ativos têm `assetType`, opcional: um arquivo sem o campo restaura com o tipo
 vazio, deduzido na leitura, sem mudar a versão. Um arquivo com o campo só
 restaura num app que já o conhece.
 
+Desde a [spec 079](../.ai/specs/079-auto-income-prefixed-and-movement-filters.md),
+os ativos têm `autoIncome` (rendimento automático, padrão falso), e as
+classificações (`positionAllocations`), `ratePercent`: a rentabilidade de cada
+uma, % do CDI no Pós-fixado e taxa ao ano no Prefixado, opcional. Um arquivo
+sem eles restaura com o cálculo desligado e sem taxas, sem mudar a versão. As
+posições continuam com os campos do cálculo da spec 060, usados de novo só com
+a flag ligada. O `cdiPercent` dos ativos, da spec 060, continua no arquivo, sem
+uso.
+
 ## Restauração
 
 Desde a [spec 054](../.ai/specs/054-derived-currency-and-single-target-plan.md),

@@ -4,6 +4,9 @@ Estado: implementada em 2026-10-04 e conferida com o CDI real, pela reserva
 SOAP do Banco Central; a API JSON saiu do DNS público.
 Definida em: 2026-10-04
 
+**Retomada (2026-10-06):** a [spec 079](079-auto-income-prefixed-and-movement-filters.md)
+religa este cálculo por ativo, com uma flag, e acrescenta o prefixado.
+
 **Decisão posterior:** o usuário suspendeu o cálculo automático nesta etapa.
 A [spec 065](065-manual-fixed-income.md) define o comportamento local atual:
 rendimentos manuais, saldo e metadados anteriores preservados. A descrição

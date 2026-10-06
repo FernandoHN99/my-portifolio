@@ -17,7 +17,7 @@ no Neon, e o job das cotações roda como função do Neon
 ([Produção](.ai/context/production.md)).
 
 Revisões posteriores: specs 063 a 073 no `main` e na produção desde
-2026-10-05; specs 074 a 078 desde 2026-10-06. O trabalho do dia a
+2026-10-05; specs 074 a 078 desde 2026-10-06; spec 079 só na `dev`. O trabalho do dia a
 dia vai para a `dev`; a `main` é a produção ([fluxo de Git](docs/git-workflow.md)).
 
 - as cotações são atualizadas só pelo job agendado (`pnpm quotes:sync`,
@@ -41,12 +41,24 @@ dia vai para a `dev`; a `main` é a produção ([fluxo de Git](docs/git-workflow
 - inclusão e movimentação passam por etapas obrigatórias e conferência; a
   posição nova recebe saldo inicial automaticamente, sem escolhas contábeis
   ([spec 066](.ai/specs/066-guided-position-and-movement-dialogs.md));
-- o cálculo automático pelo CDI foi suspenso localmente a pedido do usuário
-  ([spec 065](.ai/specs/065-manual-fixed-income.md)). Rendimentos novos são
-  manuais; valores e metadados anteriores da spec 060 ficam preservados. O Tesouro
-  Direto é cotado pelo PU Base oficial ([spec 061](.ai/specs/061-treasury-direct-quotes.md)),
-  que é só sugestão: o usuário pode digitar o preço dele e informar a posição em
-  reais ([spec 070](.ai/specs/070-treasury-own-value.md));
+- **rendimento automático** ([spec 079](.ai/specs/079-auto-income-prefixed-and-movement-filters.md),
+  na `dev`, sem deploy):
+  - abrange renda fixa e caixa em reais, com uma flag por ativo que substituiu
+    a pausa global da [spec 065](.ai/specs/065-manual-fixed-income.md);
+  - a rentabilidade é de cada classificação do rateio
+    (`position_allocations.rate_percent`), e a posição rende pela média dos
+    fatores, ponderada pelos pesos;
+  - calcula como os bancos: o pós-fixado pelo CDI diário × %, o prefixado em
+    (1 + taxa)^(1/252) por dia útil, com os feriados nacionais, e cada
+    movimentação rende desde o próprio dia;
+  - com a flag ligada não há rendimento manual, e o job recalcula as posições;
+  - sem a flag, os rendimentos continuam manuais;
+  - o Prefixado entra nas subclasses e nas metas, e as movimentações têm
+    filtros por tipo;
+- o Tesouro Direto é cotado pelo PU Base oficial
+  ([spec 061](.ai/specs/061-treasury-direct-quotes.md)), que é só sugestão: o
+  usuário pode digitar o preço dele e informar a posição em reais
+  ([spec 070](.ai/specs/070-treasury-own-value.md));
 - classe, subclasse e resgate vêm da lista fixa da planilha, dependentes entre
   si; o tipo do ativo (Tesouro Direto, ETF dos EUA…) é outro campo, com coluna,
   filtro e painel na Visão geral ([spec 068](.ai/specs/068-fixed-classification-and-asset-type.md));

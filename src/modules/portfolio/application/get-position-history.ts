@@ -1,4 +1,4 @@
-import type { PortfolioMonthStatus } from "@/generated/prisma/client";
+import { Prisma, type PortfolioMonthStatus } from "@/generated/prisma/client";
 import { getUserDb } from "@/lib/user-db";
 import { readMonthQuoteValues, readQuoteSeries } from "@/modules/quotes/application/month-quote-values";
 import type { PortfolioMonthSummary } from "@/modules/portfolio/application/get-portfolio-months";
@@ -12,9 +12,9 @@ import {
 } from "@/modules/portfolio/domain/position-history";
 import { calendarDay, lastDayOf, toDateKey } from "@/modules/quotes/domain/calendar";
 import { buildPriceHistory, type PriceHistory } from "@/modules/quotes/domain/price-history";
-import { projectCdiBalance } from "@/modules/portfolio/domain/cdi-valuation";
 import { emptyRecordedMonth, recordedByMonth } from "@/modules/portfolio/domain/position-transactions";
-import { AUTOMATIC_FIXED_INCOME_ENABLED } from "@/modules/portfolio/domain/fixed-income-policy";
+import { autoIncomeParts, indexerOfSubclass, type AutoIncomeIndexer } from "@/modules/portfolio/domain/fixed-income-policy";
+import { businessDaysBetween } from "@/modules/portfolio/domain/business-days";
 
 // Dados da página de uma posição (spec 016): a posição é a combinação de conta
 // e ativo, pelos identificadores, em todas as competências. O ativo em outras
@@ -68,12 +68,17 @@ export type PositionHistoryView = {
   history: { state: "ready" | "pending" | "failed"; error: string | null } | null;
   /** Movimentações da posição nesta conta (spec 056), da mais recente para a mais antiga. */
   transactions: PositionTransactionView[];
-  /** Renda fixa pelo CDI na competência selecionada (spec 060). */
+  /** Rendimento automático na competência selecionada (specs 060 e 079). */
   cdi: CdiView | null;
+  /** Rentabilidade das classificações, com ou sem o cálculo automático (spec 079). */
+  rate: { parts: RatePart[]; automatic: boolean } | null;
 };
 
+/** Rentabilidade de uma classificação: % do CDI no pós-fixado, taxa ao ano no prefixado. */
+export type RatePart = { indexer: AutoIncomeIndexer; percent: number; weight: number };
+
 export type CdiView = {
-  percent: number;
+  parts: RatePart[];
   /** AAAA-MM-DD do início do cálculo no mês. */
   start: string;
   baseBrl: number;
@@ -83,7 +88,7 @@ export type CdiView = {
   /** Última taxa usada; nulo antes da primeira. */
   through: string | null;
   error: string | null;
-  /** Projeção bruta com a última taxa diária mantida (hipótese explícita). */
+  /** Projeção bruta: no CDI, a última taxa diária mantida; no prefixado, a própria taxa. */
   projection: { until: string; businessDays: number; balanceBrl: number; dailyPercent: number; toMaturity: boolean } | null;
 };
 
@@ -104,6 +109,11 @@ export type PositionTransactionView = {
   monthId: string;
   /** AAAA-MM */
   month: string;
+  /**
+   * Rendimento calculado pela taxa (spec 079): uma linha por mês, até o
+   * último dia que rendeu, só de leitura.
+   */
+  automatic?: boolean;
 };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -129,7 +139,15 @@ export async function getPositionHistory({
     const [asset, account, positions, classRows] = await Promise.all([
       prisma.asset.findUnique({
         where: { id: assetId },
-        select: { name: true, ticker: true, quoteSymbol: true, baseCurrency: true, maturityDate: true, liquidity: true },
+        select: {
+          name: true,
+          ticker: true,
+          quoteSymbol: true,
+          baseCurrency: true,
+          maturityDate: true,
+          liquidity: true,
+          autoIncome: true,
+        },
       }),
       prisma.account.findUnique({
         where: { id: accountId },
@@ -138,17 +156,20 @@ export async function getPositionHistory({
       prisma.position.findMany({
         where: { assetId },
         select: {
+          id: true,
           accountId: true,
+          portfolioMonthId: true,
           openingQuantity: true,
           calculationStartDate: true,
           calculatedIncomeBrl: true,
+          incomeCalculatedThrough: true,
           quantity: true,
           unitPriceBrl: true,
           totalBrl: true,
           strategy: true,
           portfolioMonth: { select: { referenceDate: true } },
           account: { select: { name: true, institution: { select: { name: true } } } },
-          allocations: { select: { assetClass: true, subclass: true, duration: true, weight: true } },
+          allocations: { select: { assetClass: true, subclass: true, duration: true, weight: true, ratePercent: true } },
         },
       }),
       prisma.positionAllocation.findMany({
@@ -161,7 +182,11 @@ export async function getPositionHistory({
       return null;
     }
 
-    const transactions = await readTransactions(assetId);
+    // O rendimento calculado de cada mês (specs 060 e 079) entra como uma
+    // movimentação de rendimento, só de leitura, no último dia que rendeu.
+    const transactions = [...(await readTransactions(assetId)), ...automaticIncome(positions)].sort(
+      (left, right) => right.occurredOn.localeCompare(left.occurredOn) || Number(Boolean(right.automatic)) - Number(Boolean(left.automatic)),
+    );
     const recordedByAccount = new Map(
       [...new Set(positions.map((position) => position.accountId))].map((id) => [
         id,
@@ -180,14 +205,6 @@ export async function getPositionHistory({
       const since = trackedSince.get(position.accountId) ?? null;
       const tracked = since !== null && month >= since;
       const recorded = movements ?? (position.calculationStartDate || tracked ? emptyRecordedMonth() : null);
-      if (recorded && position.calculationStartDate) {
-        const calculated = position.calculatedIncomeBrl.toNumber();
-        // O CDI calculado é um fato de avaliação, sem criar uma transação de
-        // rendimento que duplicaria os juros (spec 060).
-        recorded.incomeBrl += calculated;
-        recorded.capitalizedIncomeBrl += calculated;
-        recorded.quantityDelta += calculated;
-      }
       return {
       month: monthKey(position.portfolioMonth.referenceDate),
       accountId: position.accountId,
@@ -277,7 +294,8 @@ export async function getPositionHistory({
       prices: asset.quoteSymbol ? await getPriceHistory(asset.quoteSymbol, toDateKey(today)) : null,
       history: asset.quoteSymbol ? await readHistoryState(asset.quoteSymbol) : null,
       transactions: transactions.filter((entry) => entry.accountId === accountId),
-      cdi: AUTOMATIC_FIXED_INCOME_ENABLED ? await readCdi(accountId, assetId, selected.id, asset.maturityDate) : null,
+      cdi: asset.autoIncome && !asset.quoteSymbol ? await readCdi(accountId, assetId, selected.id, asset.maturityDate) : null,
+      rate: rateOf(positions, accountId, selected.id, asset.autoIncome),
     };
   } catch {
     return null;
@@ -285,14 +303,64 @@ export async function getPositionHistory({
 }
 
 /**
- * Quadro do CDI da posição na competência (spec 060): o saldo bruto até a
- * última taxa e, separada, a projeção até o vencimento (ou por 12 meses) com a
- * última taxa diária mantida em todos os dias úteis, sem feriados.
+ * Rentabilidade das classificações da posição na competência (spec 079) ou,
+ * fora dela, na última em que a posição aparece. Classificações iguais somam
+ * os pesos.
+ */
+function rateOf(
+  positions: {
+    accountId: string;
+    portfolioMonthId: string;
+    portfolioMonth: { referenceDate: Date };
+    allocations: { subclass: string; weight: Prisma.Decimal; ratePercent: Prisma.Decimal | null }[];
+  }[],
+  accountId: string,
+  monthId: string,
+  automatic: boolean,
+): PositionHistoryView["rate"] {
+  const inAccount = positions.filter((position) => position.accountId === accountId);
+  const current =
+    inAccount.find((position) => position.portfolioMonthId === monthId) ??
+    [...inAccount].sort((left, right) => right.portfolioMonth.referenceDate.getTime() - left.portfolioMonth.referenceDate.getTime())[0];
+  const parts = current ? rateParts(current.allocations) : [];
+
+  return parts.length > 0 ? { parts, automatic } : null;
+}
+
+function rateParts(allocations: { subclass: string; weight: Prisma.Decimal | string; ratePercent: Prisma.Decimal | string | null }[]) {
+  const parts: RatePart[] = [];
+
+  for (const allocation of allocations) {
+    const indexer = indexerOfSubclass(allocation.subclass);
+
+    if (!indexer || allocation.ratePercent === null) {
+      continue;
+    }
+
+    const percent = Number(allocation.ratePercent);
+    const weight = Number(allocation.weight);
+    const same = parts.find((part) => part.indexer === indexer && part.percent === percent);
+
+    if (same) {
+      same.weight += weight;
+    } else {
+      parts.push({ indexer, percent, weight });
+    }
+  }
+
+  return parts;
+}
+
+/**
+ * Quadro do rendimento automático da posição na competência (specs 060 e
+ * 079): o saldo bruto até o último dia que rendeu e, separada, a projeção até
+ * o vencimento (ou por 12 meses), com a última taxa diária do CDI mantida e a
+ * taxa prefixada, em dias úteis com os feriados nacionais.
  */
 async function readCdi(accountId: string, assetId: string, monthId: string, maturity: Date | null): Promise<CdiView | null> {
   const prisma = (await getUserDb())!;
   const position = await prisma.position.findFirst({
-    where: { accountId, assetId, portfolioMonthId: monthId, calculationStartDate: { not: null }, asset: { cdiPercent: { not: null } } },
+    where: { accountId, assetId, portfolioMonthId: monthId, calculationStartDate: { not: null } },
     select: {
       openingQuantity: true,
       totalBrl: true,
@@ -300,42 +368,50 @@ async function readCdi(accountId: string, assetId: string, monthId: string, matu
       calculatedIncomeBrl: true,
       incomeCalculatedThrough: true,
       incomeCalculationError: true,
-      asset: { select: { cdiPercent: true } },
+      asset: { select: { autoIncome: true, quoteSymbol: true } },
+      allocations: { select: { subclass: true, weight: true, ratePercent: true } },
     },
   });
+  const parts = position ? autoIncomeParts(position.asset, position.allocations) : null;
 
-  if (!position?.calculationStartDate || !position.asset.cdiPercent) {
+  if (!position?.calculationStartDate || !parts) {
     return null;
   }
 
-  const latest = await prisma.rateObservation.findFirst({ where: { indexer: "CDI" }, orderBy: { date: "desc" }, select: { date: true, dailyPercent: true } });
   const from = position.incomeCalculatedThrough ? addDay(toDateKey(position.incomeCalculatedThrough)) : toDateKey(calendarDay(new Date()));
   const twelve = new Date(`${from}T00:00:00.000Z`);
   twelve.setUTCFullYear(twelve.getUTCFullYear() + 1);
   const maturityKey = maturity ? toDateKey(maturity) : null;
   const until = maturityKey && maturityKey > from ? maturityKey : maturityKey ? null : toDateKey(twelve);
+  const latest = parts.some((part) => part.indexer === "CDI")
+    ? await prisma.rateObservation.findFirst({ where: { indexer: "CDI" }, orderBy: { date: "desc" }, select: { dailyPercent: true } })
+    : null;
   let projection: CdiView["projection"] = null;
 
-  if (latest && until) {
-    const businessDays = weekdaysBetween(from, until);
+  if (until && (latest || parts.every((part) => part.indexer === "PRE"))) {
+    // Fator diário da posição: a média dos fatores das classificações pelos
+    // pesos, em dias úteis com os feriados nacionais, como os bancos (spec 079).
+    const total = parts.reduce((sum, part) => sum.plus(part.weight), new Prisma.Decimal(0));
+    const daily = parts.reduce((sum, part) => {
+      const rate = new Prisma.Decimal(part.ratePercent).div(100);
+      const factor =
+        part.indexer === "PRE"
+          ? new Prisma.Decimal(1).plus(rate).pow(new Prisma.Decimal(1).div(252))
+          : new Prisma.Decimal(1).plus(latest!.dailyPercent.div(100).mul(rate));
+      return sum.plus(factor.mul(part.weight).div(total));
+    }, new Prisma.Decimal(0));
+    const businessDays = businessDaysBetween(from, until);
     projection = {
       until,
       businessDays,
-      dailyPercent: latest.dailyPercent.toNumber(),
+      dailyPercent: daily.minus(1).mul(100).toNumber(),
       toMaturity: Boolean(maturityKey),
-      balanceBrl: Number(
-        projectCdiBalance({
-          balance: position.totalBrl.toString(),
-          dailyPercent: latest.dailyPercent.toString(),
-          cdiPercent: position.asset.cdiPercent.toString(),
-          businessDays,
-        }),
-      ),
+      balanceBrl: position.totalBrl.mul(daily.pow(businessDays)).toDecimalPlaces(2).toNumber(),
     };
   }
 
   return {
-    percent: position.asset.cdiPercent.toNumber(),
+    parts: rateParts(position.allocations),
     start: toDateKey(position.calculationStartDate),
     baseBrl: position.openingQuantity.toNumber(),
     incomeBrl: position.calculatedIncomeBrl.toNumber(),
@@ -346,25 +422,53 @@ async function readCdi(accountId: string, assetId: string, monthId: string, matu
   };
 }
 
+/**
+ * Rendimento calculado de cada mês (specs 060 e 079) como uma movimentação de
+ * rendimento, só de leitura: a soma do mês até o último dia que rendeu.
+ */
+function automaticIncome(
+  positions: {
+    id: string;
+    accountId: string;
+    portfolioMonthId: string;
+    calculatedIncomeBrl: Prisma.Decimal;
+    incomeCalculatedThrough: Date | null;
+    portfolioMonth: { referenceDate: Date };
+    account: { institution: { name: string } };
+  }[],
+): PositionTransactionView[] {
+  return positions.flatMap((position) => {
+    const income = position.calculatedIncomeBrl.toDecimalPlaces(2);
+
+    if (income.isZero()) {
+      return [];
+    }
+
+    const day = position.incomeCalculatedThrough ?? position.portfolioMonth.referenceDate;
+    return [
+      {
+        id: `auto-${position.id}`,
+        accountId: position.accountId,
+        accountLabel: position.account.institution.name,
+        kind: "INCOME" as const,
+        transferId: null,
+        occurredOn: toDateKey(day),
+        quantity: income.abs().toNumber(),
+        unitPriceBrl: null,
+        amountBrl: income.toNumber(),
+        note: `Rendimento automático até ${toDateKey(day).split("-").reverse().join("/")}`,
+        monthId: position.portfolioMonthId,
+        month: monthKey(position.portfolioMonth.referenceDate),
+        automatic: true,
+      },
+    ];
+  });
+}
+
 function addDay(day: string) {
   const value = new Date(`${day}T00:00:00.000Z`);
   value.setUTCDate(value.getUTCDate() + 1);
   return value.toISOString().slice(0, 10);
-}
-
-/** Dias úteis de segunda a sexta em [de, até), sem descontar feriados. */
-function weekdaysBetween(from: string, until: string) {
-  let count = 0;
-
-  for (let day = from; day < until; day = addDay(day)) {
-    const weekday = new Date(`${day}T00:00:00.000Z`).getUTCDay();
-
-    if (weekday !== 0 && weekday !== 6) {
-      count += 1;
-    }
-  }
-
-  return count;
 }
 
 async function readTransactions(assetId: string): Promise<PositionTransactionView[]> {

@@ -68,9 +68,12 @@ export function AllocationExplorer({
   const activeClassification = CLASSIFICATIONS.find((entry) => entry.key === classification) ?? CLASSIFICATIONS[0];
   const activeSlice = activeClassification.slices.find((entry) => entry.key === slice) ?? activeClassification.slices[0];
   const allRows = groups.find((entry) => entry.key === activeSlice.group)?.rows ?? [];
-  const rows = activeSlice.parentClass
+  // Meta 0 e nada aplicado (spec 079): o item não aparece, como o prefixado
+  // antes da primeira aplicação.
+  const rows = (activeSlice.parentClass
     ? allRows.filter((row) => row.label.startsWith(`${activeSlice.parentClass} ·`))
-    : allRows;
+    : allRows
+  ).filter((row) => row.currentShare > 0 || (row.targetShare ?? 0) > 0);
   const prefix = activeSlice.parentClass ? `${activeSlice.parentClass} · ` : "";
   const reduceMotion = useReducedMotion();
 

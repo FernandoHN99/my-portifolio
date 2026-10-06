@@ -63,12 +63,12 @@ Esta pasta organiza a implementação em fatias pequenas e revisáveis.
 - [057 — Formulário de movimentação e lápis só de atributos](057-movement-form-and-attribute-pencil.md): concluída; na produção desde 2026-10-04.
 - [058 — Histórico e indicadores por movimentações](058-transaction-history-and-indicators.md): concluída; na produção desde 2026-10-04.
 - [059 — Conta corrente e liquidação de títulos vencidos](059-cash-account-and-liquidation.md): concluída; na produção desde 2026-10-04.
-- [060 — Renda fixa a percentual do CDI, cálculo bruto](060-cdi-fixed-income.md): implementação anterior concluída; cálculo suspenso localmente pela 065, a pedido do usuário.
+- [060 — Renda fixa a percentual do CDI, cálculo bruto](060-cdi-fixed-income.md): implementação anterior concluída; suspensa pela 065 e retomada por ativo na 079.
 - [061 — Tesouro Direto por quantidade e preço oficial](061-treasury-direct-quotes.md): na produção desde 2026-10-04; falta uma inclusão real gravada.
 - [062 — Revisão mobile com referência no Safari do iPhone 16 Plus](062-iphone-mobile-review.md): emulação concluída e na produção desde 2026-10-04; falta o aparelho físico.
 - [063 — Conferência de ticker entre consulta e salvamento](063-ticker-verification-during-save.md): concluída localmente; XRP entre processos, cotação atual na inclusão e histórico somente no job.
 - [064 — Meta Selic informativa e atualização local das cotações](064-selic-and-dev-quotes.md): concluída localmente; taxa diária nas duas telas e botão só em desenvolvimento.
-- [065 — Renda fixa por movimentações manuais](065-manual-fixed-income.md): concluída localmente; avaliação automática pausada, saldos e metadados preservados.
+- [065 — Renda fixa por movimentações manuais](065-manual-fixed-income.md): concluída; a pausa global foi substituída pela flag por ativo da 079.
 - [066 — Inclusão e movimentação por etapas obrigatórias](066-guided-position-and-movement-dialogs.md): concluída localmente; protótipo validado antes da implementação, inclusão simplificada e prévia antes de registrar.
 - [067 — Selic de cada competência no card do dólar](067-selic-per-month.md): concluída localmente; substitui o card próprio da 064, com histórico da meta.
 - [068 — Classificação fixa da planilha e tipo do ativo](068-fixed-classification-and-asset-type.md): concluída localmente; listas dependentes, coluna, filtro e painel por tipo.
@@ -82,6 +82,7 @@ Esta pasta organiza a implementação em fatias pequenas e revisáveis.
 - [076 — Liquidação de posições](076-position-liquidation.md): concluída localmente em 2026-10-05; retirada total que preserva o histórico, rendimento com o realizado e backup v3 com as liquidações antigas.
 - [077 — Topo ligado à posição, filtros do celular e abas sem arraste](077-header-trail-and-mobile-filters.md): concluída localmente em 2026-10-06; folha de filtros no celular e troca de aba só pelo toque (as setas do topo saíram na 078).
 - [078 — Alocação por abas na Visão geral, virada com confirmação e gráficos de toque](078-overview-allocation-tabs-and-touch-charts.md): concluída localmente em 2026-10-06; gráfico e comprar e vender pela mesma aba, confirmação antes de criar o mês, indicação que some ao tirar o dedo, movimentações completas na posição.
+- [079 — Rendimento automático como nos bancos, prefixado e filtros das movimentações](079-auto-income-prefixed-and-movement-filters.md): concluída localmente em 2026-10-06, sem deploy; flag por ativo, rentabilidade em cada classificação, CDI diário × % e prefixado em base 252 com feriados, Prefixado nas subclasses e metas, filtros por tipo nas movimentações.
 
 As specs 063 a 073 são revisões posteriores de 2026-10-04 e 2026-10-05, no
 `main` e na produção desde 2026-10-05 ([Produção](../context/production.md)).

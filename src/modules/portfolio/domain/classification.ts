@@ -9,11 +9,14 @@ export const ASSET_CLASSES = ["Caixa", "Cripto", "Renda Fixa", "Renda Variável"
 
 export type AssetClass = (typeof ASSET_CLASSES)[number];
 
-/** Subclasses de cada classe, na ordem da planilha. */
+/**
+ * Subclasses de cada classe, na ordem da planilha, mais o prefixado na renda
+ * fixa e no caixa (spec 079).
+ */
 export const SUBCLASSES_BY_CLASS: Record<AssetClass, readonly string[]> = {
-  Caixa: ["Pós-fixado", "Stablecoin"],
+  Caixa: ["Pós-fixado", "Prefixado", "Stablecoin"],
   Cripto: ["BTC", "Altcoin", "Stablecoin"],
-  "Renda Fixa": ["Pós-fixado", "IPCA"],
+  "Renda Fixa": ["Pós-fixado", "Prefixado", "IPCA"],
   "Renda Variável": ["Ações EUA", "Ações - Ex: USA", "Ações BR", "Imobiliário BR", "Commoditie"],
   Reserva: ["Commoditie"],
 };

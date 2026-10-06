@@ -1,17 +1,21 @@
 import { PortfolioMonthStatus, Prisma, type PrismaClient } from "@/generated/prisma/client";
-import { calculateCdiMonth, type CdiMovement } from "@/modules/portfolio/domain/cdi-valuation";
-import { AUTOMATIC_FIXED_INCOME_ENABLED } from "@/modules/portfolio/domain/fixed-income-policy";
+import { addDays as addCalendarDays, isBusinessDay } from "@/modules/portfolio/domain/business-days";
+import { calculateIncomeMonth, type CdiMovement } from "@/modules/portfolio/domain/cdi-valuation";
+import { autoIncomeParts } from "@/modules/portfolio/domain/fixed-income-policy";
 import { calendarDay, toDateKey } from "@/modules/quotes/domain/calendar";
 import { fetchCdiDaily } from "@/modules/quotes/infrastructure/bcb";
 import { describeProviderError, QuoteHttpError } from "@/modules/quotes/infrastructure/http";
 
-// Renda fixa a percentual do CDI (spec 060): o saldo bruto de cada posição
-// configurada é a base do mês, no dia do início do cálculo, mais as
-// movimentações do mês, cada uma rendendo a partir do próprio dia pelo CDI
-// diário observado (série 12 do Banco Central). Sem IR nem IOF. O rendimento
-// calculado fica na posição (`calculated_income_brl`), sem virar transação, e
-// a data da última taxa usada fica em `income_calculated_through`. Quando falta
-// taxa conferida, o saldo conhecido é preservado e o motivo fica registrado.
+// Rendimento automático (specs 060 e 079): o saldo bruto de cada posição com o
+// cálculo ligado é a base do mês, no dia do início do cálculo, mais as
+// movimentações do mês, cada uma rendendo a partir do próprio dia, como nos
+// bancos. Cada classificação rende pela própria taxa, na proporção do peso.
+// Pós-fixado: pelo CDI diário observado (série 12 do Banco Central) × o
+// percentual. Prefixado: (1 + taxa ao ano)^(1/252) por dia útil. Sem IR nem
+// IOF. O rendimento calculado fica na posição (`calculated_income_brl`), sem
+// virar transação, e a data do último dia que rendeu fica em
+// `income_calculated_through`. Quando falta taxa conferida, o saldo conhecido
+// é preservado e o motivo fica registrado.
 
 type Client = PrismaClient | Prisma.TransactionClient;
 
@@ -35,7 +39,8 @@ const CDI_POSITION_SELECT = {
   calculationStartDate: true,
   calculatedIncomeBrl: true,
   portfolioMonth: { select: { referenceDate: true } },
-  asset: { select: { cdiPercent: true, maturityDate: true, quoteSymbol: true } },
+  asset: { select: { autoIncome: true, maturityDate: true, quoteSymbol: true } },
+  allocations: { select: { subclass: true, weight: true, ratePercent: true } },
   transactions: {
     orderBy: [{ occurredOn: "asc" as const }, { createdAt: "asc" as const }],
     select: { kind: true, occurredOn: true, amountBrl: true },
@@ -44,10 +49,20 @@ const CDI_POSITION_SELECT = {
 
 type CdiPosition = Prisma.PositionGetPayload<{ select: typeof CDI_POSITION_SELECT }>;
 
-/** Posição com o cálculo pelo CDI ligado: o ativo tem o percentual e a posição, o início. */
+/**
+ * Posição com o rendimento automático ligado (spec 079): o ativo tem a flag, e
+ * a posição, o início do cálculo no mês. A taxa de cada classificação é
+ * conferida no cálculo.
+ */
 export const CDI_POSITION_WHERE = {
   calculationStartDate: { not: null },
-  asset: { cdiPercent: { not: null }, quoteSymbol: null },
+  asset: { autoIncome: true, quoteSymbol: null },
+} satisfies Prisma.PositionWhereInput;
+
+/** As que têm alguma parte pelo CDI, que precisa das taxas do Banco Central. */
+const CDI_ONLY_WHERE = {
+  ...CDI_POSITION_WHERE,
+  allocations: { some: { subclass: "Pós-fixado" } },
 } satisfies Prisma.PositionWhereInput;
 
 /**
@@ -60,12 +75,8 @@ export async function syncCdiRates(
   prisma: PrismaClient,
   { now = new Date(), fetchRates = fetchCdiDaily, monthIds }: { now?: Date; fetchRates?: CdiRatesFetcher; monthIds: string[] },
 ): Promise<CdiReport["rates"]> {
-  if (!AUTOMATIC_FIXED_INCOME_ENABLED) {
-    return { state: "skipped", inserted: 0, through: null };
-  }
-
   const earliest = await prisma.position.findFirst({
-    where: { ...CDI_POSITION_WHERE, portfolioMonthId: { in: monthIds } },
+    where: { ...CDI_ONLY_WHERE, portfolioMonthId: { in: monthIds } },
     orderBy: { calculationStartDate: "asc" },
     select: { calculationStartDate: true },
   });
@@ -159,10 +170,6 @@ export async function valueCdiPositions(
   client: Client,
   { where, now = new Date(), asOf }: { where: Prisma.PositionWhereInput; now?: Date; asOf?: string },
 ) {
-  if (!AUTOMATIC_FIXED_INCOME_ENABLED) {
-    return [];
-  }
-
   const positions = await client.position.findMany({ where: { ...where, ...CDI_POSITION_WHERE }, select: CDI_POSITION_SELECT });
   const results: { positionId: string; state: "calculated" | "unavailable"; message?: string }[] = [];
 
@@ -170,17 +177,21 @@ export async function valueCdiPositions(
     return results;
   }
 
-  const earliest = positions.reduce(
-    (min, position) => (position.calculationStartDate! < min ? position.calculationStartDate! : min),
-    positions[0].calculationStartDate!,
+  const cdiPositions = positions.filter((position) => position.allocations.some((allocation) => allocation.subclass === "Pós-fixado"));
+  const earliest = cdiPositions.reduce<Date | null>(
+    (min, position) => (!min || position.calculationStartDate! < min ? position.calculationStartDate! : min),
+    null,
   );
-  const [rates, coverage] = await Promise.all([
-    client.rateObservation.findMany({
-      where: { indexer: INDEXER, date: { gte: earliest } },
-      select: { date: true, dailyPercent: true },
-    }),
-    client.rateCoverage.findMany({ where: { indexer: INDEXER }, select: { fromDate: true, throughDate: true } }),
-  ]);
+  // O prefixado não depende de taxa publicada: só o CDI busca as taxas.
+  const [rates, coverage] = earliest
+    ? await Promise.all([
+        client.rateObservation.findMany({
+          where: { indexer: INDEXER, date: { gte: earliest } },
+          select: { date: true, dailyPercent: true },
+        }),
+        client.rateCoverage.findMany({ where: { indexer: INDEXER }, select: { fromDate: true, throughDate: true } }),
+      ])
+    : [[], []];
   const rateList = rates.map((rate) => ({ date: toDateKey(rate.date), dailyPercent: rate.dailyPercent.toString() }));
   const windows = coverage.map((window) => ({ from: toDateKey(window.fromDate), through: toDateKey(window.throughDate) }));
   const lastVerified = windows.reduce<string | null>((max, window) => (!max || window.through > max ? window.through : max), null);
@@ -190,7 +201,10 @@ export async function valueCdiPositions(
   const verifiedUntil = lastVerified ? minDay(until, nextDay(lastVerified)) : until;
 
   for (const position of positions) {
-    const evaluation = minDay(verifiedUntil, nextMonthStart(position.portfolioMonth.referenceDate));
+    const prefixed = !cdiPositions.includes(position);
+    // O prefixado rende até hoje (exclusivo); com alguma parte pelo CDI, até o
+    // dia seguinte à última taxa conferida. Os dois param no fim da competência.
+    const evaluation = minDay(prefixed ? until : verifiedUntil, nextMonthStart(position.portfolioMonth.referenceDate));
     const result = valueOne(position, { rates: rateList, windows, asOf: evaluation });
 
     if (result.state === "calculated") {
@@ -222,24 +236,27 @@ function valueOne(
   { rates, windows, asOf }: { rates: { date: string; dailyPercent: string }[]; windows: { from: string; through: string }[]; asOf: string },
 ) {
   const start = toDateKey(position.calculationStartDate!);
+  const parts = autoIncomeParts(position.asset, position.allocations);
 
-  if (windows.length === 0) {
+  if (!parts) {
+    return { state: "unavailable" as const, message: "Informe a rentabilidade de cada classificação pós-fixada ou prefixada." };
+  }
+
+  if (parts.some((part) => part.indexer === "CDI") && windows.length === 0) {
     return { state: "unavailable" as const, message: "O CDI do Banco Central ainda não foi carregado. O saldo conhecido foi preservado." };
   }
 
-  const movements: CdiMovement[] = position.transactions.map((entry) => ({
-    date: toDateKey(entry.occurredOn),
-    kind: entry.kind,
-    amount: entry.amountBrl.toString(),
-  }));
-
-  return calculateCdiMonth({
+  return calculateIncomeMonth({
     openingBalance: position.openingQuantity.toString(),
     startDate: start,
     asOf: asOf < start ? start : asOf,
     maturityDate: position.asset.maturityDate ? toDateKey(position.asset.maturityDate) : null,
-    cdiPercent: position.asset.cdiPercent!.toString(),
-    movements,
+    parts,
+    movements: position.transactions.map((entry) => ({
+      date: toDateKey(entry.occurredOn),
+      kind: entry.kind,
+      amount: entry.amountBrl.toString(),
+    })) satisfies CdiMovement[],
     rates,
     verifiedCoverage: windows,
   });
@@ -274,10 +291,6 @@ export async function syncCdi(
   prisma: PrismaClient,
   { now = new Date(), fetchRates = fetchCdiDaily }: { now?: Date; fetchRates?: CdiRatesFetcher } = {},
 ): Promise<CdiReport> {
-  if (!AUTOMATIC_FIXED_INCOME_ENABLED) {
-    return { rates: { state: "skipped", inserted: 0, through: null }, valued: 0, failed: [] };
-  }
-
   const currentMonth = new Date(Date.UTC(now.getFullYear(), now.getMonth(), 1));
   const months = await prisma.portfolioMonth.findMany({
     where: { OR: [{ referenceDate: currentMonth }, { status: PortfolioMonthStatus.DRAFT, referenceDate: { lt: currentMonth } }] },
@@ -290,11 +303,89 @@ export async function syncCdi(
   }
 
   const rates = await syncCdiRates(prisma, { now, fetchRates, monthIds });
-  const results = rates.state === "skipped" ? [] : await valueCdiPositions(prisma, { where: { portfolioMonthId: { in: monthIds } }, now });
+  await completePreviousCloses(prisma, monthIds);
+  // O prefixado é recalculado mesmo sem CDI para buscar (spec 079).
+  const results = await valueCdiPositions(prisma, { where: { portfolioMonthId: { in: monthIds } }, now });
 
   return {
     rates,
     valued: results.filter((result) => result.state === "calculated").length,
     failed: results.flatMap((result) => (result.state === "unavailable" ? [{ positionId: result.positionId, message: result.message ?? "" }] : [])),
   };
+}
+
+/**
+ * A virada fecha o mês anterior pelo CDI até o dia 1 do novo, mas a taxa do
+ * último dia útil só sai no dia seguinte. Quando esse fechamento automático
+ * ficou sem os últimos dias, o job o completa e leva o saldo à base do mês
+ * novo, como no extrato do banco (spec 079). Um fechamento completo nunca é
+ * mexido: correções seguem sem cascata (spec 057).
+ */
+async function completePreviousCloses(prisma: PrismaClient, monthIds: string[]) {
+  const successors = await prisma.position.findMany({
+    where: { ...CDI_ONLY_WHERE, portfolioMonthId: { in: monthIds } },
+    select: {
+      id: true,
+      userId: true,
+      assetId: true,
+      accountId: true,
+      openingQuantity: true,
+      calculationStartDate: true,
+      portfolioMonth: { select: { referenceDate: true } },
+    },
+  });
+
+  for (const successor of successors) {
+    const monthStart = successor.portfolioMonth.referenceDate;
+
+    // Só a posição que herdou o cálculo da virada, que começa no dia 1.
+    if (successor.calculationStartDate?.getTime() !== monthStart.getTime()) {
+      continue;
+    }
+
+    const previousMonth = new Date(Date.UTC(monthStart.getUTCFullYear(), monthStart.getUTCMonth() - 1, 1));
+    const predecessor = await prisma.position.findFirst({
+      where: {
+        ...CDI_ONLY_WHERE,
+        userId: successor.userId,
+        assetId: successor.assetId,
+        accountId: successor.accountId,
+        portfolioMonth: { referenceDate: previousMonth },
+      },
+      select: { id: true, incomeCalculatedThrough: true, incomeCalculationError: true },
+    });
+    const lastBusinessDay = lastBusinessDayBefore(toDateKey(monthStart));
+
+    if (
+      !predecessor ||
+      (!predecessor.incomeCalculationError &&
+        predecessor.incomeCalculatedThrough &&
+        toDateKey(predecessor.incomeCalculatedThrough) >= lastBusinessDay)
+    ) {
+      continue;
+    }
+
+    const [result] = await valueCdiPositions(prisma, { where: { id: predecessor.id }, asOf: toDateKey(monthStart) });
+
+    if (result?.state !== "calculated") {
+      continue;
+    }
+
+    const closed = await prisma.position.findUniqueOrThrow({ where: { id: predecessor.id }, select: { quantity: true } });
+
+    if (!closed.quantity.equals(successor.openingQuantity)) {
+      await prisma.position.update({ where: { id: successor.id }, data: { openingQuantity: closed.quantity } });
+    }
+  }
+}
+
+/** Último dia útil antes do dia informado (AAAA-MM-DD). */
+function lastBusinessDayBefore(day: string) {
+  let cursor = addCalendarDays(day, -1);
+
+  while (!isBusinessDay(cursor)) {
+    cursor = addCalendarDays(cursor, -1);
+  }
+
+  return cursor;
 }

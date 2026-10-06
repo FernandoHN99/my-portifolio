@@ -45,6 +45,7 @@ import {
   type AssetType,
 } from "@/modules/portfolio/domain/classification";
 import { normalizeLiquidity } from "@/modules/portfolio/domain/liquidity";
+import { indexerOfSubclass, supportsAutoIncome, type AutoIncomeIndexer } from "@/modules/portfolio/domain/fixed-income-policy";
 import { FlowHeading, FlowSteps } from "@/modules/portfolio/ui/flow-steps";
 import { categoryColor } from "@/modules/portfolio/presentation/category-colors";
 import { prefetchTreasuryCatalog, TreasuryPicker } from "@/modules/portfolio/ui/treasury-picker";
@@ -78,7 +79,12 @@ export type PositionFormMonth = { id: string; label: string; isCurrent: boolean;
 export type PositionFormTarget = { mode: "add" } | { mode: "edit"; position: MonthPosition };
 
 type TabKey = "geral" | "ativo" | "rateio" | "revisar";
-type AllocationRow = { key: number; assetClass: string; subclass: string; duration: string; weight: string };
+/** Classificação do rateio; `rate` é a rentabilidade dela (spec 079), % do CDI ou % ao ano. */
+type AllocationRow = { key: number; assetClass: string; subclass: string; duration: string; weight: string; rate: string };
+
+function rateText(rate: number | null | undefined) {
+  return rate === null || rate === undefined ? "" : String(rate).replace(".", ",");
+}
 type Issue = { tab: TabKey; message: string };
 
 const TABS: { key: TabKey; label: string }[] = [
@@ -189,10 +195,16 @@ function PositionForm({
           subclass: allocation.subclass,
           duration: allocation.duration,
           weight: formatWeight(allocation.weight),
+          rate: rateText(allocation.ratePercent),
         }))
       : null,
   );
   const [nextRowKey, setNextRowKey] = useState(100);
+  // Rendimento automático (spec 079): na renda fixa e no caixa em reais. A
+  // rentabilidade é de cada classificação Pós-fixado (% do CDI) ou Prefixado
+  // (% ao ano); a flag é da posição.
+  const [autoIncome, setAutoIncome] = useState(editing?.autoIncome ?? false);
+  const [appliedOn, setAppliedOn] = useState(() => defaultAppliedOn(month.referenceDate));
 
   const quoteOf = (symbol: string) => month.quotes.find((entry) => entry.symbol === symbol)?.valueBrl ?? null;
 
@@ -352,10 +364,11 @@ function PositionForm({
           subclass: allocation.subclass,
           duration: allocation.duration,
           weight: formatWeight(allocation.weight),
+          rate: rateText(allocation.ratePercent),
         }))
       : kind
-        ? [{ key: 0, ...defaultAllocation(kind, symbol), weight: "100" }]
-        : [{ key: 0, assetClass: "", subclass: "", duration: "", weight: "100" }];
+        ? [{ key: 0, ...defaultAllocation(kind, symbol), weight: "100", rate: "" }]
+        : [{ key: 0, assetClass: "", subclass: "", duration: "", weight: "100", rate: "" }];
   const allocationRows = rows ?? derivedRows;
   const weightSum = allocationRows.reduce((total, row) => total + (parseLocaleNumber(row.weight) ?? 0), 0);
   // A classificação vem da lista fixa (spec 068); uma antiga, fora dela, só
@@ -384,10 +397,21 @@ function PositionForm({
     changeRows((current) =>
       current.map((row) => {
         if (row.key !== key) return row;
-        const next = { ...row, [field]: text };
-        return field === "assetClass" ? { ...next, ...fitClassification(next) } : next;
+        const changed = { ...row, [field]: text };
+        const next = field === "assetClass" ? { ...changed, ...fitClassification(changed) } : changed;
+        // Outro indexador, outra taxa: o % do CDI não vale como % ao ano.
+        return indexerOfSubclass(next.subclass) === indexerOfSubclass(row.subclass) ? next : { ...next, rate: "" };
       }),
     );
+
+  // Rentabilidade por classificação (spec 079): cada classificação Pós-fixado
+  // ou Prefixado de uma renda fixa ou caixa em reais tem a sua.
+  const incomeType = editing ? (editing.quoteSymbol ? null : editing.assetType) : isNewAsset ? kind : null;
+  const rowIndexer = (row: AllocationRow): AutoIncomeIndexer | null =>
+    supportsAutoIncome(incomeType) ? indexerOfSubclass(row.subclass) : null;
+  const incomeAvailable = allocationRows.some((row) => rowIndexer(row) !== null);
+  const wantsAutoIncome = incomeAvailable && autoIncome;
+  const rowRate = (row: AllocationRow) => (rowIndexer(row) && row.rate.trim() ? row.rate.trim() : null);
 
   const issues: Issue[] = [];
 
@@ -434,6 +458,25 @@ function PositionForm({
     issues.push({ tab: "rateio", message: `O rateio soma ${formatWeight(weightSum)}%; precisa somar 100%.` });
   }
 
+  const badRate = allocationRows.findIndex((row) => {
+    const rate = rowRate(row);
+    return rate !== null && !((parseLocaleNumber(rate) ?? 0) > 0);
+  });
+
+  if (badRate >= 0) {
+    issues.push({ tab: "rateio", message: `Revise a rentabilidade da classificação ${badRate + 1}.` });
+  } else if (wantsAutoIncome && allocationRows.some((row) => !rowIndexer(row))) {
+    issues.push({
+      tab: "rateio",
+      message: "Com o rendimento automático, cada classificação precisa ser pós-fixada ou prefixada.",
+    });
+  } else if (wantsAutoIncome && allocationRows.some((row) => !rowRate(row))) {
+    issues.push({ tab: "rateio", message: "Informe a rentabilidade para calcular o rendimento automaticamente." });
+  }
+  if (wantsAutoIncome && !editing && !appliedOn) {
+    issues.push({ tab: "rateio", message: "Informe o dia da aplicação." });
+  }
+
   const tabsWithIssues = new Set(issues.map((issue) => issue.tab));
   const flowKeys: TabKey[] = ["geral", "ativo", "rateio", "revisar"];
   const flowStep = flowKeys.indexOf(tab);
@@ -456,11 +499,13 @@ function PositionForm({
       return;
     }
 
+    const income = supportsAutoIncome(incomeType) ? { autoIncome: wantsAutoIncome } : {};
     const allocations = allocationRows.map((row) => ({
       assetClass: row.assetClass.trim(),
       subclass: row.subclass.trim(),
       duration: row.duration.trim(),
       weightPercent: row.weight.trim().replace(",", "."),
+      ratePercent: rowRate(row),
     }));
 
     startSaving(async () => {
@@ -478,6 +523,7 @@ function PositionForm({
               liquidity: normalizeLiquidity(liquidity),
               maturityDate,
               ...(assetType ? { assetType } : {}),
+              ...income,
             },
           },
         });
@@ -498,6 +544,8 @@ function PositionForm({
                     quoteCheckToken:
                       response?.status === "found" || response?.status === "unavailable" ? response.token : null,
                     manualPriceBrl: needsManualPrice || ownTreasuryPrice ? manualPrice.trim() : null,
+                    ...income,
+                    ...(wantsAutoIncome ? { appliedOn } : {}),
                   },
                 }),
             value: value.trim(),
@@ -875,6 +923,14 @@ function PositionForm({
                       />
                     </Field>
                   </div>
+                  {rowIndexer(row) ? (
+                    <RateField
+                      index={index}
+                      indexer={rowIndexer(row)!}
+                      value={row.rate}
+                      onChange={(next) => updateRow(row.key, "rate", next)}
+                    />
+                  ) : null}
                 </div>
               ))}
             </div>
@@ -889,6 +945,7 @@ function PositionForm({
                     subclass: "",
                     duration: "",
                     weight: formatWeight(Math.max(100 - weightSum, 0)),
+                    rate: "",
                   },
                 ]);
                 setNextRowKey((key) => key + 1);
@@ -911,6 +968,15 @@ function PositionForm({
               Soma: {formatWeight(weightSum)}%
               {balanced ? "" : weightSum < 100 ? ` · faltam ${formatWeight(100 - weightSum)}%` : ` · sobram ${formatWeight(weightSum - 100)}%`}
             </p>
+            {incomeAvailable ? (
+              <AutoIncomeToggle
+                automatic={autoIncome}
+                onAutomaticChange={setAutoIncome}
+                appliedOn={editing ? null : appliedOn}
+                onAppliedOnChange={setAppliedOn}
+                month={month}
+              />
+            ) : null}
           </Tabs.Panel>
           {!editing ? <Tabs.Panel value="revisar" className="space-y-5 outline-none">
             <FlowHeading title="Confira sua nova posição" description="Revise os dados e o saldo atual antes de cadastrar. Você pode voltar para fazer ajustes." />
@@ -925,8 +991,9 @@ function PositionForm({
             </dl>
             <div className="flex flex-wrap items-center justify-between gap-2"><span className="text-xs text-muted-foreground">Valor da posição</span><strong className="font-mono text-xl font-medium text-primary">{positionTotal !== null ? formatBrl(positionTotal) : "—"}</strong></div>
             <div className="space-y-2 border-t border-border/60 pt-4 text-xs text-muted-foreground">
-              {allocationRows.map((row) => <p key={row.key} className="flex justify-between gap-3"><span className="min-w-0">{row.assetClass} · {row.subclass} · {row.duration}</span><span className="shrink-0 font-mono text-foreground">{row.weight}%</span></p>)}
+              {allocationRows.map((row) => <p key={row.key} className="flex justify-between gap-3"><span className="min-w-0">{row.assetClass} · {row.subclass} · {row.duration}{rowRate(row) ? ` · ${rowRate(row)}${rowIndexer(row) === "CDI" ? "% do CDI" : "% ao ano"}` : ""}</span><span className="shrink-0 font-mono text-foreground">{row.weight}%</span></p>)}
               <p>Estratégia: {strategy || "Sem estratégia"}</p>
+              {wantsAutoIncome ? <p>Rendimento automático desde {appliedOn.split("-").reverse().join("/")}</p> : null}
               {maturityDate ? <p>Vencimento: {maturityDate.split("-").reverse().join("/")}</p> : null}
             </div>
           </Tabs.Panel> : null}
@@ -1226,4 +1293,95 @@ function formatNumberText(value: number, digits = 8) {
   }
 
   return format.format(value);
+}
+
+/** Dia da aplicação sugerido: hoje, dentro da competência; num mês passado, o último dia dele. */
+function defaultAppliedOn(referenceDate: Date) {
+  const first = referenceDate.toISOString().slice(0, 10);
+  const last = new Date(Date.UTC(referenceDate.getUTCFullYear(), referenceDate.getUTCMonth() + 1, 0)).toISOString().slice(0, 10);
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  return today < first ? first : today > last ? last : today;
+}
+
+/**
+ * Rentabilidade e rendimento automático (spec 079), na aba Rateio: a taxa é
+ * opcional, e passa a ser obrigatória com o cálculo ligado. Numa aplicação
+ * nova, o dia da aplicação diz desde quando o valor rende, como no banco.
+ */
+/**
+ * Rentabilidade de uma classificação (spec 079), dentro do cartão dela: % do
+ * CDI no pós-fixado, % ao ano no prefixado. Opcional; exigida pelo cálculo
+ * automático.
+ */
+function RateField({
+  index,
+  indexer,
+  value,
+  onChange,
+}: {
+  index: number;
+  indexer: AutoIncomeIndexer;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <div className="mt-3 flex items-center justify-between gap-3 border-t border-border/50 pt-3" data-testid="allocation-rate">
+      <span className="text-[10px] tracking-[0.08em] text-muted-foreground uppercase">Rentabilidade</span>
+      <label className="relative block w-36 shrink-0">
+        <input
+          aria-label={`Rentabilidade da classificação ${index + 1}`}
+          inputMode="decimal"
+          value={value}
+          placeholder={indexer === "CDI" ? "100" : "12,5"}
+          onChange={(event) => onChange(event.target.value)}
+          className={cn(inputClass, "h-8 pr-14 text-right font-mono")}
+        />
+        <span className="pointer-events-none absolute inset-y-0 right-2.5 flex items-center text-[10px] text-muted-foreground">
+          {indexer === "CDI" ? "% CDI" : "% a.a."}
+        </span>
+      </label>
+    </div>
+  );
+}
+
+/**
+ * Rendimento automático da posição (spec 079), numa linha discreta abaixo do
+ * rateio; numa inclusão, com o dia da aplicação, desde quando o valor rende.
+ */
+function AutoIncomeToggle({
+  automatic,
+  onAutomaticChange,
+  appliedOn,
+  onAppliedOnChange,
+  month,
+}: {
+  automatic: boolean;
+  onAutomaticChange: (value: boolean) => void;
+  appliedOn: string | null;
+  onAppliedOnChange: (value: string) => void;
+  month: PositionFormMonth;
+}) {
+  return (
+    <div className="mt-4 flex flex-wrap items-center justify-between gap-x-3 gap-y-2" data-testid="auto-income">
+      <label className="flex cursor-pointer items-center gap-2.5 text-xs text-foreground">
+        <input
+          type="checkbox"
+          checked={automatic}
+          onChange={(event) => onAutomaticChange(event.target.checked)}
+          className="size-4 shrink-0 accent-primary"
+        />
+        Calcular rendimento automaticamente
+      </label>
+      {automatic && appliedOn !== null ? (
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] tracking-[0.08em] text-muted-foreground uppercase">Aplicado em</span>
+          <div className="w-40">
+            {/* Uma aplicação antiga entra com o valor e o dia originais e rende desde ele, como no banco. */}
+            <DatePicker aria-label="Dia da aplicação" value={appliedOn} min="2000-01-01" max={defaultAppliedOn(month.referenceDate)} onChange={onAppliedOnChange} />
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
 }

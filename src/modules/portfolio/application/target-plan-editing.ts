@@ -3,9 +3,10 @@ import { DEFAULT_TARGETS_LOCK_KEY } from "@/lib/advisory-locks";
 import { getUserDb, SCOPED_USER } from "@/lib/user-db";
 import { getAllocationOverview } from "@/modules/portfolio/application/get-allocation-overview";
 import { deriveCurrencyTargets } from "@/modules/portfolio/domain/currency-targets";
-import { buildDefaultTargets, DEFAULT_TARGET_PLAN_NAME } from "@/modules/portfolio/domain/default-targets";
+import { buildDefaultTargets, DEFAULT_TARGET_PLAN_NAME, fixedIncomeTaxonomyTargets } from "@/modules/portfolio/domain/default-targets";
 import { DEFAULT_REBALANCE_TOLERANCE, MAX_REBALANCE_TOLERANCE } from "@/modules/portfolio/domain/rebalance";
 import { targetGroupKey } from "@/modules/portfolio/presentation/target-groups";
+import { REDEMPTIONS_BY_CLASS, SUBCLASSES_BY_CLASS } from "@/modules/portfolio/domain/classification";
 
 export class TargetPlanError extends Error {
   constructor(message: string) {
@@ -40,12 +41,19 @@ export async function saveTargetPlan(input: { targets: { key: string; percent: s
   }
 
   const submitted = new Map(input.targets.map((entry) => [entry.key, entry.percent]));
+  // Metas de renda fixa da lista fixa que o plano ainda não tem, como o
+  // prefixado (spec 079): entram no plano com o valor enviado.
+  const existingKeys = new Set(active.targets.map((target) => target.key));
+  const added = fixedIncomeTaxonomyTargets(SUBCLASSES_BY_CLASS["Renda Fixa"], REDEMPTIONS_BY_CLASS["Renda Fixa"])
+    .filter((target) => !existingKeys.has(target.key) && submitted.has(target.key))
+    .map((target) => ({ ...target, percentage: new Prisma.Decimal(0) }));
+  const planTargets = [...active.targets, ...added];
 
-  if (submitted.size !== input.targets.length || submitted.size !== active.targets.length) {
+  if (submitted.size !== input.targets.length || submitted.size !== planTargets.length) {
     throw new TargetPlanError("As metas enviadas não correspondem às categorias do plano.");
   }
 
-  const submittedTargets = active.targets.map((target) => {
+  const submittedTargets = planTargets.map((target) => {
     const raw = submitted.get(target.key);
 
     if (raw === undefined) {
@@ -93,7 +101,25 @@ export async function saveTargetPlan(input: { targets: { key: string; percent: s
 
   // As metas são uma só, editada no lugar: salvar não cria versões (spec 054).
   return prisma.$transaction(async (transaction) => {
-    for (const target of changed) {
+    const addedKeys = new Set(added.map((target) => target.key));
+
+    if (added.length > 0) {
+      await transaction.allocationTarget.createMany({
+        data: parsed
+          .filter((target) => addedKeys.has(target.key))
+          .map((target) => ({
+            userId: SCOPED_USER,
+            planId: active.id,
+            key: target.key,
+            scope: target.scope,
+            primaryLabel: target.primaryLabel,
+            secondaryLabel: target.secondaryLabel,
+            percentage: target.fraction,
+          })),
+      });
+    }
+
+    for (const target of changed.filter((entry) => !addedKeys.has(entry.key))) {
       await transaction.allocationTarget.updateMany({
         where: { planId: active.id, key: target.key },
         data: { percentage: target.fraction },

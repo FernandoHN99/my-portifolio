@@ -9,6 +9,8 @@ export type MonthPositionAllocation = {
   subclass: string;
   duration: string;
   weight: number;
+  /** Rentabilidade da classificação (spec 079): % do CDI ou taxa ao ano. */
+  ratePercent?: number | null;
 };
 
 export type MonthPosition = {
@@ -32,8 +34,8 @@ export type MonthPosition = {
   assetType: AssetType;
   /** O tipo foi deduzido, sem escolha do usuário. */
   assetTypeInferred: boolean;
-  /** Cálculo bruto por CDI, opcional; a base pertence à própria competência. */
-  cdiPercent?: number | null;
+  /** Rendimento calculado automaticamente pela taxa de cada classificação (spec 079). */
+  autoIncome?: boolean;
   appliedOn?: string | null;
   calculationStartDate?: string | null;
   calculatedIncomeBrl?: number;
@@ -121,7 +123,7 @@ export async function getMonthPositions(
                   maturityDate: true,
                   liquidity: true,
                   cashAccount: true,
-                  cdiPercent: true,
+                  autoIncome: true,
                   appliedOn: true,
                   assetType: true,
                 },
@@ -130,7 +132,7 @@ export async function getMonthPositions(
                 select: { name: true, institution: { select: { name: true } } },
               },
               allocations: {
-                select: { assetClass: true, subclass: true, duration: true, weight: true },
+                select: { assetClass: true, subclass: true, duration: true, weight: true, ratePercent: true },
               },
             },
           },
@@ -208,7 +210,7 @@ export async function getMonthPositions(
             cashAccount: position.asset.cashAccount,
             assetType: assetTypeOf(position.asset),
             assetTypeInferred: position.asset.assetType === null,
-            cdiPercent: position.asset.cdiPercent?.toNumber() ?? null,
+            autoIncome: position.asset.autoIncome,
             appliedOn: position.asset.appliedOn ? toDateKey(position.asset.appliedOn) : null,
             calculationStartDate: position.calculationStartDate ? toDateKey(position.calculationStartDate) : null,
             calculatedIncomeBrl: position.calculatedIncomeBrl.toNumber(),
@@ -226,6 +228,7 @@ export async function getMonthPositions(
               subclass: allocation.subclass,
               duration: allocation.duration,
               weight: allocation.weight.mul(100).toNumber(),
+              ratePercent: allocation.ratePercent?.toNumber() ?? null,
             })),
           };
         })

@@ -93,6 +93,22 @@ function split(scope: AllocationGroupKey, categories: Category[]): DefaultTarget
   }));
 }
 
+/**
+ * Metas de renda fixa que a matriz sempre mostra (spec 079): cada subclasse da
+ * lista fixa, inclusive o prefixado, em cada prazo. As que o plano não tem
+ * aparecem com 0% e entram no plano ao salvar.
+ */
+export function fixedIncomeTaxonomyTargets(subclasses: readonly string[], durations: readonly string[]) {
+  return subclasses.flatMap((subclass) =>
+    durations.map((duration) => ({
+      key: targetKey("FIXED_INCOME", subclass, duration),
+      scope: "FIXED_INCOME" as const,
+      primaryLabel: subclass,
+      secondaryLabel: duration,
+    })),
+  );
+}
+
 /** Chave da meta no plano, no formato das metas existentes: `ESCOPO:classe:moeda`. */
 export function targetKey(scope: AllocationGroupKey, primaryLabel: string, secondaryLabel: string | null) {
   return [scope, normalizeTargetLabel(primaryLabel), secondaryLabel ? normalizeTargetLabel(secondaryLabel) : null]

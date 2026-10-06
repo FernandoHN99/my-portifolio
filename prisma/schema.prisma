@@ -172,10 +172,14 @@ model Asset {
   // Conta corrente (spec 059): um caixa em reais ou em dólar marcado para
   // receber o dinheiro de títulos vencidos e de outras liquidações.
   cashAccount     Boolean    @default(false) @map("cash_account")
-  // Renda fixa pós-fixada (spec 060): percentual do CDI, como 105 para 105% do
-  // CDI, e o dia da aplicação, a partir do qual o rendimento bruto é calculado.
+  // Percentual do CDI da spec 060, legado: desde a spec 079 a rentabilidade é
+  // de cada classificação (`position_allocations.rate_percent`). O dia da
+  // aplicação é aquele a partir do qual o rendimento bruto é calculado.
   cdiPercent      Decimal?   @map("cdi_percent") @db.Decimal(7, 3)
   appliedOn       DateTime?  @map("applied_on") @db.Date
+  // Rendimento calculado automaticamente (spec 079), como os bancos: pela
+  // rentabilidade de cada classificação, em dias úteis.
+  autoIncome      Boolean    @default(false) @map("auto_income")
   // Tipo do ativo (spec 068), para a visão por tipo, como Tesouro Direto ou
   // ETF dos EUA. Uma das chaves de `ASSET_TYPES`; nulo nos ativos antigos, cujo
   // tipo é inferido na leitura até o usuário escolher um.
@@ -496,6 +500,10 @@ model PositionAllocation {
   subclass   String
   duration   String
   weight     Decimal  @db.Decimal(12, 10)
+  // Rentabilidade da classificação (spec 079), pelo indexador da subclasse:
+  // % do CDI no pós-fixado (105 = 105% do CDI) e taxa ao ano no prefixado
+  // (12.5 = 12,5% a.a.). Opcional; exigida com o rendimento automático.
+  ratePercent Decimal? @map("rate_percent") @db.Decimal(9, 4)
   createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
   position   Position @relation(fields: [positionId, userId], references: [id, userId], onDelete: Cascade)

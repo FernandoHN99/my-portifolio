@@ -50,6 +50,8 @@ export type TransactionTarget = {
   /** Cotação do mês da posição. */
   unitPriceBrl: number | null;
   totalBrl: number;
+  /** Rendimento calculado pela taxa (spec 079): sem a opção Rendimento. */
+  autoIncome?: boolean;
 };
 
 /** Movimentação existente, para corrigir. */
@@ -259,7 +261,7 @@ function TransactionForm({
           {opening ? <p className="text-sm text-foreground">Correção do saldo inicial</p> : <Field label="Movimento">
             <Picker
               aria-label="Tipo de movimentação"
-              options={TRANSACTION_KINDS.map((option) => ({ value: option, label: TRANSACTION_LABELS[option], hint: KIND_HINTS[option] }))}
+              options={TRANSACTION_KINDS.filter((option) => !(target.autoIncome && option === "INCOME" && edit?.kind !== "INCOME")).map((option) => ({ value: option, label: TRANSACTION_LABELS[option], hint: KIND_HINTS[option] }))}
               value={kindSelected ? kind : null}
               onValueChange={(next) => { setKind(next as TransactionKind); setKindSelected(true); }}
               placeholder="Escolha o movimento"

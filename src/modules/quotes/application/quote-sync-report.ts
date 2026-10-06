@@ -1,3 +1,4 @@
+import type { CdiReport } from "@/modules/portfolio/application/cdi-positions";
 import type { SelicSyncReport } from "@/modules/quotes/application/selic-reference";
 import type { QuoteSyncOutcome } from "@/modules/quotes/application/sync-quotes";
 
@@ -7,7 +8,7 @@ import type { QuoteSyncOutcome } from "@/modules/quotes/application/sync-quotes"
 export function describeQuoteSync(outcome: QuoteSyncOutcome): string[] {
   switch (outcome.state) {
     case "idle":
-      return ["Cotações em dia: nenhum símbolo devido.", ...describeSelic(outcome.selic)];
+      return ["Cotações em dia: nenhum símbolo devido.", ...describeSelic(outcome.selic), ...describeCdi(outcome.cdi)];
     case "busy":
       return [`Outra execução está em andamento (${outcome.runId}).`];
     case "unavailable":
@@ -27,6 +28,7 @@ export function describeQuoteSync(outcome: QuoteSyncOutcome): string[] {
               : `Histórico de ${report.symbol} (${report.provider}): ${report.months} meses guardados.`,
         ),
         ...describeSelic(outcome.selic),
+        ...describeCdi(outcome.cdi),
       ];
   }
 }
@@ -48,4 +50,25 @@ function describeSelic(report: SelicSyncReport | undefined): string[] {
     : report.state === "fetched"
       ? `Selic: meta atualizada, referência ${report.observedOn ?? "—"}.`
       : `Selic: conferência diária em dia, referência ${report.observedOn ?? "—"}.`];
+}
+
+function describeCdi(report: CdiReport | undefined): string[] {
+  if (!report || (report.rates.state === "skipped" && report.valued === 0 && report.failed.length === 0)) {
+    return [];
+  }
+
+  const rates =
+    report.rates.state === "failed"
+      ? `CDI: falha ao buscar no Banco Central: ${report.rates.message}`
+      : report.rates.state === "fetched"
+        ? `CDI: ${report.rates.inserted} taxas novas, conferido até ${report.rates.through ?? "—"}.`
+        : report.rates.state === "fresh"
+          ? `CDI: taxas em dia, conferido até ${report.rates.through ?? "—"}.`
+          : null;
+
+  return [
+    ...(rates ? [rates] : []),
+    `Rendimento automático: ${report.valued} posições recalculadas.`,
+    ...report.failed.map((failure) => `Rendimento automático: posição ${failure.positionId} sem cálculo: ${failure.message}`),
+  ];
 }

@@ -27,6 +27,7 @@ import {
 } from "@/modules/quotes/domain/quote-types";
 import { describeProviderError } from "@/modules/quotes/infrastructure/http";
 import { isTreasuryDay } from "@/modules/quotes/domain/treasury";
+import { syncCdi, type CdiRatesFetcher, type CdiReport } from "@/modules/portfolio/application/cdi-positions";
 import { syncSelicReference, type SelicSyncReport } from "@/modules/quotes/application/selic-reference";
 import type { SelicFetcher } from "@/modules/quotes/infrastructure/bcb-selic";
 
@@ -49,7 +50,7 @@ export type HistoryReport = {
 };
 
 export type QuoteSyncOutcome =
-  | { state: "idle"; selic?: SelicSyncReport }
+  | { state: "idle"; selic?: SelicSyncReport; cdi?: CdiReport }
   | { state: "busy"; runId: string }
   | {
       state: "done";
@@ -60,6 +61,8 @@ export type QuoteSyncOutcome =
       histories: HistoryReport[];
       /** Meta Selic informativa, com cadência própria de 24 horas (spec 064). */
       selic?: SelicSyncReport;
+      /** Rendimento automático (spec 079): CDI buscado e posições recalculadas. */
+      cdi?: CdiReport;
     }
   | { state: "unavailable"; message: string };
 
@@ -90,6 +93,7 @@ export async function syncQuotes({
   configuration = getQuoteProviderConfiguration(),
   prisma = getPrismaClient(),
   fetchSelicRate,
+  fetchCdiRates,
 }: {
   now?: Date;
   fetchQuotes?: QuoteFetcher;
@@ -97,6 +101,7 @@ export async function syncQuotes({
   configuration?: QuoteProviderConfiguration;
   prisma?: PrismaClient | null;
   fetchSelicRate?: SelicFetcher;
+  fetchCdiRates?: CdiRatesFetcher;
 } = {}): Promise<QuoteSyncOutcome> {
   if (!prisma) {
     return { state: "unavailable", message: "O banco de dados não está configurado." };
@@ -107,15 +112,25 @@ export async function syncQuotes({
   const today = calendarDay(now);
   const currentMonth = monthOf(today);
   const claim = await claimRun(prisma, now, today, currentMonth);
-  // Informação de referência independente das posições. O cálculo de renda
-  // fixa está pausado; a Selic nunca altera um saldo (specs 064 e 065).
+  // Informação de referência independente das posições: a Selic nunca altera
+  // um saldo (spec 064).
   const runSelic = () =>
     syncSelicReference(prisma, { now, ...(fetchSelicRate ? { fetchRate: fetchSelicRate } : {}) }).catch(
       (error: unknown): SelicSyncReport => ({ state: "failed", observedOn: null, message: describeProviderError(error).message }),
     );
+  // Rendimento automático (spec 079): o CDI do dia e o saldo de cada posição
+  // com a flag ligada, pós-fixada ou prefixada, a cada execução.
+  const runCdi = () =>
+    syncCdi(prisma, { now, ...(fetchCdiRates ? { fetchRates: fetchCdiRates } : {}) }).catch(
+      (error: unknown): CdiReport => ({
+        rates: { state: "failed", inserted: 0, through: null, message: describeProviderError(error).message },
+        valued: 0,
+        failed: [],
+      }),
+    );
 
   if (claim.state === "idle") {
-    return { state: "idle", selic: await runSelic() };
+    return { state: "idle", selic: await runSelic(), cdi: await runCdi() };
   }
 
   if (claim.state !== "claimed") {
@@ -207,6 +222,7 @@ export async function syncQuotes({
   });
 
   outcome.selic = await runSelic();
+  outcome.cdi = await runCdi();
 
   // Uma execução só de histórico serviu de reserva contra execuções
   // simultâneas; sem cotações, ela não entra no histórico de execuções.

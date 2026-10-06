@@ -1,6 +1,8 @@
 import { getUserDb } from "@/lib/user-db";
 import { getAllocationOverview } from "@/modules/portfolio/application/get-allocation-overview";
 import type { AllocationAggregates, AllocationGroupKey } from "@/modules/portfolio/domain/rebalance";
+import { REDEMPTIONS_BY_CLASS, SUBCLASSES_BY_CLASS } from "@/modules/portfolio/domain/classification";
+import { fixedIncomeTaxonomyTargets } from "@/modules/portfolio/domain/default-targets";
 
 export type TargetEditorItem = {
   key: string;
@@ -84,13 +86,18 @@ export async function getTargetEditor(referenceDate?: Date): Promise<TargetEdito
     const editor: TargetEditorData = {
       updatedAt: active.updatedAt,
       tolerance: active.tolerancePercent.toNumber(),
-      items: active.targets.map((target) => ({
-        key: target.key,
-        scope: target.scope as AllocationGroupKey,
-        primaryLabel: target.primaryLabel,
-        secondaryLabel: target.secondaryLabel,
-        percent: target.percentage.mul(100).toNumber(),
-      })),
+      items: [
+        ...active.targets.map((target) => ({
+          key: target.key,
+          scope: target.scope as AllocationGroupKey,
+          primaryLabel: target.primaryLabel,
+          secondaryLabel: target.secondaryLabel,
+          percent: target.percentage.mul(100).toNumber(),
+        })),
+        // As subclasses fixas da renda fixa, como o prefixado (spec 079), mesmo
+        // sem meta ainda: com 0%, entram no plano ao salvar.
+        ...missingFixedIncomeTargets(active.targets).map((target) => ({ ...target, percent: 0 })),
+      ],
       versions: imports.map((entry) => ({ id: entry.id, importedAt: entry.importedAt, exportedAt: entry.exportedAt })),
       preview: overview ? { referenceDate: overview.referenceDate, aggregates: overview.aggregates } : null,
     };
@@ -102,4 +109,11 @@ export async function getTargetEditor(referenceDate?: Date): Promise<TargetEdito
     const reason = error instanceof Error ? error.message.trim().split("\n").filter(Boolean).at(-1) : undefined;
     return { state: "error", message: reason ? reason.slice(0, 240) : "Erro desconhecido." };
   }
+}
+
+function missingFixedIncomeTargets(existing: { key: string }[]) {
+  const keys = new Set(existing.map((target) => target.key));
+  return fixedIncomeTaxonomyTargets(SUBCLASSES_BY_CLASS["Renda Fixa"], REDEMPTIONS_BY_CLASS["Renda Fixa"]).filter(
+    (target) => !keys.has(target.key),
+  );
 }

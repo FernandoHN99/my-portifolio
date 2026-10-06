@@ -15,13 +15,12 @@ export type EditingCatalog = {
     baseCurrency: string;
     maturityDate: string | null;
     liquidity: string | null;
-    cdiPercent?: number | null;
     appliedOn?: string | null;
     /**
      * Rateio da posição mais recente do ativo, em %, para a inclusão de uma
      * posição dele já vir preenchida (spec 043).
      */
-    allocations: { assetClass: string; subclass: string; duration: string; weight: number }[];
+    allocations: { assetClass: string; subclass: string; duration: string; weight: number; ratePercent: number | null }[];
   }[];
   strategies: string[];
   allocation: { classes: string[]; subclasses: string[] };
@@ -61,7 +60,6 @@ export async function getEditingCatalog(): Promise<EditingCatalog> {
           baseCurrency: true,
           maturityDate: true,
           liquidity: true,
-          cdiPercent: true,
           appliedOn: true,
         },
       }),
@@ -89,7 +87,7 @@ export async function getEditingCatalog(): Promise<EditingCatalog> {
           assetId: true,
           allocations: {
             orderBy: { weight: "desc" },
-            select: { assetClass: true, subclass: true, duration: true, weight: true },
+            select: { assetClass: true, subclass: true, duration: true, weight: true, ratePercent: true },
           },
         },
       }),
@@ -100,7 +98,11 @@ export async function getEditingCatalog(): Promise<EditingCatalog> {
       if (!latestAllocations.has(position.assetId)) {
         latestAllocations.set(
           position.assetId,
-          position.allocations.map((allocation) => ({ ...allocation, weight: allocation.weight.mul(100).toNumber() })),
+          position.allocations.map((allocation) => ({
+            ...allocation,
+            weight: allocation.weight.mul(100).toNumber(),
+            ratePercent: allocation.ratePercent?.toNumber() ?? null,
+          })),
         );
       }
     }
@@ -124,7 +126,6 @@ export async function getEditingCatalog(): Promise<EditingCatalog> {
       assets: assets.map((asset) => ({
         ...asset,
         maturityDate: asset.maturityDate ? toDateKey(asset.maturityDate) : null,
-        cdiPercent: asset.cdiPercent?.toNumber() ?? null,
         appliedOn: asset.appliedOn ? toDateKey(asset.appliedOn) : null,
         allocations: latestAllocations.get(asset.id) ?? [],
       })),

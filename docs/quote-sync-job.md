@@ -35,8 +35,19 @@ A [spec 064](../.ai/specs/064-selic-and-dev-quotes.md) acrescenta a meta Selic
 a [spec 067](../.ai/specs/067-selic-per-month.md), a primeira consulta traz dez
 anos e as seguintes, desde a última observação; as mudanças da taxa ficam em
 `reference_rate_points`, para mostrar a Selic de cada competência.
-A taxa é informativa e não recalcula posições; o cálculo de renda fixa foi
-pausado pela [spec 065](../.ai/specs/065-manual-fixed-income.md).
+A taxa é informativa e não recalcula posições.
+
+Desde a [spec 079](../.ai/specs/079-auto-income-prefixed-and-movement-filters.md),
+cada execução também busca o CDI (SGS 12) e recalcula as posições com
+rendimento automático:
+
+- quais posições: renda fixa e caixa em reais, pós-fixados e prefixados, do mês
+  corrente e dos meses abertos;
+- fechamento atrasado: quando a taxa do último dia útil sai depois da virada, o
+  job completa o fechamento do mês anterior e a base do mês novo;
+- registro: as linhas `CDI:` e `Rendimento automático:`;
+- falhas: uma falha do CDI não marca a execução como falha, e o saldo conhecido
+  fica preservado.
 
 ## Local
 
@@ -96,7 +107,8 @@ Para publicar de novo (código novo do job ou chave nova):
    horário do gatilho.
 
 As migrações do banco rodam no build da Vercel: um job novo que dependa de
-tabela nova vai ao ar depois do deploy do app.
+tabela nova vai ao ar depois do deploy do app. É o caso da spec 079, que
+depende das colunas novas dos ativos.
 
 O empacotamento é próprio (`jobs/neon/build.mjs`, com `bundler: "none"` no
 `neon.ts`): o cliente do Prisma e o `pg` precisam de um `require` dentro do

@@ -1,6 +1,7 @@
 "use client";
 
 import { ArrowsDownUpIcon, PencilSimpleIcon, TrashIcon } from "@phosphor-icons/react/dist/ssr";
+import { useState } from "react";
 
 import { cn } from "@/lib/utils";
 import type { PositionTransactionView } from "@/modules/portfolio/application/get-position-history";
@@ -11,6 +12,17 @@ import { monthLabel } from "@/modules/portfolio/presentation/position-page";
 import { CollapsibleSection } from "@/modules/portfolio/ui/collapsible-section";
 
 const QUANTITY = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 8 });
+
+type KindFilter = "all" | PositionTransactionView["kind"];
+
+/** Filtros por tipo (spec 079), na ordem de uso. */
+const FILTERS: { key: KindFilter; label: string }[] = [
+  { key: "all", label: "Todos" },
+  { key: "CONTRIBUTION", label: "Aportes" },
+  { key: "INCOME", label: "Rendimentos" },
+  { key: "WITHDRAWAL", label: "Retiradas" },
+  { key: "OPENING", label: "Saldo inicial" },
+];
 
 function dayLabel(day: string) {
   return formatDay(new Date(`${day}T00:00:00.000Z`));
@@ -44,6 +56,10 @@ export function PositionTransactions({
   onEdit: (entry: PositionTransactionView) => void;
   onRemove: (entry: PositionTransactionView) => void;
 }) {
+  const [filter, setFilter] = useState<KindFilter>("all");
+  const kinds = new Set(transactions.map((entry) => entry.kind));
+  const shown = filter === "all" ? transactions : transactions.filter((entry) => entry.kind === filter);
+
   return (
     <CollapsibleSection
       id="position-transactions"
@@ -54,6 +70,32 @@ export function PositionTransactions({
     >
       <div className="px-5 pt-1 pb-5 sm:px-6">
       {transactions.length > 0 ? <RecordedTotals transactions={transactions} /> : null}
+
+      {transactions.length > 0 ? (
+        <div role="group" aria-label="Tipo de movimentação" className="mt-4 flex flex-wrap items-center gap-1.5">
+          {FILTERS.filter((option) => option.key === "all" || kinds.has(option.key as PositionTransactionView["kind"])).map((option) => (
+            <button
+              key={option.key}
+              type="button"
+              aria-pressed={filter === option.key}
+              onClick={() => setFilter(option.key)}
+              className={cn(
+                "inline-flex h-8 items-center rounded-full border px-3 text-[11px] font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring/50",
+                filter === option.key
+                  ? "border-transparent bg-foreground text-background"
+                  : "border-border bg-card/60 text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {option.label}
+              {option.key === "all" ? null : (
+                <span className="ml-1.5 font-mono text-[10px] opacity-70">
+                  {transactions.filter((entry) => entry.kind === option.key).length}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+      ) : null}
 
       {transactions.length === 0 ? (
         <p className="mt-4 rounded-xl border border-dashed border-border/70 px-4 py-6 text-center text-[11px] text-muted-foreground">
@@ -74,9 +116,11 @@ export function PositionTransactions({
               </tr>
             </thead>
             <tbody>
-              {transactions.map((entry) => {
+              {shown.map((entry) => {
                 const negative = entry.kind === "WITHDRAWAL" || entry.amountBrl < 0;
-                const editable = editableMonthId !== null && entry.monthId === editableMonthId && entry.accountId === editableAccountId;
+                // O rendimento automático vem da taxa (spec 079): não se corrige nem se apaga.
+                const editable =
+                  !entry.automatic && editableMonthId !== null && entry.monthId === editableMonthId && entry.accountId === editableAccountId;
 
                 return (
                   <tr key={entry.id} className="border-t border-border/60" data-transaction-kind={entry.kind}>
@@ -99,6 +143,10 @@ export function PositionTransactions({
                       </span>
                       {entry.transferId ? (
                         <span className="ml-1.5 text-[10px] text-muted-foreground">transferência interna</span>
+                      ) : entry.automatic ? (
+                        <span className="ml-1.5 text-[10px] text-muted-foreground" data-testid="automatic-income">
+                          automático
+                        </span>
                       ) : null}
                       {showAccountLabels ? (
                         <p className="mt-1 text-[10px] text-muted-foreground">{entry.accountLabel}</p>

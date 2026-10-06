@@ -1,19 +1,19 @@
 import { PercentIcon } from "@phosphor-icons/react/dist/ssr";
 
 import type { CdiView } from "@/modules/portfolio/application/get-position-history";
+import { ratesLabel } from "@/modules/portfolio/presentation/income-rate";
 import { formatBrl } from "@/modules/portfolio/presentation/portfolio-format";
 
 const DAY = new Intl.DateTimeFormat("pt-BR", { timeZone: "UTC" });
-const PERCENT = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 3 });
 
 function day(key: string) {
   return DAY.format(new Date(`${key}T00:00:00.000Z`));
 }
 
 /**
- * Renda fixa pelo CDI na competência (spec 060): o saldo bruto acumulado até a
- * última taxa publicada, separado da projeção, que declara a hipótese. Sem IR
- * nem IOF. O rendimento calculado não é uma transação.
+ * Rendimento automático na competência (specs 060 e 079): o saldo bruto até o
+ * último dia que rendeu, pelo CDI ou pela taxa prefixada, separado da
+ * projeção. Sem IR nem IOF.
  */
 export function CdiPanel({ cdi }: { cdi: CdiView }) {
   return (
@@ -21,7 +21,7 @@ export function CdiPanel({ cdi }: { cdi: CdiView }) {
       <div className="flex items-center gap-2">
         <PercentIcon aria-hidden="true" className="text-primary" size={16} weight="bold" />
         <h2 id="cdi-title" className="text-base font-semibold tracking-[-0.025em]">
-          {PERCENT.format(cdi.percent)}% do CDI
+          {ratesLabel(cdi.parts)}
         </h2>
       </div>
 
@@ -29,7 +29,7 @@ export function CdiPanel({ cdi }: { cdi: CdiView }) {
         <Item label="Base do mês" value={formatBrl(cdi.baseBrl)} />
         <Item label="Rendimento calculado" value={formatBrl(cdi.incomeBrl)} />
         <Item label="Saldo bruto" value={formatBrl(cdi.balanceBrl)} />
-        <Item label="Última taxa usada" value={cdi.through ? day(cdi.through) : "—"} />
+        <Item label="Rendeu até" value={cdi.through ? day(cdi.through) : "—"} />
       </dl>
 
       {cdi.error ? (

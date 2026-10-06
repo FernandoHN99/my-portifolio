@@ -3,6 +3,10 @@
 Estado: implementada e validada localmente em 2026-10-04; sem deploy.
 Definida em: 2026-10-04, ajustes 4 e 8 do usuário.
 
+**Substituída em 2026-10-06:** a [spec 079](079-auto-income-prefixed-and-movement-filters.md)
+trocou a pausa global por uma flag em cada ativo. Sem a flag, o comportamento
+abaixo continua valendo.
+
 ## Decisão
 
 O usuário suspendeu o cálculo bruto automático de aplicações de renda fixa
