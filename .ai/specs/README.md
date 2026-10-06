@@ -80,11 +80,12 @@ Esta pasta organiza a implementação em fatias pequenas e revisáveis.
 - [074 — Configuração sem rolagem horizontal em telas estreitas](074-settings-narrow-width-overflow.md): concluída em 2026-10-05, na `dev`; coluna da grade, matriz de renda fixa e prévia ajustadas de 320 a 430 px.
 - [075 — Página da posição mais limpa, sem textos explicativos e com os meses da posição](075-position-page-cleanup-and-month-strip.md): concluída localmente em 2026-10-05; seções recolhidas, destaques no card da variação, períodos na variação mensal, sem conta corrente no formulário.
 - [076 — Liquidação de posições](076-position-liquidation.md): concluída localmente em 2026-10-05; retirada total que preserva o histórico, rendimento com o realizado e backup v3 com as liquidações antigas.
-- [077 — Topo ligado à posição, filtros do celular e abas sem arraste](077-header-trail-and-mobile-filters.md): concluída localmente em 2026-10-06; setas da aba à posição e à faixa de meses, folha de filtros no celular e troca de aba só pelo toque.
+- [077 — Topo ligado à posição, filtros do celular e abas sem arraste](077-header-trail-and-mobile-filters.md): concluída localmente em 2026-10-06; folha de filtros no celular e troca de aba só pelo toque (as setas do topo saíram na 078).
+- [078 — Alocação por abas na Visão geral, virada com confirmação e gráficos de toque](078-overview-allocation-tabs-and-touch-charts.md): concluída localmente em 2026-10-06; gráfico e comprar e vender pela mesma aba, confirmação antes de criar o mês, indicação que some ao tirar o dedo, movimentações completas na posição.
 
 As specs 063 a 073 são revisões posteriores de 2026-10-04 e 2026-10-05, no
 `main` e na produção desde 2026-10-05 ([Produção](../context/production.md)).
-As specs 074 a 077 estão na `dev`, ainda fora da produção.
+As specs 074 a 078 estão na `dev`, ainda fora da produção.
 
 Conferência conjunta das specs 063 a 072, em 2026-10-05:
 

@@ -144,6 +144,26 @@ Fora do Git:
   uso (v3).
 - `backups/revisao-liquidacoes-2026-10-05-v3.md`: cada liquidação, com o mês, o
   último mês e o valor.
-- `backups/local-antes-da-v3-2026-10-05.json`: a carteira local antes da v3.
+- `backups/copias-de-seguranca/local-antes-da-v3-2026-10-05.json`: a carteira local antes da v3.
 - O roteiro da conversão ficou fora do repositório, porque leva nomes dos
   ativos.
+
+## Depois da entrega (2026-10-06)
+
+- **Arquivo trocado na importação:**
+  - O usuário importou na carteira local dele o arquivo mais recente da pasta,
+    `local-antes-da-v3-2026-10-05.json`, que era a cópia de segurança da v2, e
+    não a v3. A conta dele ficou sem as liquidações.
+  - A conta dele foi exportada para
+    `backups/copias-de-seguranca/sua-conta-antes-da-v3-2026-10-06.json` e
+    recebeu a v3: 493 posições mensais, 36 liquidações.
+  - As cópias de segurança passaram para `backups/copias-de-seguranca/`, para o
+    backup em uso ser o arquivo mais recente da pasta.
+- **A produção continua com a v2.** A v3 só faz sentido lá depois de publicar
+  as specs 075 a 077: com o código anterior, as liquidações apareceriam como
+  posições de valor zero, sem o selo.
+- **Selo em qualquer mês:** na página de uma posição que terminou liquidada, o
+  selo "Liquidada em DD/MM/AAAA" aparece em qualquer mês dela e leva ao mês da
+  saída. As movimentações listam só até o mês selecionado, então antes disso a
+  retirada não aparecia. Uma posição liquidada que voltou depois mostra o selo
+  só no mês da liquidação.

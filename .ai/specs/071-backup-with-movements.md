@@ -129,12 +129,12 @@ uso.
   com o motivo da classificação.
 - `backups/meu-portfolio-backup-2026-10-05-movimentacoes.json` e
   `backups/revisao-movimentacoes-2026-10-05.md`: a v1, substituída.
-- `backups/local-antes-da-v2-2026-10-05.json`: a carteira local antes da v2.
+- `backups/copias-de-seguranca/local-antes-da-v2-2026-10-05.json`: a carteira local antes da v2.
 
 ## Depois da restauração local
 
 - Antes de restaurar, a carteira local foi exportada para
-  `backups/local-antes-da-071-2026-10-05.json`, fora do Git.
+  `backups/copias-de-seguranca/local-antes-da-071-2026-10-05.json`, fora do Git.
 - Com as movimentações registradas, a página da posição passa da decomposição
   estimada à registrada (spec 058): "Saldo de partida", "Aportes menos
   retiradas", "Rendimentos incorporados" e "Efeito de preço".

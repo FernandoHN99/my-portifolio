@@ -17,7 +17,7 @@ no Neon, e o job das cotações roda como função do Neon
 ([Produção](.ai/context/production.md)).
 
 Revisões posteriores: specs 063 a 073 no `main` e na produção desde
-2026-10-05; specs 074 a 077 na `dev`. O trabalho do dia a
+2026-10-05; specs 074 a 078 na `dev`. O trabalho do dia a
 dia vai para a `dev`; a `main` é a produção ([fluxo de Git](docs/git-workflow.md)).
 
 - as cotações são atualizadas só pelo job agendado (`pnpm quotes:sync`,
@@ -101,10 +101,13 @@ dia vai para a `dev`; a `main` é a produção ([fluxo de Git](docs/git-workflow
   mês da saída como liquidada e não passa ao seguinte; remover apaga o registro.
   O rendimento soma o lucro realizado nas retiradas, e a conta corrente saiu da
   interface ([spec 076](.ai/specs/076-position-liquidation.md));
-- dentro de uma posição, setas ligam a aba Posições à trilha e a trilha à faixa
-  de competências; no celular, os filtros de Posições abrem numa folha, e as
-  abas só trocam pelo toque, sem arraste
-  ([spec 077](.ai/specs/077-header-trail-and-mobile-filters.md));
+- no celular, os filtros de Posições abrem numa folha, e as abas só trocam pelo
+  toque, sem arraste ([spec 077](.ai/specs/077-header-trail-and-mobile-filters.md));
+- na Visão geral, as abas da alocação (Geral, Caixa, Renda Fixa, Renda Variável)
+  escolhem o gráfico de cima e o comprar e vender de baixo; a virada de mês pede
+  confirmação; nos gráficos de toque, a indicação some ao tirar o dedo; os
+  gráficos da posição não trocam de mês no clique
+  ([spec 078](.ai/specs/078-overview-allocation-tabs-and-touch-charts.md));
 - transações dentro das posições foram implementadas; a previdência, que o
   usuário indicou como próximo assunto, continua em `.ai/context/backlog.md`;
 - as respostas do usuário, o backlog e o que ainda aguarda resposta estão em
@@ -122,8 +125,9 @@ fatia fica em `.ai/specs/README.md`.
 
 Ao atualizar um ambiente local: `pnpm install`, `pnpm db:migrate`,
 `pnpm db:generate` (o `migrate dev` do Prisma 7 não regenera o cliente) e
-reiniciar o `pnpm dev`. Ao abrir, o app cria as competências que faltam (e a
-primeira, para um usuário novo); as cotações e a meta Selic vêm de `pnpm quotes:sync`.
+reiniciar o `pnpm dev`. Ao abrir, o app pergunta antes de criar as competências
+que faltam (a primeira, para um usuário novo, é criada na hora); as cotações e a
+meta Selic vêm de `pnpm quotes:sync`.
 
 Para testar gravações sem tocar nos dados reais, use um schema de teste no
 mesmo Postgres (ideia do usuário, spec 042): `pnpm db:test-schema create

@@ -1,6 +1,8 @@
 # 021 — Virada de mês automática
 
-Estado: concluída em 2026-10-02; questões respondidas pelo usuário no mesmo dia
+Estado: concluída em 2026-10-02; questões respondidas pelo usuário no mesmo dia.
+Desde 2026-10-06, a abertura só avisa os meses que faltam e o app pergunta antes
+de criá-los ([spec 078](078-overview-allocation-tabs-and-touch-charts.md)).
 Definida em: 2026-10-02
 
 ## Problema

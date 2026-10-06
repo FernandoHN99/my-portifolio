@@ -42,7 +42,9 @@ tem mais de uma hora, ou pela seta do topo; a competência do mês corrente
 das cotações, o aplicativo cria a competência do mês corrente e todas as
 que faltarem, copiando a anterior, com a cotação do último dia de cada mês
 disponível no histórico
-([spec 021](../.ai/specs/021-automatic-month-rollover.md)). Não haverá
+([spec 021](../.ai/specs/021-automatic-month-rollover.md)). Desde
+2026-10-06, ele pergunta antes de criar
+([spec 078](../.ai/specs/078-overview-allocation-tabs-and-touch-charts.md)). Não haverá
 agendamento nem tentativa de atualizar com o aplicativo desligado.
 
 Atualizado em 2026-10-04: a atualização das cotações saiu da abertura do

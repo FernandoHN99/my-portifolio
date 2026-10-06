@@ -1,7 +1,9 @@
 # 077 — Topo ligado à posição, filtros do celular e abas sem arraste
 
 Estado: implementada e validada localmente em 2026-10-06; na `dev`, ainda fora
-da produção.
+da produção. No mesmo dia, as setas do topo saíram a pedido do usuário; ficaram
+a trilha sem "Posições" e a faixa restrita
+([spec 078](078-overview-allocation-tabs-and-touch-charts.md)).
 Origem: pedidos do usuário em 2026-10-06, depois das specs
 [075](075-position-page-cleanup-and-month-strip.md) e
 [076](076-position-liquidation.md).
