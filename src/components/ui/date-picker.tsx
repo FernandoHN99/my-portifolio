@@ -446,3 +446,232 @@ function todayKey() {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 }
+
+// Campo de mês do mesmo design system (spec 082), para as competências de
+// Gastos familiares: o texto aceita MM/AAAA, com a barra posta sozinha, e o
+// botão abre a grade dos doze meses, com o ano navegável. Valores em AAAA-MM.
+
+const SHORT_MONTH_NAMES = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+
+export type MonthPickerProps = {
+  /** AAAA-MM, ou vazio. */
+  value: string;
+  onChange: (value: string) => void;
+  /** Primeiro e último mês aceitos, AAAA-MM. */
+  min?: string;
+  max?: string;
+  "aria-label": string;
+  placeholder?: string;
+  invalid?: boolean;
+  disabled?: boolean;
+  className?: string;
+};
+
+export function MonthPicker({
+  value,
+  onChange,
+  min = "2000-01",
+  max = "2100-12",
+  "aria-label": label,
+  placeholder = "mm/aaaa",
+  invalid = false,
+  disabled = false,
+  className,
+}: MonthPickerProps) {
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState<string | null>(null);
+  const shown = draft ?? (value ? toMonthDisplay(value) : "");
+  const typed = draft !== null && draft.length === 7 ? fromMonthDisplay(draft) : null;
+  const outOfRange = typed !== null && (typed < min || typed > max);
+  const incomplete = draft !== null && draft.length > 0 && (draft.length < 7 || typed === null);
+
+  const type = (text: string) => {
+    const digits = text.replace(/\D/g, "").slice(0, 6);
+    const masked = [digits.slice(0, 2), digits.slice(2, 6)].filter(Boolean).join("/");
+    setDraft(masked);
+    const month = masked.length === 7 ? fromMonthDisplay(masked) : null;
+
+    if (month && month >= min && month <= max) {
+      onChange(month);
+    }
+  };
+
+  return (
+    <Popover.Root open={open} onOpenChange={setOpen}>
+      <div
+        data-slot="month-picker"
+        className={cn(
+          "relative flex h-9 w-full items-center rounded-lg border bg-background/60 text-xs text-foreground transition-[border-color,box-shadow] duration-150 focus-within:ring-2",
+          invalid || outOfRange
+            ? "border-destructive focus-within:ring-destructive/40"
+            : "border-border focus-within:border-primary/60 focus-within:ring-ring/50",
+          open && "border-primary/60",
+          disabled && "opacity-50",
+          className,
+        )}
+      >
+        <input
+          aria-label={label}
+          aria-invalid={invalid || outOfRange || undefined}
+          inputMode="numeric"
+          autoComplete="off"
+          placeholder={placeholder}
+          value={shown}
+          disabled={disabled}
+          maxLength={7}
+          onChange={(event) => type(event.target.value)}
+          onFocus={() => setDraft(value ? toMonthDisplay(value) : "")}
+          onBlur={() => setDraft(null)}
+          onKeyDown={(event) => {
+            if (event.key === "ArrowDown" && event.altKey) {
+              event.preventDefault();
+              setOpen(true);
+            }
+          }}
+          className="h-full w-full min-w-0 flex-1 bg-transparent pr-9 pl-2.5 font-mono text-xs tabular-nums outline-none placeholder:font-sans placeholder:text-muted-foreground/60 disabled:cursor-not-allowed"
+        />
+        <Popover.Trigger
+          disabled={disabled}
+          aria-label={`Abrir meses: ${label}`}
+          className="absolute inset-y-0 right-0 grid w-9 place-items-center rounded-r-lg text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:text-primary data-popup-open:text-primary"
+        >
+          <CalendarBlankIcon aria-hidden="true" size={14} weight="bold" />
+        </Popover.Trigger>
+      </div>
+      {incomplete || outOfRange ? (
+        <span className="sr-only" role="status">
+          {outOfRange ? `Escolha um mês entre ${toMonthDisplay(min)} e ${toMonthDisplay(max)}.` : "Mês incompleto."}
+        </span>
+      ) : null}
+      <Popover.Portal>
+        <Popover.Positioner side="bottom" align="end" sideOffset={6} collisionPadding={12} className="z-[60] outline-none">
+          <Popover.Popup
+            aria-label={`Meses: ${label}`}
+            className="w-[min(17rem,calc(100vw-1.5rem))] origin-[var(--transform-origin)] rounded-xl border border-border bg-popover p-3 text-popover-foreground shadow-xl outline-none transition-[scale,opacity] duration-100 ease-out data-ending-style:scale-[0.98] data-ending-style:opacity-0 data-starting-style:scale-[0.98] data-starting-style:opacity-0"
+          >
+            {open ? (
+              <MonthGrid
+                value={value}
+                min={min}
+                max={max}
+                onSelect={(month) => {
+                  onChange(month);
+                  setDraft(null);
+                  setOpen(false);
+                }}
+              />
+            ) : null}
+          </Popover.Popup>
+        </Popover.Positioner>
+      </Popover.Portal>
+    </Popover.Root>
+  );
+}
+
+function MonthGrid({
+  value,
+  min,
+  max,
+  onSelect,
+}: {
+  value: string;
+  min: string;
+  max: string;
+  onSelect: (month: string) => void;
+}) {
+  const current = todayKey().slice(0, 7);
+  const start = value || (current < min ? min : current > max ? max : current);
+  const [focused, setFocused] = useState(start);
+  const focusRef = useRef<HTMLButtonElement>(null);
+  const year = Number(focused.slice(0, 4));
+
+  useEffect(() => {
+    focusRef.current?.focus({ preventScroll: true });
+  }, [focused]);
+
+  const shift = (month: string, amount: number) => {
+    const [y, m] = month.split("-").map(Number);
+    const date = new Date(Date.UTC(y, m - 1 + amount, 1));
+    const next = date.toISOString().slice(0, 7);
+    return next < min ? min : next > max ? max : next;
+  };
+
+  const onKeyDown = (event: KeyboardEvent) => {
+    const steps: Record<string, number> = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -3, ArrowDown: 3, PageUp: -12, PageDown: 12 };
+    const step = steps[event.key];
+
+    if (step !== undefined) {
+      event.preventDefault();
+      setFocused(shift(focused, step));
+    }
+  };
+
+  return (
+    <div>
+      <CalendarHeader
+        title={String(year)}
+        titleLabel={`Ano de ${year}. Voltar ao ano atual`}
+        onTitle={() => setFocused(shift(current, 0))}
+        onPrevious={() => setFocused(shift(focused, -12))}
+        onNext={() => setFocused(shift(focused, 12))}
+        previousLabel="Ano anterior"
+        nextLabel="Próximo ano"
+        previousDisabled={`${year - 1}-12` < min}
+        nextDisabled={`${year + 1}-01` > max}
+      />
+      <div className="mt-3 grid grid-cols-3 gap-1.5" onKeyDown={onKeyDown} data-testid="month-picker-months">
+        {SHORT_MONTH_NAMES.map((name, index) => {
+          const month = `${year}-${String(index + 1).padStart(2, "0")}`;
+          const selected = month === value;
+          const isCurrent = month === current;
+
+          return (
+            <button
+              key={month}
+              ref={month === focused ? focusRef : undefined}
+              type="button"
+              tabIndex={month === focused ? 0 : -1}
+              disabled={month < min || month > max}
+              aria-pressed={selected}
+              aria-label={`${MONTH_NAMES[index]} de ${year}${isCurrent ? ", mês atual" : ""}`}
+              onClick={() => onSelect(month)}
+              onFocus={() => {
+                if (month !== focused) setFocused(month);
+              }}
+              className={cn(
+                "h-9 rounded-lg text-xs outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring/60 disabled:pointer-events-none disabled:opacity-25",
+                selected
+                  ? "bg-primary font-semibold text-primary-foreground"
+                  : isCurrent
+                    ? "text-primary ring-1 ring-primary/45 hover:bg-primary/10"
+                    : "text-foreground/90 hover:bg-white/[0.06]",
+              )}
+            >
+              {name}
+            </button>
+          );
+        })}
+      </div>
+      {current >= min && current <= max ? (
+        <div className="mt-3 border-t border-border/60 pt-2.5">
+          <button
+            type="button"
+            onClick={() => onSelect(current)}
+            className="rounded-md px-2 py-1 text-[11px] font-medium text-primary outline-none transition-colors hover:bg-primary/10 focus-visible:ring-2 focus-visible:ring-ring/50"
+          >
+            Mês atual
+          </button>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function toMonthDisplay(month: string) {
+  return month ? `${month.slice(5, 7)}/${month.slice(0, 4)}` : "";
+}
+
+function fromMonthDisplay(text: string) {
+  const match = /^(\d{2})\/(\d{4})$/.exec(text);
+  return match && Number(match[1]) >= 1 && Number(match[1]) <= 12 ? `${match[2]}-${match[1]}` : null;
+}

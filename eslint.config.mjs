@@ -16,6 +16,8 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Pacote gerado da função do Neon (pnpm jobs:build, spec 053).
     "jobs/neon/dist/**",
+    // Capturas e roteiros avulsos de conferência, fora do Git (como no tsconfig).
+    "artifacts/**",
   ]),
 ]);
 

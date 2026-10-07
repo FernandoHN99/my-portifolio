@@ -5,3 +5,5 @@
 export const QUOTE_REFRESH_LOCK_KEY = 2_026_100_201;
 export const MONTH_ROLLOVER_LOCK_KEY = 2_026_100_202;
 export const DEFAULT_TARGETS_LOCK_KEY = 2_026_100_203;
+// Restauração e carga de Gastos familiares (spec 084): uma de cada vez.
+export const FAMILY_EXPENSES_RESTORE_LOCK_KEY = 2_026_100_701;

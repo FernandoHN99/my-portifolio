@@ -11,6 +11,12 @@ export type FilterGroup = {
   options: string[];
   selected: string[];
   onChange: (next: string[]) => void;
+  /** Rótulo de uma opção guardada por código, como o mês AAAA-MM. */
+  formatOption?: (value: string) => string;
+  /** Ausente mantém a multisseleção de Posições. */
+  multiple?: boolean;
+  /** A família usa o mesmo destaque discreto dos badges externos. */
+  subtle?: boolean;
 };
 
 export type GroupingControl = {
@@ -28,14 +34,19 @@ export function PositionsFilterSheet({
   groups,
   grouping,
   resultCount,
+  resultLabel = (count) => `Ver ${count} ${count === 1 ? "posição" : "posições"}`,
   onClear,
   className,
+  testId = "positions-filter-sheet",
 }: {
   groups: FilterGroup[];
-  grouping: GroupingControl;
+  /** Agrupamento da tabela; Gastos familiares (spec 082) não tem. */
+  grouping?: GroupingControl;
   resultCount: number;
+  resultLabel?: (count: number) => string;
   onClear: () => void;
   className?: string;
+  testId?: string;
 }) {
   const active = groups.reduce((total, group) => total + group.selected.length, 0);
 
@@ -59,7 +70,7 @@ export function PositionsFilterSheet({
         <Drawer.Backdrop className="fixed inset-0 z-50 min-h-dvh bg-black/60 opacity-[calc(1-var(--drawer-swipe-progress))] transition-opacity duration-[400ms] ease-[cubic-bezier(0.32,0.72,0,1)] data-swiping:duration-0 data-ending-style:opacity-0 data-starting-style:opacity-0" />
         <Drawer.Viewport className="fixed inset-0 z-50 flex items-end justify-center">
           <Drawer.Popup
-            data-testid="positions-filter-sheet"
+            data-testid={testId}
             className="flex max-h-[85dvh] w-full flex-col rounded-t-3xl border-t border-border bg-card text-foreground shadow-2xl outline-none [transform:translateY(var(--drawer-swipe-movement-y))] transition-transform duration-[400ms] ease-[cubic-bezier(0.32,0.72,0,1)] data-swiping:select-none data-ending-style:[transform:translateY(100%)] data-starting-style:[transform:translateY(100%)]"
           >
             <div aria-hidden="true" className="mx-auto mt-2.5 h-1 w-10 shrink-0 rounded-full bg-white/15" />
@@ -74,12 +85,14 @@ export function PositionsFilterSheet({
             </div>
 
             <Drawer.Content className="min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain px-5 pb-4">
-              <ChipGroup
-                label="Agrupar"
-                options={grouping.options.map((option) => ({ key: option.value ?? "", label: option.label }))}
-                isOn={(key) => (grouping.value ?? "") === key}
-                onToggle={(key) => grouping.onChange(key === "" ? null : key)}
-              />
+              {grouping ? (
+                <ChipGroup
+                  label="Agrupar"
+                  options={grouping.options.map((option) => ({ key: option.value ?? "", label: option.label }))}
+                  isOn={(key) => (grouping.value ?? "") === key}
+                  onToggle={(key) => grouping.onChange(key === "" ? null : key)}
+                />
+              ) : null}
               {groups
                 .filter((group) => group.options.length > 0)
                 .map((group) => (
@@ -87,13 +100,16 @@ export function PositionsFilterSheet({
                     key={group.key}
                     label={group.label}
                     count={group.selected.length}
-                    options={group.options.map((option) => ({ key: option, label: option }))}
+                    subtle={group.subtle}
+                    options={group.options.map((option) => ({ key: option, label: group.formatOption?.(option) ?? option }))}
                     isOn={(key) => group.selected.includes(key)}
                     onToggle={(key) =>
                       group.onChange(
-                        group.selected.includes(key)
-                          ? group.selected.filter((value) => value !== key)
-                          : [...group.selected, key],
+                        group.multiple === false
+                          ? [key]
+                          : group.selected.includes(key)
+                            ? group.selected.filter((value) => value !== key)
+                            : [...group.selected, key],
                       )
                     }
                   />
@@ -110,7 +126,7 @@ export function PositionsFilterSheet({
                 Limpar
               </button>
               <Drawer.Close className="inline-flex h-11 flex-1 items-center justify-center rounded-xl bg-primary px-4 text-xs font-semibold text-primary-foreground outline-none transition-colors hover:bg-primary/90 focus-visible:ring-3 focus-visible:ring-ring/40">
-                Ver {resultCount} {resultCount === 1 ? "posição" : "posições"}
+                {resultLabel(resultCount)}
               </Drawer.Close>
             </div>
           </Drawer.Popup>
@@ -126,12 +142,14 @@ function ChipGroup({
   options,
   isOn,
   onToggle,
+  subtle = false,
 }: {
   label: string;
   count?: number;
   options: { key: string; label: string }[];
   isOn: (key: string) => boolean;
   onToggle: (key: string) => void;
+  subtle?: boolean;
 }) {
   return (
     <fieldset>
@@ -152,7 +170,9 @@ function ChipGroup({
               className={cn(
                 "inline-flex min-h-9 items-center rounded-full border px-3 text-xs outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring/50",
                 on
-                  ? "border-transparent bg-primary text-primary-foreground"
+                  ? subtle
+                    ? "border-primary/30 bg-primary/[0.08] text-primary"
+                    : "border-transparent bg-primary text-primary-foreground"
                   : "border-border bg-background/40 text-muted-foreground hover:text-foreground",
               )}
             >

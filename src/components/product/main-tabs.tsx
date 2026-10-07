@@ -1,6 +1,6 @@
 "use client";
 
-import { ChartLineUpIcon, CoinsIcon, GearSixIcon } from "@phosphor-icons/react/dist/ssr";
+import { ChartLineUpIcon, ChartPieSliceIcon, CoinsIcon, GearSixIcon, ListBulletsIcon } from "@phosphor-icons/react/dist/ssr";
 import { AnimatePresence, motion, useReducedMotion, type Transition } from "motion/react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -16,9 +16,11 @@ export type TabKey = "overview" | "positions" | "settings";
  */
 export type NavContext = { kind: "position" | "quotes"; label: string };
 
+// Cada aba tem o próprio ícone, como a engrenagem da Configuração. Abaixo de
+// 420 px os ícones saem e ficam só os nomes, para as abas caberem.
 export const MAIN_TABS = [
-  { key: "overview", label: "Visão Geral", href: "/" },
-  { key: "positions", label: "Posições", href: "/posicoes" },
+  { key: "overview", label: "Visão Geral", href: "/", icon: ChartPieSliceIcon },
+  { key: "positions", label: "Posições", href: "/posicoes", icon: ListBulletsIcon },
 ] as const;
 
 const SPRING: Transition = { type: "spring", stiffness: 420, damping: 36 };
@@ -44,6 +46,7 @@ export function MainTabs({ active }: { active: TabKey | "none" }) {
     <nav aria-label="Navegação principal" className="flex items-center gap-0.5 rounded-xl border border-border bg-card/70 p-1">
       {MAIN_TABS.map((tab) => (
         <TabLink key={tab.key} href={withMonth(tab.href)} active={tab.key === active}>
+          <tab.icon aria-hidden="true" size={14} weight="duotone" className="shrink-0 max-[419px]:hidden" />
           {tab.label}
         </TabLink>
       ))}
@@ -61,7 +64,7 @@ export function MainTabs({ active }: { active: TabKey | "none" }) {
           >
             <TabLink href={withMonth("/configuracao")} active testId="settings-tab">
               <GearSixIcon aria-hidden="true" size={14} weight="duotone" className="shrink-0" />
-              <span className="max-[419px]:sr-only">Configuração</span>
+              <span className="max-sm:sr-only">Configuração</span>
             </TabLink>
           </motion.span>
         ) : null}
@@ -93,11 +96,17 @@ function TabLink({
       }}
       className={cn(
         "relative rounded-lg px-3 py-1.5 text-[13px] font-medium whitespace-nowrap outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring/50",
-        active ? "text-primary-foreground" : "text-muted-foreground hover:text-foreground",
+        // Destaque discreto, como o item ativo da barra lateral: fundo verde
+        // translúcido, contorno fino e o ícone na cor primária.
+        active ? "text-foreground [&_svg]:text-primary" : "text-muted-foreground hover:text-foreground",
       )}
     >
       {active ? (
-        <motion.span layoutId="main-tab-indicator" className="absolute inset-0 rounded-lg bg-primary" transition={SPRING} />
+        <motion.span
+          layoutId="main-tab-indicator"
+          className="absolute inset-0 rounded-lg bg-primary/12 ring-1 ring-primary/25 ring-inset"
+          transition={SPRING}
+        />
       ) : null}
       <span className="relative z-10 flex items-center gap-1.5">{children}</span>
     </Link>
@@ -133,4 +142,3 @@ export function NavTrail({ context }: { context: NavContext }) {
     </div>
   );
 }
-

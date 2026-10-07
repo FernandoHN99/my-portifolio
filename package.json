@@ -20,6 +20,9 @@
     "backup:export": "tsx scripts/backup.ts export",
     "backup:restore": "tsx scripts/backup.ts restore",
     "auth:user": "tsx scripts/auth-user.ts",
+    "auth:access": "tsx scripts/access.ts",
+    "family:convert": "tsx scripts/family-expenses.ts convert",
+    "family:backup": "tsx scripts/family-expenses.ts backup",
     "quotes:sync": "tsx scripts/quotes-sync.ts",
     "jobs:build": "node jobs/neon/build.mjs",
     "postinstall": "prisma generate"

@@ -20,25 +20,32 @@ export function MultiSelectFilter({
   options,
   selected,
   onChange,
+  formatOption,
+  multiple = true,
 }: {
   label: string;
   options: string[];
   selected: string[];
   onChange: (next: string[]) => void;
+  /** Rótulo de uma opção guardada por código, como o mês AAAA-MM ou o id da pessoa. */
+  formatOption?: (value: string) => string;
+  /** Gastos familiares usa seleção única para pessoa e, por padrão, mês. */
+  multiple?: boolean;
 }) {
   const [open, setOpen] = useState(false);
 
   return (
-    <Combobox<string, true>
-      multiple
+    <Combobox<string, boolean>
+      multiple={multiple}
       items={options}
-      value={selected}
+      itemToStringLabel={formatOption}
+      value={multiple ? selected : (selected[0] ?? null)}
       open={open}
       onOpenChange={setOpen}
-      onValueChange={(next) => onChange([...next])}
+      onValueChange={(next) => onChange(Array.isArray(next) ? [...next] : next ? [next] : [])}
       onInputValueChange={(_, details) => {
         // Mantém o texto da busca ao marcar várias opções seguidas.
-        if (details.isItemPress) {
+        if (multiple && details.isItemPress) {
           details.cancel();
         }
       }}
@@ -75,12 +82,12 @@ export function MultiSelectFilter({
         <ComboboxEmpty>Nenhuma opção encontrada</ComboboxEmpty>
         <ComboboxList>
           {(option: string) => (
-            <ComboboxItem key={option} value={option} indicator="checkbox">
-              <span className="min-w-0 flex-1 truncate">{option}</span>
+            <ComboboxItem key={option} value={option} indicator={multiple ? "checkbox" : "check"}>
+              <span className="min-w-0 flex-1 truncate">{formatOption?.(option) ?? option}</span>
             </ComboboxItem>
           )}
         </ComboboxList>
-        {selected.length > 0 ? (
+        {selected.length > 0 && multiple ? (
           <ComboboxFooter>
             <button
               type="button"

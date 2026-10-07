@@ -22,6 +22,11 @@ const OWNED_MODELS = new Set([
   "TargetPlan",
   "AllocationTarget",
   "ManualQuote",
+  // Gastos familiares (spec 082), lidos e gravados só por getFamilyDb, que
+  // confere antes a concessão da área.
+  "FamilyContact",
+  "FamilySeries",
+  "FamilyEntry",
 ]);
 
 const WHERE_OPERATIONS = new Set([

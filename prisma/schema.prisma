@@ -20,23 +20,151 @@ datasource db {
 // carteira. Os ids são UUID, como os das tabelas da carteira que apontam para o
 // usuário.
 model User {
-  id            String           @id @default(uuid()) @db.Uuid
-  name          String
-  email         String           @unique
-  emailVerified Boolean          @default(false) @map("email_verified")
-  image         String?
-  createdAt     DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt     DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
-  sessions      Session[]
-  authAccounts  AuthAccount[]
-  dataImports   DataImport[]
-  institutions  Institution[]
-  assets        Asset[]
-  months        PortfolioMonth[]
-  targetPlans   TargetPlan[]
-  manualQuotes  ManualQuote[]
+  id             String           @id @default(uuid()) @db.Uuid
+  name           String
+  email          String           @unique
+  emailVerified  Boolean          @default(false) @map("email_verified")
+  image          String?
+  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
+  sessions       Session[]
+  authAccounts   AuthAccount[]
+  dataImports    DataImport[]
+  institutions   Institution[]
+  assets         Asset[]
+  months         PortfolioMonth[]
+  targetPlans    TargetPlan[]
+  manualQuotes   ManualQuote[]
+  moduleGrants   ModuleGrant[]
+  roleGrants     RoleGrant[]
+  familyContacts FamilyContact[]
+  familySeries   FamilySeries[]
+  familyEntries  FamilyEntry[]
 
   @@map("users")
+}
+
+// Acesso por área (spec 081). Investimentos é a área-base: todo usuário com
+// login a usa. As áreas pessoais pedem uma concessão ligada ao id do usuário,
+// gravada só pelo servidor (migração ou `pnpm access`), nunca pela interface.
+enum AppModule {
+  FAMILY_EXPENSES
+}
+
+// Papéis das ações administrativas, separados das áreas: administrar acessos
+// não dá leitura dos dados pessoais de outro usuário.
+enum AppRole {
+  ADMIN
+}
+
+model ModuleGrant {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  module    AppModule
+  grantedAt DateTime  @default(now()) @map("granted_at") @db.Timestamptz(3)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, module])
+  @@map("module_grants")
+}
+
+model RoleGrant {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  role      AppRole
+  grantedAt DateTime @default(now()) @map("granted_at") @db.Timestamptz(3)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, role])
+  @@map("role_grants")
+}
+
+// Gastos familiares (spec 082): acerto de contas entre o dono e pessoas da
+// família. RECEIVABLE é o DEVE da planilha (a pessoa me deve, saldo +) e
+// PAYABLE, o DEVO (eu devo à pessoa, saldo −). O saldo não é guardado.
+enum FamilyDirection {
+  RECEIVABLE
+  PAYABLE
+}
+
+// PENDING é o NOK da planilha (pendente); SETTLED, o OK (acertado).
+enum FamilyEntryStatus {
+  PENDING
+  SETTLED
+}
+
+// Série criada de uma vez (spec 083): parcelas numeradas, "Bicicleta (6/12)",
+// ou a mesma despesa todo mês, como um streaming.
+enum FamilySeriesKind {
+  INSTALLMENTS
+  MONTHLY
+}
+
+/// Pessoa dos lançamentos: contato do dono, não uma conta de login.
+model FamilyContact {
+  id             String         @id @default(uuid()) @db.Uuid
+  userId         String         @map("user_id") @db.Uuid
+  name           String
+  normalizedName String         @map("normalized_name")
+  createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  entries        FamilyEntry[]
+  series         FamilySeries[]
+
+  @@unique([userId, normalizedName])
+  @@unique([id, userId])
+  @@map("family_contacts")
+}
+
+/// Parcelas ou meses gerados juntos (spec 083). Os lançamentos guardam os
+/// próprios valores; a série guarda o pedido, para editá-lo depois.
+model FamilySeries {
+  id              String           @id @default(uuid()) @db.Uuid
+  userId          String           @map("user_id") @db.Uuid
+  contactId       String           @map("contact_id") @db.Uuid
+  kind            FamilySeriesKind
+  description     String
+  direction       FamilyDirection
+  /// Valor de cada parcela ou mês, positivo.
+  amount          Decimal          @db.Decimal(12, 2)
+  firstCompetence DateTime         @map("first_competence") @db.Date
+  count           Int
+  createdAt       DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  contact         FamilyContact    @relation(fields: [contactId, userId], references: [id, userId], onDelete: NoAction)
+  entries         FamilyEntry[]
+
+  @@unique([id, userId])
+  @@index([userId])
+  @@map("family_series")
+}
+
+/// Lançamento de Gastos familiares: a competência é o mês (dia 1), não a
+/// data da compra; o valor é sempre positivo, e o sinal vem do tipo.
+model FamilyEntry {
+  id          String            @id @default(uuid()) @db.Uuid
+  userId      String            @map("user_id") @db.Uuid
+  contactId   String            @map("contact_id") @db.Uuid
+  competence  DateTime          @db.Date
+  description String
+  direction   FamilyDirection
+  amount      Decimal           @db.Decimal(12, 2)
+  status      FamilyEntryStatus @default(PENDING)
+  seriesId    String?           @map("series_id") @db.Uuid
+  /// Número do lançamento na série, de 1 até a quantidade dela.
+  installment Int?
+  createdAt   DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  contact     FamilyContact     @relation(fields: [contactId, userId], references: [id, userId], onDelete: NoAction)
+  series      FamilySeries?     @relation(fields: [seriesId, userId], references: [id, userId], onDelete: NoAction)
+
+  @@unique([seriesId, installment])
+  @@unique([id, userId])
+  @@index([userId, competence])
+  @@index([contactId])
+  @@map("family_entries")
 }
 
 model Session {
@@ -195,13 +323,13 @@ model Asset {
 }
 
 model PortfolioMonth {
-  id             String               @id @default(uuid()) @db.Uuid
-  userId         String               @map("user_id") @db.Uuid
-  referenceDate  DateTime             @map("reference_date") @db.Date
-  status         PortfolioMonthStatus @default(REVIEWED)
-  createdAt      DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
-  user           User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
-  positions      Position[]
+  id            String               @id @default(uuid()) @db.Uuid
+  userId        String               @map("user_id") @db.Uuid
+  referenceDate DateTime             @map("reference_date") @db.Date
+  status        PortfolioMonthStatus @default(REVIEWED)
+  createdAt     DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
+  user          User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  positions     Position[]
 
   @@unique([userId, referenceDate])
   @@unique([id, userId])
@@ -210,33 +338,33 @@ model PortfolioMonth {
 }
 
 model Position {
-  id               String               @id @default(uuid()) @db.Uuid
-  userId           String               @map("user_id") @db.Uuid
-  portfolioMonthId String               @map("portfolio_month_id") @db.Uuid
-  accountId        String               @map("account_id") @db.Uuid
-  assetId          String               @map("asset_id") @db.Uuid
-  quantity         Decimal              @db.Decimal(30, 12)
+  id                      String                @id @default(uuid()) @db.Uuid
+  userId                  String                @map("user_id") @db.Uuid
+  portfolioMonthId        String                @map("portfolio_month_id") @db.Uuid
+  accountId               String                @map("account_id") @db.Uuid
+  assetId                 String                @map("asset_id") @db.Uuid
+  quantity                Decimal               @db.Decimal(30, 12)
   /// Base do mês (spec 056): a quantidade com que a posição abriu a competência,
   /// herdada uma vez do fechamento do mês anterior. A quantidade é a base mais
   /// as movimentações do mês. Zero numa posição incluída no mês.
-  openingQuantity  Decimal              @default(0) @map("opening_quantity") @db.Decimal(30, 12)
+  openingQuantity         Decimal               @default(0) @map("opening_quantity") @db.Decimal(30, 12)
   /// Data financeira da base do mês; nula no legado até configuração explícita.
-  calculationStartDate DateTime?        @map("calculation_start_date") @db.Date
+  calculationStartDate    DateTime?             @map("calculation_start_date") @db.Date
   /// Retorno automático do próprio mês, separado das movimentações (spec 060).
-  calculatedIncomeBrl Decimal           @default(0) @map("calculated_income_brl") @db.Decimal(24, 8)
-  incomeCalculatedThrough DateTime?     @map("income_calculated_through") @db.Date
-  incomeCalculationError String?        @map("income_calculation_error")
-  unitPriceBrl     Decimal?             @map("unit_price_brl") @db.Decimal(24, 8)
-  exchangeRateBrl  Decimal?             @map("exchange_rate_brl") @db.Decimal(20, 8)
-  totalBrl         Decimal              @map("total_brl") @db.Decimal(24, 2)
-  strategy         String?
-  createdAt        DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt        DateTime             @updatedAt @map("updated_at") @db.Timestamptz(3)
-  portfolioMonth   PortfolioMonth       @relation(fields: [portfolioMonthId, userId], references: [id, userId], onDelete: Cascade)
-  account          Account              @relation(fields: [accountId, userId], references: [id, userId], onDelete: NoAction)
-  asset            Asset                @relation(fields: [assetId, userId], references: [id, userId], onDelete: NoAction)
-  allocations      PositionAllocation[]
-  transactions     PositionTransaction[]
+  calculatedIncomeBrl     Decimal               @default(0) @map("calculated_income_brl") @db.Decimal(24, 8)
+  incomeCalculatedThrough DateTime?             @map("income_calculated_through") @db.Date
+  incomeCalculationError  String?               @map("income_calculation_error")
+  unitPriceBrl            Decimal?              @map("unit_price_brl") @db.Decimal(24, 8)
+  exchangeRateBrl         Decimal?              @map("exchange_rate_brl") @db.Decimal(20, 8)
+  totalBrl                Decimal               @map("total_brl") @db.Decimal(24, 2)
+  strategy                String?
+  createdAt               DateTime              @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt               DateTime              @updatedAt @map("updated_at") @db.Timestamptz(3)
+  portfolioMonth          PortfolioMonth        @relation(fields: [portfolioMonthId, userId], references: [id, userId], onDelete: Cascade)
+  account                 Account               @relation(fields: [accountId, userId], references: [id, userId], onDelete: NoAction)
+  asset                   Asset                 @relation(fields: [assetId, userId], references: [id, userId], onDelete: NoAction)
+  allocations             PositionAllocation[]
+  transactions            PositionTransaction[]
 
   @@unique([portfolioMonthId, accountId, assetId])
   @@unique([id, userId])
@@ -309,12 +437,12 @@ model RateObservation {
 // Janelas lidas integralmente da fonte. Uma ausência dentro da resposta não
 // inventa uma taxa: só as observações efetivamente publicadas acumulam juros.
 model RateCoverage {
-  id                String   @id @default(uuid()) @db.Uuid
+  id                String    @id @default(uuid()) @db.Uuid
   indexer           String
-  fromDate          DateTime @map("from_date") @db.Date
-  throughDate       DateTime @map("through_date") @db.Date
+  fromDate          DateTime  @map("from_date") @db.Date
+  throughDate       DateTime  @map("through_date") @db.Date
   lastPublishedDate DateTime? @map("last_published_date") @db.Date
-  fetchedAt         DateTime @map("fetched_at") @db.Timestamptz(3)
+  fetchedAt         DateTime  @map("fetched_at") @db.Timestamptz(3)
 
   @@unique([indexer, fromDate, throughDate])
   @@map("rate_coverage")
@@ -462,7 +590,7 @@ model QuoteRefreshRun {
   finishedAt    DateTime?            @map("finished_at") @db.Timestamptz(3)
   errorMessage  String?              @map("error_message")
   results       QuoteRefreshResult[]
-  dailyQuotes      DailyQuote[]
+  dailyQuotes   DailyQuote[]
 
   @@index([startedAt])
   @@index([status])
@@ -493,20 +621,20 @@ enum QuoteUpdateStatus {
 }
 
 model PositionAllocation {
-  id         String   @id @default(uuid()) @db.Uuid
-  userId     String   @map("user_id") @db.Uuid
-  positionId String   @map("position_id") @db.Uuid
-  assetClass String   @map("asset_class")
-  subclass   String
-  duration   String
-  weight     Decimal  @db.Decimal(12, 10)
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  positionId  String   @map("position_id") @db.Uuid
+  assetClass  String   @map("asset_class")
+  subclass    String
+  duration    String
+  weight      Decimal  @db.Decimal(12, 10)
   // Rentabilidade da classificação (spec 079), pelo indexador da subclasse:
   // % do CDI no pós-fixado (105 = 105% do CDI) e taxa ao ano no prefixado
   // (12.5 = 12,5% a.a.). Opcional; exigida com o rendimento automático.
   ratePercent Decimal? @map("rate_percent") @db.Decimal(9, 4)
-  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
-  position   Position @relation(fields: [positionId, userId], references: [id, userId], onDelete: Cascade)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  position    Position @relation(fields: [positionId, userId], references: [id, userId], onDelete: Cascade)
 
   @@unique([positionId, assetClass, subclass, duration])
   @@index([positionId])
