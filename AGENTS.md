@@ -20,8 +20,8 @@ Revisões posteriores: specs 063 a 073 no `main` e na produção desde
 2026-10-05; specs 074 a 080 desde 2026-10-06. O trabalho do dia a
 dia vai para a `dev`; a `main` é a produção ([fluxo de Git](docs/git-workflow.md)).
 
-Em 2026-10-07 entraram as specs 081 a 084, só locais até o usuário aprovar
-commit e deploy: o app tem **áreas** (Finanças: Investimentos e Gastos
+Em 2026-10-07 entraram as specs 081 a 087, na produção desde o mesmo dia
+(deploy `dpl_3sRsmdbo1ms9wEamMbKkUiEy1pRy`): o app tem **áreas** (Finanças: Investimentos e Gastos
 familiares). Investimentos é de todo usuário; Gastos familiares só de quem tem a
 concessão (`module_grants`, hoje só `nandohneto@gmail.com`, gravada pela
 migração ou por `pnpm auth:access`), conferida no servidor em páginas, rotas,
@@ -31,10 +31,10 @@ A página `/gastos-familiares` reproduz a planilha com filtros, saldo por pessoa
 e acerto em lote ([spec 082](.ai/specs/082-family-expenses-ledger.md)), séries
 parceladas e mensais ([spec 083](.ai/specs/083-family-expense-series.md)) e um
 backup próprio, que não toca na carteira; os 494 lançamentos da planilha estão
-carregados no banco local, na conta do dono ([spec 084](.ai/specs/084-family-expenses-backup-and-load.md)).
+carregados no banco local e na produção, na conta do dono ([spec 084](.ai/specs/084-family-expenses-backup-and-load.md)).
 Os ajustes de navegação, lista por mês sem checkboxes, cores e filtros
-dependentes estão na [spec 085](.ai/specs/085-family-ledger-and-navigation-polish.md),
-ainda locais em 2026-10-07. A [spec 086](.ai/specs/086-family-person-and-month-selection.md)
+dependentes estão na [spec 085](.ai/specs/085-family-ledger-and-navigation-polish.md).
+A [spec 086](.ai/specs/086-family-person-and-month-selection.md)
 remove o quadro de saldo por pessoa: pessoa única, primeira alfabética por
 padrão, badges de pessoa e mês, mês atual automático e seleção de meses
 únicos ou múltiplos.

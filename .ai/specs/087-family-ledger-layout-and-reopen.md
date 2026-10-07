@@ -1,7 +1,7 @@
 # 087 — Organização dos gastos e reversão de acertos
 
-Estado: implementação e verificações locais concluídas em 2026-10-07;
-publicação autorizada pelo usuário, em andamento.
+Estado: concluída e publicada em 2026-10-07 (commits `1249ee4` e `341786b`,
+deploy `dpl_3sRsmdbo1ms9wEamMbKkUiEy1pRy`).
 Origem: nove comentários no navegador sobre Gastos familiares.
 
 ## Critérios de aceite
@@ -40,3 +40,19 @@ Origem: nove comentários no navegador sobre Gastos familiares.
   `artifacts/spec-087/gastos-tablet.png` (fora do Git).
 - A publicação e a conferência de dados e acessos estão em
   [Produção](../context/production.md).
+
+## Revisão final antes da publicação (2026-10-07)
+
+- Conferido no código e no navegador que os nove ajustes estão feitos: sem a
+  faixa "Finanças", hambúrguer junto ao título, cards antes dos filtros, o
+  ícone de vários meses ao lado de "Competência", valores numa coluna central,
+  blocos por mês com contorno quando há mais de um, reverter acerto com
+  Desfazer e o ✓ discreto em meses e pessoas sem pendências.
+- Formatação de dois trechos de JSX arrumada; o ESLint passou a ignorar
+  `artifacts/`, como o Git e o TypeScript, porque um roteiro avulso de
+  conferência ali quebrava o `pnpm check`.
+- Repetidos antes do commit: `pnpm check`, 66 unitários, 10 de integração, build
+  de produção e o e2e da área (17 aprovados como dono, com gravações só no
+  schema de teste; o cenário sem concessão aprovado como o amigo nos três
+  navegadores).
+

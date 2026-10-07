@@ -1,7 +1,8 @@
 # 081 — Acesso por área e menu lateral
 
-Estado: concluída localmente em 2026-10-07; aguarda aprovação de commit e
-deploy. Migração aplicada no banco local.
+Estado: concluída e publicada em 2026-10-07 (deploy
+`dpl_3sRsmdbo1ms9wEamMbKkUiEy1pRy`); na produção, só `nandohneto@gmail.com` tem
+a área e o papel de administrador.
 Origem: pedido do usuário em 2026-10-07 ("manda ver"), sobre o
 [prompt de continuidade](../context/gastos-familia-prompt.md) e a direção do
 [backlog](../context/backlog.md).

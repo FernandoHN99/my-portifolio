@@ -1,6 +1,7 @@
 # 086 — Pessoa única e seleção de meses em Gastos familiares
 
-Estado: concluída localmente em 2026-10-07; sem commit nem deploy.
+Estado: concluída e publicada em 2026-10-07 (deploy
+`dpl_3sRsmdbo1ms9wEamMbKkUiEy1pRy`).
 Origem: continuação do pedido da spec 085 e resposta do usuário sobre a pessoa
 padrão: ordenar alfabeticamente e selecionar a primeira.
 

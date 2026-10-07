@@ -2,9 +2,10 @@
 
 Registrado em: 2026-10-03
 Origem: pedido do usuário de publicar o app, na conversa de 2026-10-03.
-Estado em 2026-10-06: no ar com as specs 053 a 080 (deploy funcional
-`dpl_HUFFir3tGM9xTKXgTrZyTCQnqS8B`, commit `e2fa3c3`), com a conta do usuário
-e os dados atuais dele. As cotações, a meta Selic e o cálculo dos ativos com
+Estado em 2026-10-07: no ar com as specs 053 a 087 (deploy
+`dpl_3sRsmdbo1ms9wEamMbKkUiEy1pRy`, commit `341786b`), com a conta do usuário,
+os dados atuais da carteira e os 494 lançamentos de Gastos familiares na conta
+dele, a única com essa área. As cotações, a meta Selic e o cálculo dos ativos com
 rendimento automático vêm da função `quotesync` do projeto de jobs
 (deployment 4), de hora em hora. A `main` recebe a branch `dev`, que a Vercel não
 publica ([fluxo de Git](../../docs/git-workflow.md)).
@@ -178,15 +179,33 @@ A produção começa sem usuários. Para entrar:
     em seguida; confirmado `0 * * * *`, habilitado, próxima execução às
     22:00 UTC (19h em Brasília).
 
-## Pendente
+- 2026-10-07, publicação das specs 081 a 087 (áreas e Gastos familiares):
+  - antes do deploy, a branch de segurança `snapshot-antes-da-081`
+    (`br-rapid-sea-b6wfb08o`, 18:04 UTC) e um retrato somente-leitura das
+    contagens (25 migrações, 2 usuários, 838 posições, 743 movimentações,
+    66 competências), fora do Git em `artifacts/spec-087/`;
+  - commits `1249ee4` (código) e `341786b` (documentação) na `dev`, levados à
+    `main` por avanço direto; deploy `dpl_3sRsmdbo1ms9wEamMbKkUiEy1pRy` pronto
+    às 19:40 UTC, com a migração `20261007120000_family_expenses_and_module_access`
+    aplicada pelo build;
+  - concessões conferidas no banco: `nandohneto@gmail.com` com
+    `FAMILY_EXPENSES` e `ADMIN`; `teste@gmail.com` sem nenhuma (só
+    Investimentos);
+  - carga de Gastos familiares pela conexão direta, com
+    `pnpm family:backup restore --user nandohneto@gmail.com
+    backups/gastos-familia/gastos-familia-dados-corretos-2026-10-07.backup.json`:
+    simulação 0 → 11 pessoas e 0 → 494 lançamentos; aplicada, 11 e 494, pendente
+    R$ 1.185,28 (Set/26 R$ 346,40; Out/26 R$ 838,88). A carteira ficou igual
+    (838 posições, 743 movimentações, 66 competências);
+  - conferência sem login: `/api/health` 200, `/gastos-familiares` desvia para
+    a entrada (307), a rota de backup da área responde 401; nenhum erro de
+    execução nos 30 minutos seguintes. O job `quotesync` não precisou ser
+    republicado: as tabelas novas não entram nas cotações;
+  - a execução do job das 20:00 UTC, já depois da migração, gravou as 10
+    tentativas: 8 atualizadas e BTC e SOL sem cotação (CoinGecko excedeu o
+    tempo e a Binance respondeu HTTP 451), o caso já listado em Pendente.
 
-- specs 081 a 084 (áreas e Gastos familiares), de 2026-10-07: só locais,
-  aguardando commit e deploy aprovados. O deploy aplica a migração
-  `20261007120000_family_expenses_and_module_access`, que cria as tabelas e
-  concede a área e o papel de administrador à conta `nandohneto@gmail.com`
-  existente na produção. A carga dos 494 lançamentos na produção é um passo
-  separado, pela página ou por `pnpm family:backup restore --user … --apply`
-  ([spec 084](../specs/084-family-expenses-backup-and-load.md));
+## Pendente
 
 - o backup com movimentações v3 ([spec 071](../specs/071-backup-with-movements.md)
   e [spec 076](../specs/076-position-liquidation.md)) está disponível fora do
@@ -223,6 +242,12 @@ Em 2026-10-06:
 
 - autorizou o push da `dev`, a publicação completa das specs 079 e 080 na
   `main` e a republicação do job no Neon.
+
+Em 2026-10-07:
+
+- deu permissão total para finalizar Gastos familiares: commit, push, merge na
+  `main`, deploy pela Vercel e pelo Neon e a carga dos dados; só
+  `nandohneto@gmail.com` acessa as outras áreas, os demais só Investimentos.
 
 ## Observações
 

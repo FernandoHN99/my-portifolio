@@ -56,10 +56,11 @@ por usuário, mas ainda não roles nem concessões de acesso por módulo.
 Atualizado em 2026-10-07: o usuário pediu o início ("manda ver"). As áreas, a
 concessão e Gastos familiares foram implementados localmente nas specs
 [081](../specs/081-module-access-and-area-navigation.md) a
-[084](../specs/084-family-expenses-backup-and-load.md), com as respostas dele
-sobre DEVE/DEVO, valores negativos, parcelas e carga local registradas nelas.
-Continuam em aberto: Saúde (remédios), compartilhamento familiar, gestão de
-acessos pela interface e a carga na produção depois do deploy.
+[087](../specs/087-family-ledger-layout-and-reopen.md), com as respostas dele
+sobre DEVE/DEVO, valores negativos, parcelas e carga registradas nelas, e
+publicados no mesmo dia, com os 494 lançamentos carregados na produção.
+Continuam em aberto: Saúde (remédios), compartilhamento familiar e gestão de
+acessos pela interface.
 
 Antes de virar spec, entender o funcionamento da planilha de gastos e definir
 quem precisará consultar ou registrar esses dados. Compartilhamento familiar,

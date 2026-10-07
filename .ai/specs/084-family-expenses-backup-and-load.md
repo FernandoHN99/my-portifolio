@@ -1,8 +1,7 @@
 # 084 — Backup de Gastos familiares e carga inicial
 
-Estado: concluída localmente em 2026-10-07. Carga feita no banco local, na
-conta `nandohneto@gmail.com`, com a autorização do usuário; a produção espera
-o deploy, que o usuário aprova à parte.
+Estado: concluída e publicada em 2026-10-07. Carga feita no banco local e na
+produção, na conta `nandohneto@gmail.com`, com a autorização do usuário.
 Origem: pedido do usuário em 2026-10-07; fonte e limites no
 [prompt de continuidade](../context/gastos-familia-prompt.md).
 
@@ -66,13 +65,14 @@ a simulação mostrou 0 → 11 pessoas e 0 → 494 lançamentos; com `--apply`,
 gravou 11 e 494, pendente +R$ 1.185,28. Contagens da carteira iguais antes e
 depois (25 competências da conta, 837 posições e 739 movimentações no banco).
 
-## Produção (pendente)
+## Produção (2026-10-07)
 
-Depois do deploy aprovado (a migração concede a área à conta do dono na
-produção), a carga é a mesma, pela página ("Backup" → Importar) ou pelo
-terminal com a conexão direta do Neon. O arquivo convertido fica em
-`backups/gastos-familia/`, fora do Git; noutro ambiente, precisa ser levado à
-parte.
+Depois do deploy, que aplicou a migração e concedeu a área à conta do dono, a
+carga foi feita pelo terminal com a conexão direta do Neon: simulação 0 → 11
+pessoas e 0 → 494 lançamentos; aplicada, 11 e 494, pendente R$ 1.185,28
+(Set/26 R$ 346,40; Out/26 R$ 838,88). A carteira ficou igual (838 posições, 743
+movimentações, 66 competências). O arquivo convertido fica em
+`backups/gastos-familia/`, fora do Git ([Produção](../context/production.md)).
 
 ## Verificação
 

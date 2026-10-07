@@ -1,6 +1,7 @@
 # 085 — Ajustes da navegação e da lista de gastos familiares
 
-Estado: concluída localmente em 2026-10-07; sem commit nem deploy.
+Estado: concluída e publicada em 2026-10-07 (deploy
+`dpl_3sRsmdbo1ms9wEamMbKkUiEy1pRy`).
 Origem: revisão detalhada do usuário em 2026-10-07 sobre as specs 081–084.
 
 A [spec 086](086-family-person-and-month-selection.md) revisa depois a seleção

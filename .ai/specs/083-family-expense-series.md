@@ -1,7 +1,7 @@
 # 083 — Parcelas e lançamentos mensais em Gastos familiares
 
-Estado: concluída localmente em 2026-10-07; aguarda aprovação de commit e
-deploy.
+Estado: concluída e publicada em 2026-10-07 (deploy
+`dpl_3sRsmdbo1ms9wEamMbKkUiEy1pRy`).
 Origem: resposta do usuário em 2026-10-07: "ao criarmos uma pendência que
 seja recorrente, nós conseguimos delimitar o número de parcelas a se pagar e
 ele já gera os meses seguintes; se eu quiser editar aquele gasto, consigo

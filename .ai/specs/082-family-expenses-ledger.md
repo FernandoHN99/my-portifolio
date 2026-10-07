@@ -1,7 +1,7 @@
 # 082 — Gastos familiares: lançamentos, filtros, resumo e acerto
 
-Estado: concluída localmente em 2026-10-07; aguarda aprovação de commit e
-deploy.
+Estado: concluída e publicada em 2026-10-07 (deploy
+`dpl_3sRsmdbo1ms9wEamMbKkUiEy1pRy`).
 Origem: pedido do usuário em 2026-10-07 ("página simples, com a tabela bem
 próxima do Excel, com toda a automação"); requisitos no
 [prompt de continuidade](../context/gastos-familia-prompt.md).
