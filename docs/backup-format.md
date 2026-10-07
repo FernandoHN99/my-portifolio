@@ -82,6 +82,28 @@ posições continuam com os campos do cálculo da spec 060, usados de novo só c
 a flag ligada. O `cdiPercent` dos ativos, da spec 060, continua no arquivo, sem
 uso.
 
+## Gastos familiares: arquivo próprio
+
+Desde a [spec 084](../.ai/specs/084-family-expenses-backup-and-load.md), os
+dados de Gastos familiares (`family_contacts`, `family_series` e
+`family_entries`) não entram neste arquivo: têm o próprio, no formato
+`meu-portfolio-gastos-familiares`, versão 1, com as tabelas `familyContacts`,
+`familySeries` e `familyEntries`, sem `userId`. O código fica em
+`src/modules/family-expenses/domain/family-backup-format.ts` e
+`application/family-backup.ts`; as portas são o botão Backup da página,
+`/api/gastos-familiares/backup` e `pnpm family:backup`.
+
+- restaurar a carteira (este arquivo, versão 5) apaga e regrava só as tabelas
+  de `BACKUP_TABLES`: backups antigos, sem a área, não tocam nos gastos;
+- restaurar os gastos substitui só os gastos do usuário, com a mesma
+  conferência estrita (campo ou tabela desconhecidos, valores fora das regras
+  e referências quebradas recusam o arquivo) e ids trocados quando outro
+  usuário já os usa;
+- concessões de área e papéis (`module_grants`, `role_grants`) não entram em
+  nenhum dos dois arquivos: só o servidor concede (`pnpm auth:access`);
+- uma mudança nas tabelas da área segue o roteiro abaixo, com
+  `FAMILY_BACKUP_VERSION` no lugar de `BACKUP_VERSION`.
+
 ## Restauração
 
 Desde a [spec 054](../.ai/specs/054-derived-currency-and-single-target-plan.md),

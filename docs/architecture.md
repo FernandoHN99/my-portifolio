@@ -3,7 +3,7 @@
 Estado: base aprovada; implementação incremental autorizada.
 Origem: decisões explícitas do usuário na conversa de descoberta.
 Registrado em: 2026-09-21.
-Última atualização: 2026-10-02 (segunda rodada de respostas).
+Última atualização: 2026-10-07 (áreas, concessões e menu lateral).
 
 Este documento é a fonte principal das decisões consolidadas abaixo.
 O diagnóstico do sistema existente permanece em
@@ -133,6 +133,16 @@ código acessa os dados pelo cliente com escopo (`src/lib/user-db.ts`). As
 escolhas feitas pelo agente na ausência do usuário estão na spec 050, a
 confirmar.
 
+Atualizado em 2026-10-07: o app passa a ter áreas, agrupadas por assunto
+(Finanças: Investimentos e Gastos familiares). Investimentos é a área-base, de
+todo usuário com login; as áreas pessoais pedem uma concessão ligada ao id do
+usuário (`module_grants`), gravada só pelo servidor (migração ou
+`pnpm auth:access`). Papéis (`role_grants`, hoje `ADMIN`) servem a ações
+administrativas e não dão leitura dos dados de outro usuário. Páginas, rotas,
+ações, consultas, backup e roteiros conferem a concessão no servidor; sem ela,
+a área responde 404 ([spec 081](../.ai/specs/081-module-access-and-area-navigation.md)).
+O plugin Admin do Better Auth não foi adotado.
+
 ### Organização do código
 
 Organizar o sistema por módulos funcionais, mantendo rotas e componentes de
@@ -141,7 +151,9 @@ da interface e do acesso ao banco; integrações com Prisma e provedores de
 cotação implementam essas fronteiras.
 
 As primeiras áreas previstas são importação, carteira, cotações, alocação e
-previdência. Cada fatia deve introduzir apenas as abstrações necessárias ao
+previdência. Desde 2026-10-07, há também `access` (áreas, concessões e papéis)
+e `family-expenses` (Gastos familiares), cada um com domínio, aplicação e
+interface próprios. Cada fatia deve introduzir apenas as abstrações necessárias ao
 comportamento implementado, com nomes explícitos, funções pequenas e testes
 concentrados nas regras financeiras de maior risco.
 
@@ -170,10 +182,18 @@ financeiros reais.
 
 A navegação principal fica no topo, em abas: Visão Geral e Posições, com a
 configuração da carteira em um acesso próprio. A aba de alocação foi
-incorporada à Visão Geral na reestruturação da UX. Não há barra lateral.
+incorporada à Visão Geral na reestruturação da UX. Até 2026-10-07 não havia barra lateral.
 
-Um seletor global de competência governa todas as telas e fica registrado na
-URL. O propósito do produto é percorrer o histórico mês a mês e comparar a
+Atualizado em 2026-10-07, a pedido do usuário: com mais de uma área liberada,
+há barra lateral no computador (recolhível) e menu hambúrguer no celular para
+trocar de área; as abas do topo continuam sendo as páginas de cada área. Quem
+tem só Investimentos segue sem barra lateral
+([spec 081](../.ai/specs/081-module-access-and-area-navigation.md)).
+
+Um seletor global de competência governa todas as telas de Investimentos e
+fica registrado na URL; Gastos familiares tem as próprias competências e
+filtros, que não mexem no mês da carteira
+([spec 082](../.ai/specs/082-family-expenses-ledger.md)). O propósito do produto é percorrer o histórico mês a mês e comparar a
 alocação atual com a meta, obtendo a ação correspondente. Após a carga
 inicial, o aplicativo é a fonte da verdade; não haverá sincronização
 contínua com a planilha.

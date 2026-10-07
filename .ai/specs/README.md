@@ -84,6 +84,16 @@ Esta pasta organiza a implementação em fatias pequenas e revisáveis.
 - [078 — Alocação por abas na Visão geral, virada com confirmação e gráficos de toque](078-overview-allocation-tabs-and-touch-charts.md): concluída localmente em 2026-10-06; gráfico e comprar e vender pela mesma aba, confirmação antes de criar o mês, indicação que some ao tirar o dedo, movimentações completas na posição.
 - [079 — Rendimento automático como nos bancos, prefixado e filtros das movimentações](079-auto-income-prefixed-and-movement-filters.md): na produção desde 2026-10-06, inclusive no job do Neon; flag por ativo, rentabilidade em cada classificação, CDI diário × % e prefixado em base 252 com feriados, Prefixado nas subclasses e metas, filtros por tipo nas movimentações.
 - [080 — Ações só na página da posição e ajustes do celular](080-position-actions-on-page-and-mobile-trims.md): na produção desde 2026-10-06; ações na página, remover com desfazer na tabela inclusive na última posição, prévia das metas oculta no celular, comprar e vender enxuto e filtro próprio do rendimento automático.
+- [081 — Acesso por área e menu lateral](081-module-access-and-area-navigation.md): concluída localmente em 2026-10-07; concessões por área e papéis no servidor, barra lateral recolhível e hambúrguer só para quem tem mais de uma área.
+- [082 — Gastos familiares: lançamentos, filtros, resumo e acerto](082-family-expenses-ledger.md): concluída localmente em 2026-10-07; tabela da planilha com saldo por pessoa, filtros combinados na URL e acerto em lote atômico.
+- [083 — Parcelas e lançamentos mensais em Gastos familiares](083-family-expense-series.md): concluída localmente em 2026-10-07; séries geradas na criação e editáveis inteiras, com os acertados protegidos.
+- [084 — Backup de Gastos familiares e carga inicial](084-family-expenses-backup-and-load.md): concluída localmente em 2026-10-07; arquivo próprio, conversão da planilha reconciliada e carga local na conta do dono.
+
+- [085 — Ajustes da navegação e da lista de gastos familiares](085-family-ledger-and-navigation-polish.md): concluída localmente em 2026-10-07; abas centralizadas e discretas, lançamentos por mês sem checkboxes e filtros dependentes.
+
+- [086 — Pessoa única e seleção de meses em Gastos familiares](086-family-person-and-month-selection.md): concluída localmente em 2026-10-07; badges alfabéticos de pessoa única, mês atual automático e alternância de meses únicos/múltiplos, sem quadro de saldo por pessoa.
+
+- [087 — Organização dos gastos e reversão de acertos](087-family-ledger-layout-and-reopen.md): concluída localmente em 2026-10-07; cards antes dos filtros, menu compacto, indicadores sem pendências e reversão com Desfazer.
 
 As specs 063 a 073 são revisões posteriores de 2026-10-04 e 2026-10-05, no
 `main` e na produção desde 2026-10-05 ([Produção](../context/production.md)).
@@ -92,6 +102,11 @@ As specs 074 a 078 estão no `main` e na produção desde 2026-10-06
 As specs 079 e 080 foram publicadas em 2026-10-06 com o commit `e2fa3c3`
 (deploy `dpl_HUFFir3tGM9xTKXgTrZyTCQnqS8B`), seguido do deployment 4 da função
 `quotesync` do Neon ([Produção](../context/production.md)).
+
+As specs 081 a 084 (Gastos familiares, sob Finanças) foram feitas em 2026-10-07
+a partir do [prompt de continuidade](../context/gastos-familia-prompt.md); estão
+com publicação autorizada em 2026-10-07, incluindo os ajustes 085 a 087;
+o resultado é registrado em [Produção](../context/production.md).
 
 Conferência conjunta das specs 063 a 072, em 2026-10-05:
 

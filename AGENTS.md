@@ -20,6 +20,28 @@ Revisões posteriores: specs 063 a 073 no `main` e na produção desde
 2026-10-05; specs 074 a 080 desde 2026-10-06. O trabalho do dia a
 dia vai para a `dev`; a `main` é a produção ([fluxo de Git](docs/git-workflow.md)).
 
+Em 2026-10-07 entraram as specs 081 a 084, só locais até o usuário aprovar
+commit e deploy: o app tem **áreas** (Finanças: Investimentos e Gastos
+familiares). Investimentos é de todo usuário; Gastos familiares só de quem tem a
+concessão (`module_grants`, hoje só `nandohneto@gmail.com`, gravada pela
+migração ou por `pnpm auth:access`), conferida no servidor em páginas, rotas,
+ações e backup (`getFamilyDb`). Com mais de uma área, barra lateral no
+computador e hambúrguer no celular ([spec 081](.ai/specs/081-module-access-and-area-navigation.md)).
+A página `/gastos-familiares` reproduz a planilha com filtros, saldo por pessoa
+e acerto em lote ([spec 082](.ai/specs/082-family-expenses-ledger.md)), séries
+parceladas e mensais ([spec 083](.ai/specs/083-family-expense-series.md)) e um
+backup próprio, que não toca na carteira; os 494 lançamentos da planilha estão
+carregados no banco local, na conta do dono ([spec 084](.ai/specs/084-family-expenses-backup-and-load.md)).
+Os ajustes de navegação, lista por mês sem checkboxes, cores e filtros
+dependentes estão na [spec 085](.ai/specs/085-family-ledger-and-navigation-polish.md),
+ainda locais em 2026-10-07. A [spec 086](.ai/specs/086-family-person-and-month-selection.md)
+remove o quadro de saldo por pessoa: pessoa única, primeira alfabética por
+padrão, badges de pessoa e mês, mês atual automático e seleção de meses
+únicos ou múltiplos.
+O usuário dos testes (`local@meu-portfolio.test`) não tem a área: os cenários
+com ela rodam num schema de teste (configuração `gastos-teste` do
+`.claude/launch.json`).
+
 - as cotações são atualizadas só pelo job agendado (`pnpm quotes:sync`,
   [spec 053](.ai/specs/053-scheduled-quote-sync.md)); a abertura do app não
   consulta provedores. Na produção, ele roda de hora em hora como a função
@@ -126,7 +148,8 @@ dia vai para a `dev`; a `main` é a produção ([fluxo de Git](docs/git-workflow
   gráficos da posição não trocam de mês no clique
   ([spec 078](.ai/specs/078-overview-allocation-tabs-and-touch-charts.md));
 - transações dentro das posições foram implementadas; a previdência, que o
-  usuário indicou como próximo assunto, continua em `.ai/context/backlog.md`;
+  usuário indicou como próximo assunto, continua em `.ai/context/backlog.md`,
+  assim como Saúde (remédios), fora das áreas por enquanto;
 - as respostas do usuário, o backlog e o que ainda aguarda resposta estão em
   `.ai/context/ux-restructure.md`, nas seções de respostas de 2026-10-02
   (segunda, terceira e quarta rodadas) e nos ajustes de 2026-10-03;

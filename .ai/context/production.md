@@ -180,6 +180,14 @@ A produção começa sem usuários. Para entrar:
 
 ## Pendente
 
+- specs 081 a 084 (áreas e Gastos familiares), de 2026-10-07: só locais,
+  aguardando commit e deploy aprovados. O deploy aplica a migração
+  `20261007120000_family_expenses_and_module_access`, que cria as tabelas e
+  concede a área e o papel de administrador à conta `nandohneto@gmail.com`
+  existente na produção. A carga dos 494 lançamentos na produção é um passo
+  separado, pela página ou por `pnpm family:backup restore --user … --apply`
+  ([spec 084](../specs/084-family-expenses-backup-and-load.md));
+
 - o backup com movimentações v3 ([spec 071](../specs/071-backup-with-movements.md)
   e [spec 076](../specs/076-position-liquidation.md)) está disponível fora do
   Git. O arquivo da última restauração de produção não foi confirmado;

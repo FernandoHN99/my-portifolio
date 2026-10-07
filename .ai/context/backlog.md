@@ -9,6 +9,65 @@ uma spec quando o usuário decidir.
 Fora de todas as fatias até agora. O usuário indicou que é o próximo assunto
 depois dos ajustes em andamento.
 
+## Gastos familiares e outras áreas da vida
+
+Origem: conversa com o usuário em 2026-10-07. Estado: direção confirmada para
+evolução futura; implementação não autorizada. O usuário pediu registrar o
+combinado no backlog e informou que solicitará o início em outro momento.
+Não iniciar implementação sem um novo pedido explícito dele.
+
+Em novo pedido de 2026-10-07, o usuário forneceu o briefing da aba
+`Gastos_Familia` e os dados e solicitou **somente preparar um prompt**.
+Depois, declarou o primeiro arquivo de gastos errado e enviou a fonte
+correta, que substitui integralmente a anterior. O
+[prompt de continuidade](gastos-familia-prompt.md) concentra os
+requisitos detalhados, a futura navegação lateral/hambúrguer, o acesso às
+áreas pessoais exclusivo da conta indicada e os pontos de revisão dos dados.
+Isso não autoriza implementação nem carga no banco.
+
+O usuário já controla gastos familiares em outro Excel e considera levá-los
+ao app. Também imagina reunir outras áreas da vida, como remédios no futuro,
+e quer entender como evitar uma interface sobrecarregada e se aplicações
+separadas podem ser reunidas.
+
+O usuário esclareceu que quer disponibilizar a área de investimentos para
+amigos, mantendo Saúde e as outras áreas pessoais restritas.
+
+Direção confirmada:
+
+- manter um único app modular, com áreas e navegação próprias; organizar
+  Investimentos (o Portifolio atual) e Gastos familiares em Finanças, deixando
+  Saúde, como controle de remédios, para uma evolução futura;
+- manter a stack atual: Next.js, Better Auth, Prisma e PostgreSQL (Neon em
+  produção);
+- combinar papéis (roles), que definem ações como administrar acessos, com
+  módulos habilitados por usuário, que definem as áreas disponíveis;
+- amigos recebem acesso somente a Investimentos e entram diretamente nessa
+  área; o usuário pode alternar entre os módulos liberados para ele;
+- mostrar apenas a navegação autorizada e verificar permissões no servidor
+  nas páginas, consultas e gravações, inclusive em acessos por URL direta;
+- preservar os dados por usuário e exigir compartilhamento explícito para
+  dados de terceiros; o papel de administrador não deve conceder leitura
+  automática das carteiras ou de outros dados pessoais.
+
+Fato observado: o código atual já possui módulos, login e escopo dos dados
+por usuário, mas ainda não roles nem concessões de acesso por módulo.
+
+Atualizado em 2026-10-07: o usuário pediu o início ("manda ver"). As áreas, a
+concessão e Gastos familiares foram implementados localmente nas specs
+[081](../specs/081-module-access-and-area-navigation.md) a
+[084](../specs/084-family-expenses-backup-and-load.md), com as respostas dele
+sobre DEVE/DEVO, valores negativos, parcelas e carga local registradas nelas.
+Continuam em aberto: Saúde (remédios), compartilhamento familiar, gestão de
+acessos pela interface e a carga na produção depois do deploy.
+
+Antes de virar spec, entender o funcionamento da planilha de gastos e definir
+quem precisará consultar ou registrar esses dados. Compartilhamento familiar,
+permissões detalhadas e a forma de gerenciar roles ainda precisam ser
+definidos; o plugin Admin do Better Auth foi citado como possibilidade, sem
+decisão de adotá-lo. Não houve autorização para renomear o produto, alterar a
+navegação agora ou substituir o próximo assunto indicado acima.
+
 ## Transações dentro das posições
 
 Implementado nas specs 056 a 059 e publicado em 2026-10-04; a revisão posterior
