@@ -40,16 +40,66 @@ export type WorkedPeriodRow = WorkedPeriod & {
   counted: boolean;
 };
 
+export type PensionContributionRow = PensionContribution & {
+  number: number;
+  /** Aportado no ano até este aporte, inclusive. */
+  cumulativeCents: Cents;
+  /** O acumulado como parte do limite, em %; nulo sem limite. */
+  usagePercent: number | null;
+};
+
+/** Trecho da barra do limite: dentro dele (menta) ou acima dele (violeta). */
+export type UsageSegment = { id: string; startCents: Cents; endCents: Cents; over: boolean };
+
 export type PensionYear = {
   year: number;
-  contributions: (PensionContribution & { number: number })[];
+  contributions: PensionContributionRow[];
   periods: WorkedPeriodRow[];
   taxableCents: Cents;
   limitCents: Cents;
   contributedCents: Cents;
   /** Limite menos aportes: positivo é o que falta; negativo, o que passou. */
   remainingCents: Cents;
+  /** O aportado como parte do limite, em % inteiro; nulo sem limite. */
+  usagePercent: number | null;
+  /** Um ou dois trechos por aporte, na ordem; o que passa do limite é `over`. */
+  segments: UsageSegment[];
 };
+
+/** Quanto do limite já foi usado, em % inteiro; sem limite não há %. */
+export function limitUsagePercent(contributedCents: Cents, limitCents: Cents): number | null {
+  return limitCents > 0 ? Math.round((contributedCents / limitCents) * 100) : null;
+}
+
+/**
+ * Divide os aportes em trechos da barra do limite: cada um começa onde o
+ * anterior terminou, e a parte que ultrapassa o limite vira um trecho `over`.
+ * Sem limite (nenhum holerite no ano) não há o que ultrapassar.
+ */
+export function usageSegments(amounts: readonly { id: string; amountCents: Cents }[], limitCents: Cents): UsageSegment[] {
+  const segments: UsageSegment[] = [];
+  let start = 0;
+
+  for (const { id, amountCents } of amounts) {
+    const end = start + amountCents;
+
+    if (limitCents <= 0) {
+      segments.push({ id, startCents: start, endCents: end, over: false });
+    } else {
+      if (start < limitCents) {
+        segments.push({ id, startCents: start, endCents: Math.min(end, limitCents), over: false });
+      }
+
+      if (end > limitCents) {
+        segments.push({ id, startCents: Math.max(start, limitCents), endCents: end, over: true });
+      }
+    }
+
+    start = end;
+  }
+
+  return segments;
+}
 
 /** Ano da linha do holerite pela data inicial, como `YEAR([Data Inicial])`. */
 export function periodYear(period: Pick<WorkedPeriod, "startsOn">) {
@@ -78,10 +128,9 @@ export function summarizePensionYear(
   periods: readonly WorkedPeriod[],
   year: number,
 ): PensionYear {
-  const yearContributions = contributions
+  const ofYear = contributions
     .filter((contribution) => contributionYear(contribution) === year)
-    .sort((a, b) => a.occurredOn.localeCompare(b.occurredOn) || a.id.localeCompare(b.id))
-    .map((contribution, index) => ({ ...contribution, number: index + 1 }));
+    .sort((a, b) => a.occurredOn.localeCompare(b.occurredOn) || a.id.localeCompare(b.id));
   const rows = periods
     .filter((period) => periodYear(period) === year)
     .sort((a, b) => a.startsOn.localeCompare(b.startsOn) || a.endsOn.localeCompare(b.endsOn) || a.id.localeCompare(b.id))
@@ -95,7 +144,12 @@ export function summarizePensionYear(
     }));
   const taxableCents = rows.reduce((sum, row) => sum + row.taxableCents, 0);
   const limitCents = deductionLimitCents(taxableCents);
-  const contributedCents = yearContributions.reduce((sum, contribution) => sum + contribution.amountCents, 0);
+  const contributedCents = ofYear.reduce((sum, contribution) => sum + contribution.amountCents, 0);
+  let running = 0;
+  const yearContributions = ofYear.map((contribution, index) => {
+    running += contribution.amountCents;
+    return { ...contribution, number: index + 1, cumulativeCents: running, usagePercent: limitUsagePercent(running, limitCents) };
+  });
 
   return {
     year,
@@ -105,5 +159,7 @@ export function summarizePensionYear(
     limitCents,
     contributedCents,
     remainingCents: limitCents - contributedCents,
+    usagePercent: limitUsagePercent(contributedCents, limitCents),
+    segments: usageSegments(ofYear, limitCents),
   };
 }

@@ -4,8 +4,10 @@ import { test } from "node:test";
 import { monthBounds, type PayslipKind } from "@/modules/income/domain/income";
 import {
   deductionLimitCents,
+  limitUsagePercent,
   pensionYears,
   summarizePensionYear,
+  usageSegments,
   type PensionContribution,
   type WorkedPeriod,
 } from "@/modules/pension/domain/pension";
@@ -119,4 +121,59 @@ test("limite arredondado aos centavos e anos com dados ou o atual", () => {
   assert.equal(deductionLimitCents(11517370), 1382084);
   assert.equal(deductionLimitCents(0), 0);
   assert.deepEqual(pensionYears(CONTRIBUTIONS, PERIODS, 2027), [2027, 2026, 2025]);
+});
+
+test("acumulado de cada aporte e quanto do limite ele já usa", () => {
+  const y2026 = summarizePensionYear(CONTRIBUTIONS, PERIODS, 2026);
+  assert.deepEqual(
+    y2026.contributions.map((contribution) => [contribution.cumulativeCents, contribution.usagePercent]),
+    [
+      [400000, 29],
+      [700000, 51],
+      [800000, 58],
+      [1000000, 72],
+      [1200000, 87],
+    ],
+  );
+  assert.equal(y2026.usagePercent, 87);
+
+  const y2025 = summarizePensionYear(CONTRIBUTIONS, PERIODS, 2025);
+  assert.deepEqual(y2025.contributions.map((contribution) => contribution.cumulativeCents), [510000, 1238000]);
+  assert.equal(y2025.usagePercent, 100);
+});
+
+test("a barra do limite: o que passa de R$ 12.378,06 em 2025 vira um trecho violeta de R$ 1,94", () => {
+  const { segments, limitCents } = summarizePensionYear(CONTRIBUTIONS, PERIODS, 2025);
+
+  assert.equal(limitCents, 1237806);
+  assert.deepEqual(
+    segments.map((segment) => [segment.id, segment.startCents, segment.endCents, segment.over]),
+    [
+      ["2025-09-01", 0, 510000, false],
+      ["2025-12-08", 510000, 1237806, false],
+      ["2025-12-08", 1237806, 1238000, true],
+    ],
+  );
+  // Os trechos são contínuos: cada um começa onde o anterior terminou.
+  assert.deepEqual(
+    segments.slice(1).map((segment, index) => segment.startCents === segments[index].endCents),
+    [true, true],
+  );
+});
+
+test("limite e uso: sem holerites não há limite, e nada é marcado como acima dele", () => {
+  assert.equal(limitUsagePercent(120000, 0), null);
+  assert.equal(limitUsagePercent(0, 100000), 0);
+  assert.equal(limitUsagePercent(150000, 100000), 150);
+
+  const segments = usageSegments(
+    [
+      { id: "a", amountCents: 100 },
+      { id: "b", amountCents: 250 },
+    ],
+    0,
+  );
+  assert.deepEqual(segments.map((segment) => segment.over), [false, false]);
+  assert.equal(segments.at(-1)?.endCents, 350);
+  assert.equal(summarizePensionYear(CONTRIBUTIONS, [], 2026).usagePercent, null);
 });

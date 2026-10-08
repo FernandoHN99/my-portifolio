@@ -45,7 +45,23 @@ test.describe("com a concessão", () => {
       const contributed = await centsOf(page, "pension-kpi-contributed");
       const remaining = await centsOf(page, "pension-kpi-remaining");
       expect(limit, year).toBe(Math.round((taxable * 12) / 100));
-      expect(remaining, year).toBe(Math.abs(limit - contributed));
+      // Sem holerites não há limite, e o cartão não inventa o que falta.
+      expect(remaining, year).toBe(limit > 0 ? Math.abs(limit - contributed) : 0);
+
+      if (limit > 0) {
+        // A barra do uso do limite diz o mesmo que os cartões.
+        const percent = Math.round((contributed / limit) * 100);
+        await expect(page.getByTestId("pension-usage"), year).toHaveAttribute("data-percent", String(percent));
+        await expect(page.getByRole("meter", { name: "Aportado em relação ao limite" }), year).toHaveAttribute(
+          "aria-valuenow",
+          String(Math.min(percent, 100)),
+        );
+        await expect(page.getByTestId("pension-kpi-remaining").locator("xpath=ancestor::article[1]"), year).toContainText(
+          contributed > limit ? "Acima do limite" : contributed === limit ? "Limite atingido" : "Falta aportar",
+        );
+      } else {
+        await expect(page.getByTestId("pension-limit"), year).toContainText("Nenhum holerite");
+      }
 
       const total = page.getByTestId("pension-total-contributed");
       if ((await total.count()) > 0) {
