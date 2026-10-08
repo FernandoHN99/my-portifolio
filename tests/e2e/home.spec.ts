@@ -3,6 +3,7 @@ import { expect, test } from "@playwright/test";
 import { waitForHydration } from "./support/position-form";
 import { chooseFilter, usesFilterSheet } from "./support/position-filters";
 import { stubQuoteChecks } from "./support/quote-checks";
+import { expectCompetence } from "./support/competence";
 
 // A checagem de abertura grava no banco; aqui ela é substituída por uma
 // resposta fixa para que os cenários não alterem os dados nem mudem de mês.
@@ -30,9 +31,7 @@ test("apresenta a carteira normalizada", async ({ page }) => {
 test("o seletor global de mês governa as telas", async ({ page }) => {
   await page.goto("/?mes=2026-02");
 
-  await expect(
-    page.getByRole("navigation", { name: "Competências" }).getByRole("button", { name: /^Fevereiro de 2026/ }),
-  ).toHaveAttribute("aria-current", "date");
+  await expectCompetence(page, "Fevereiro de 2026");
 
   await page.getByRole("link", { name: "Posições" }).click();
   await expect(page).toHaveURL(/\/posicoes\?mes=2026-02/);

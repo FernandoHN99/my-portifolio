@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 
 import { positionRow } from "./support/position-form";
 import { stubQuoteChecks } from "./support/quote-checks";
+import { competenceNav, waitForCompetenceHydration } from "./support/competence";
 
 // Spec 073, no lugar da ilha da spec 046, e spec 077: dentro de Posições, a
 // posição ou as cotações abertas aparecem numa trilha abaixo das abas, nas
@@ -18,7 +19,7 @@ test("a trilha abaixo das abas mostra a posição e as cotações; a configuraç
   const gear = page.getByRole("link", { name: "Configuração da carteira" });
 
   await page.goto("/posicoes?mes=2026-09");
-  await expect(page.getByRole("navigation", { name: "Competências" })).toHaveAttribute("data-hydrated");
+  await waitForCompetenceHydration(page);
   await expect(trail).toHaveCount(0);
   await expect(page.getByTestId("nav-island")).toHaveCount(0);
 
@@ -30,7 +31,7 @@ test("a trilha abaixo das abas mostra a posição e as cotações; a configuraç
   // faixa de competências mostra só os meses da posição.
   await expect(trail).not.toContainText("Posições");
   await expect(page.getByTestId("nav-trail-connectors")).toHaveCount(0);
-  await expect(page.getByRole("navigation", { name: "Competências" })).toHaveAttribute("data-scoped", "true");
+  await expect(competenceNav(page)).toHaveAttribute("data-scoped", "true");
   await expect(nav.getByRole("link", { name: "Posições" })).toHaveAttribute("aria-current", "page");
   // A trilha fica fora das abas, abaixo delas.
   const navBox = await nav.boundingBox();
@@ -41,7 +42,7 @@ test("a trilha abaixo das abas mostra a posição e as cotações; a configuraç
   await expect(trail).toHaveAttribute("data-kind", "quotes");
   await expect(trail).toContainText("Cotações · Set/26");
   // Nas cotações, a faixa é a de sempre.
-  await expect(page.getByRole("navigation", { name: "Competências" })).not.toHaveAttribute("data-scoped", "true");
+  await expect(competenceNav(page)).not.toHaveAttribute("data-scoped", "true");
   await expect(gear).toBeVisible();
 
   await page.goto("/configuracao?mes=2026-09");

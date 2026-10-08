@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { waitForCompetenceHydration } from "./support/competence";
 import { stubQuoteChecks } from "./support/quote-checks";
 
 // A checagem de abertura grava no banco e pode criar competências; os
@@ -17,10 +18,15 @@ const month = (page: Page, label: string) =>
 // Os botões de ano e de mês só respondem depois da hidratação do React.
 async function openTimeline(page: Page, url: string) {
   await page.goto(url);
-  await expect(timeline(page)).toHaveAttribute("data-hydrated");
+  await waitForCompetenceHydration(page);
 }
 
-test("a linha do tempo abre só o ano da competência", async ({ page }) => {
+// A faixa é do computador; no celular a competência abre numa folha
+// (spec 096), coberta em month-sheet.spec.ts.
+const STRIP_ONLY = "A faixa de competências é do computador; no celular vale a folha (month-sheet.spec.ts).";
+
+test("a linha do tempo abre só o ano da competência", async ({ page, isMobile }) => {
+  test.skip(isMobile, STRIP_ONLY);
   await openTimeline(page, "/?mes=2026-02");
 
   await expect(month(page, "Fevereiro de 2026")).toHaveAttribute("aria-current", "date");
@@ -30,7 +36,8 @@ test("a linha do tempo abre só o ano da competência", async ({ page }) => {
   await expect(month(page, "Janeiro de 2026")).toHaveAttribute("aria-label", /^Janeiro de 2026, [+-]/);
 });
 
-test("abrir outro ano não troca a competência até escolher um mês", async ({ page }) => {
+test("abrir outro ano não troca a competência até escolher um mês", async ({ page, isMobile }) => {
+  test.skip(isMobile, STRIP_ONLY);
   await openTimeline(page, "/?mes=2026-02");
   await expect(month(page, "Fevereiro de 2026")).toHaveAttribute("aria-current", "date");
 
@@ -49,7 +56,8 @@ test("abrir outro ano não troca a competência até escolher um mês", async ({
   await expect(month(page, "Dezembro de 2025")).toHaveAttribute("aria-current", "date");
 });
 
-test("o teclado atravessa o ano e a competência fica na URL, sem setas na tela", async ({ page }) => {
+test("o teclado atravessa o ano e a competência fica na URL, sem setas na tela", async ({ page, isMobile }) => {
+  test.skip(isMobile, STRIP_ONLY);
   await openTimeline(page, "/?mes=2026-01");
   await expect(month(page, "Janeiro de 2026")).toHaveAttribute("aria-current", "date");
   await expect(page.getByRole("button", { name: /Mês anterior|Próximo mês|Mais recente/ })).toHaveCount(0);
@@ -67,7 +75,8 @@ test("o teclado atravessa o ano e a competência fica na URL, sem setas na tela"
   await expect(month(page, "Janeiro de 2026")).toHaveAttribute("aria-current", "date");
 });
 
-test("consultar outro ano não o reabre quando a competência volta", async ({ page }) => {
+test("consultar outro ano não o reabre quando a competência volta", async ({ page, isMobile }) => {
+  test.skip(isMobile, STRIP_ONLY);
   await openTimeline(page, "/?mes=2026-02");
 
   await year(page, 2024).click();
@@ -104,7 +113,8 @@ test("o cadeado mostra se o mês está aberto ou fechado", async ({ page }) => {
   await expect(page.getByRole("button", { name: "Adicionar posição" })).toBeVisible();
 });
 
-test("o foco segue para o ano que abre mesmo com toques seguidos", async ({ page }) => {
+test("o foco segue para o ano que abre mesmo com toques seguidos", async ({ page, isMobile }) => {
+  test.skip(isMobile, STRIP_ONLY);
   await openTimeline(page, "/?mes=2026-01");
   await month(page, "Janeiro de 2026").focus();
 
@@ -120,6 +130,7 @@ test("o foco segue para o ano que abre mesmo com toques seguidos", async ({ page
 });
 
 test("a linha do tempo cabe na tela sem deslocar a página", async ({ page, isMobile }) => {
+  test.skip(isMobile, STRIP_ONLY);
   await openTimeline(page, "/?mes=2026-09");
   await expect(page.getByTestId("portfolio-total")).toContainText("R$");
   await expect(month(page, "Setembro de 2026")).toHaveAttribute("aria-current", "date");
@@ -139,9 +150,7 @@ test("a linha do tempo cabe na tela sem deslocar a página", async ({ page, isMo
   await expect.poll(async () => (await measure()).activeVisible).toBe(true);
   expect((await measure()).pageLeft).toBe(0);
 
-  if (!isMobile) {
-    expect((await measure()).fits).toBe(true);
-  }
+  expect((await measure()).fits).toBe(true);
 
   await month(page, "Agosto de 2026").click();
   await expect(page).toHaveURL(/mes=2026-08/);
@@ -149,7 +158,8 @@ test("a linha do tempo cabe na tela sem deslocar a página", async ({ page, isMo
   expect((await measure()).pageLeft).toBe(0);
 });
 
-test("alterações pendentes seguram a troca de mês, mas não a de ano", async ({ page }) => {
+test("alterações pendentes seguram a troca de mês, mas não a de ano", async ({ page, isMobile }) => {
+  test.skip(isMobile, STRIP_ONLY);
   const dialogs: string[] = [];
   page.on("dialog", (dialog) => {
     dialogs.push(dialog.message());
@@ -182,7 +192,8 @@ test("alterações pendentes seguram a troca de mês, mas não a de ano", async 
 test.describe("com movimento reduzido", () => {
   test.use({ reducedMotion: "reduce" });
 
-  test("trocar de ano mostra os meses sem animar a largura", async ({ page }) => {
+  test("trocar de ano mostra os meses sem animar a largura", async ({ page, isMobile }) => {
+    test.skip(isMobile, STRIP_ONLY);
     await openTimeline(page, "/?mes=2026-02");
 
     // Mede, a cada quadro, a fração aberta de cada painel de meses. Sem

@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import { stubQuoteChecks } from "./support/quote-checks";
+import { chooseCompetence, expectCompetence, expectNoCompetenceYear, waitForCompetenceHydration } from "./support/competence";
 
 // A página da posição só lê dados. A checagem de abertura grava no banco e
 // pode criar competências, então é substituída por uma resposta fixa; a edição
@@ -23,7 +24,7 @@ async function openPosition(page: Page, asset: string, query = "mes=2026-09", in
   await page.goto(`/posicoes?${query}`);
   // Espera a hidratação: um clique antes dela segue o link sem a transição. A
   // primeira abertura compila a rota no servidor de desenvolvimento.
-  await expect(page.getByRole("navigation", { name: "Competências" })).toHaveAttribute("data-hydrated");
+  await waitForCompetenceHydration(page);
   const rows = institution ? row(page, asset).filter({ hasText: institution }) : row(page, asset);
   await rows.getByRole("link", { name: asset, exact: true }).click();
   await expect(page).toHaveURL(POSITION_PATH, { timeout: 15_000 });
@@ -39,9 +40,7 @@ test("o nome do ativo abre a posição e a volta mantém mês e filtros", async 
   await expect(
     page.getByRole("navigation", { name: "Navegação principal" }).getByRole("link", { name: "Posições" }),
   ).toHaveAttribute("aria-current", "page");
-  await expect(
-    page.getByRole("navigation", { name: "Competências" }).getByRole("button", { name: /^Setembro de 2026/ }),
-  ).toHaveAttribute("aria-current", "date");
+  await expectCompetence(page, "Setembro de 2026");
 
   await page.getByRole("link", { name: "Voltar para Posições" }).click();
   await expect(page).toHaveURL(/\/posicoes\?mes=2026-09&classe=Cripto&ordem=share\.desc$/);
@@ -173,7 +172,7 @@ test("a posição liquidada fica no mês da saída e volta depois", async ({ pag
 
 test("a linha inteira abre a posição de um saldo sem cotação", async ({ page }) => {
   await page.goto("/posicoes?mes=2026-09");
-  await expect(page.getByRole("navigation", { name: "Competências" })).toHaveAttribute("data-hydrated");
+  await waitForCompetenceHydration(page);
   await row(page, "Porquinho").getByText("R$ 2.427,12").filter({ visible: true }).first().click();
   await expect(page).toHaveURL(POSITION_PATH, { timeout: 15_000 });
   await expect(page.getByRole("heading", { level: 1, name: "Porquinho" })).toBeVisible();
@@ -205,7 +204,7 @@ test("a linha inteira abre a posição de um saldo sem cotação", async ({ page
 
 test("os botões da linha não abrem a posição", async ({ page }) => {
   await page.goto("/posicoes?mes=2026-09");
-  await expect(page.getByRole("navigation", { name: "Competências" })).toHaveAttribute("data-hydrated");
+  await waitForCompetenceHydration(page);
   // O Bitcoin 01 pode estar em mais de uma conta; o cenário usa o da Ledger.
   const ledger = row(page, "Bitcoin 01").filter({ hasText: "Ledger" });
 
@@ -218,9 +217,8 @@ test("o seletor global troca a competência e só mostra os meses com a posiçã
   await openBitcoin01(page);
   const path = new URL(page.url()).pathname;
 
-  const timeline = page.getByRole("navigation", { name: "Competências" });
-  await expect(timeline).toHaveAttribute("data-hydrated");
-  await timeline.getByRole("button", { name: /^Agosto de 2026/ }).click();
+  await waitForCompetenceHydration(page);
+  await chooseCompetence(page, "Agosto de 2026");
   await expect(page).toHaveURL(new RegExp(`${path}\\?mes=2026-08$`));
   await expect.poll(flowValue(page, "position-value")).toBe("R$ 122.798");
 
@@ -235,8 +233,8 @@ test("o seletor global troca a competência e só mostra os meses com a posiçã
   // e um mês sem a posição leva ao último mês com ela.
   await openPosition(page, "USDC", "mes=2025-09", "Binance");
   const usdc = new URL(page.url()).pathname;
-  await expect(timeline).toHaveAttribute("data-hydrated");
-  await expect(timeline.getByRole("button", { name: "2026" })).toHaveCount(0);
+  await waitForCompetenceHydration(page);
+  await expectNoCompetenceYear(page, 2026);
   await page.goto(`${usdc}?mes=2026-09`);
   await expect(page).toHaveURL(new RegExp(`${usdc}\\?mes=2025-10$`));
   await expect(page.getByTestId("position-liquidated")).toBeVisible();

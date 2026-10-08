@@ -1,5 +1,7 @@
 import { expect, type Locator, type Page } from "@playwright/test";
 
+import { waitForCompetenceHydration } from "./competence";
+
 // Formulário único da posição (spec 043). Só um mês aberto aceita edição
 // (spec 034): sem ele, "Adicionar posição" e o lápis das linhas não aparecem,
 // e os cenários que editam ficam pulados. Os testes rodam sobre os dados reais
@@ -11,7 +13,7 @@ import { expect, type Locator, type Page } from "@playwright/test";
  * marca `data-hydrated` quando monta no navegador.
  */
 export async function waitForHydration(page: Page) {
-  await expect(page.getByRole("navigation", { name: "Competências" })).toHaveAttribute("data-hydrated");
+  await waitForCompetenceHydration(page);
 }
 
 export async function hasOpenMonth(page: Page) {

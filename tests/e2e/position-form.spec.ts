@@ -7,6 +7,7 @@ import {
   openAddForm, openEditableMonth, openEditForm, openPositionPage, pick, positionRow,
 } from "./support/position-form";
 import { stubQuoteChecks } from "./support/quote-checks";
+import { waitForCompetenceHydration } from "./support/competence";
 
 // Spec 066: inclusão por etapas obrigatórias; edição mantém as abas de
 // atributos. Os cenários preenchem e conferem sem salvar a carteira.
@@ -354,7 +355,7 @@ test("remover, na página da posição, pede confirmação", async ({ page }) =>
 
 test("a página da posição edita pelo mesmo formulário", async ({ page }) => {
   await openPositions(page);
-  await expect(page.getByRole("navigation", { name: "Competências" })).toHaveAttribute("data-hydrated");
+  await waitForCompetenceHydration(page);
   await positionRow(page, "Porquinho").getByRole("link", { name: "Porquinho" }).click();
   await expect(page.getByRole("heading", { level: 1, name: "Porquinho" })).toBeVisible();
 
@@ -379,7 +380,7 @@ test("a página da posição edita pelo mesmo formulário", async ({ page }) => 
 
 test("num mês fechado, a página da posição não edita", async ({ page }) => {
   await page.goto("/posicoes?mes=2026-08");
-  await expect(page.getByRole("navigation", { name: "Competências" })).toHaveAttribute("data-hydrated");
+  await waitForCompetenceHydration(page);
   await positionRow(page, "Porquinho").getByRole("link", { name: "Porquinho" }).click();
   await expect(page.getByRole("heading", { level: 1, name: "Porquinho" })).toBeVisible();
   const edit = page.getByRole("button", { name: "Editar posição" });

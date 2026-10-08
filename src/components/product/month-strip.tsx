@@ -13,6 +13,7 @@ import {
 } from "react";
 import { tv } from "tailwind-variants";
 
+import { MonthSheet, monthMarker } from "@/components/product/month-sheet";
 import { cn } from "@/lib/utils";
 
 // A faixa de competências da carteira: cápsulas de ano e, no ano aberto, os
@@ -23,7 +24,9 @@ import { cn } from "@/lib/utils";
 //
 // Toque (spec 096): alvos de 44 px e espaço entre os meses em telas de toque,
 // `touch-manipulation` (sem atraso nem zoom no toque duplo) e retorno ao
-// pressionar; no computador nada muda.
+// pressionar; no computador nada muda. No celular (abaixo de `sm`) a faixa nem
+// aparece: um botão com o mês escolhido abre a competência numa folha de baixo
+// (`MonthSheet`), como os filtros.
 
 export type MonthStripMarker = "up" | "down" | "none";
 
@@ -59,7 +62,7 @@ const strip = tv({
   slots: {
     band: "relative flex items-center gap-2 border-b border-border/70 bg-background/80 px-4 py-2 backdrop-blur-xl sm:px-6 xl:grid xl:grid-cols-[minmax(0,1fr)_minmax(0,auto)_minmax(0,1fr)]",
     progress: "pointer-events-none absolute inset-x-0 bottom-0 h-px overflow-hidden transition-opacity duration-150",
-    nav: "flex min-w-0 flex-1 flex-row-reverse overflow-x-auto overscroll-x-contain [scrollbar-width:none] xl:col-start-2 [&::-webkit-scrollbar]:hidden",
+    nav: "hidden min-w-0 flex-1 flex-row-reverse overflow-x-auto overscroll-x-contain sm:flex [scrollbar-width:none] xl:col-start-2 [&::-webkit-scrollbar]:hidden",
     trail: "ml-auto flex shrink-0 items-center gap-2 justify-self-end xl:col-start-3",
   },
   variants: { pending: { true: { progress: "opacity-100" }, false: { progress: "opacity-0" } } },
@@ -99,20 +102,6 @@ const monthButton = tv({
     },
   },
   defaultVariants: { selected: false },
-});
-
-const monthMarker = tv({
-  base: "mt-1 h-0.5 w-4 rounded-full transition-colors",
-  variants: {
-    marker: { none: "bg-transparent", up: "", down: "" },
-    selected: { true: "", false: "" },
-  },
-  compoundVariants: [
-    { selected: true, marker: ["up", "down"], class: "bg-primary-foreground/50" },
-    { selected: false, marker: "up", class: "bg-chart-up/70" },
-    { selected: false, marker: "down", class: "bg-chart-down/70" },
-  ],
-  defaultVariants: { marker: "none", selected: false },
 });
 
 const yearTick = tv({
@@ -299,6 +288,7 @@ export function MonthStrip({ items, selected, onSelect, pending = false, scoped 
         {pending ? "Carregando competência" : ""}
       </span>
 
+      <MonthSheet items={items} selected={selected} onSelect={onSelect} scoped={scoped} />
 
       {/* Invertida para que, sem rolagem, a faixa mostre o fim, onde fica a
           competência mais recente; assim o celular já abre no lugar certo antes

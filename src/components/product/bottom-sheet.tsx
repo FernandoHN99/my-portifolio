@@ -22,10 +22,18 @@ const sheet = tv({
     title: "text-base font-semibold tracking-[-0.02em]",
     close:
       "grid size-9 place-items-center rounded-lg text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50",
-    content: "min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain px-5 pb-4",
+    content: "min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain px-5",
     footer:
       "flex shrink-0 items-center gap-2 border-t border-border/70 px-5 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))]",
   },
+  variants: {
+    // Sem rodapé, o conteúdo respeita sozinho a área segura de baixo.
+    footed: {
+      true: { content: "pb-4" },
+      false: { content: "pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))]" },
+    },
+  },
+  defaultVariants: { footed: true },
 });
 
 /** Botões do rodapé da folha: o principal fecha e confirma; o secundário limpa. */
@@ -57,15 +65,18 @@ export function BottomSheet({
   /** O `BottomSheetTrigger` que abre a folha, com as classes do botão. */
   trigger: ReactNode;
   title: string;
-  /** Os botões do rodapé, com `sheetButton`; o que fecha é um `BottomSheetClose`. */
-  footer: ReactNode;
+  /**
+   * Os botões do rodapé, com `sheetButton`; o que fecha é um `BottomSheetClose`.
+   * Sem rodapé, a folha serve a uma escolha que se resolve com um toque.
+   */
+  footer?: ReactNode;
   children: ReactNode;
   /** Sem `open`, a folha cuida do próprio estado. */
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
   testId?: string;
 }) {
-  const slots = sheet();
+  const slots = sheet({ footed: footer !== undefined });
 
   return (
     <Drawer.Root open={open} onOpenChange={onOpenChange}>
@@ -84,7 +95,7 @@ export function BottomSheet({
 
             <Drawer.Content className={slots.content()}>{children}</Drawer.Content>
 
-            <div className={slots.footer()}>{footer}</div>
+            {footer === undefined ? null : <div className={slots.footer()}>{footer}</div>}
           </Drawer.Popup>
         </Drawer.Viewport>
       </Drawer.Portal>

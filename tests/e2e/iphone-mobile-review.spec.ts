@@ -1,6 +1,7 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import { SIGNED_OUT } from "./support/auth";
+import { competenceSheet, competenceTrigger, openCompetenceSheet, waitForCompetenceHydration } from "./support/competence";
 import { chooseKind, closeForm, continueForm, expectFormStep, openAddForm, openEditableMonth } from "./support/position-form";
 import { stubQuoteChecks } from "./support/quote-checks";
 
@@ -91,17 +92,22 @@ test("arrastar para o lado não troca a aba; só o toque na aba troca", async ({
   await expect(page).toHaveURL(/\/posicoes\?mes=2026-09$/);
 });
 
-test("faixa de competências mantém mês ativo visível e alvo de toque", async ({ page }) => {
+test("competência abre numa folha com o mês ativo e alvos de toque", async ({ page }) => {
   await page.goto("/?mes=2026-09");
-  const timeline = page.getByRole("navigation", { name: "Competências" });
-  await expect(timeline).toHaveAttribute("data-hydrated");
-  const active = timeline.locator('[aria-current="date"]');
-  await expect.poll(() => active.evaluate((element) => {
-    const box = element.getBoundingClientRect();
-    const strip = element.closest("nav")!.getBoundingClientRect();
-    return box.left >= strip.left - 1 && box.right <= strip.right + 1;
-  })).toBe(true);
-  expect((await active.boundingBox())!.height).toBeGreaterThanOrEqual(40);
+  await waitForCompetenceHydration(page);
+  const trigger = competenceTrigger(page);
+  await expect(trigger).toHaveAccessibleName("Competência: Setembro de 2026");
+  expect((await trigger.boundingBox())!.height).toBeGreaterThanOrEqual(40);
+
+  await openCompetenceSheet(page);
+  const active = competenceSheet(page).locator('[aria-current="date"]');
+  await expect(active).toHaveAccessibleName(/^Setembro de 2026/);
+  expect((await active.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+  await assertPageWidth(page);
+
+  await competenceSheet(page).getByRole("button", { name: /^Agosto de 2026/ }).click();
+  await expect(page).toHaveURL(/mes=2026-08/);
+  await expect(competenceSheet(page)).toHaveCount(0);
 });
 
 test("formulário da posição continua rolável com viewport reduzida", async ({ page }) => {
