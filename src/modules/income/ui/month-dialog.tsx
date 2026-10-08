@@ -11,15 +11,16 @@ import { formatCompetenceLong, isCompetence } from "@/lib/competence";
 import { formatAmountInput, formatCents, MAX_AMOUNT_CENTS, parseAmountInput, type Cents } from "@/lib/money";
 import { cn } from "@/lib/utils";
 import {
-  countsAsTaxable,
   coversWholeMonth,
   daysWorked,
+  defaultTaxable,
   monthBounds,
   PAYSLIP_KIND_LABELS,
   PAYSLIP_KINDS,
   PAYSLIP_PROBLEMS,
   payslipIncomeCents,
   payslipProblem,
+  taxableIncomeCents,
   type IncomeMonth,
   type PayslipKind,
 } from "@/modules/income/domain/income";
@@ -39,6 +40,7 @@ type PayslipDraft = {
   endsOn: string;
   gross: string;
   prorated: boolean;
+  taxable: boolean;
 };
 
 const VALUE_FIELDS = [
@@ -99,7 +101,7 @@ function amountText(cents: Cents | null) {
 
 function wholeMonthDraft(month: string, employer: string, key: string): PayslipDraft {
   const bounds = isCompetence(month) ? monthBounds(month) : { first: "", last: "" };
-  return { key, kind: "SALARY", label: "", employer, startsOn: bounds.first, endsOn: bounds.last, gross: "", prorated: false };
+  return { key, kind: "SALARY", label: "", employer, startsOn: bounds.first, endsOn: bounds.last, gross: "", prorated: false, taxable: true };
 }
 
 function MonthForm({
@@ -131,6 +133,7 @@ function MonthForm({
         endsOn: payslip.endsOn,
         gross: formatAmountInput(payslip.grossCents),
         prorated: payslip.prorated,
+        taxable: payslip.taxable,
       })) ?? [],
   );
   const [requestId] = useState(() => crypto.randomUUID());
@@ -159,6 +162,7 @@ function MonthForm({
       endsOn: draft.endsOn,
       grossCents: grossCents ?? 0,
       prorated: draft.prorated,
+      taxable: draft.taxable,
     };
     const problem = isCompetence(month) ? payslipProblem(month, payslip) : "dates";
     return { draft, payslip, problem: grossCents !== null && grossCents > MAX_AMOUNT_CENTS ? "gross" : problem };
@@ -171,6 +175,7 @@ function MonthForm({
   const incomeCents = value("netIncome") + value("mealVoucher");
   const spendCents = value("cardSpend") + value("pixSpend") + value("mealVoucherSpend");
   const grossCents = checked.reduce((sum, item) => sum + (item.problem ? 0 : payslipIncomeCents(item.payslip)), 0);
+  const taxableGrossCents = checked.reduce((sum, item) => sum + (item.problem ? 0 : taxableIncomeCents(item.payslip)), 0);
 
   const changeMonth = (next: string) => {
     // Os holerites do mês inteiro acompanham a troca de mês.
@@ -192,6 +197,11 @@ function MonthForm({
       current.map((draft) => {
         if (draft.key !== key) return draft;
         const next = { ...draft, ...patch };
+
+        // O tipo sugere se a linha é tributável (13º e PLR não); o usuário pode trocar depois.
+        if (patch.kind !== undefined) {
+          next.taxable = defaultTaxable(next.kind);
+        }
 
         // Período parcial pede o cálculo proporcional; o mês inteiro, não.
         if ((patch.startsOn !== undefined || patch.endsOn !== undefined) && isCompetence(month) && next.startsOn && next.endsOn) {
@@ -237,6 +247,7 @@ function MonthForm({
         endsOn: draft.endsOn,
         gross: draft.gross,
         prorated: draft.prorated,
+        taxable: draft.taxable,
       })),
     };
 
@@ -393,15 +404,29 @@ function MonthForm({
                         onChange={(gross) => updatePayslip(draft.key, { gross })}
                       />
                     </Field>
-                    <label className="flex min-h-9 items-center gap-2 self-end text-xs text-foreground">
-                      <input
-                        type="checkbox"
-                        checked={draft.prorated}
-                        onChange={(event) => updatePayslip(draft.key, { prorated: event.target.checked })}
-                        className="size-4 accent-[var(--primary)]"
-                      />
-                      Proporcional aos dias
-                    </label>
+                    <div className="flex flex-col self-end">
+                      <label className="flex min-h-8 items-center gap-2 text-xs text-foreground">
+                        <input
+                          type="checkbox"
+                          checked={draft.prorated}
+                          onChange={(event) => updatePayslip(draft.key, { prorated: event.target.checked })}
+                          className="size-4 accent-[var(--primary)]"
+                        />
+                        Proporcional aos dias
+                      </label>
+                      <label className="flex min-h-8 items-center gap-2 text-xs text-foreground">
+                        <input
+                          type="checkbox"
+                          checked={draft.taxable}
+                          aria-label={`Holerite ${index + 1}: tributável`}
+                          onChange={(event) => updatePayslip(draft.key, { taxable: event.target.checked })}
+                          className="size-4 accent-[var(--primary)]"
+                        />
+                        <span>
+                          Tributável <span className="text-muted-foreground">(limite do PGBL)</span>
+                        </span>
+                      </label>
+                    </div>
                   </div>
                   <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-border/60 pt-2.5 text-[11px]">
                     <span className="text-muted-foreground">
@@ -409,10 +434,10 @@ function MonthForm({
                       {income !== null ? (
                         <>
                           {" · "}
-                          <span className={cn("font-mono", countsAsTaxable(draft.kind) ? "text-foreground" : "text-muted-foreground line-through")}>
+                          <span className={cn("font-mono", draft.taxable ? "text-foreground" : "text-muted-foreground line-through")}>
                             {formatCents(income)}
                           </span>
-                          {countsAsTaxable(draft.kind) ? null : " fora do cálculo"}
+                          {draft.taxable ? null : " não tributável"}
                         </>
                       ) : null}
                     </span>
@@ -449,6 +474,7 @@ function MonthForm({
             </span>
           </PreviewRow>
           {payslips.length > 0 ? <PreviewRow label="Salário bruto">{formatCents(grossCents)}</PreviewRow> : null}
+          {payslips.length > 0 ? <PreviewRow label="Bruto tributável">{formatCents(taxableGrossCents)}</PreviewRow> : null}
         </dl>
 
         {error ? (

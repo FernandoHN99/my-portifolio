@@ -8,6 +8,7 @@ import { decimalToCents, MAX_AMOUNT_CENTS } from "@/lib/money";
 import { SCOPED_USER } from "@/lib/user-db";
 import { getIncomeDb } from "@/modules/income/application/income-db";
 import {
+  INCOME_BACKUP_ACCEPTED_VERSIONS,
   INCOME_BACKUP_FORMAT,
   INCOME_BACKUP_TABLES,
   INCOME_BACKUP_VERSION,
@@ -17,7 +18,8 @@ import {
   type IncomeBackupRow,
   type IncomeBackupTableKey,
 } from "@/modules/income/domain/income-backup-format";
-import { PAYSLIP_KINDS, PAYSLIP_PROBLEMS, payslipProblem } from "@/modules/income/domain/income";
+import { defaultTaxable, PAYSLIP_KINDS, PAYSLIP_PROBLEMS, payslipProblem, type PayslipKind } from "@/modules/income/domain/income";
+import { HOUR_KINDS, MAX_MONTH_HOURS } from "@/modules/income/domain/income-hours";
 
 // Backup de Recebimentos (spec 092). A exportação lê os dados do usuário numa
 // leitura consistente; a restauração substitui só as tabelas desta área, numa
@@ -35,11 +37,11 @@ const instant = z.string().refine((value) => !Number.isNaN(Date.parse(value)), "
 const day = z.string().regex(/^\d{4}-\d{2}-\d{2}(T00:00:00(\.000)?Z)?$/, "data inválida");
 const monthStart = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])-01(T00:00:00(\.000)?Z)?$/, "mês inválido");
 
-function decimal(minimumCents: number) {
+function decimal(minimumCents: number, maximumCents = MAX_AMOUNT_CENTS) {
   return z.string().refine((value) => {
     try {
       const cents = decimalToCents(value);
-      return cents >= minimumCents && cents <= MAX_AMOUNT_CENTS;
+      return cents >= minimumCents && cents <= maximumCents;
     } catch {
       return false;
     }
@@ -47,6 +49,8 @@ function decimal(minimumCents: number) {
 }
 
 const optionalValue = decimal(0).nullable();
+/** Horas com duas casas, de 0 às 744 de um mês de 31 dias. */
+const optionalHours = decimal(0, MAX_MONTH_HOURS * 100).nullable();
 
 const ROW_SCHEMAS = {
   incomeMonths: z
@@ -73,20 +77,37 @@ const ROW_SCHEMAS = {
       endsOn: day,
       grossSalary: decimal(1),
       prorated: z.boolean(),
+      taxable: z.boolean(),
+      createdAt: instant,
+      updatedAt: instant,
+    })
+    .strict(),
+  incomeHourRecords: z
+    .object({
+      id: uuid,
+      incomeMonthId: uuid,
+      kind: z.enum(HOUR_KINDS),
+      declaredHours: optionalHours,
+      paidHours: optionalHours,
+      workedHours: optionalHours,
+      paidAmount: optionalValue,
+      note: z.string().trim().max(200).nullable(),
       createdAt: instant,
       updatedAt: instant,
     })
     .strict(),
 } satisfies Record<IncomeBackupTableKey, z.ZodType>;
 
-const MODELS: Record<IncomeBackupTableKey, { model: "incomeMonth" | "incomePayslip"; table: string }> = {
+const MODELS: Record<IncomeBackupTableKey, { model: "incomeMonth" | "incomePayslip" | "incomeHourRecord"; table: string }> = {
   incomeMonths: { model: "incomeMonth", table: "income_months" },
   incomePayslips: { model: "incomePayslip", table: "income_payslips" },
+  incomeHourRecords: { model: "incomeHourRecord", table: "income_hour_records" },
 };
 
 const REFERENCES: Record<IncomeBackupTableKey, Record<string, IncomeBackupTableKey>> = {
   incomeMonths: {},
   incomePayslips: { incomeMonthId: "incomeMonths" },
+  incomeHourRecords: { incomeMonthId: "incomeMonths" },
 };
 
 type Delegate = {
@@ -150,13 +171,15 @@ export function parseIncomeBackup(input: unknown): ParsedBackup {
     );
   }
 
-  if (candidate.version !== INCOME_BACKUP_VERSION) {
+  if (typeof candidate.version !== "number" || !INCOME_BACKUP_ACCEPTED_VERSIONS.includes(candidate.version)) {
     throw new IncomeBackupValidationError(
       typeof candidate.version === "number" && candidate.version > INCOME_BACKUP_VERSION
         ? "O backup é de uma versão mais nova do aplicativo."
         : "O backup não informa uma versão conhecida do formato.",
     );
   }
+
+  const fileVersion = candidate.version;
 
   if (typeof candidate.exportedAt !== "string" || Number.isNaN(Date.parse(candidate.exportedAt))) {
     throw new IncomeBackupValidationError("O backup não informa quando foi exportado.");
@@ -185,7 +208,7 @@ export function parseIncomeBackup(input: unknown): ParsedBackup {
     }
 
     rows[key] = list.map((row, index) => {
-      const parsed = ROW_SCHEMAS[key].safeParse(row);
+      const parsed = ROW_SCHEMAS[key].safeParse(key === "incomePayslips" ? withTaxable(row, fileVersion) : row);
 
       if (!parsed.success) {
         const issue = parsed.error.issues[0];
@@ -199,14 +222,28 @@ export function parseIncomeBackup(input: unknown): ParsedBackup {
 
   checkConsistency(rows);
   return {
-    file: { format: INCOME_BACKUP_FORMAT, version: INCOME_BACKUP_VERSION, exportedAt: candidate.exportedAt, tables: rows },
+    file: { format: INCOME_BACKUP_FORMAT, version: fileVersion, exportedAt: candidate.exportedAt, tables: rows },
     rows: prepareRows(rows),
   };
 }
 
+/**
+ * Conversão das versões 1 e 2: sem `taxable`, o holerite fica tributável salvo
+ * 13º e PLR, a regra de antes (spec 095). Da versão 3 em diante o campo é
+ * obrigatório e a conferência estrita o cobra.
+ */
+function withTaxable(row: unknown, version: number) {
+  if (version >= 3 || !row || typeof row !== "object" || Array.isArray(row) || "taxable" in row) {
+    return row;
+  }
+
+  const { kind } = row as { kind?: unknown };
+  return (PAYSLIP_KINDS as readonly unknown[]).includes(kind) ? { ...row, taxable: defaultTaxable(kind as PayslipKind) } : row;
+}
+
 const dateOnly = (value: unknown) => String(value).slice(0, 10);
 
-/** Ids únicos, um registro por mês, referências presentes e períodos no mês. */
+/** Ids únicos, um registro por mês e por tipo de hora, referências presentes e períodos no mês. */
 function checkConsistency(rows: Record<IncomeBackupTableKey, IncomeBackupRow[]>) {
   for (const { key } of INCOME_BACKUP_TABLES) {
     const ids = rows[key].map((row) => row.id as string);
@@ -242,6 +279,22 @@ function checkConsistency(rows: Record<IncomeBackupTableKey, IncomeBackupRow[]>)
       throw new IncomeBackupValidationError(`O backup tem um holerite de ${month} com problema: ${PAYSLIP_PROBLEMS[problem]}`);
     }
   }
+
+  const hourKeys = new Set<string>();
+
+  for (const record of rows.incomeHourRecords) {
+    if (!monthById.has(record.incomeMonthId as string)) {
+      throw new IncomeBackupValidationError("O backup tem incomeHourRecords apontando para incomeMonths que não existe.");
+    }
+
+    const key = `${record.incomeMonthId as string}:${record.kind as string}`;
+
+    if (hourKeys.has(key)) {
+      throw new IncomeBackupValidationError("O backup tem dois registros de horas do mesmo tipo no mesmo mês.");
+    }
+
+    hourKeys.add(key);
+  }
 }
 
 /** Linhas no formato do Prisma: datas e instantes. */
@@ -260,6 +313,12 @@ function prepareRows(rows: Record<IncomeBackupTableKey, IncomeBackupRow[]>) {
       label: (row.label as string | null)?.trim() || null,
       startsOn: date(row.startsOn),
       endsOn: date(row.endsOn),
+      createdAt: new Date(row.createdAt as string),
+      updatedAt: new Date(row.updatedAt as string),
+    })),
+    incomeHourRecords: rows.incomeHourRecords.map((row) => ({
+      ...row,
+      note: (row.note as string | null)?.trim() || null,
       createdAt: new Date(row.createdAt as string),
       updatedAt: new Date(row.updatedAt as string),
     })),

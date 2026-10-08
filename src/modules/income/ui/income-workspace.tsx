@@ -238,7 +238,20 @@ export function IncomeWorkspace({ ledger, menu }: { ledger: IncomeLedger; menu?:
           cents={summary.totals.grossCents}
           detail={`${payslipCount} ${payslipCount === 1 ? "holerite" : "holerites"} no ano`}
           testId="income-kpi-gross"
-        />
+        >
+          {payslipCount > 0 ? (
+            <div className="mt-3 flex items-baseline justify-between gap-2 border-t border-border/60 pt-2.5 text-xs">
+              <span className="text-muted-foreground">Tributável</span>
+              <span
+                data-testid="income-kpi-taxable"
+                data-cents={summary.totals.taxableGrossCents}
+                className="font-mono font-medium tracking-[-0.03em] text-primary"
+              >
+                {formatCents(summary.totals.taxableGrossCents)}
+              </span>
+            </div>
+          ) : null}
+        </SummaryCard>
       </section>
 
       <section aria-label="Gastos e poupado" className="premium-panel mt-6 rounded-[24px] p-5 sm:p-7">

@@ -70,6 +70,7 @@ const payslip = z.object({
   endsOn: isoDate,
   gross: grossAmount,
   prorated: z.boolean(),
+  taxable: z.boolean(),
 });
 
 const fields = {

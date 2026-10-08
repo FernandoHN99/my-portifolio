@@ -1,7 +1,6 @@
 import type { Competence } from "@/lib/competence";
 import type { Cents } from "@/lib/money";
 import {
-  countsAsTaxable,
   dailyRateCents,
   daysWorked,
   payslipIncomeCents,
@@ -140,7 +139,7 @@ export function summarizePensionYear(
       dailyRateCents: dailyRateCents(period.grossCents),
       incomeCents: payslipIncomeCents(period),
       taxableCents: taxableIncomeCents(period),
-      counted: countsAsTaxable(period.kind),
+      counted: period.taxable,
     }));
   const taxableCents = rows.reduce((sum, row) => sum + row.taxableCents, 0);
   const limitCents = deductionLimitCents(taxableCents);

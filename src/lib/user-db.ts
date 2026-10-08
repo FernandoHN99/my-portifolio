@@ -31,6 +31,8 @@ const OWNED_MODELS = new Set([
   // Previdência (spec 089), que conferem antes a concessão de cada área.
   "IncomeMonth",
   "IncomePayslip",
+  // Horas do mês (spec 094): só pelo backup e pela exclusão com desfazer.
+  "IncomeHourRecord",
 ]);
 
 const WHERE_OPERATIONS = new Set([

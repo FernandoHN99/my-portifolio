@@ -5,6 +5,7 @@ import {
   coversWholeMonth,
   dailyRateCents,
   daysWorked,
+  defaultTaxable,
   incomeYears,
   monthBounds,
   monthTotals,
@@ -46,8 +47,15 @@ function month(row: (typeof SHEET_2026)[number], payslips: Payslip[] = []): Inco
   };
 }
 
-function payslip(startsOn: string, endsOn: string, grossCents: number, prorated: boolean, kind: Payslip["kind"] = "SALARY"): Payslip {
-  return { id: `${startsOn}:${endsOn}:${grossCents}`, kind, label: null, employer: "AMARIS", startsOn, endsOn, grossCents, prorated };
+function payslip(
+  startsOn: string,
+  endsOn: string,
+  grossCents: number,
+  prorated: boolean,
+  kind: Payslip["kind"] = "SALARY",
+  taxable = defaultTaxable(kind),
+): Payslip {
+  return { id: `${startsOn}:${endsOn}:${grossCents}`, kind, label: null, employer: "AMARIS", startsOn, endsOn, grossCents, prorated, taxable };
 }
 
 test("o ano de 2026 reproduz os totais do Excel", () => {
@@ -90,6 +98,27 @@ test("renda proporcional com o mês de 30 dias, arredondada por linha como a pla
   assert.equal(payslipIncomeCents(payslip("2025-05-12", "2025-05-31", 1050000, true)), 700000);
   // "Necessário calcular: Não" usa o bruto inteiro, mesmo num período curto.
   assert.equal(payslipIncomeCents(payslip("2026-09-08", "2026-09-13", 198939, false)), 198939);
+});
+
+test("a marcação da linha decide a renda tributável; o tipo só sugere o padrão", () => {
+  assert.deepEqual(
+    (["SALARY", "VACATION", "OTHER", "THIRTEENTH", "PROFIT_SHARING"] as const).map(defaultTaxable),
+    [true, true, true, false, false],
+  );
+
+  // Trocar a marcação muda a renda tributável, nunca a renda da linha.
+  const thirteenth = payslip("2026-06-01", "2026-06-30", 554285, false, "THIRTEENTH", true);
+  const salary = payslip("2026-06-01", "2026-06-30", 1579322, false, "SALARY", false);
+  assert.equal(taxableIncomeCents(thirteenth), 554285);
+  assert.equal(taxableIncomeCents(salary), 0);
+  assert.equal(payslipIncomeCents(salary), 1579322);
+
+  // Bruto e bruto tributável do mês e do ano: só as linhas marcadas entram no segundo.
+  const june = month(["2026-06", null, null, null, null, null], [payslip("2026-06-01", "2026-06-30", 1579322, false), payslip("2026-06-01", "2026-06-30", 554285, false, "THIRTEENTH")]);
+  assert.equal(monthTotals(june).grossCents, 2133607);
+  assert.equal(monthTotals(june).taxableGrossCents, 1579322);
+  assert.equal(summarizeYear([june], 2026).totals.taxableGrossCents, 1579322);
+  assert.equal(summarizeYear([{ ...june, payslips: june.payslips.map((item) => ({ ...item, taxable: true })) }], 2026).totals.taxableGrossCents, 2133607);
 });
 
 test("13º salário e PLR ficam fora da renda tributável", () => {

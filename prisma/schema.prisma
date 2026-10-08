@@ -20,13 +20,13 @@ datasource db {
 // carteira. Os ids são UUID, como os das tabelas da carteira que apontam para o
 // usuário.
 model User {
-  id             String           @id @default(uuid()) @db.Uuid
+  id             String             @id @default(uuid()) @db.Uuid
   name           String
-  email          String           @unique
-  emailVerified  Boolean          @default(false) @map("email_verified")
+  email          String             @unique
+  emailVerified  Boolean            @default(false) @map("email_verified")
   image          String?
-  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt      DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
+  createdAt      DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
   sessions       Session[]
   authAccounts   AuthAccount[]
   dataImports    DataImport[]
@@ -42,6 +42,7 @@ model User {
   familyEntries  FamilyEntry[]
   incomeMonths   IncomeMonth[]
   incomePayslips IncomePayslip[]
+  incomeHours    IncomeHourRecord[]
 
   @@map("users")
 }
@@ -176,22 +177,23 @@ model FamilyEntry {
 // valores do mês são nulos quando não foram lançados, como nos meses que só
 // têm holerite; o total e o balanço são derivados e nunca guardados.
 model IncomeMonth {
-  id               String          @id @default(uuid()) @db.Uuid
-  userId           String          @map("user_id") @db.Uuid
+  id               String             @id @default(uuid()) @db.Uuid
+  userId           String             @map("user_id") @db.Uuid
   /// O mês (dia 1), único por usuário.
-  month            DateTime        @db.Date
+  month            DateTime           @db.Date
   /// Salário líquido mais extras: a coluna "Salário Líquido + Extras" do Excel.
-  netIncome        Decimal?        @map("net_income") @db.Decimal(12, 2)
+  netIncome        Decimal?           @map("net_income") @db.Decimal(12, 2)
   /// VA/VR recebido no mês.
-  mealVoucher      Decimal?        @map("meal_voucher") @db.Decimal(12, 2)
-  cardSpend        Decimal?        @map("card_spend") @db.Decimal(12, 2)
-  pixSpend         Decimal?        @map("pix_spend") @db.Decimal(12, 2)
+  mealVoucher      Decimal?           @map("meal_voucher") @db.Decimal(12, 2)
+  cardSpend        Decimal?           @map("card_spend") @db.Decimal(12, 2)
+  pixSpend         Decimal?           @map("pix_spend") @db.Decimal(12, 2)
   /// VA/VR gasto no mês.
-  mealVoucherSpend Decimal?        @map("meal_voucher_spend") @db.Decimal(12, 2)
-  createdAt        DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt        DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
-  user             User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mealVoucherSpend Decimal?           @map("meal_voucher_spend") @db.Decimal(12, 2)
+  createdAt        DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
+  user             User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   payslips         IncomePayslip[]
+  hourRecords      IncomeHourRecord[]
 
   @@unique([userId, month])
   @@unique([id, userId])
@@ -224,6 +226,9 @@ model IncomePayslip {
   grossSalary   Decimal     @map("gross_salary") @db.Decimal(12, 2)
   /// "Necessário calcular": a renda é proporcional aos dias, com o mês de 30.
   prorated      Boolean     @default(false)
+  /// Entra na renda tributável do limite do PGBL (spec 095). O padrão vem do
+  /// tipo (13º e PLR começam desmarcados) e o usuário pode trocar.
+  taxable       Boolean     @default(true)
   createdAt     DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt     DateTime    @updatedAt @map("updated_at") @db.Timestamptz(3)
   user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -233,6 +238,45 @@ model IncomePayslip {
   @@index([incomeMonthId])
   @@index([userId, startsOn])
   @@map("income_payslips")
+}
+
+// Tipo das horas do mês (spec 094): as normais e as extras com o adicional que
+// o holerite paga (50%, 75% ou 100%). O DSR e os dias de férias não são horas
+// trabalhadas e ficam fora.
+enum HourKind {
+  NORMAL
+  OVERTIME_50
+  OVERTIME_75
+  OVERTIME_100
+}
+
+/// Horas de um tipo no mês, em três versões que o usuário compara: o que ele
+/// declarou à empresa, o que o holerite pagou e o que ele realmente trabalhou.
+/// Só guardadas por enquanto: nenhuma tela as mostra (spec 094).
+model IncomeHourRecord {
+  id            String      @id @default(uuid()) @db.Uuid
+  userId        String      @map("user_id") @db.Uuid
+  incomeMonthId String      @map("income_month_id") @db.Uuid
+  kind          HourKind
+  /// Horas declaradas à empresa; nulo é não informado.
+  declaredHours Decimal?    @map("declared_hours") @db.Decimal(7, 2)
+  /// Horas da linha do holerite (a referência dela, em horas).
+  paidHours     Decimal?    @map("paid_hours") @db.Decimal(7, 2)
+  /// Horas que o usuário realmente trabalhou, pelo controle dele.
+  workedHours   Decimal?    @map("worked_hours") @db.Decimal(7, 2)
+  /// Valor em reais da linha do holerite, sem o DSR.
+  paidAmount    Decimal?    @map("paid_amount") @db.Decimal(12, 2)
+  /// Observação livre: de onde veio a hora, o que foi inferido.
+  note          String?
+  createdAt     DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime    @updatedAt @map("updated_at") @db.Timestamptz(3)
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  month         IncomeMonth @relation(fields: [incomeMonthId, userId], references: [id, userId], onDelete: Cascade)
+
+  @@unique([incomeMonthId, kind])
+  @@unique([id, userId])
+  @@index([userId])
+  @@map("income_hour_records")
 }
 
 model Session {

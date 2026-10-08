@@ -6,6 +6,7 @@ import { centsToDecimal, type Cents } from "@/lib/money";
 import { SCOPED_USER } from "@/lib/user-db";
 import { getIncomeContext, IncomeEditError } from "@/modules/income/application/income-db";
 import { PAYSLIP_PROBLEMS, payslipProblem, type IncomeValues, type IsoDate, type PayslipKind } from "@/modules/income/domain/income";
+import type { HourKind } from "@/modules/income/domain/income-hours";
 
 // Gravações de Recebimentos (spec 088). Toda operação passa pelo cliente da
 // área (concessão conferida, usuário da sessão) e roda numa transação: o mês e
@@ -24,6 +25,7 @@ export type PayslipInput = {
   endsOn: IsoDate;
   grossCents: Cents;
   prorated: boolean;
+  taxable: boolean;
 };
 
 export type IncomeMonthInput = {
@@ -67,6 +69,7 @@ function payslipData(incomeMonthId: string, payslip: PayslipInput) {
     endsOn: date(payslip.endsOn),
     grossSalary: centsToDecimal(payslip.grossCents),
     prorated: payslip.prorated,
+    taxable: payslip.taxable,
   };
 }
 
@@ -184,10 +187,30 @@ type PayslipSnapshot = {
   endsOn: Date;
   grossSalary: string;
   prorated: boolean;
+  taxable: boolean;
   createdAt: Date;
 };
 
-type UndoEntry = { userId: string; expiresAt: number; month: MonthSnapshot; payslips: PayslipSnapshot[] };
+// As horas do mês (spec 094) saem em cascata com ele, então voltam no desfazer.
+type HourRecordSnapshot = {
+  id: string;
+  incomeMonthId: string;
+  kind: HourKind;
+  declaredHours: string | null;
+  paidHours: string | null;
+  workedHours: string | null;
+  paidAmount: string | null;
+  note: string | null;
+  createdAt: Date;
+};
+
+type UndoEntry = {
+  userId: string;
+  expiresAt: number;
+  month: MonthSnapshot;
+  payslips: PayslipSnapshot[];
+  hourRecords: HourRecordSnapshot[];
+};
 
 const UNDO_TTL_MS = 10 * 60 * 1000;
 const globalForUndo = globalThis as unknown as { incomeUndo?: Map<string, UndoEntry> };
@@ -209,7 +232,7 @@ function storeUndo(entry: UndoEntry) {
 
 const text = (value: { toString(): string } | null) => (value === null ? null : value.toString());
 
-/** Exclui o mês e os holerites dele. Devolve o token do desfazer. */
+/** Exclui o mês, os holerites e as horas dele. Devolve o token do desfazer. */
 export async function deleteIncomeMonth(id: string) {
   return transact(async (transaction, userId) => {
     const row = await transaction.incomeMonth.findFirst({
@@ -234,6 +257,20 @@ export async function deleteIncomeMonth(id: string) {
             endsOn: true,
             grossSalary: true,
             prorated: true,
+            taxable: true,
+            createdAt: true,
+          },
+        },
+        hourRecords: {
+          select: {
+            id: true,
+            incomeMonthId: true,
+            kind: true,
+            declaredHours: true,
+            paidHours: true,
+            workedHours: true,
+            paidAmount: true,
+            note: true,
             createdAt: true,
           },
         },
@@ -246,7 +283,7 @@ export async function deleteIncomeMonth(id: string) {
 
     await transaction.incomeMonth.deleteMany({ where: { id } });
 
-    const { payslips, netIncome, mealVoucher, cardSpend, pixSpend, mealVoucherSpend, ...month } = row;
+    const { payslips, hourRecords, netIncome, mealVoucher, cardSpend, pixSpend, mealVoucherSpend, ...month } = row;
     const token = storeUndo({
       userId,
       expiresAt: Date.now() + UNDO_TTL_MS,
@@ -259,6 +296,13 @@ export async function deleteIncomeMonth(id: string) {
         mealVoucherSpend: text(mealVoucherSpend),
       },
       payslips: payslips.map(({ grossSalary, ...payslip }) => ({ ...payslip, grossSalary: grossSalary.toString() })),
+      hourRecords: hourRecords.map(({ declaredHours, paidHours, workedHours, paidAmount, ...record }) => ({
+        ...record,
+        declaredHours: text(declaredHours),
+        paidHours: text(paidHours),
+        workedHours: text(workedHours),
+        paidAmount: text(paidAmount),
+      })),
     });
 
     return { month: competenceOf(row.month), undoToken: token };
@@ -285,6 +329,10 @@ export async function undoIncomeChange(token: string) {
 
     if (entry.payslips.length > 0) {
       await transaction.incomePayslip.createMany({ data: entry.payslips.map((payslip) => ({ ...payslip, userId: SCOPED_USER })) });
+    }
+
+    if (entry.hourRecords.length > 0) {
+      await transaction.incomeHourRecord.createMany({ data: entry.hourRecords.map((record) => ({ ...record, userId: SCOPED_USER })) });
     }
   });
 

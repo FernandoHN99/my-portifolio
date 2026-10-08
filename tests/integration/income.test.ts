@@ -38,8 +38,8 @@ function september(overrides: Partial<IncomeMonthInput> = {}): IncomeMonthInput 
     month: "2026-09",
     values: { ...EMPTY, netIncomeCents: 1005882, mealVoucherCents: 110000, cardSpendCents: 200050 },
     payslips: [
-      { kind: "SALARY", label: null, employer: "AMARIS", startsOn: "2026-09-01", endsOn: "2026-09-30", grossCents: 1544355, prorated: false },
-      { kind: "VACATION", label: null, employer: "AMARIS", startsOn: "2026-09-08", endsOn: "2026-09-13", grossCents: 198939, prorated: false },
+      { kind: "SALARY", label: null, employer: "AMARIS", startsOn: "2026-09-01", endsOn: "2026-09-30", grossCents: 1544355, prorated: false, taxable: true },
+      { kind: "VACATION", label: null, employer: "AMARIS", startsOn: "2026-09-08", endsOn: "2026-09-13", grossCents: 198939, prorated: false, taxable: true },
     ],
     ...overrides,
   };
@@ -110,14 +110,14 @@ test("mês com holerites: repetir o pedido não duplica, e o mês é único por 
 test("salvar troca os holerites inteiros e recusa período fora do mês", { skip: !isolated }, async () => {
   const id = (await as(owner, () => getIncomeLedger())).months[0].id;
   await as(owner, () =>
-    updateIncomeMonth(id, september({ payslips: [{ kind: "OTHER", label: "Bônus", employer: "AMARIS", startsOn: "2026-09-01", endsOn: "2026-09-30", grossCents: 100000, prorated: false }] })),
+    updateIncomeMonth(id, september({ payslips: [{ kind: "OTHER", label: "Bônus", employer: "AMARIS", startsOn: "2026-09-01", endsOn: "2026-09-30", grossCents: 100000, prorated: false, taxable: true }] })),
   );
   const saved = (await as(owner, () => getIncomeLedger())).months[0];
   assert.deepEqual(saved.payslips.map((payslip) => [payslip.kind, payslip.label]), [["OTHER", "Bônus"]]);
 
   await assert.rejects(
     as(owner, () =>
-      updateIncomeMonth(id, september({ payslips: [{ kind: "SALARY", label: null, employer: "AMARIS", startsOn: "2026-08-31", endsOn: "2026-09-30", grossCents: 100, prorated: false }] })),
+      updateIncomeMonth(id, september({ payslips: [{ kind: "SALARY", label: null, employer: "AMARIS", startsOn: "2026-08-31", endsOn: "2026-09-30", grossCents: 100, prorated: false, taxable: true }] })),
     ),
     IncomeEditError,
   );
@@ -212,4 +212,206 @@ test("carga da planilha: 21 meses e 24 holerites, idempotente e reconciliada", {
   const data = await as(other, () => getPensionData());
   assert.equal(summarizePensionYear(data.contributions, data.periods, 2025).taxableCents, 10315050);
   assert.equal(summarizePensionYear(data.contributions, data.periods, 2026).taxableCents, 11517370);
+});
+
+// Spec 094: horas do mês. Só o banco e o backup; nenhuma tela as usa ainda.
+const march = (): IncomeMonthInput => ({
+  month: "2026-03",
+  values: { ...EMPTY, netIncomeCents: 874199 },
+  payslips: [{ kind: "SALARY", label: null, employer: "AMARIS", startsOn: "2026-03-01", endsOn: "2026-03-31", grossCents: 1179256, prorated: false, taxable: true }],
+});
+
+test("horas do mês: uma linha por tipo, limites do banco, escopo e desfazer da exclusão", { skip: !isolated }, async () => {
+  const requestId = randomUUID();
+  await as(owner, () => createIncomeMonth({ ...march(), requestId }));
+
+  const hours = { userId: owner, incomeMonthId: requestId };
+  await prisma.incomeHourRecord.create({
+    data: { ...hours, kind: "NORMAL", declaredHours: "200", paidHours: "200", workedHours: "210.5", paidAmount: "10780.35", note: "teste" },
+  });
+  await prisma.incomeHourRecord.create({ data: { ...hours, kind: "OVERTIME_75", paidHours: "9", paidAmount: "848.95" } });
+
+  // Nulo é "não informado": a linha só com o tipo vale.
+  await prisma.incomeHourRecord.create({ data: { ...hours, kind: "OVERTIME_50" } });
+  await prisma.incomeHourRecord.delete({ where: { incomeMonthId_kind: { incomeMonthId: requestId, kind: "OVERTIME_50" } } });
+
+  await assert.rejects(prisma.incomeHourRecord.create({ data: { ...hours, kind: "NORMAL", paidHours: "1" } }), "um registro por mês e tipo");
+  await assert.rejects(prisma.incomeHourRecord.create({ data: { ...hours, kind: "OVERTIME_100", workedHours: "-1" } }), "horas negativas");
+  await assert.rejects(prisma.incomeHourRecord.create({ data: { ...hours, kind: "OVERTIME_100", declaredHours: "744.01" } }), "mais que o mês");
+  await assert.rejects(prisma.incomeHourRecord.create({ data: { ...hours, kind: "OVERTIME_100", paidAmount: "-0.01" } }), "valor negativo");
+  await assert.rejects(
+    prisma.incomeHourRecord.create({ data: { userId: other, incomeMonthId: requestId, kind: "OVERTIME_100" } }),
+    "o mês de outro usuário não aceita horas",
+  );
+
+  // Salvar o mês troca os holerites, não as horas.
+  await as(owner, () => updateIncomeMonth(requestId, march()));
+  assert.equal(await prisma.incomeHourRecord.count({ where: hours }), 2);
+
+  const before = await prisma.incomeHourRecord.findMany({ where: hours, orderBy: { kind: "asc" } });
+  const { undoToken } = await as(owner, () => deleteIncomeMonth(requestId));
+  assert.equal(await prisma.incomeHourRecord.count({ where: hours }), 0, "as horas saem com o mês");
+
+  await as(owner, () => undoIncomeChange(undoToken));
+  const after = await prisma.incomeHourRecord.findMany({ where: hours, orderBy: { kind: "asc" } });
+  // O desfazer grava de novo, então só o updatedAt muda.
+  const stable = (rows: typeof before) => rows.map((row) => ({ ...row, updatedAt: null }));
+  assert.deepEqual(stable(after), stable(before), "o desfazer devolve as horas com os mesmos valores");
+});
+
+test("backup das horas: ida e volta exata e conferência estrita", { skip: !isolated }, async () => {
+  const exported = await as(owner, () => exportIncomeBackup());
+  assert.equal(exported.version, 3);
+  assert.equal(exported.tables.incomeHourRecords.length, 2);
+  assert.ok(!("userId" in exported.tables.incomeHourRecords[0]));
+
+  await as(owner, () => restoreIncomeBackup(exported));
+  assert.deepEqual((await as(owner, () => exportIncomeBackup())).tables, exported.tables);
+
+  const broken = (change: (file: ReturnType<typeof structuredClone<typeof exported>>) => void) => {
+    const file = structuredClone(exported);
+    change(file);
+    return as(owner, () => restoreIncomeBackup(file));
+  };
+  const first = (file: typeof exported) => file.tables.incomeHourRecords[0] as Record<string, unknown>;
+
+  await assert.rejects(broken((file) => (first(file).userId = owner)), IncomeBackupValidationError, "userId");
+  await assert.rejects(broken((file) => (first(file).kind = "OVERTIME_200")), IncomeBackupValidationError, "tipo desconhecido");
+  await assert.rejects(broken((file) => (first(file).workedHours = "744.01")), IncomeBackupValidationError, "mais que o mês");
+  await assert.rejects(broken((file) => (first(file).paidAmount = "-1")), IncomeBackupValidationError, "valor negativo");
+  await assert.rejects(broken((file) => (first(file).incomeMonthId = randomUUID())), IncomeBackupValidationError, "mês que não existe");
+  await assert.rejects(
+    broken((file) => file.tables.incomeHourRecords.push({ ...first(file), id: randomUUID() })),
+    IncomeBackupValidationError,
+    "mesmo tipo duas vezes no mês",
+  );
+  await assert.rejects(broken((file) => (file.version = 4)), IncomeBackupValidationError, "versão mais nova");
+
+  // A versão 1 não tem a tabela de horas: vale como vazia.
+  const v1 = { ...structuredClone(exported), version: 1, tables: { ...exported.tables, incomeHourRecords: undefined } };
+  await as(owner, () => restoreIncomeBackup(v1));
+  assert.equal(await prisma.incomeHourRecord.count({ where: { userId: owner } }), 0);
+});
+
+const PAYSLIPS_2026 = "backups/recebimentos/recebimentos-holerites-2026-10-08.backup.json";
+
+test(
+  "carga dos holerites de 2026: 13º de junho, 18 linhas de horas, julho e setembro corrigidos",
+  { skip: !isolated || !existsSync(PAYSLIPS_2026) },
+  async () => {
+    const file = JSON.parse(readFileSync(PAYSLIPS_2026, "utf8")) as unknown;
+    await as(other, () => restoreIncomeBackup(file));
+    await as(other, () => restoreIncomeBackup(file));
+
+    const ledger = await as(other, () => getIncomeLedger());
+    assert.equal(ledger.months.length, 21);
+    assert.equal(ledger.months.flatMap((month) => month.payslips).length, 25);
+
+    // Diferenças para a planilha da spec 092: o líquido de julho é o do holerite
+    // (+R$ 0,10) e as férias de setembro não contam duas vezes (renda tributável
+    // −R$ 1.989,39). O 13º de junho não entra na renda tributável.
+    const totals = summarizeYear(ledger.months, 2026).totals;
+    assert.deepEqual([totals.incomeCents, totals.spendCents, totals.balanceCents], [9115795, 3495309, 5620486]);
+    const data = await as(other, () => getPensionData());
+    assert.equal(summarizePensionYear(data.contributions, data.periods, 2026).taxableCents, 11517370 - 198939);
+
+    const monthOf = (competence: string) => ledger.months.find((month) => month.month === competence)!;
+    assert.equal(monthOf("2026-07").netIncomeCents, 910665);
+    // O arquivo é da versão 2, sem `taxable`: a conversão usa o tipo, como era antes.
+    assert.deepEqual(
+      ledger.months.flatMap((month) => month.payslips).filter((payslip) => !payslip.taxable).map((payslip) => payslip.kind),
+      ["THIRTEENTH"],
+    );
+    const september = monthOf("2026-09").payslips;
+    assert.equal(september.reduce((sum, payslip) => sum + payslip.grossCents, 0), 1544355, "setembro tem o total do holerite, sem duplicar as férias");
+    assert.deepEqual(september.map((payslip) => payslip.kind).sort(), ["SALARY", "VACATION"]);
+
+    const records = await prisma.incomeHourRecord.findMany({ where: { userId: other }, include: { month: true } });
+    assert.equal(records.length, 18);
+    assert.ok(records.every((record) => record.declaredHours === null && record.workedHours === null));
+
+    const of = (month: string, kind: "NORMAL" | "OVERTIME_50" | "OVERTIME_75" | "OVERTIME_100") =>
+      records.find((record) => record.month.month.toISOString().startsWith(month) && record.kind === kind);
+    assert.equal(of("2026-09", "NORMAL")?.paidHours?.toString(), "173.33");
+    assert.equal(of("2026-09", "OVERTIME_75")?.paidHours?.toString(), "18");
+    assert.equal(of("2026-09", "OVERTIME_100")?.paidAmount?.toString(), "1443.52");
+    assert.equal(of("2026-06", "OVERTIME_50")?.paidHours?.toString(), "49");
+    assert.equal(of("2026-03", "OVERTIME_75")?.paidAmount?.toString(), "848.95");
+    assert.equal(of("2026-04", "OVERTIME_50"), undefined);
+
+    // Horas normais, extras e DSR de agosto somam o total de vencimentos do holerite.
+    const august = records.filter((record) => record.month.month.toISOString().startsWith("2026-08"));
+    const paidCents = august.reduce((sum, record) => sum + Math.round(Number(record.paidAmount) * 100), 0);
+    assert.equal(paidCents + 44843, 1388427);
+
+    // O escopo por usuário vale para as horas: cada um exporta só as suas.
+    assert.equal((await as(other, () => exportIncomeBackup())).tables.incomeHourRecords.length, 18);
+    assert.equal((await as(owner, () => exportIncomeBackup())).tables.incomeHourRecords.length, 0);
+  },
+);
+
+// Spec 095: cada linha do holerite diz se é tributável; o tipo só sugere o padrão.
+test("tributável por holerite: gravar, trocar, desfazer e converter backups antigos", { skip: !isolated }, async () => {
+  const requestId = randomUUID();
+  const line = (kind: "SALARY" | "THIRTEENTH", taxable: boolean, grossCents: number) => ({
+    kind,
+    label: null,
+    employer: "AMARIS",
+    startsOn: "2026-11-01",
+    endsOn: "2026-11-30",
+    grossCents,
+    prorated: false,
+    taxable,
+  });
+  const month = (taxableSalary: boolean, taxableThirteenth: boolean): IncomeMonthInput => ({
+    month: "2026-11",
+    values: EMPTY,
+    payslips: [line("SALARY", taxableSalary, 1000000), line("THIRTEENTH", taxableThirteenth, 500000)],
+  });
+  const flags = async () =>
+    (await as(owner, () => getIncomeLedger())).months
+      .find((entry) => entry.id === requestId)!
+      .payslips.map((payslip) => [payslip.kind, payslip.taxable] as const)
+      .sort(([a], [b]) => a.localeCompare(b));
+  const pension = async () => {
+    const data = await as(owner, () => getPensionData());
+    return summarizePensionYear(data.contributions, data.periods, 2026)
+      .periods.filter((period) => period.month === "2026-11")
+      .map((period) => [period.kind, period.counted] as const)
+      .sort(([a], [b]) => a.localeCompare(b));
+  };
+
+  // Marcação contrária ao padrão do tipo: salário fora e 13º dentro.
+  await as(owner, () => createIncomeMonth({ ...month(false, true), requestId }));
+  assert.deepEqual(await flags(), [["SALARY", false], ["THIRTEENTH", true]]);
+  assert.deepEqual(await pension(), [["SALARY", false], ["THIRTEENTH", true]], "a Previdência segue a marcação");
+
+  await as(owner, () => updateIncomeMonth(requestId, month(true, false)));
+  assert.deepEqual(await flags(), [["SALARY", true], ["THIRTEENTH", false]]);
+
+  const { undoToken } = await as(owner, () => deleteIncomeMonth(requestId));
+  await as(owner, () => undoIncomeChange(undoToken));
+  assert.deepEqual(await flags(), [["SALARY", true], ["THIRTEENTH", false]], "o desfazer devolve a marcação");
+
+  // Versão 3: `taxable` obrigatório e na ida e volta.
+  const exported = await as(owner, () => exportIncomeBackup());
+  assert.ok(exported.tables.incomePayslips.every((row) => typeof row.taxable === "boolean"));
+  await as(owner, () => restoreIncomeBackup(exported));
+  assert.deepEqual((await as(owner, () => exportIncomeBackup())).tables, exported.tables);
+
+  const without = (version: number, which: "first" | "all") => {
+    const file = structuredClone(exported);
+    file.version = version;
+    file.tables.incomePayslips.forEach((row, index) => {
+      if (which === "all" || index === 0) delete (row as Record<string, unknown>).taxable;
+    });
+    return file;
+  };
+  await assert.rejects(as(owner, () => restoreIncomeBackup(without(3, "first"))), IncomeBackupValidationError, "na versão 3, sem taxable");
+
+  // Versões 1 e 2 não têm o campo: a conversão usa o tipo (13º fora, o resto dentro).
+  await as(owner, () => restoreIncomeBackup(without(2, "all")));
+  assert.deepEqual(await flags(), [["SALARY", true], ["THIRTEENTH", false]]);
+  await as(owner, () => restoreIncomeBackup(without(1, "all")));
+  assert.deepEqual(await flags(), [["SALARY", true], ["THIRTEENTH", false]]);
 });

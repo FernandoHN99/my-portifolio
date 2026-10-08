@@ -29,7 +29,17 @@ export async function readIncomeMonths(prisma: PrismaClient): Promise<IncomeMont
       mealVoucherSpend: true,
       payslips: {
         orderBy: [{ startsOn: "asc" }, { endsOn: "asc" }, { createdAt: "asc" }],
-        select: { id: true, kind: true, label: true, employer: true, startsOn: true, endsOn: true, grossSalary: true, prorated: true },
+        select: {
+          id: true,
+          kind: true,
+          label: true,
+          employer: true,
+          startsOn: true,
+          endsOn: true,
+          grossSalary: true,
+          prorated: true,
+          taxable: true,
+        },
       },
     },
   });

@@ -506,7 +506,7 @@ function Periods({ summary }: { summary: PensionYear }) {
                 <td className={cn(td, period.counted && "text-foreground/85")}>{formatCents(period.grossCents)}</td>
                 <td className={cn(td, "text-muted-foreground/75")}>{formatCents(period.dailyRateCents)}</td>
                 <td className={cn(td, "rounded-r-xl", period.counted && cn(TONES.saved.tint, "font-semibold text-primary"))}>
-                  {period.counted ? formatCents(period.taxableCents) : <span className="font-sans text-[11px] font-normal text-muted-foreground">fora do cálculo</span>}
+                  {period.counted ? formatCents(period.taxableCents) : <span className="font-sans text-[11px] font-normal text-muted-foreground">não tributável</span>}
                 </td>
               </tr>
             ))}
@@ -565,7 +565,7 @@ function Periods({ summary }: { summary: PensionYear }) {
                 {period.counted ? (
                   <span className="font-semibold text-primary">{formatCents(period.taxableCents)}</span>
                 ) : (
-                  <span className="font-sans text-[11px] text-muted-foreground">fora do cálculo</span>
+                  <span className="font-sans text-[11px] text-muted-foreground">não tributável</span>
                 )}
               </span>
             </Link>

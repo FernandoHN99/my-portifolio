@@ -1,5 +1,8 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { decimalToCents } from "@/lib/money";
+import { payslipIncomeCents, taxableIncomeCents } from "@/modules/income/domain/income";
+
 import { stubQuoteChecks } from "./support/quote-checks";
 
 // Spec 088: Recebimentos. O usuário dos testes decide o que roda: sem a
@@ -81,6 +84,53 @@ test.describe("com a concessão", () => {
     await expect(form).toBeVisible();
     await expect(form.getByTestId("income-payslip")).toHaveCount(count);
     await expect(page).not.toHaveURL(/mes=/);
+    await form.getByRole("button", { name: "Cancelar" }).click();
+    await expect(form).toBeHidden();
+  });
+
+  test("o card Salário bruto mostra o bruto tributável do ano (spec 095)", async ({ page }) => {
+    const backup = await (await page.request.get("/api/recebimentos/backup")).json();
+    const year = String(new Date().getFullYear());
+    const yearOf = new Map((backup.tables.incomeMonths as (MonthRow & { id: string })[]).map((row) => [row.id, row.month.slice(0, 4)]));
+    const payslips = (backup.tables.incomePayslips as Record<string, unknown>[])
+      .filter((row) => yearOf.get(row.incomeMonthId as string) === year)
+      .map((row) => ({
+        kind: row.kind as "SALARY",
+        grossCents: decimalToCents(row.grossSalary as string),
+        prorated: row.prorated as boolean,
+        taxable: row.taxable as boolean,
+        startsOn: (row.startsOn as string).slice(0, 10),
+        endsOn: (row.endsOn as string).slice(0, 10),
+      }));
+    test.skip(payslips.length === 0, "Sem holerites no ano atual.");
+
+    await openIncome(page);
+    const gross = payslips.reduce((sum, payslip) => sum + payslipIncomeCents(payslip), 0);
+    const taxable = payslips.reduce((sum, payslip) => sum + taxableIncomeCents(payslip), 0);
+    await expect(page.getByTestId("income-kpi-gross")).toHaveAttribute("data-cents", String(gross));
+    await expect(page.getByTestId("income-kpi-taxable")).toHaveAttribute("data-cents", String(taxable));
+    expect(taxable).toBeLessThanOrEqual(gross);
+  });
+
+  test("cada holerite tem a marcação Tributável, e o bruto tributável da prévia acompanha", async ({ page }) => {
+    const backup = await (await page.request.get("/api/recebimentos/backup")).json();
+    const withPayslip = (backup.tables.incomePayslips as { incomeMonthId: string }[])[0];
+    test.skip(!withPayslip, "Sem holerites.");
+    const month = (backup.tables.incomeMonths as (MonthRow & { id: string })[]).find((row) => row.id === withPayslip.incomeMonthId)!.month.slice(0, 7);
+
+    await openIncome(page, `?mes=${month}`);
+    const form = page.getByTestId("income-month-form");
+    const preview = form.getByTestId("income-month-preview");
+    const box = form.getByRole("checkbox", { name: "Holerite 1: tributável" });
+    await expect(preview).toContainText("Bruto tributável");
+
+    // Trocar a marcação muda só o bruto tributável da prévia; nada é salvo.
+    const before = await preview.innerText();
+    await box.click();
+    await expect(async () => expect(await preview.innerText()).not.toBe(before)).toPass();
+    await box.click();
+    await expect(async () => expect(await preview.innerText()).toBe(before)).toPass();
+
     await form.getByRole("button", { name: "Cancelar" }).click();
     await expect(form).toBeHidden();
   });

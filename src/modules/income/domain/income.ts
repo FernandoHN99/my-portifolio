@@ -21,10 +21,12 @@ export const PAYSLIP_KIND_LABELS: Record<PayslipKind, string> = {
 };
 
 /**
- * 13º salário e PLR têm tributação exclusiva na fonte: não entram na renda
- * tributável que define o limite de 12% do PGBL (spec 089).
+ * Se a linha começa tributável, pelo tipo: 13º salário e PLR têm tributação
+ * exclusiva na fonte e ficam fora da renda tributável que define o limite de
+ * 12% do PGBL (spec 089). É só o padrão; quem decide é o campo `taxable` da
+ * linha, que o usuário pode trocar (spec 095).
  */
-export function countsAsTaxable(kind: PayslipKind) {
+export function defaultTaxable(kind: PayslipKind) {
   return kind !== "THIRTEENTH" && kind !== "PROFIT_SHARING";
 }
 
@@ -54,6 +56,8 @@ export type Payslip = {
   endsOn: IsoDate;
   grossCents: Cents;
   prorated: boolean;
+  /** Entra na renda tributável do limite do PGBL. */
+  taxable: boolean;
 };
 
 export type IncomeMonth = IncomeValues & {
@@ -68,6 +72,8 @@ export type MonthTotals = {
   balanceCents: Cents;
   /** Soma da renda das linhas do holerite, de todos os tipos. */
   grossCents: Cents;
+  /** Parte do bruto que entra na renda tributável: só as linhas marcadas. */
+  taxableGrossCents: Cents;
   /** Algum valor de entrada ou saída foi lançado. */
   hasValues: boolean;
 };
@@ -127,9 +133,9 @@ export function payslipIncomeCents(payslip: Pick<Payslip, "grossCents" | "prorat
   return Math.round((payslip.grossCents * daysWorked(payslip.startsOn, payslip.endsOn)) / 30);
 }
 
-/** Renda que entra na base dos 12%: a da linha, salvo 13º e PLR. */
-export function taxableIncomeCents(payslip: Pick<Payslip, "kind" | "grossCents" | "prorated" | "startsOn" | "endsOn">): Cents {
-  return countsAsTaxable(payslip.kind) ? payslipIncomeCents(payslip) : 0;
+/** Renda que entra na base dos 12%: a da linha, se ela está marcada como tributável. */
+export function taxableIncomeCents(payslip: Pick<Payslip, "taxable" | "grossCents" | "prorated" | "startsOn" | "endsOn">): Cents {
+  return payslip.taxable ? payslipIncomeCents(payslip) : 0;
 }
 
 /** Nome da linha: o nome livre ou o do tipo. */
@@ -147,6 +153,7 @@ export function monthTotals(month: IncomeValues & { payslips: readonly Payslip[]
     spendCents,
     balanceCents: incomeCents - spendCents,
     grossCents: month.payslips.reduce((sum, payslip) => sum + payslipIncomeCents(payslip), 0),
+    taxableGrossCents: month.payslips.reduce((sum, payslip) => sum + taxableIncomeCents(payslip), 0),
     hasValues: INCOME_VALUE_KEYS.some((key) => month[key] !== null),
   };
 }
@@ -171,7 +178,7 @@ export type YearColumns = Record<YearColumnKey, ColumnStat>;
 export type YearSummary = {
   year: number;
   months: (IncomeMonth & { totals: MonthTotals })[];
-  totals: { incomeCents: Cents; spendCents: Cents; balanceCents: Cents; grossCents: Cents };
+  totals: { incomeCents: Cents; spendCents: Cents; balanceCents: Cents; grossCents: Cents; taxableGrossCents: Cents };
   /** Total e média de cada coluna da tabela, para o rodapé. */
   columns: YearColumns;
   /** Meses com entradas ou saídas lançadas. */
@@ -231,8 +238,9 @@ export function summarizeYear(months: readonly IncomeMonth[], year: number): Yea
         spendCents: sum.spendCents + month.totals.spendCents,
         balanceCents: sum.balanceCents + month.totals.balanceCents,
         grossCents: sum.grossCents + month.totals.grossCents,
+        taxableGrossCents: sum.taxableGrossCents + month.totals.taxableGrossCents,
       }),
-      { incomeCents: 0, spendCents: 0, balanceCents: 0, grossCents: 0 },
+      { incomeCents: 0, spendCents: 0, balanceCents: 0, grossCents: 0, taxableGrossCents: 0 },
     ),
   };
 }

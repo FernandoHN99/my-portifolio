@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { monthBounds, type PayslipKind } from "@/modules/income/domain/income";
+import { defaultTaxable, monthBounds, type PayslipKind } from "@/modules/income/domain/income";
 import {
   deductionLimitCents,
   limitUsagePercent,
@@ -50,6 +50,7 @@ const PERIODS: WorkedPeriod[] = ROWS.map(([startsOn, endsOn, employer, grossCent
   endsOn,
   grossCents,
   prorated,
+  taxable: defaultTaxable(kind),
 }));
 
 const CONTRIBUTIONS: PensionContribution[] = (
@@ -108,13 +109,25 @@ test("todos os anos juntos dão o total da tabela colada", () => {
 
 test("13º salário e PLR aparecem no ano, mas fora da base", () => {
   const extra: WorkedPeriod[] = [
-    { ...PERIODS[0], id: "13", kind: "THIRTEENTH", startsOn: "2026-12-01", endsOn: "2026-12-31", month: "2026-12", grossCents: 1000000 },
-    { ...PERIODS[0], id: "plr", kind: "PROFIT_SHARING", startsOn: "2026-12-01", endsOn: "2026-12-31", month: "2026-12", grossCents: 500000 },
+    { ...PERIODS[0], id: "13", kind: "THIRTEENTH", taxable: false, startsOn: "2026-12-01", endsOn: "2026-12-31", month: "2026-12", grossCents: 1000000 },
+    { ...PERIODS[0], id: "plr", kind: "PROFIT_SHARING", taxable: false, startsOn: "2026-12-01", endsOn: "2026-12-31", month: "2026-12", grossCents: 500000 },
   ];
   const year = summarizePensionYear(CONTRIBUTIONS, [...PERIODS, ...extra], 2026);
 
   assert.equal(year.taxableCents, 11517370);
   assert.deepEqual(year.periods.filter((period) => !period.counted).map((period) => period.incomeCents), [1000000, 500000]);
+});
+
+test("a marcação da linha manda: 13º marcado entra na base e salário desmarcado sai", () => {
+  const thirteenth: WorkedPeriod = { ...PERIODS[0], id: "13", kind: "THIRTEENTH", taxable: true, startsOn: "2026-12-01", endsOn: "2026-12-31", month: "2026-12", grossCents: 1000000 };
+  const withThirteenth = summarizePensionYear(CONTRIBUTIONS, [...PERIODS, thirteenth], 2026);
+  assert.equal(withThirteenth.taxableCents, 11517370 + 1000000);
+  assert.ok(withThirteenth.periods.every((period) => period.counted));
+
+  const july = PERIODS.find((period) => period.startsOn === "2026-07-01")!;
+  const withoutJuly = summarizePensionYear(CONTRIBUTIONS, PERIODS.map((period) => (period === july ? { ...period, taxable: false } : period)), 2026);
+  assert.equal(withoutJuly.taxableCents, 11517370 - 1229554);
+  assert.deepEqual(withoutJuly.periods.filter((period) => !period.counted).map((period) => period.incomeCents), [1229554]);
 });
 
 test("limite arredondado aos centavos e anos com dados ou o atual", () => {

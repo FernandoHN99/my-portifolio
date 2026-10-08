@@ -4,12 +4,20 @@
 // papéis ou dados de outra área. Formato: docs/backup-format.md.
 
 export const INCOME_BACKUP_FORMAT = "meu-portfolio-recebimentos";
-export const INCOME_BACKUP_VERSION = 1;
+export const INCOME_BACKUP_VERSION = 3;
+
+/**
+ * Versões que a restauração aceita. A 1 (spec 092) não tem `incomeHourRecords`
+ * (tabela ausente vale como vazia) e as versões 1 e 2 não têm `taxable` nos
+ * holerites: a conversão o preenche pelo tipo, como a regra era antes (spec 095).
+ */
+export const INCOME_BACKUP_ACCEPTED_VERSIONS: readonly number[] = [1, 2, INCOME_BACKUP_VERSION];
 
 /** Tabelas na ordem de gravação: cada uma depois das que ela referencia. */
 export const INCOME_BACKUP_TABLES = [
   { key: "incomeMonths", label: "Meses" },
   { key: "incomePayslips", label: "Holerites" },
+  { key: "incomeHourRecords", label: "Horas" },
 ] as const;
 
 export type IncomeBackupTableKey = (typeof INCOME_BACKUP_TABLES)[number]["key"];
@@ -18,7 +26,8 @@ export type IncomeBackupRow = Record<string, unknown>;
 
 export type IncomeBackupFile = {
   format: typeof INCOME_BACKUP_FORMAT;
-  version: typeof INCOME_BACKUP_VERSION;
+  /** A versão do arquivo; a exportação sempre grava a atual. */
+  version: number;
   exportedAt: string;
   tables: Record<IncomeBackupTableKey, IncomeBackupRow[]>;
 };
