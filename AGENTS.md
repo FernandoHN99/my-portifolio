@@ -56,6 +56,13 @@ noite: duas áreas novas em Finanças, também só de `nandohneto@gmail.com`
   só leitura; limite de 12% da renda tributável por ano-base (holerites de
   Recebimentos, sem 13º e PLR) contra os aportes das posições do tipo
   Previdência (saldo inicial e aportes, sem transferências).
+- Em 2026-10-08, na `dev` e sem push nem publicação: revisão visual de Recebimentos
+  (menta e violeta no lugar do laranja, tabela com o bruto nas Entradas, taxa
+  de poupança, total e média; spec 088), revisão visual da Previdência com o
+  painel de uso do limite e o acumulado dos aportes (spec 089) e as reservas da
+  cotação de cripto (spec 093, que só vale no job depois de republicar a função
+  do Neon). As peças visuais comuns às duas áreas estão em
+  `src/components/product/finance-parts.tsx`.
 - O [guia de estilos](docs/style-guide.md) ([spec 090](.ai/specs/090-shared-visual-language.md))
   vale para todas as áreas; Gastos familiares mostra o ano inteiro na faixa de
   meses, com os meses acima das pessoas e controles mais compactos

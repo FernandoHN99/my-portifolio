@@ -35,21 +35,26 @@ copie valores hexadecimais/OKLCH para cada componente.
 | Bordas, campos e foco | `border`, `input`, `ring`; manter o foco visível dos controles |
 | Navegação lateral | Família `sidebar-*`; item selecionado e ícone seguem os estados da navegação existente |
 | Séries dos gráficos e marcas associadas | `chart-up`, `chart-down` e o mapa de categorias, conforme a seção seguinte |
+| Recebimentos: o que entra e sobra / o que sai | `chart-saved` (menta, igual ao `primary`) / `chart-spent` (violeta), na seção de gráficos |
 
 Em Gastos familiares, receber/DEVE usa `primary`, pagar/DEVO usa
-`warning-foreground`. Em Recebimentos, poupado positivo usa `primary`; saídas
-ficam neutras (o usuário não quis o laranja nelas, 2026-10-07) e só o balanço
-negativo usa `warning-foreground`. O sinal e os rótulos continuam visíveis.
+`warning-foreground`. Em Recebimentos (revisão de 2026-10-08), nada usa o
+amarelo/laranja: o que entra e sobra é menta (`primary`/`chart-saved`) e o que
+sai é violeta (`chart-spent`), no valor das saídas, nos selos e nas barras, e
+o balanço negativo também é violeta. O sinal e os rótulos continuam visíveis.
 Valor zero usa `foreground`, inclusive no resumo do formulário e nos totais.
-Valores informativos sem direção (bruto, patrimônio, total de entradas) podem
-permanecer neutros.
+Valores informativos sem direção (bruto, patrimônio) ficam neutros.
 
-Em Previdência, o que conta a favor usa `primary`: aportado, a barra do
-limite, os aportes, a renda tributável e o que falta aportar. Os nomes das
-linhas do holerite são selos `primary/10` quando entram no cálculo e neutros
-quando ficam fora (13º, PLR); "proporcional" usa `accent`. Acima do limite
-fica neutro, com o rótulo dizendo a situação (pedido do usuário, que achou a
-tela "toda branca" e não quer laranja nos textos).
+Em Previdência (revisão de 2026-10-08), o que conta a favor do limite é menta
+(`primary`/`chart-saved`): aportado, o que falta aportar, os valores dos
+aportes, a renda tributável e os trechos da barra de uso do limite. O que passa
+do limite é violeta (`chart-spent`), no cartão, no percentual e no trecho
+excedente da barra; nunca amarelo ou laranja. Os cartões de renda tributável
+e limite são neutros. As linhas do holerite são selos `primary/10` quando entram
+no cálculo e neutros quando ficam fora (13º, PLR); "proporcional" e "saldo
+inicial" usam `accent`. O usuário achou a tela "toda branca": cartões com ícone
+e brilho, tabelas com colunas de valor tingidas e barras de acumulado devolvem a
+cor sem inventar paleta.
 
 Tooltips de gráfico mostram a cor da série numa marca ao lado do nome e o
 valor em texto neutro.
@@ -66,12 +71,28 @@ alta/queda, com roxo nas marcas de aportes/resgates. As categorias e moedas
 usam o mapa em `src/modules/portfolio/presentation/category-colors.ts`.
 
 Essa escolha pertence ao app e deve ser preservada nos gráficos, legendas,
-tooltips e marcas de movimentos associadas. Em Gastos × Poupado, cada série
+tooltips e marcas de movimentos associadas, **exceto em Recebimentos**, onde o
+usuário pediu, em 2026-10-08, outra cor no lugar do amarelo/laranja. O par
+`chart-saved` (menta, `oklch(0.79 0.15 158)`) e `chart-spent` (violeta,
+`oklch(0.70 0.17 305)`) foi escolhido com a simulação de daltonismo (matrizes
+de Machado, severidade 1, distância ΔE2000 entre as duas cores):
+
+| Par | Normal | Protanopia | Deuteranopia | Tritanopia |
+| --- | --- | --- | --- | --- |
+| azul `chart-up` × laranja `chart-down` (Investimentos) | 54 | 51 | 54 | 54 |
+| menta × laranja (o que não serve) | 42 | 16 | 18 | 59 |
+| menta × azul `chart-up` | 39 | 40 | 37 | 8 |
+| **menta × violeta (Recebimentos)** | **50** | **49** | **41** | **44** |
+
+Os dois tokens valem só em Recebimentos; os gráficos de Investimentos seguem o
+azul e o laranja. Contraste do violeta com o fundo dos cards: 6,8:1. Quem
+quiser outra cor para esse par deve repetir a simulação antes de trocar. Em Gastos × Poupado, cada série
 mantém a cor da legenda mesmo quando o saldo fica abaixo de zero; a posição
 em relação ao eixo e o valor assinado indicam o resultado.
 
 Não transportar automaticamente a cor de uma série para cards financeiros,
-totais, seleções ou formulários. A spec 038 já distingue gráficos de
+totais, seleções ou formulários (em Recebimentos, menta e violeta são a
+linguagem da área inteira por decisão do usuário, e não só do gráfico). A spec 038 já distingue gráficos de
 indicadores textuais. Os badges de movimentos e as marcas da linha do tempo
 de Investimentos têm convenção própria ligada aos gráficos; não trocar todas
 as ocorrências de `chart-*` indiscriminadamente.

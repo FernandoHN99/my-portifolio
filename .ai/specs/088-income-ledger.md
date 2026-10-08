@@ -70,3 +70,35 @@ Excel, com o balanço de cada mês igual ao gráfico (Jan +5.157,67 … Ago
   tabela e nenhum transbordo em 320, 375 e 430 px.
 - Conferência no navegador (servidor de teste, usuário de teste): inclusão de
   um mês, exclusão e Desfazer, link da Previdência abrindo março/2025.
+
+## Revisão visual (2026-10-08, sem commit)
+
+Pedido do usuário depois de usar a área: cores "muito padrão", tabela "morta",
+paddings ruins, o amarelo/laranja não convenceu e o salário bruto deveria ir
+para as Entradas.
+
+- **Paleta:** menta (a cor da marca) para o que entra e sobra e violeta para o
+  que sai, no lugar do laranja; tokens `chart-saved` e `chart-spent` só de
+  Recebimentos. A escolha veio da simulação de daltonismo registrada no
+  [guia de estilos](../../docs/style-guide.md) (menta × violeta fica entre 41 e
+  49 nos três tipos; menta × laranja cai a 16-18).
+- **Cartões:** ícone, detalhe (média por mês, taxa de poupança, número de
+  holerites) e brilho na cor do grupo; o Poupado leva a barra da taxa.
+- **Gráfico:** barras com degradê, grade tracejada, legenda em selos e tooltip
+  com entradas, gastos, poupado e taxa de poupança.
+- **Tabela** (a partir de 1420 px; abaixo, blocos por mês): colunas por grupo,
+  com o **Bruto dentro de Entradas**, em cinza e marcado "ref.", fora do total
+  (o Total de Entradas continua sendo líquido + extras + VA/VR, como no Excel):
+  - Entradas: Bruto · Líquido + extras · VA/VR · Total;
+  - Saídas: Cartão · PIX · VA/VR · Total;
+  - Resumo: Balanço, com a **taxa de poupança** (balanço ÷ entradas) em %
+    e barra;
+  - cabeçalhos de grupo com faixa colorida, colunas de total com fundo
+    discreto, linhas de 44 px, ponto no mês atual e rodapé com **Total** e
+    **Média** de cada coluna (média só dos meses com valor naquela coluna).
+- **Blocos por mês** (abaixo de 1420 px): tira de cor, chip do saldo, entradas,
+  saídas e bruto com marca do tom e a barra da taxa.
+- Sem mudança de cálculo, modelo, backup ou dados; `savingsRatePercent` e as
+  somas e médias do rodapé são funções puras com teste.
+- Verificado no navegador (servidor de teste) em 320, 375, 430, 1024, 1280,
+  1380, 1420 e 1440 px, sem rolagem lateral da página nem valores cortados.

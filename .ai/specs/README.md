@@ -100,6 +100,7 @@ Esta pasta organiza a implementação em fatias pequenas e revisáveis.
 - [090 — Cores e linguagem visual compartilhadas](090-shared-visual-language.md): guia de estilos obrigatório, valores e formulários coerentes entre áreas, paleta acessível dos gráficos preservada.
 - [091 — Ano inteiro e controles compactos](091-family-person-first-and-year-strip.md): doze meses por ano na faixa de Gastos familiares, meses acima das pessoas (pedido de inversão retirado pelo usuário) e lista, cabeçalho e ícone compactos.
 - [092 — Backup de Recebimentos e carga da planilha](092-income-backup-and-load.md): arquivo próprio e carga de 21 meses e 24 holerites; na produção, o usuário importa.
+- [093 — Reservas na cotação de cripto](093-crypto-quote-fallbacks.md): nova tentativa na CoinGecko e Coinbase, Yahoo e Binance como reservas, por causa do 451 e dos tempos esgotados na região do job; pronta localmente, sem publicação.
 
 As specs 088 a 092 foram feitas em 2026-10-07 (a 090 e a 091 começadas por
 outro agente em paralelo) e conferidas juntas: lint, tipos, 78 testes
