@@ -153,7 +153,8 @@ cotação implementam essas fronteiras.
 As primeiras áreas previstas são importação, carteira, cotações, alocação e
 previdência. Desde 2026-10-07, há também `access` (áreas, concessões e papéis)
 e `family-expenses` (Gastos familiares), cada um com domínio, aplicação e
-interface próprios. Cada fatia deve introduzir apenas as abstrações necessárias ao
+interface próprios; em seguida, `income` (Recebimentos) e `pension`
+(Previdência, que só lê a carteira e os holerites), specs 088 e 089. Cada fatia deve introduzir apenas as abstrações necessárias ao
 comportamento implementado, com nomes explícitos, funções pequenas e testes
 concentrados nas regras financeiras de maior risco.
 

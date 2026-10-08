@@ -13,13 +13,17 @@ Finanças. Regras e decisões nas specs
   define pessoa única alfabética, badges e meses únicos/múltiplos. A
   [spec 087](../../../.ai/specs/087-family-ledger-layout-and-reopen.md) define
   a ordem dos blocos, os indicadores de pendências e a reversão de acertos.
+  A [spec 091](../../../.ai/specs/091-family-person-first-and-year-strip.md)
+  mostra os doze meses do ano na faixa (com rolagem própria) e compacta os
+  controles, mantendo competência → pessoa. Cores de toda a área, inclusive
+  formulários, seguem o [guia de estilos](../../../docs/style-guide.md).
 - Toda leitura e gravação passa por `getFamilyDb`/`getFamilyContext`
   (`application/family-db.ts`), que confere a concessão `FAMILY_EXPENSES` antes
   de devolver o cliente com escopo do usuário. Não use `getPrismaClient` nem
   `getUserDb` direto nas tabelas `family_*`.
-- Dinheiro em centavos inteiros fora do banco (`domain/money.ts`); o banco
-  guarda DECIMAL(12,2) com `CHECK amount > 0`. O saldo é derivado do tipo e
-  nunca guardado.
+- Dinheiro em centavos inteiros fora do banco (`src/lib/money.ts`, comum às
+  áreas desde a spec 088); o banco guarda DECIMAL(12,2) com
+  `CHECK amount > 0`. O saldo é derivado do tipo e nunca guardado.
 - Os nomes da planilha ficam na interface: DEVE/DEVO (`RECEIVABLE`/`PAYABLE`)
   e OK/NOK (`SETTLED`/`PENDING`).
 - O backup da área é um arquivo próprio, separado do da carteira; mudanças nas

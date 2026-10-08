@@ -9,6 +9,9 @@ O contexto de descoberta e trabalho dos agentes está em
 
 ## Guias disponíveis
 
+- [Guia de estilos](style-guide.md): cores, componentes, estados e
+  acessibilidade compartilhados por todas as áreas; leitura obrigatória
+  antes de alterar interfaces.
 - [Decisões de arquitetura e funcionamento](architecture.md):
   escolhas confirmadas e questões ainda em aberto.
 - [Fluxo de Git e commits](git-workflow.md): aprovação do usuário,

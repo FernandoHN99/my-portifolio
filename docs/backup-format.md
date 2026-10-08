@@ -104,6 +104,24 @@ dados de Gastos familiares (`family_contacts`, `family_series` e
 - uma mudança nas tabelas da área segue o roteiro abaixo, com
   `FAMILY_BACKUP_VERSION` no lugar de `BACKUP_VERSION`.
 
+## Recebimentos: arquivo próprio
+
+Desde a [spec 092](../.ai/specs/092-income-backup-and-load.md), os meses e os
+holerites de Recebimentos (`income_months` e `income_payslips`) também têm o
+próprio arquivo, no formato `meu-portfolio-recebimentos`, versão 1, com as
+tabelas `incomeMonths` e `incomePayslips`, sem `userId`. O código fica em
+`src/modules/income/domain/income-backup-format.ts` e
+`application/income-backup.ts`; as portas são o botão Backup de Recebimentos,
+`/api/recebimentos/backup` e `pnpm income:backup`.
+
+- restaurar a carteira ou Gastos familiares não toca nos recebimentos, e
+  restaurar os recebimentos não toca nas outras áreas;
+- a conferência é estrita como a de Gastos familiares e recusa também mês
+  repetido e holerite com período fora do mês;
+- a Previdência só lê a carteira e os holerites: não tem arquivo próprio;
+- uma mudança nas tabelas da área segue o roteiro abaixo, com
+  `INCOME_BACKUP_VERSION` no lugar de `BACKUP_VERSION`.
+
 ## Restauração
 
 Desde a [spec 054](../.ai/specs/054-derived-currency-and-single-target-plan.md),

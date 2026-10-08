@@ -95,6 +95,17 @@ Esta pasta organiza a implementação em fatias pequenas e revisáveis.
 
 - [087 — Organização dos gastos e reversão de acertos](087-family-ledger-layout-and-reopen.md): na produção desde 2026-10-07; cards antes dos filtros, menu compacto, indicadores sem pendências e reversão com Desfazer.
 
+- [088 — Recebimentos](088-income-ledger.md): entradas, saídas e balanço do mês, gráfico Gastos × Poupado e holerites do mês, por concessão.
+- [089 — Previdência](089-pension-pgbl-limit.md): limite de 12% do PGBL por ano-base, com os holerites de Recebimentos e os aportes das posições de previdência.
+- [090 — Cores e linguagem visual compartilhadas](090-shared-visual-language.md): guia de estilos obrigatório, valores e formulários coerentes entre áreas, paleta acessível dos gráficos preservada.
+- [091 — Ano inteiro e controles compactos](091-family-person-first-and-year-strip.md): doze meses por ano na faixa de Gastos familiares, meses acima das pessoas (pedido de inversão retirado pelo usuário) e lista, cabeçalho e ícone compactos.
+- [092 — Backup de Recebimentos e carga da planilha](092-income-backup-and-load.md): arquivo próprio e carga de 21 meses e 24 holerites; na produção, o usuário importa.
+
+As specs 088 a 092 foram feitas em 2026-10-07 (a 090 e a 091 começadas por
+outro agente em paralelo) e conferidas juntas: lint, tipos, 78 testes
+unitários, integração de Gastos familiares (10) e de Recebimentos (8), e2e das
+três áreas nos três perfis e o build de produção.
+
 As specs 063 a 073 são revisões posteriores de 2026-10-04 e 2026-10-05, no
 `main` e na produção desde 2026-10-05 ([Produção](../context/production.md)).
 As specs 074 a 078 estão no `main` e na produção desde 2026-10-06

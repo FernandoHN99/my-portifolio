@@ -42,6 +42,31 @@ O usuário dos testes (`local@meu-portfolio.test`) não tem a área: os cenário
 com ela rodam num schema de teste (configuração `gastos-teste` do
 `.claude/launch.json`).
 
+Ainda em 2026-10-07 entraram as specs 088 a 092, com publicação na mesma
+noite: duas áreas novas em Finanças, também só de `nandohneto@gmail.com`
+(módulos `INCOME` e `PENSION`, gravados pela migração
+`20261008090100_income_tables`).
+- **Recebimentos** (`/recebimentos`, [spec 088](.ai/specs/088-income-ledger.md)):
+  entradas, saídas e balanço de cada mês, como a tabela do Excel, com o
+  gráfico Gastos × Poupado e os holerites do mês (nome por tipo, empresa,
+  período, bruto, proporcional). Backup próprio e carga da planilha
+  ([spec 092](.ai/specs/092-income-backup-and-load.md)): 21 meses e 24
+  holerites no banco local; na produção o usuário importa o arquivo.
+- **Previdência** (`/previdencia`, [spec 089](.ai/specs/089-pension-pgbl-limit.md)):
+  só leitura; limite de 12% da renda tributável por ano-base (holerites de
+  Recebimentos, sem 13º e PLR) contra os aportes das posições do tipo
+  Previdência (saldo inicial e aportes, sem transferências).
+- O [guia de estilos](docs/style-guide.md) ([spec 090](.ai/specs/090-shared-visual-language.md))
+  vale para todas as áreas; Gastos familiares mostra o ano inteiro na faixa de
+  meses, com os meses acima das pessoas e controles mais compactos
+  ([spec 091](.ai/specs/091-family-person-first-and-year-strip.md)).
+- Dinheiro e competências das áreas pessoais ficam em `src/lib/money.ts` e
+  `src/lib/competence.ts`. Os cenários com Recebimentos e Previdência rodam no
+  schema `recebimentos_teste` (configuração `recebimentos-teste`, porta 3120),
+  com o usuário de teste de `.env.recebimentos-teste` (fora do Git).
+- Ponto aberto: as férias de setembro/26 aparecem em duas linhas e, pelo
+  holerite, já estão nos R$ 15.443,55 (detalhes na spec 088).
+
 - as cotações são atualizadas só pelo job agendado (`pnpm quotes:sync`,
   [spec 053](.ai/specs/053-scheduled-quote-sync.md)); a abertura do app não
   consulta provedores. Na produção, ele roda de hora em hora como a função
@@ -147,9 +172,9 @@ com ela rodam num schema de teste (configuração `gastos-teste` do
   confirmação; nos gráficos de toque, a indicação some ao tirar o dedo; os
   gráficos da posição não trocam de mês no clique
   ([spec 078](.ai/specs/078-overview-allocation-tabs-and-touch-charts.md));
-- transações dentro das posições foram implementadas; a previdência, que o
-  usuário indicou como próximo assunto, continua em `.ai/context/backlog.md`,
-  assim como Saúde (remédios), fora das áreas por enquanto;
+- transações dentro das posições foram implementadas; a previdência, antes no
+  backlog, virou a área das specs 088 e 089. Saúde (remédios) continua em
+  `.ai/context/backlog.md`, fora das áreas por enquanto;
 - as respostas do usuário, o backlog e o que ainda aguarda resposta estão em
   `.ai/context/ux-restructure.md`, nas seções de respostas de 2026-10-02
   (segunda, terceira e quarta rodadas) e nos ajustes de 2026-10-03;
@@ -201,6 +226,12 @@ B3 sem chave, e o Alpha Vantage, de 25 consultas por dia, fica por último.
    `AGENTS.md` existentes no caminho da raiz até essa área.
 5. Consulte o código e as fontes referenciadas para verificar
    o comportamento real.
+6. Antes de criar ou alterar uma interface, leia o
+   [guia de estilos](docs/style-guide.md) e compare os componentes equivalentes
+   já usados no app. Reutilize seus tokens, cores e estados em todas as áreas;
+   a planilha orienta dados e regras, não a aparência. Preserve a paleta
+   acessível dos gráficos e sua distinção em relação aos indicadores e
+   formulários, conforme o guia.
 
 Existirão outros `AGENTS.md` em partes específicas do projeto quando
 essas áreas justificarem contexto próprio. Cada arquivo deve trazer

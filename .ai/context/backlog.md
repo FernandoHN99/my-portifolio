@@ -6,8 +6,11 @@ uma spec quando o usuário decidir.
 
 ## Previdência
 
-Fora de todas as fatias até agora. O usuário indicou que é o próximo assunto
-depois dos ajustes em andamento.
+Implementada em 2026-10-07 como área própria, com Recebimentos: specs
+[088](../specs/088-income-ledger.md), [089](../specs/089-pension-pgbl-limit.md)
+e [092](../specs/092-income-backup-and-load.md). Fica para depois, se o usuário
+pedir: anexar o PDF do holerite ao mês, projeção do limite até dezembro e
+distinção PGBL/VGBL por plano.
 
 ## Gastos familiares e outras áreas da vida
 
