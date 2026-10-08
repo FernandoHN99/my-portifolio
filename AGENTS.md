@@ -100,7 +100,8 @@ noite: duas áreas novas em Finanças, também só de `nandohneto@gmail.com`
   familiares** ([spec 096](.ai/specs/096-shared-month-strip-and-variants.md),
   2026-10-08): componente atômico novo ou alterado declara as variantes com `tv`
   (`KpiCard`, `Badge`, `filterBadge`, `headerButton`, `MonthStrip`, `Button`). A
-  faixa de meses da Visão Geral é o `MonthStrip` (alvos de 44 px no toque). Em
+  faixa de meses da Visão Geral é o `MonthStrip`; no celular (abaixo de `sm`) ela vira
+  um botão com o mês que abre os anos e meses na folha (`MonthSheet`). Em
   Gastos familiares a competência é o `YearMonthPicker`, um cartão embaixo do
   título: os anos num controle com marcador deslizante (do mais recente ao mais
   antigo) e, embaixo, a régua dos meses do ano aberto (Jan a Dez), um mês ou
