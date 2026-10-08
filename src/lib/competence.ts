@@ -1,6 +1,6 @@
-// Competência de Gastos familiares (spec 082): o mês do lançamento, guardado
-// como o dia 1 numa coluna DATE (meia-noite UTC) e tratado aqui como "AAAA-MM".
-// É própria da área: não depende das competências da carteira.
+// Competência das áreas pessoais (spec 082, comum a Recebimentos desde a spec
+// 088): o mês do registro, guardado como o dia 1 numa coluna DATE (meia-noite
+// UTC) e tratado aqui como "AAAA-MM". Não depende das competências da carteira.
 
 export type Competence = string;
 

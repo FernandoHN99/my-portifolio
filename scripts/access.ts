@@ -8,12 +8,16 @@ import { readUserAccess } from "../src/modules/access/application/module-access"
 // a interface não tem como pedir nem atribuir acesso.
 //
 //   pnpm auth:access list
-//   pnpm auth:access grant <e-mail> gastos-familiares | admin
-//   pnpm auth:access revoke <e-mail> gastos-familiares | admin
+//   pnpm auth:access grant <e-mail> gastos-familiares | recebimentos | previdencia | admin
+//   pnpm auth:access revoke <e-mail> gastos-familiares | recebimentos | previdencia | admin
 //
 // Com DATABASE_URL de um schema de teste, age só nele.
 
-const MODULES: Record<string, AppModule> = { "gastos-familiares": "FAMILY_EXPENSES" };
+const MODULES: Record<string, AppModule> = {
+  "gastos-familiares": "FAMILY_EXPENSES",
+  recebimentos: "INCOME",
+  previdencia: "PENSION",
+};
 const ROLES: Record<string, AppRole> = { admin: "ADMIN" };
 
 async function main() {
@@ -37,7 +41,7 @@ async function main() {
   const role = name ? ROLES[name] : undefined;
 
   if ((command !== "grant" && command !== "revoke") || !email || (!area && !role)) {
-    console.error("Uso: auth:access list | auth:access grant|revoke <e-mail> gastos-familiares|admin");
+    console.error("Uso: auth:access list | auth:access grant|revoke <e-mail> gastos-familiares|recebimentos|previdencia|admin");
     process.exitCode = 1;
     return;
   }

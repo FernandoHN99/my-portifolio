@@ -10,7 +10,7 @@ import {
   type Direction,
   type EntryStatus,
 } from "@/modules/family-expenses/domain/ledger";
-import { formatCents, type Cents } from "@/modules/family-expenses/domain/money";
+import { formatCents, type Cents } from "@/lib/money";
 
 // Peças de Gastos familiares: verde da marca para receber, tom de atenção
 // para pagar. O sentido sempre vem escrito, sem depender apenas da cor.

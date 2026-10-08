@@ -6,10 +6,12 @@ import {
   ChartLineUpIcon,
   CircleNotchIcon,
   ListIcon,
+  PiggyBankIcon,
   SidebarSimpleIcon,
   SignOutIcon,
   UserCircleIcon,
   UsersThreeIcon,
+  WalletIcon,
   XIcon,
 } from "@phosphor-icons/react/dist/ssr";
 import type { Icon } from "@phosphor-icons/react/dist/lib/types";
@@ -31,6 +33,8 @@ import { authClient } from "@/modules/auth/auth-client";
 const AREA_ICONS: Record<AreaKey, Icon> = {
   investments: ChartLineUpIcon,
   "family-expenses": UsersThreeIcon,
+  income: WalletIcon,
+  pension: PiggyBankIcon,
 };
 
 type AreaNavProps = {

@@ -2,9 +2,9 @@ import { randomUUID } from "node:crypto";
 
 import { Prisma, type PrismaClient } from "@/generated/prisma/client";
 import { FamilyEditError, getFamilyContext } from "@/modules/family-expenses/application/family-db";
-import { competenceDate, competenceOf, type Competence } from "@/modules/family-expenses/domain/competence";
+import { competenceDate, competenceOf, type Competence } from "@/lib/competence";
 import { normalizeText, type Direction, type EntryStatus, type SeriesKind } from "@/modules/family-expenses/domain/ledger";
-import { centsToDecimal, type Cents } from "@/modules/family-expenses/domain/money";
+import { centsToDecimal, type Cents } from "@/lib/money";
 import { planSeriesEdit, plannedEntries } from "@/modules/family-expenses/domain/series";
 import { SCOPED_USER } from "@/lib/user-db";
 

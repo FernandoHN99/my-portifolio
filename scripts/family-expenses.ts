@@ -12,7 +12,7 @@ import {
   previewFamilyBackup,
   restoreFamilyBackup,
 } from "../src/modules/family-expenses/application/family-backup";
-import { formatCompetence } from "../src/modules/family-expenses/domain/competence";
+import { formatCompetence } from "../src/lib/competence";
 import {
   FAMILY_BACKUP_FORMAT,
   FAMILY_BACKUP_TABLES,
@@ -21,7 +21,7 @@ import {
   type FamilyBackupFile,
 } from "../src/modules/family-expenses/domain/family-backup-format";
 import { normalizeText } from "../src/modules/family-expenses/domain/ledger";
-import { centsToDecimal, formatCents } from "../src/modules/family-expenses/domain/money";
+import { centsToDecimal, formatCents } from "../src/lib/money";
 import {
   convertSourceRows,
   identicalRows,

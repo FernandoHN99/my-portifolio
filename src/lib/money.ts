@@ -1,11 +1,11 @@
-// Dinheiro de Gastos familiares (spec 082) em centavos inteiros: somas e
-// filtros exatos, sem ponto flutuante. O banco guarda DECIMAL(12,2), e a
-// conversão é feita no texto, dígito a dígito. O maior valor aceito cabe com
-// folga num inteiro exato do JavaScript.
+// Dinheiro das áreas pessoais em centavos inteiros (spec 082, comum a
+// Recebimentos desde a spec 088): somas e filtros exatos, sem ponto flutuante.
+// O banco guarda DECIMAL(12,2), e a conversão é feita no texto, dígito a
+// dígito. O maior valor aceito cabe com folga num inteiro exato do JavaScript.
 
 export type Cents = number;
 
-/** R$ 9.999.999,99: o maior valor de um lançamento (DECIMAL(12,2) com folga). */
+/** R$ 9.999.999,99: o maior valor de um campo (DECIMAL(12,2) com folga). */
 export const MAX_AMOUNT_CENTS: Cents = 999_999_999;
 
 /**

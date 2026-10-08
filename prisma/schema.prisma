@@ -40,6 +40,8 @@ model User {
   familyContacts FamilyContact[]
   familySeries   FamilySeries[]
   familyEntries  FamilyEntry[]
+  incomeMonths   IncomeMonth[]
+  incomePayslips IncomePayslip[]
 
   @@map("users")
 }
@@ -49,6 +51,9 @@ model User {
 // gravada só pelo servidor (migração ou `pnpm access`), nunca pela interface.
 enum AppModule {
   FAMILY_EXPENSES
+  // Recebimentos (spec 088) e Previdência (spec 089).
+  INCOME
+  PENSION
 }
 
 // Papéis das ações administrativas, separados das áreas: administrar acessos
@@ -165,6 +170,69 @@ model FamilyEntry {
   @@index([userId, competence])
   @@index([contactId])
   @@map("family_entries")
+}
+
+// Recebimentos (spec 088): entradas, saídas e holerites de cada mês. Os
+// valores do mês são nulos quando não foram lançados, como nos meses que só
+// têm holerite; o total e o balanço são derivados e nunca guardados.
+model IncomeMonth {
+  id               String          @id @default(uuid()) @db.Uuid
+  userId           String          @map("user_id") @db.Uuid
+  /// O mês (dia 1), único por usuário.
+  month            DateTime        @db.Date
+  /// Salário líquido mais extras: a coluna "Salário Líquido + Extras" do Excel.
+  netIncome        Decimal?        @map("net_income") @db.Decimal(12, 2)
+  /// VA/VR recebido no mês.
+  mealVoucher      Decimal?        @map("meal_voucher") @db.Decimal(12, 2)
+  cardSpend        Decimal?        @map("card_spend") @db.Decimal(12, 2)
+  pixSpend         Decimal?        @map("pix_spend") @db.Decimal(12, 2)
+  /// VA/VR gasto no mês.
+  mealVoucherSpend Decimal?        @map("meal_voucher_spend") @db.Decimal(12, 2)
+  createdAt        DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
+  user             User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  payslips         IncomePayslip[]
+
+  @@unique([userId, month])
+  @@unique([id, userId])
+  @@map("income_months")
+}
+
+// Tipo da linha do holerite (spec 088). 13º salário e PLR têm tributação
+// exclusiva na fonte e ficam fora da renda tributável da Previdência (spec 089).
+enum PayslipKind {
+  SALARY
+  VACATION
+  THIRTEENTH
+  PROFIT_SHARING
+  OTHER
+}
+
+/// Linha do holerite: um período trabalhado numa empresa, dentro do mês do
+/// registro. É o "Meses Trabalhados" da aba Previdência do Excel.
+model IncomePayslip {
+  id            String      @id @default(uuid()) @db.Uuid
+  userId        String      @map("user_id") @db.Uuid
+  incomeMonthId String      @map("income_month_id") @db.Uuid
+  kind          PayslipKind @default(SALARY)
+  /// Nome livre, obrigatório no tipo Outro.
+  label         String?
+  employer      String
+  startsOn      DateTime    @map("starts_on") @db.Date
+  endsOn        DateTime    @map("ends_on") @db.Date
+  /// Salário bruto do mês cheio (total de vencimentos do holerite).
+  grossSalary   Decimal     @map("gross_salary") @db.Decimal(12, 2)
+  /// "Necessário calcular": a renda é proporcional aos dias, com o mês de 30.
+  prorated      Boolean     @default(false)
+  createdAt     DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime    @updatedAt @map("updated_at") @db.Timestamptz(3)
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  month         IncomeMonth @relation(fields: [incomeMonthId, userId], references: [id, userId], onDelete: Cascade)
+
+  @@unique([id, userId])
+  @@index([incomeMonthId])
+  @@index([userId, startsOn])
+  @@map("income_payslips")
 }
 
 model Session {

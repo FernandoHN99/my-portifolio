@@ -1,6 +1,6 @@
-import type { Competence } from "@/modules/family-expenses/domain/competence";
+import type { Competence } from "@/lib/competence";
 import type { Direction, EntryStatus } from "@/modules/family-expenses/domain/ledger";
-import type { Cents } from "@/modules/family-expenses/domain/money";
+import type { Cents } from "@/lib/money";
 
 // Leitura da aba Gastos_Familia colada em texto (spec 084): sete colunas
 // separadas por tabulação, com o mês em inglês ("Oct/23") e o dinheiro no

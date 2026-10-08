@@ -4,7 +4,7 @@ import type { AppModule } from "@/generated/prisma/enums";
 // base: todo usuário com login a usa, sem concessão. As demais pedem a
 // concessão do módulo, conferida no servidor em cada página, ação e rota.
 
-export type AreaKey = "investments" | "family-expenses";
+export type AreaKey = "investments" | "family-expenses" | "income" | "pension";
 
 /** Cookie da barra lateral recolhida, lido no servidor para não piscar. */
 export const SIDEBAR_COOKIE = "areas-sidebar";
@@ -27,6 +27,8 @@ export const APP_AREAS: readonly AppArea[] = [
     group: "Finanças",
     module: "FAMILY_EXPENSES",
   },
+  { key: "income", label: "Recebimentos", href: "/recebimentos", group: "Finanças", module: "INCOME" },
+  { key: "pension", label: "Previdência", href: "/previdencia", group: "Finanças", module: "PENSION" },
 ];
 
 /** As áreas que o usuário pode abrir, na ordem do menu. */

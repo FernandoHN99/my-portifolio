@@ -19,8 +19,8 @@ import {
   updateEntry,
   updateSeries,
 } from "@/modules/family-expenses/application/family-editing";
-import { isCompetence } from "@/modules/family-expenses/domain/competence";
-import { MAX_AMOUNT_CENTS, parseAmountInput } from "@/modules/family-expenses/domain/money";
+import { isCompetence } from "@/lib/competence";
+import { MAX_AMOUNT_CENTS, parseAmountInput } from "@/lib/money";
 import { MAX_SERIES_COUNT } from "@/modules/family-expenses/domain/series";
 
 // Ações de Gastos familiares (specs 082 e 083). Cada uma confere a sessão, valida

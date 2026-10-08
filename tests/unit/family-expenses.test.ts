@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import { test } from "node:test";
 
-import { addCompetenceMonths, formatCompetence } from "@/modules/family-expenses/domain/competence";
+import { addCompetenceMonths, formatCompetence } from "@/lib/competence";
 import {
   displayDescription,
   filterEntries,
@@ -11,7 +11,7 @@ import {
   type LedgerEntry,
   type LedgerSeries,
 } from "@/modules/family-expenses/domain/ledger";
-import { centsToDecimal, decimalToCents, formatCents, parseAmountInput } from "@/modules/family-expenses/domain/money";
+import { centsToDecimal, decimalToCents, formatCents, parseAmountInput } from "@/lib/money";
 import { planSeriesEdit, plannedEntries } from "@/modules/family-expenses/domain/series";
 import {
   convertSourceRows,

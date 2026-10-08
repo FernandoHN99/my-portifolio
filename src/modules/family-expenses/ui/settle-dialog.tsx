@@ -5,9 +5,9 @@ import { CheckIcon, XIcon } from "@phosphor-icons/react/dist/ssr";
 import { useState, useTransition } from "react";
 
 import { settleFamilyEntriesAction, type FamilyActionResult } from "@/app/actions/family-expenses";
-import { formatCompetenceLong } from "@/modules/family-expenses/domain/competence";
+import { formatCompetenceLong } from "@/lib/competence";
 import { displayDescription, signedCents, type LedgerEntry, type LedgerSeries } from "@/modules/family-expenses/domain/ledger";
-import { formatCents } from "@/modules/family-expenses/domain/money";
+import { formatCents } from "@/lib/money";
 import { balanceMeaning, DirectionBadge } from "@/modules/family-expenses/ui/ledger-parts";
 import { backdropClass, primaryButtonClass, secondaryButtonClass } from "@/modules/portfolio/ui/edit-dialogs";
 

@@ -17,7 +17,7 @@ import {
   type FamilyBackupTableKey,
 } from "@/modules/family-expenses/domain/family-backup-format";
 import { normalizeText } from "@/modules/family-expenses/domain/ledger";
-import { decimalToCents, MAX_AMOUNT_CENTS } from "@/modules/family-expenses/domain/money";
+import { decimalToCents, MAX_AMOUNT_CENTS } from "@/lib/money";
 import { MAX_SERIES_COUNT } from "@/modules/family-expenses/domain/series";
 
 // Backup de Gastos familiares (spec 084). A exportação lê os dados do usuário

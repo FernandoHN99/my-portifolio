@@ -14,7 +14,7 @@ import {
 import { MonthPicker } from "@/components/ui/date-picker";
 import { Picker } from "@/components/ui/picker";
 import { cn } from "@/lib/utils";
-import { formatCompetence, isCompetence } from "@/modules/family-expenses/domain/competence";
+import { formatCompetence, isCompetence } from "@/lib/competence";
 import {
   DIRECTION_LABELS,
   DIRECTION_MEANINGS,
@@ -27,7 +27,7 @@ import {
   type LedgerSeries,
   type SeriesKind,
 } from "@/modules/family-expenses/domain/ledger";
-import { formatAmountInput, formatCents, parseAmountInput, MAX_AMOUNT_CENTS } from "@/modules/family-expenses/domain/money";
+import { formatAmountInput, formatCents, parseAmountInput, MAX_AMOUNT_CENTS } from "@/lib/money";
 import { MAX_SERIES_COUNT, seriesSpan } from "@/modules/family-expenses/domain/series";
 import { backdropClass, Field, inputClass, primaryButtonClass, secondaryButtonClass } from "@/modules/portfolio/ui/edit-dialogs";
 

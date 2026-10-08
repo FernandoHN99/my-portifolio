@@ -23,6 +23,7 @@
     "auth:access": "tsx scripts/access.ts",
     "family:convert": "tsx scripts/family-expenses.ts convert",
     "family:backup": "tsx scripts/family-expenses.ts backup",
+    "income:backup": "tsx scripts/income.ts backup",
     "quotes:sync": "tsx scripts/quotes-sync.ts",
     "jobs:build": "node jobs/neon/build.mjs",
     "postinstall": "prisma generate"

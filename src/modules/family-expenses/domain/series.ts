@@ -1,6 +1,6 @@
-import { addCompetenceMonths, type Competence } from "@/modules/family-expenses/domain/competence";
+import { addCompetenceMonths, type Competence } from "@/lib/competence";
 import type { Direction, EntryStatus, SeriesKind } from "@/modules/family-expenses/domain/ledger";
-import type { Cents } from "@/modules/family-expenses/domain/money";
+import type { Cents } from "@/lib/money";
 
 // Parcelas e meses gerados juntos (spec 083, regras do usuário em 2026-10-07):
 // ao criar, a série gera já todas as competências, uma por mês a partir da

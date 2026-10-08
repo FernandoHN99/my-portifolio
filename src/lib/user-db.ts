@@ -27,6 +27,10 @@ const OWNED_MODELS = new Set([
   "FamilyContact",
   "FamilySeries",
   "FamilyEntry",
+  // Recebimentos (spec 088), lidos e gravados só por getIncomeContext e pela
+  // Previdência (spec 089), que conferem antes a concessão de cada área.
+  "IncomeMonth",
+  "IncomePayslip",
 ]);
 
 const WHERE_OPERATIONS = new Set([

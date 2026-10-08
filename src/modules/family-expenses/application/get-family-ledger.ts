@@ -1,7 +1,7 @@
 import { getFamilyDb } from "@/modules/family-expenses/application/family-db";
-import { competenceOf, currentCompetence } from "@/modules/family-expenses/domain/competence";
+import { competenceOf, currentCompetence } from "@/lib/competence";
 import { compareEntries, type LedgerContact, type LedgerEntry, type LedgerSeries } from "@/modules/family-expenses/domain/ledger";
-import { decimalToCents } from "@/modules/family-expenses/domain/money";
+import { decimalToCents } from "@/lib/money";
 
 export type FamilyLedger = {
   contacts: LedgerContact[];

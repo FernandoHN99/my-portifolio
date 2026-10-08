@@ -1,5 +1,5 @@
-import type { Competence } from "@/modules/family-expenses/domain/competence";
-import type { Cents } from "@/modules/family-expenses/domain/money";
+import type { Competence } from "@/lib/competence";
+import type { Cents } from "@/lib/money";
 
 // Livro de Gastos familiares (spec 082): quem deve a quem. Cada lançamento tem
 // valor positivo; o saldo é derivado do tipo (DEVE soma, DEVO subtrai) e nunca

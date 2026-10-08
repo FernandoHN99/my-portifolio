@@ -28,7 +28,7 @@ import { useHotkeys } from "react-hotkeys-hook";
 import { reopenFamilyEntryAction, settleFamilyEntriesAction, undoFamilyChangeAction, type FamilyActionResult } from "@/app/actions/family-expenses";
 import { cn } from "@/lib/utils";
 import type { FamilyLedger } from "@/modules/family-expenses/application/get-family-ledger";
-import { formatCompetence, formatCompetenceLong, isCompetence } from "@/modules/family-expenses/domain/competence";
+import { formatCompetence, formatCompetenceLong, isCompetence } from "@/lib/competence";
 import {
   DIRECTION_LABELS,
   DIRECTION_MEANINGS,
@@ -43,7 +43,7 @@ import {
   type LedgerSeries,
 } from "@/modules/family-expenses/domain/ledger";
 import { pendingFilterActivity, resolveFamilyWorkspaceFilters, selectCompetence } from "@/modules/family-expenses/domain/filters";
-import { formatCents, type Cents } from "@/modules/family-expenses/domain/money";
+import { formatCents, type Cents } from "@/lib/money";
 import { EntryDialog, type EntryDialogTarget } from "@/modules/family-expenses/ui/entry-dialog";
 import { FamilyBackupDialog } from "@/modules/family-expenses/ui/family-backup-dialog";
 import { balanceMeaning, DirectionBadge, SignedAmount, StatusBadge } from "@/modules/family-expenses/ui/ledger-parts";

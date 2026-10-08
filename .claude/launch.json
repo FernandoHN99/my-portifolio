@@ -26,6 +26,15 @@
         "PORTFOLIO_TEST_DIST_DIR=.next-gastos AUTH_ALLOWED_HOSTS=localhost:3110,127.0.0.1:3110 DATABASE_URL=\"$(pnpm --silent db:test-schema url gastos_familiares_teste)\" exec mise exec node@24.20.0 -- pnpm exec next dev -p 3110"
       ],
       "port": 3110
+    },
+    {
+      "name": "recebimentos-teste",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "PORTFOLIO_TEST_DIST_DIR=.next-recebimentos AUTH_ALLOWED_HOSTS=localhost:3120,127.0.0.1:3120 DATABASE_URL=\"$(pnpm --silent db:test-schema url recebimentos_teste)\" exec mise exec node@24.20.0 -- pnpm exec next dev -p 3120"
+      ],
+      "port": 3120
     }
   ]
 }
