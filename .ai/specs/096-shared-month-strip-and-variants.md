@@ -1,75 +1,97 @@
-# 096 — Faixa de competência compartilhada e átomos com tailwind-variants
+# 096 — Seletor de competência com vários meses e átomos com tailwind-variants
 
-Estado: implementada, commitada e publicada em 2026-10-08 (deploy
-`dpl_4f2NDoKcF8nmQsX4KD89BRFRGnRA`), com autorização do usuário.
-Origem: pedido do usuário depois da spec 090: pôr a Competência de Gastos
-familiares no alto da página, reaproveitando o componente de Investimentos, mas
-com seleção múltipla; melhorar o uso no celular sem mudar a estética; e usar
-`tailwind-variants` em todo componente atômico para manter o padrão.
+Estado: a primeira versão (faixa no alto de Gastos familiares) foi publicada em
+2026-10-08 (deploy `dpl_4f2NDoKcF8nmQsX4KD89BRFRGnRA`). A revisão com o
+`YearMonthPicker` está implementada e conferida localmente, sem commit nem
+publicação.
+Origem: pedido do usuário depois da spec 090: padronizar a Competência de
+Gastos familiares com a de Investimentos, mas com seleção múltipla; melhorar o
+uso no celular sem mudar a estética; e usar `tailwind-variants` em todo
+componente atômico. Revisado no mesmo dia: o usuário não gostou da faixa no alto
+de Gastos familiares e pediu o seletor embaixo do título, com os anos e os
+meses do ano.
 
 ## Decisões
 
-1. **Uma faixa só.** O desenho e o toque da faixa de competências saíram do
-   `MonthTimeline` para `src/components/product/month-strip.tsx` (`MonthStrip`).
-   Ela só desenha e responde ao toque; o significado da seleção é de quem a usa:
-   - `MonthTimeline` (Investimentos) continua com `?mes=`, as setas do teclado,
-     o aviso de alterações não salvas e a situação do mês (`MonthLock`) à direita;
-   - `FamilyMonthBar` (Gastos familiares, `family-month-bar.tsx`) usa
-     `?competencia=` e `?multimes=`, com os anos de qualquer lançamento, o mês
-     atual e os escolhidos, e as setas do teclado no modo de um mês.
-2. **Gastos familiares.** A faixa fica fixa no alto da página (`sticky`), como na
-   Visão Geral, com as cápsulas de ano e, no ano aberto, os doze meses. Saiu o
-   bloco "Competência" de dentro da página e o grupo Competência dos filtros
-   (menu do computador e folha do celular): a faixa é o único controle de mês.
-   Pessoa, status, tipo e busca ficam como estavam. Os meses com pendência da
-   pessoa escolhida levam uma barra em `warning` e o nome acessível
-   "…, com pendências" (a marca não depende só da cor).
-3. **Seleção múltipla.** O seletor "Selecionar vários meses" fica à direita da
-   faixa (`MultiMonthToggle`, no lugar do `MonthLock`), com o texto "Vários
-   meses" no computador e, com vários meses marcados, o número deles. Os botões
-   dos meses viram marcações (`aria-pressed`), e a faixa fica no ano em que o
-   usuário está marcando, sem pular para outro ano quando o último mês mudar. No
-   modo de um mês, o botão selecionado leva `aria-current="date"`, como na Visão
-   Geral. As regras de `selectCompetence` não mudaram: tirar o último mês volta
-   ao atual, e sair do modo múltiplo guarda o último mês.
-4. **Celular, sem mudar a estética.** Só valem em telas de toque
-   (`pointer-coarse`), então o computador fica igual:
-   - alvos de 44 px (eram 40) para ano, mês e seletor, e 4 px entre os meses (eram 2);
-   - `touch-manipulation` e `select-none`: sem atraso nem zoom no toque duplo e
-     sem selecionar o texto do botão;
-   - retorno visual ao pressionar o mês;
-   - ao marcar vários meses seguidos, a faixa não recentraliza a cada toque (só
-     anda quando o mês sai da vista), para os botões não fugirem do dedo;
-   - o número de meses marcados no seletor, para quem rolou a faixa e não vê todos.
+1. **Faixa de Investimentos, só dela.** O desenho e o toque da faixa de
+   competências saíram do `MonthTimeline` para
+   `src/components/product/month-strip.tsx` (`MonthStrip`), e o `MonthTimeline`
+   ficou com a URL (`?mes=`), o teclado, o aviso de alterações não salvas e a
+   situação do mês (`MonthLock`). A primeira versão desta spec também levou essa
+   faixa, fixa no alto, para Gastos familiares com seleção múltipla; o usuário
+   não gostou e pediu o seletor abaixo do título (item 2). O código de seleção
+   múltipla da faixa saiu junto.
+2. **Gastos familiares: `YearMonthPicker`** (`components/product/year-month-picker.tsx`).
+   Fica entre o título e os cartões, como o seletor de ano de Recebimentos:
+   - um cartão só: os anos num controle com um marcador que desliza e, embaixo,
+     a régua dos doze meses do ano aberto. Os anos vão do mais recente ao mais
+     antigo (2026, 2025, 2024…), como nos selos de ano de Recebimentos e
+     Previdência, e os meses, de Jan a Dez (o usuário testou a ordem
+     cronológica nos dois e preferiu esta). Meses seguidos
+     marcados viram uma faixa contínua, como um intervalo; os meses ficam
+     sempre embaixo dos anos, em qualquer largura, para a leitura ser uma
+     hierarquia (ano, depois mês) a régua tem o tamanho do conteúdo, como o controle
+     dos anos (doze células de 48 × 36 px, que só encolhem num cartão mais
+     estreito), em vez de esticar na largura do cartão;
+   - **celular (abaixo de `sm`):** um botão de uma linha, "Competência" e o
+     resumo da seleção ("Set/26", "Ago/26, Set/26", "2026 inteiro", "5 meses"),
+     abre a mesma escolha numa folha de baixo para cima, como os filtros, com
+     anos e meses de 44 px (quatro meses por linha) e o botão "Ver N
+     lançamentos"; com um mês só, a folha fecha ao escolher; com vários, fica
+     aberta até confirmar;
+   - um mês por vez ou vários, de qualquer ano (`?competencia=` e `?multimes=`):
+     trocar de ano só muda os meses na tela, a seleção continua onde estava, e o
+     ano que guarda meses marcados leva um ponto e, no nome acessível, quantos;
+   - "Ano todo" marca os doze meses do ano aberto de uma vez (e passa ao modo de
+     vários meses) ou, com todos marcados, os desmarca; sem nenhum mês marcado,
+     volta ao atual;
+   - "Vários meses" alterna o modo e mostra quantos meses estão marcados;
+   - mês com pendência da pessoa escolhida leva um ponto de atenção e o nome
+     acessível "…, com pendências"; mês sem lançamentos continua escolhível;
+   - saiu o grupo Competência dos filtros (menu do computador e folha do
+     celular); pessoa, status, tipo e busca ficam como estavam.
+3. **Celular, sem mudar a estética da faixa de Investimentos.** Só em telas de
+   toque (`pointer-coarse`), então o computador fica igual: alvos de 44 px (eram
+   40) e 4 px entre os meses (eram 2), `touch-manipulation` e `select-none` (sem
+   atraso nem zoom no toque duplo) e retorno visual ao pressionar.
+4. **Folha única.** A folha de baixo para cima dos filtros de Posições saiu de
+   `positions-filter-sheet.tsx` para `components/product/bottom-sheet.tsx`
+   (`BottomSheet`, `BottomSheetTrigger`, `BottomSheetClose`, `sheetButton`), em
+   `tailwind-variants`; os filtros de Posições e de Gastos familiares e a
+   competência abrem a mesma peça. Sem mudança de comportamento nos filtros.
 5. **tailwind-variants nos átomos.** Dependências novas: `tailwind-variants` e
    `tailwind-merge` (par exigido por ele). Passaram para `tv`: `KpiCard`
    (tom, `dense`, `emphasis`), `Badge` (novo, `components/product/badge.tsx`,
-   tons `primary`, `spent`, `accent`, `warning`, `neutral`), `filterBadge` e
-   `headerButton` (`page-controls.ts`; `headerPrimaryButtonClass` agora sai
-   dele), as peças da faixa (cápsula do ano, mês, marca, tique, seletor) e o
-   `Button` de `components/ui` (antes `class-variance-authority`, que saiu do
-   `package.json`). Regra: átomo novo ou alterado usa `tv`, com as classes
-   completas nas variantes, para o Tailwind encontrá-las; o resto migra quando
-   for tocado.
+   tons `primary`, `spent`, `accent`, `warning`, `neutral`), `filterBadge`
+   (`active` e `marked`), `headerButton` (`page-controls.ts`;
+   `headerPrimaryButtonClass` agora sai dele), as peças da faixa e do
+   `YearMonthPicker` a folha e o `Button` de `components/ui` (antes
+   `class-variance-authority`, que saiu do `package.json`). Regra: átomo novo ou
+   alterado usa `tv`, com as classes completas nas variantes, para o Tailwind
+   encontrá-las; o resto migra quando for tocado.
 
 ## Critérios de aceite
 
 1. Investimentos: a faixa continua igual (anos, meses, marcas de alta e queda,
    `aria-current`, descrição do ano fechado, teclado, trava do mês).
-2. Gastos familiares: faixa fixa no alto, ano inteiro, mês atual por padrão,
-   mês único ou vários, URL com `competencia` e `multimes`, pessoas abaixo da
-   faixa e sem o bloco antigo de Competência.
-3. Sem rolagem lateral da página entre 320 e 430 px; a rolagem fica na faixa.
+2. Gastos familiares: seletor embaixo do título e acima dos cartões, mês atual
+   por padrão, mês único ou vários, "Ano todo", URL com `competencia` e
+   `multimes`, pessoas abaixo dos cartões.
+3. Sem rolagem lateral da página entre 320 e 430 px; no celular, o seletor ocupa
+   uma linha e a escolha abre na folha.
 4. Nenhuma mudança de cálculo, dados, rotas, backup ou migrações.
 
 ## Verificação
 
-- Lint, tipos e 91 testes unitários (inclui `formatCompetenceMonth`).
+- Lint, tipos e 92 testes unitários (inclui `formatCompetenceMonth` e
+  `summarizeCompetences`).
 - Interface em Chrome, Android e iPhone/WebKit: Gastos familiares, Recebimentos
   e Previdência no servidor de teste (44 aprovados, 14 pulados por falta de dados
-  ou de permissão do usuário de teste), com o cenário novo da faixa no alto,
-  meses únicos e múltiplos e o contador; Investimentos no servidor normal (130
+  ou de permissão do usuário de teste), com o cenário novo do seletor, que no celular
+  passa pelo botão e pela folha: anos, meses únicos e múltiplos, o contador, a
+  troca de ano e "Ano todo"; Investimentos no servidor normal, incluindo a folha de filtros de Posições refeita sobre o `BottomSheet` (130
   aprovados, 18 pulados), com a linha do tempo, a Visão Geral, a posição e o
   iPhone.
-- Conferência no navegador em 375 e 1440 px: faixa no alto de Gastos familiares,
-  dois meses marcados com o contador no celular, alvos de 44 px medidos.
+- Conferência no navegador em 375 e 1440 px: seletor entre o título e os cartões,
+  com dois meses marcados e o contador; no celular, o botão com o resumo e a folha
+  aberta, com os meses em quatro colunas.

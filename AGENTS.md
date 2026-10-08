@@ -96,12 +96,16 @@ noite: duas áreas novas em Finanças, também só de `nandohneto@gmail.com`
   tabelas pode ter estilo próprio, descrito na spec da área. Quem precisar de
   uma opção que o componente não tem estende o componente, não o copia. A
   tabela está na seção "Padrão dos cards e dos componentes core" do guia de estilos.
-- **Átomos com `tailwind-variants`** e **faixa de competência única**
-  ([spec 096](.ai/specs/096-shared-month-strip-and-variants.md), 2026-10-08):
-  componente atômico novo ou alterado declara as variantes com `tv`
-  (`KpiCard`, `Badge`, `filterBadge`, `headerButton`, `MonthStrip`, `Button`); a
-  faixa de meses da Visão Geral é o `MonthStrip` de `components/product`, fixa
-  no alto de Gastos familiares, com seleção múltipla e alvos de 44 px no toque.
+- **Átomos com `tailwind-variants`** e **seletor de competência de Gastos
+  familiares** ([spec 096](.ai/specs/096-shared-month-strip-and-variants.md),
+  2026-10-08): componente atômico novo ou alterado declara as variantes com `tv`
+  (`KpiCard`, `Badge`, `filterBadge`, `headerButton`, `MonthStrip`, `Button`). A
+  faixa de meses da Visão Geral é o `MonthStrip` (alvos de 44 px no toque). Em
+  Gastos familiares a competência é o `YearMonthPicker`, um cartão embaixo do
+  título: os anos num controle com marcador deslizante (do mais recente ao mais
+  antigo) e, embaixo, a régua dos meses do ano aberto (Jan a Dez), um mês ou
+  vários (meses seguidos viram uma faixa), "Ano todo"; no celular vira um botão
+  com o resumo que abre a folha (`BottomSheet`, a mesma dos filtros).
 - Dinheiro e competências das áreas pessoais ficam em `src/lib/money.ts` e
   `src/lib/competence.ts`. Os cenários com Recebimentos e Previdência rodam no
   schema `recebimentos_teste` (configuração `recebimentos-teste`, porta 3120),
@@ -280,7 +284,7 @@ B3 sem chave, e o Alpha Vantage, de 25 consultas por dia, fica por último.
    acessível dos gráficos e sua distinção em relação aos indicadores e
    formulários, conforme o guia. Cards, painéis, selos, legendas e controles
    do topo vêm dos componentes core (`KpiCard`, `Badge`, `MonthStrip`,
-   `page-controls.ts`, `premium-panel`), declarados com `tailwind-variants`; detalhar uma área nova não é motivo para refazê-los, e só
+   `YearMonthPicker`, `BottomSheet`, `page-controls.ts`, `premium-panel`), declarados com `tailwind-variants`; detalhar uma área nova não é motivo para refazê-los, e só
    o miolo das tabelas pode ter estilo próprio.
 
 Existirão outros `AGENTS.md` em partes específicas do projeto quando

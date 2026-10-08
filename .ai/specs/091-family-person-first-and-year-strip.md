@@ -14,8 +14,8 @@ pessoa → status → tipo da [spec 085](085-family-ledger-and-navigation-polish
 e da [spec 086](086-family-person-and-month-selection.md). O nome do arquivo
 guarda o pedido original.
 
-> Nota (2026-10-08): a faixa de Competência deste documento foi substituída pela
-> faixa fixa no alto da página, a mesma da Visão Geral, com seleção múltipla
+> Nota (2026-10-08): a faixa de Competência deste documento foi substituída pelo
+> seletor com anos e meses embaixo do título, com seleção múltipla e "Ano todo"
 > ([spec 096](096-shared-month-strip-and-variants.md)). Os demais critérios valem.
 
 ## Critérios de aceite

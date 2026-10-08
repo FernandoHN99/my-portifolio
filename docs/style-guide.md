@@ -77,7 +77,7 @@ alterado, declara suas variantes com `tv` (`tailwind-variants`, que usa o
 nas variantes, para o Tailwind encontrá-las, e o chamador só escolhe a variante
 (`tone`, `active`, `dense`…); `className` serve para ajuste de encaixe, não para
 refazer o visual. Exemplos: `KpiCard`, `Badge`, `filterBadge`, `headerButton`,
-`MonthStrip` e o `Button` de `components/ui`. O `cva` saiu do projeto.
+`MonthStrip`, `YearMonthPicker`, `BottomSheet` e o `Button` de `components/ui`. O `cva` saiu do projeto.
 
 **Regra:** antes de desenhar um card, painel, selo, legenda, botão ou filtro,
 use o componente core. Se faltar uma opção, estenda o componente (tom, `dense`,
@@ -93,7 +93,8 @@ três cópias e hoje vivem em `page-controls.ts`).
 | Brilho | Só o `ambient-glow` no canto superior direito da página. Sem manchas coloridas dentro de cards, painéis ou atrás deles. | `globals.css` |
 | Legenda de gráfico | `ul` simples: amostra quadrada `size-2.5 rounded-[3px]` (série) ou redonda `size-2` (marca), texto `text-[11px] text-muted-foreground`, valores em mono. Sem pílulas, bordas ou fundos. | `balance-change-chart.tsx` |
 | Selo de estado | `Badge`: pílula de 10 px em caixa alta, com o tom no significado: `primary` (a favor), `spent` (saída, excesso), `accent` (saldo inicial, proporcional), `warning` (pendência), `neutral` (fora do cálculo). | `components/product/badge.tsx` |
-| Faixa de competência | A da Visão Geral: cápsulas de ano e, no ano aberto, os meses, fixa no alto da página. Um mês por vez ou, em Gastos familiares, vários (seletor à direita, com o número de meses). Em telas de toque, alvos de 44 px; no computador, o desenho de sempre. Nenhuma tela desenha a sua própria faixa de meses. | `components/product/month-strip.tsx` (`MonthStrip`), usada por `month-timeline.tsx` e `family-month-bar.tsx` |
+| Competência | Investimentos: a faixa da Visão Geral, com cápsulas de ano e, no ano aberto, os meses (`MonthStrip`; alvos de 44 px no toque). Áreas pessoais (Gastos familiares): um cartão embaixo do título, com os anos num controle de marcador deslizante e a régua dos doze meses do ano aberto (os anos do mais recente ao mais antigo, os meses de Jan a Dez); um mês por vez ou vários (meses seguidos viram uma faixa) e "Ano todo" (`YearMonthPicker`). No celular, o seletor vira um botão de uma linha com o resumo da seleção, que abre a escolha na folha de baixo, como os filtros. Nenhuma tela desenha o seu próprio seletor de meses. | `components/product/month-strip.tsx`, `year-month-picker.tsx` |
+| Folha de baixo (celular) | Uma peça só para filtros e competência: alça, título, conteúdo rolável e rodapé com o botão principal ("Ver N lançamentos") e, se preciso, "Limpar". | `components/product/bottom-sheet.tsx` |
 | Filtros e botões do topo | Selos de filtro (ano, pessoa), botão secundário do topo e botão principal. | `components/product/page-controls.ts` (`filterBadge`, `headerButton`), `edit-dialogs.tsx` |
 | Cabeçalho da página | Faixa "Finanças", título `text-[2.65rem]`, linha de contagem, ações à direita, `ambient-glow`. | `family-ledger.tsx` |
 | Estado vazio | Ícone num quadrado `size-12 rounded-2xl border border-border bg-card text-primary` e uma frase. | `empty-portfolio.tsx` |
@@ -165,7 +166,7 @@ comportamento de toque existente.
 - Tokens e superfícies: `src/app/globals.css`.
 - Card de indicador, selo, faixa de competência, controles do topo e peças de
   Recebimentos/Previdência: `src/components/product/kpi-card.tsx`, `badge.tsx`,
-  `month-strip.tsx`, `page-controls.ts` e `finance-parts.tsx`.
+  `month-strip.tsx`, `year-month-picker.tsx`, `bottom-sheet.tsx`, `page-controls.ts` e `finance-parts.tsx`.
 - Marca e navegação: `src/components/product/area-nav.tsx` e `app-shell.tsx`.
 - Formulários e controles: `src/components/ui/` e
   `src/modules/portfolio/ui/edit-dialogs.tsx`.

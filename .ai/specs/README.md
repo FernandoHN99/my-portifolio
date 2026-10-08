@@ -103,7 +103,7 @@ Esta pasta organiza a implementação em fatias pequenas e revisáveis.
 - [093 — Reservas na cotação de cripto](093-crypto-quote-fallbacks.md): nova tentativa na CoinGecko e Coinbase, Yahoo e Binance como reservas, por causa do 451 e dos tempos esgotados na região do job; pronta localmente, sem publicação.
 - [094 — Horas do mês em Recebimentos](094-income-hours-model.md): tabela `income_hour_records` (horas declaradas, pagas e trabalhadas por tipo e mês, sem tela), backup de Recebimentos na versão 2 e arquivo de carga dos 11 holerites de 2026 com o 13º de junho; pronta localmente, sem publicação.
 - [095 — Holerite tributável](095-payslip-taxable-flag.md): campo `taxable` em cada linha do holerite (checkbox no formulário, padrão pelo tipo), Previdência seguindo a marcação, bruto tributável no card Salário bruto e backup de Recebimentos na versão 3; pronta localmente, sem publicação.
-- [096 — Faixa de competência compartilhada e átomos com tailwind-variants](096-shared-month-strip-and-variants.md): a faixa da Visão Geral, extraída em `MonthStrip`, no alto de Gastos familiares com seleção múltipla e alvos de toque maiores no celular; `KpiCard`, `Badge`, filtros, botões do topo e a faixa em `tailwind-variants`.
+- [096 — Seletor de competência com vários meses e átomos com tailwind-variants](096-shared-month-strip-and-variants.md): `YearMonthPicker` embaixo do título de Gastos familiares (anos, meses do ano, vários meses e "Ano todo"), faixa de Investimentos em `MonthStrip` com alvos de 44 px no toque; `KpiCard`, `Badge`, filtros, botões do topo e as faixas em `tailwind-variants`.
 
 As specs 088 a 092 foram feitas em 2026-10-07 (a 090 e a 091 começadas por
 outro agente em paralelo) e conferidas juntas: lint, tipos, 78 testes
