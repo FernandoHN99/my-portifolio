@@ -63,6 +63,25 @@ noite: duas áreas novas em Finanças, também só de `nandohneto@gmail.com`
   cotação de cripto (spec 093, que só vale no job depois de republicar a função
   do Neon). As peças visuais comuns às duas áreas estão em
   `src/components/product/finance-parts.tsx`.
+- Também em 2026-10-08, sem commit nem publicação, a [spec 094](.ai/specs/094-income-hours-model.md):
+  tabela `income_hour_records` com as horas do mês por tipo (normais e extras de
+  50%, 75% e 100%) em três versões, a declarada, a paga e a trabalhada de
+  verdade, só guardadas, sem tela. O backup de Recebimentos passou à versão 2
+  (a 1 continua aceita) e há um arquivo de carga dos 11 holerites de 2026, com
+  o 13º de junho, em `backups/recebimentos/recebimentos-holerites-2026-10-08.backup.json`,
+  já com o líquido de julho do holerite (R$ 9.106,65) e setembro sem duplicar
+  as férias (salário R$ 13.454,16 + férias R$ 1.989,39 = R$ 15.443,55).
+  A migração das horas e o arquivo já estão no banco local; falta a produção,
+  depois do deploy.
+- Ainda em 2026-10-08, sem commit nem publicação, a [spec 095](.ai/specs/095-payslip-taxable-flag.md):
+  cada linha do holerite tem `taxable` (checkbox "Tributável (limite do PGBL)"
+  no formulário do mês, padrão pelo tipo: 13º e PLR começam desmarcados), a
+  Previdência segue a marcação e o card Salário bruto mostra o bruto tributável.
+  O backup de Recebimentos passou à versão 3 (as 1 e 2 continuam aceitas, com
+  `taxable` pelo tipo) e o arquivo de carga foi atualizado. A migração
+  `20261008170000_income_payslip_taxable` já está aplicada no banco local (o
+  usuário rodou `pnpm db:migrate` e `pnpm db:generate`); falta a produção,
+  depois do deploy.
 - O [guia de estilos](docs/style-guide.md) ([spec 090](.ai/specs/090-shared-visual-language.md))
   vale para todas as áreas; Gastos familiares mostra o ano inteiro na faixa de
   meses, com os meses acima das pessoas e controles mais compactos
@@ -71,8 +90,10 @@ noite: duas áreas novas em Finanças, também só de `nandohneto@gmail.com`
   `src/lib/competence.ts`. Os cenários com Recebimentos e Previdência rodam no
   schema `recebimentos_teste` (configuração `recebimentos-teste`, porta 3120),
   com o usuário de teste de `.env.recebimentos-teste` (fora do Git).
-- Ponto aberto: as férias de setembro/26 aparecem em duas linhas e, pelo
-  holerite, já estão nos R$ 15.443,55 (detalhes na spec 088).
+- As férias de setembro/26 já estão nos R$ 15.443,55 do holerite: o arquivo da
+  spec 094 as separa (salário R$ 13.454,16 e férias R$ 1.989,39) para não
+  contar duas vezes; o banco local e a produção só corrigem ao importá-lo
+  (spec 088, ponto aberto resolvido).
 
 - as cotações são atualizadas só pelo job agendado (`pnpm quotes:sync`,
   [spec 053](.ai/specs/053-scheduled-quote-sync.md)); a abertura do app não
@@ -197,7 +218,10 @@ fatia fica em `.ai/specs/README.md`.
 
 Ao atualizar um ambiente local: `pnpm install`, `pnpm db:migrate`,
 `pnpm db:generate` (o `migrate dev` do Prisma 7 não regenera o cliente) e
-reiniciar o `pnpm dev`. Ao abrir, o app pergunta antes de criar as competências
+reiniciar o `pnpm dev`. O usuário autorizou os agentes a rodarem esses comandos
+no ambiente local (anotado em 2026-10-08, depois de ele os executar para as
+migrações das specs 094 e 095); a produção e os commits seguem pedindo
+aprovação. Ao abrir, o app pergunta antes de criar as competências
 que faltam (a primeira, para um usuário novo, é criada na hora); as cotações e a
 meta Selic vêm de `pnpm quotes:sync`.
 

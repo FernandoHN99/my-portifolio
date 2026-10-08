@@ -108,8 +108,11 @@ dados de Gastos familiares (`family_contacts`, `family_series` e
 
 Desde a [spec 092](../.ai/specs/092-income-backup-and-load.md), os meses e os
 holerites de Recebimentos (`income_months` e `income_payslips`) também têm o
-próprio arquivo, no formato `meu-portfolio-recebimentos`, versão 1, com as
-tabelas `incomeMonths` e `incomePayslips`, sem `userId`. O código fica em
+próprio arquivo, no formato `meu-portfolio-recebimentos`, com as tabelas
+`incomeMonths` e `incomePayslips` (versão 1) e, desde a
+[spec 094](../.ai/specs/094-income-hours-model.md), `incomeHourRecords`
+(versão 2), sem `userId`. A versão 3 ([spec 095](../.ai/specs/095-payslip-taxable-flag.md))
+acrescenta `taxable` aos holerites. O código fica em
 `src/modules/income/domain/income-backup-format.ts` e
 `application/income-backup.ts`; as portas são o botão Backup de Recebimentos,
 `/api/recebimentos/backup` e `pnpm income:backup`.
@@ -121,6 +124,15 @@ tabelas `incomeMonths` e `incomePayslips`, sem `userId`. O código fica em
 - a Previdência só lê a carteira e os holerites: não tem arquivo próprio;
 - uma mudança nas tabelas da área segue o roteiro abaixo, com
   `INCOME_BACKUP_VERSION` no lugar de `BACKUP_VERSION`.
+
+Versões do arquivo de Recebimentos (a restauração aceita as listadas em
+`INCOME_BACKUP_ACCEPTED_VERSIONS`; tabela ausente vale como vazia):
+
+| Versão | Desde | Mudança |
+|---|---|---|
+| 1 | 2026-10-07, spec 092 | `incomeMonths` e `incomePayslips` |
+| 2 | 2026-10-08, spec 094 | entra `incomeHourRecords` (horas declaradas, pagas e trabalhadas por tipo e mês); o arquivo da versão 1 entra sem conversão, com as horas vazias |
+| 3 | 2026-10-08, spec 095 | `incomePayslips` ganha `taxable` (obrigatório: a linha entra na renda tributável do limite do PGBL); os arquivos das versões 1 e 2 entram com `taxable` pelo tipo (13º e PLR fora, o resto dentro), a regra de antes |
 
 ## Restauração
 

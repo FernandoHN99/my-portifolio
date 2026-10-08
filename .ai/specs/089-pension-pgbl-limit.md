@@ -80,7 +80,8 @@ e cartão de resumo).
   limite; a linha abre a posição.
 - **Meses trabalhados:** Nome em selo, **Período** (início → fim) em vez de duas
   colunas, Empresa, Dias, Proporcional, Bruto, Por dia e Renda tributável em
-  coluna tingida; 13º e PLR esmaecidos, "fora do cálculo". O rodapé mostra a
+  coluna tingida; as linhas não tributáveis (13º e PLR por padrão) esmaecidas,
+  "não tributável". O rodapé mostra a
   conta inteira: renda tributável e, abaixo, "× 12% = limite do ano". Datas em
   dd/mm/aa, como a planilha dele.
 - **Regras novas, puras e testadas:** acumulado e % do limite de cada aporte,

@@ -20,6 +20,9 @@ criadas em paralelo por outro agente.
   `pnpm income:backup export|restore --user <e-mail> [--apply]`. Todas pedem
   a concessão `INCOME`. Bloqueio próprio (`INCOME_RESTORE_LOCK_KEY`).
 
+Em 2026-10-08, a [spec 094](094-income-hours-model.md) levou o formato à versão
+2 (tabela `incomeHourRecords`); o arquivo da versão 1 continua aceito.
+
 ## Carga da planilha (2026-10-07)
 
 Arquivo `backups/recebimentos/recebimentos-planilha-2026-10-07.backup.json`

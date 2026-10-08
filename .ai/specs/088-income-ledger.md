@@ -49,6 +49,11 @@ Excel, com o balanço de cada mês igual ao gráfico (Jan +5.157,67 … Ago
 
 ## Ponto aberto
 
+- **Resolvido em 2026-10-08** (decisão do usuário, [spec 094](094-income-hours-model.md)):
+  nada de contar as férias duas vezes. O arquivo de carga novo divide o
+  holerite de setembro em salário (R$ 13.454,16) e férias (R$ 1.989,39), que
+  somam os R$ 15.443,55; o banco só muda quando o arquivo é importado. O texto
+  abaixo é o registro da dúvida original.
 - O holerite de setembro/26 mostra que os R$ 15.443,55 de vencimentos já
   incluem as férias (Férias no Mês R$ 1.480,53 + 1/3 R$ 497,35 + Média
   R$ 11,51 = R$ 1.989,39). O usuário manteve as duas linhas (férias e
