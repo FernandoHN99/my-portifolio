@@ -2,8 +2,9 @@
 
 Registrado em: 2026-10-03
 Origem: pedido do usuário de publicar o app, na conversa de 2026-10-03.
-Estado em 2026-10-08: no ar com as specs 053 a 092 (deploys
-`dpl_Apa6K8KzKQoKUArXKgk595Ypkmrv` e `dpl_AoQj5zmXxYFZ6usYxBj7xM18wRHw`, da correção de cores, commit `05958e6`),
+Estado em 2026-10-08: no ar com as specs 053 a 092 e 094 a 096 (deploy
+`dpl_4f2NDoKcF8nmQsX4KD89BRFRGnRA`, commit `9a00281`; antes dele, os de 088 a 092,
+`dpl_Apa6K8KzKQoKUArXKgk595Ypkmrv` e `dpl_AoQj5zmXxYFZ6usYxBj7xM18wRHw`),
 com a conta do usuário, os dados atuais da carteira, os lançamentos de Gastos
 familiares e as áreas Recebimentos e Previdência na conta dele, a única com as
 áreas pessoais. Os recebimentos ainda não foram importados na produção: o
@@ -228,6 +229,28 @@ A produção começa sem usuários. Para entrar:
     `backups/recebimentos/meu-portfolio-recebimentos-2026-10-08-0253.json`
     (21 meses, 24 holerites). O usuário importa em Recebimentos → Backup.
 
+- 2026-10-08, publicação das specs 093 (só o código do app, sem a função), 094,
+  095 e 096 e das revisões visuais de Recebimentos e Previdência:
+  - antes do deploy, a branch de segurança `snapshot-antes-da-094`
+    (`br-wild-meadow-b6g8hsd9`, sem compute) e as contagens: 27 migrações
+    finalizadas, 2 usuários, 837 posições, 742 movimentações, 21 meses e 24
+    holerites de Recebimentos, 512 lançamentos de Gastos familiares;
+  - oito commits (`e45bbb4` a `9a00281`) na `dev`, levados à `main` por avanço
+    direto; deploy `dpl_4f2NDoKcF8nmQsX4KD89BRFRGnRA`, READY em cerca de 75
+    segundos, com as migrações `20261008150000_income_hour_records` (tabela
+    `income_hour_records`) e `20261008170000_income_payslip_taxable` (coluna
+    `taxable`) aplicadas pelo build (29 no total);
+  - conferido: `/api/health` com app e banco online, `/entrar` em 200, páginas
+    sem sessão levando ao login, rotas de dados em 401 e nenhum erro nos logs
+    de execução; contagens iguais às de antes (837, 742, 21, 24, 512), com
+    `income_hour_records` vazia e nenhum holerite fora do limite (não havia 13º
+    nem PLR na produção);
+  - o app novo traz a faixa de competência no alto de Gastos familiares, o
+    `KpiCard` único e os átomos em `tailwind-variants` (spec 096);
+  - a função `quotesync` **não** foi republicada: a CLI do Neon não tinha login
+    na máquina (`npx neon auth` abre o navegador) e o MCP não envia o pacote de
+    cerca de 6 MB. Continua a versão anterior (deployment 4).
+
 ## Pendente
 
 - o backup com movimentações v3 ([spec 071](../specs/071-backup-with-movements.md)
@@ -238,10 +261,14 @@ A produção começa sem usuários. Para entrar:
 - a Binance não serve de reserva para a função em `aws-us-east-1` (HTTP 451):
   sem a CoinGecko, BTC e SOL esperam a execução seguinte (cerca de 1 em 4
   execuções desde 05/10). Correção pronta e testada localmente em 2026-10-08,
-  sem commit e sem publicação: [spec 093](../specs/093-crypto-quote-fallbacks.md)
-  (nova tentativa na CoinGecko, Coinbase e Yahoo como reservas e a Binance por
-  último). Falta republicar a função `quotesync` no Neon, com a autorização do
-  usuário;
+  commitada na `dev` e na `main` ([spec 093](../specs/093-crypto-quote-fallbacks.md):
+  nova tentativa na CoinGecko, Coinbase e Yahoo como reservas e a Binance por
+  último). Falta republicar a função `quotesync` no Neon: precisa de
+  `npx neon auth` no navegador do usuário e dos passos de
+  [docs/quote-sync-job.md](../../docs/quote-sync-job.md);
+- Recebimentos: o arquivo `backups/recebimentos/recebimentos-holerites-2026-10-08.backup.json`
+  (versão 3, com horas, férias de setembro separadas e o 13º de junho) fica para
+  o usuário importar na página; a produção só tem a carga antiga;
 - o backup passou à versão 5; arquivos antigos continuam restaurando.
 
 ## Decisões do usuário

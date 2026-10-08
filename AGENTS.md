@@ -56,14 +56,14 @@ noite: duas áreas novas em Finanças, também só de `nandohneto@gmail.com`
   só leitura; limite de 12% da renda tributável por ano-base (holerites de
   Recebimentos, sem 13º e PLR) contra os aportes das posições do tipo
   Previdência (saldo inicial e aportes, sem transferências).
-- Em 2026-10-08, na `dev` e sem push nem publicação: revisão visual de Recebimentos
+- Em 2026-10-08, na `dev` e na produção (deploy `dpl_4f2NDoKcF8nmQsX4KD89BRFRGnRA`): revisão visual de Recebimentos
   (menta e violeta no lugar do laranja, tabela com o bruto nas Entradas, taxa
   de poupança, total e média; spec 088), revisão visual da Previdência com o
   painel de uso do limite e o acumulado dos aportes (spec 089) e as reservas da
-  cotação de cripto (spec 093, que só vale no job depois de republicar a função
-  do Neon). As peças visuais comuns às duas áreas estão em
+  cotação de cripto (spec 093: o código está no app, mas só vale no job depois de
+  republicar a função `quotesync` do Neon, o que falta; precisa do login da CLI do Neon). As peças visuais comuns às duas áreas estão em
   `src/components/product/finance-parts.tsx`.
-- Também em 2026-10-08, sem commit nem publicação, a [spec 094](.ai/specs/094-income-hours-model.md):
+- Também em 2026-10-08, na produção, a [spec 094](.ai/specs/094-income-hours-model.md):
   tabela `income_hour_records` com as horas do mês por tipo (normais e extras de
   50%, 75% e 100%) em três versões, a declarada, a paga e a trabalhada de
   verdade, só guardadas, sem tela. O backup de Recebimentos passou à versão 2
@@ -71,17 +71,16 @@ noite: duas áreas novas em Finanças, também só de `nandohneto@gmail.com`
   o 13º de junho, em `backups/recebimentos/recebimentos-holerites-2026-10-08.backup.json`,
   já com o líquido de julho do holerite (R$ 9.106,65) e setembro sem duplicar
   as férias (salário R$ 13.454,16 + férias R$ 1.989,39 = R$ 15.443,55).
-  A migração das horas e o arquivo já estão no banco local; falta a produção,
-  depois do deploy.
-- Ainda em 2026-10-08, sem commit nem publicação, a [spec 095](.ai/specs/095-payslip-taxable-flag.md):
+  A migração das horas está no banco local e na produção; o arquivo de carga
+  fica para o usuário importar na produção, pela página de Recebimentos.
+- Ainda em 2026-10-08, na produção, a [spec 095](.ai/specs/095-payslip-taxable-flag.md):
   cada linha do holerite tem `taxable` (checkbox "Tributável (limite do PGBL)"
   no formulário do mês, padrão pelo tipo: 13º e PLR começam desmarcados), a
   Previdência segue a marcação e o card Salário bruto mostra o bruto tributável.
   O backup de Recebimentos passou à versão 3 (as 1 e 2 continuam aceitas, com
   `taxable` pelo tipo) e o arquivo de carga foi atualizado. A migração
-  `20261008170000_income_payslip_taxable` já está aplicada no banco local (o
-  usuário rodou `pnpm db:migrate` e `pnpm db:generate`); falta a produção,
-  depois do deploy.
+  `20261008170000_income_payslip_taxable` está aplicada no banco local e na
+  produção (pelo build do deploy).
 - O [guia de estilos](docs/style-guide.md) ([spec 090](.ai/specs/090-shared-visual-language.md))
   vale para todas as áreas; Gastos familiares mostra o ano inteiro na faixa de
   meses, com os meses acima das pessoas e controles mais compactos

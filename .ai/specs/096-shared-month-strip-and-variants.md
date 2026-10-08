@@ -1,7 +1,7 @@
 # 096 — Faixa de competência compartilhada e átomos com tailwind-variants
 
-Estado: implementada e conferida localmente em 2026-10-08/09; commit e
-publicação autorizados pelo usuário na mesma conversa.
+Estado: implementada, commitada e publicada em 2026-10-08 (deploy
+`dpl_4f2NDoKcF8nmQsX4KD89BRFRGnRA`), com autorização do usuário.
 Origem: pedido do usuário depois da spec 090: pôr a Competência de Gastos
 familiares no alto da página, reaproveitando o componente de Investimentos, mas
 com seleção múltipla; melhorar o uso no celular sem mudar a estética; e usar
