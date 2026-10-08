@@ -91,7 +91,14 @@ test.describe("com a concessão", () => {
 
     const months = page.getByTestId("family-month-badges");
     const monthBadges = months.getByRole("button", { name: /de 20\d\d$/ });
-    test.skip(await monthBadges.count() < 2, "Precisa de dois meses para testar multisseleção.");
+    // O ano inteiro na faixa (spec 091), com os meses acima das pessoas.
+    await expect(monthBadges).toHaveCount(12);
+    const filterGap = await page.evaluate(() => {
+      const months = document.querySelector('[data-testid="family-month-badges"]')!.getBoundingClientRect();
+      const people = document.querySelector('[data-testid="family-person-badges"]')!.getBoundingClientRect();
+      return people.top - months.bottom;
+    });
+    expect(filterGap).toBeGreaterThan(0);
     const toggle = page.getByRole("button", { name: "Selecionar vários meses" });
     await expect(toggle).toHaveAttribute("aria-pressed", "false");
     await monthBadges.nth(1).click();

@@ -377,7 +377,7 @@ function EntryForm({
                 {formatCompetence(span.first)} a {formatCompetence(span.last)}
               </PreviewRow>
               <PreviewRow label="Total da série">
-                <span className={direction === "RECEIVABLE" ? "text-chart-up" : "text-chart-down"}>
+                <span className={direction === "RECEIVABLE" ? "text-primary" : "text-warning-foreground"}>
                   {formatCents((direction === "RECEIVABLE" ? 1 : -1) * amountCents! * countNumber, { signed: true })}
                 </span>
               </PreviewRow>
@@ -388,7 +388,7 @@ function EntryForm({
               {signed === null ? (
                 <span className="text-muted-foreground">—</span>
               ) : (
-                <span className={signed > 0 ? "text-chart-up" : "text-chart-down"}>
+                <span className={signed > 0 ? "text-primary" : signed < 0 ? "text-warning-foreground" : "text-muted-foreground"}>
                   {formatCents(signed, { signed: true })} {signed > 0 ? "a receber" : "a pagar"}
                 </span>
               )}
@@ -487,8 +487,8 @@ function Segmented({
                 checked
                   ? tone
                     ? option.value === "RECEIVABLE"
-                      ? "bg-chart-up/15 text-chart-up"
-                      : "bg-chart-down/15 text-chart-down"
+                      ? "bg-primary/10 text-primary"
+                      : "bg-warning/50 text-warning-foreground"
                     : "bg-primary text-primary-foreground"
                   : "text-muted-foreground hover:text-foreground",
               )}

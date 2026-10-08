@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { pendingFilterActivity, resolveLedgerFilters, resolveFamilyWorkspaceFilters, selectCompetence } from "@/modules/family-expenses/domain/filters";
+import { fullYearCompetences, pendingFilterActivity, resolveLedgerFilters, resolveFamilyWorkspaceFilters, selectCompetence } from "@/modules/family-expenses/domain/filters";
 import {
   NO_FILTERS,
   type LedgerEntry,
@@ -199,6 +199,16 @@ test("mês atual sem dados não volta a meses antigos nem inventa uma pessoa", (
   assert.deepEqual(state.contactIds, []);
   assert.deepEqual(state.filters.contacts, []);
   assert.deepEqual(state.entries, []);
+});
+
+test("faixa inclui os doze meses dos anos escolhidos, inclusive vazios e históricos (spec 091)", () => {
+  const months = fullYearCompetences(["2026-10", "2026-03", "2025-12"]);
+  assert.equal(months.length, 24);
+  assert.equal(months[0], "2026-12");
+  assert.equal(months[11], "2026-01");
+  assert.equal(months[12], "2025-12");
+  assert.equal(months[23], "2025-01");
+  assert.equal(new Set(months).size, 24);
 });
 
 test("meses múltiplos somam somente os lançamentos da pessoa selecionada", () => {

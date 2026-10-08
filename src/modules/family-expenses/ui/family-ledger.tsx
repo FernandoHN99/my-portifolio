@@ -42,7 +42,7 @@ import {
   type LedgerFilters,
   type LedgerSeries,
 } from "@/modules/family-expenses/domain/ledger";
-import { pendingFilterActivity, resolveFamilyWorkspaceFilters, selectCompetence } from "@/modules/family-expenses/domain/filters";
+import { fullYearCompetences, pendingFilterActivity, resolveFamilyWorkspaceFilters, selectCompetence } from "@/modules/family-expenses/domain/filters";
 import { formatCents, type Cents } from "@/lib/money";
 import { EntryDialog, type EntryDialogTarget } from "@/modules/family-expenses/ui/entry-dialog";
 import { FamilyBackupDialog } from "@/modules/family-expenses/ui/family-backup-dialog";
@@ -60,7 +60,6 @@ const list = parseAsArrayOf(parseAsString).withDefault([]);
 
 const STATUS_PARAMS: Record<string, EntryStatus> = { pendente: "PENDING", acertado: "SETTLED" };
 const DIRECTION_PARAMS: Record<string, Direction> = { deve: "RECEIVABLE", devo: "PAYABLE" };
-const QUICK_MONTHS = 6;
 
 type EntryDialogState = { open: boolean; target: EntryDialogTarget | null; key: number };
 
@@ -77,23 +76,36 @@ export function FamilyLedgerWorkspace({ ledger, menu }: { ledger: FamilyLedger; 
   const [settlingId, setSettlingId] = useState<string | null>(null);
   const [, startSettling] = useTransition();
   const sequence = useRef(0);
+  const monthStrip = useRef<HTMLDivElement>(null);
   // Marca a página hidratada para os testes de interface (como a faixa de competências).
   const hydrated = useSyncExternalStore(subscribeNothing, isClient, isServer);
 
   const contacts = useMemo(() => new Map(ledger.contacts.map((contact) => [contact.id, contact.name])), [ledger.contacts]);
   const series = useMemo(() => new Map(ledger.series.map((entry) => [entry.id, entry])), [ledger.series]);
-  const competences = useMemo(
-    () => [...new Set([ledger.currentCompetence, ...ledger.entries.map((entry) => entry.competence)])].sort().reverse(),
-    [ledger.entries, ledger.currentCompetence],
-  );
-
   const resolved = useMemo(
     () => resolveFamilyWorkspaceFilters(ledger.entries, filtersFromQuery(query), { contacts, series }, ledger.currentCompetence),
     [ledger.entries, ledger.currentCompetence, query, contacts, series],
   );
   const { filters, entries: filtered } = resolved;
+  // O mês vem antes da pessoa (spec 091): as opções cobrem os anos com
+  // lançamentos de qualquer pessoa, além do atual e dos já escolhidos.
+  const competences = useMemo(
+    () => fullYearCompetences([ledger.currentCompetence, ...filters.competences, ...ledger.entries.map((entry) => entry.competence)]),
+    [ledger.entries, ledger.currentCompetence, filters.competences],
+  );
   const activity = pendingFilterActivity(ledger.entries, filters);
   const multipleMonths = query.multimes || filters.competences.length > 1;
+
+  useEffect(() => {
+    const strip = monthStrip.current;
+    const selected = strip?.querySelector<HTMLButtonElement>(`[data-competence="${filters.competences.at(-1)}"]`);
+    if (!strip || !selected) return;
+    const bounds = strip.getBoundingClientRect();
+    const item = selected.getBoundingClientRect();
+    if (item.left < bounds.left || item.right > bounds.right) {
+      strip.scrollLeft += item.left - bounds.left - (strip.clientWidth - selected.offsetWidth) / 2;
+    }
+  }, [filters.competences]);
 
   // Mantém URL e opções em acordo, inclusive ao voltar no histórico ou quando
   // um acerto muda os status disponíveis. Nunca fica seleção invisível ativa.
@@ -294,7 +306,7 @@ export function FamilyLedgerWorkspace({ ledger, menu }: { ledger: FamilyLedger; 
     );
   }
 
-  const quickMonths = [...new Set([...quickCompetences(competences, ledger.currentCompetence), ...filters.competences])].sort().reverse();
+  const visibleMonths = fullYearCompetences(filters.competences);
   const peopleWithReceivable = summary.people.filter((person) => person.pendingCents > 0).length;
   const peopleWithPayable = summary.people.filter((person) => person.pendingCents < 0).length;
 
@@ -363,17 +375,17 @@ export function FamilyLedgerWorkspace({ ledger, menu }: { ledger: FamilyLedger; 
                 title={multipleMonths ? "Usar seleção única de mês" : "Selecionar vários meses"}
                 onClick={toggleMultipleMonths}
                 className={cn(
-                  "grid size-9 shrink-0 place-items-center rounded-lg border outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring/50 sm:size-8",
+                  "relative grid size-6 shrink-0 place-items-center rounded-md border outline-none transition-colors after:absolute after:-inset-2 after:content-[''] focus-visible:ring-2 focus-visible:ring-ring/50 sm:after:hidden",
                   multipleMonths ? activeFilterBadgeClass : inactiveFilterBadgeClass,
                 )}
               >
-                <ListChecksIcon aria-hidden="true" size={16} weight={multipleMonths ? "bold" : "regular"} />
+                <ListChecksIcon aria-hidden="true" size={12} weight={multipleMonths ? "bold" : "regular"} />
               </button>
             </span>
           </legend>
           <div className="flex min-w-0 items-start gap-2">
-            <div className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto pb-1 [scrollbar-width:none] sm:flex-wrap [&::-webkit-scrollbar]:hidden">
-              {quickMonths.map((competence) => (
+            <div ref={monthStrip} className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto overscroll-x-contain pb-1 [scrollbar-width:thin]" data-testid="family-month-scroll">
+              {visibleMonths.map((competence) => (
                 <button
                   key={competence}
                   type="button"
@@ -381,6 +393,7 @@ export function FamilyLedgerWorkspace({ ledger, menu }: { ledger: FamilyLedger; 
                   aria-label={formatCompetenceLong(competence)}
                   title={activity.months.has(competence) ? "Há lançamentos pendentes" : "Sem pendências para esta pessoa"}
                   data-no-pending={!activity.months.has(competence)}
+                  data-competence={competence}
                   onClick={() => chooseMonth(competence)}
                   className={cn(filterBadgeClass, "font-mono", filters.competences.includes(competence) ? activeFilterBadgeClass : inactiveFilterBadgeClass)}
                 >
@@ -463,9 +476,9 @@ export function FamilyLedgerWorkspace({ ledger, menu }: { ledger: FamilyLedger; 
       </section>
 
       <section className="premium-panel mt-5 overflow-hidden rounded-[24px]" aria-labelledby="family-entries-title">
-        <div className="flex flex-wrap items-center justify-between gap-3 px-5 pt-5 pb-4 sm:px-6">
-          <div className="flex items-baseline gap-3">
-            <h2 id="family-entries-title" className="text-base font-semibold tracking-[-0.025em]">
+        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 px-5 py-2.5 sm:px-6">
+          <div className="flex items-baseline gap-2">
+            <h2 id="family-entries-title" className="text-sm font-semibold tracking-[-0.025em]">
               Lançamentos
             </h2>
             <p className="text-[11px] text-muted-foreground" data-testid="family-filtered-count">
@@ -493,9 +506,9 @@ export function FamilyLedgerWorkspace({ ledger, menu }: { ledger: FamilyLedger; 
             const pendingCents = groupPending.reduce((sum, entry) => sum + signedCents(entry), 0);
 
             return (
-              <section key={group.competence} aria-labelledby={`family-month-${group.competence}`} className={cn(groups.length > 1 && "mx-3 mb-4 overflow-hidden rounded-xl border border-border/70 sm:mx-4")}>
+              <section key={group.competence} aria-labelledby={`family-month-${group.competence}`} className={cn(groups.length > 1 && "mx-3 mb-3 overflow-hidden rounded-xl border border-border/70 sm:mx-4")}>
                 <div
-                  className={cn("flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-border/60 px-5 py-3.5 sm:px-6", groups.length > 1 ? "bg-primary/[0.045]" : "border-t bg-white/[0.022]")}
+                  className={cn("flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-border/60 px-5 py-2 sm:px-6", groups.length > 1 ? "bg-primary/[0.045]" : "border-t bg-white/[0.022]")}
                   data-testid="family-month-row"
                   data-competence={group.competence}
                 >
@@ -534,7 +547,7 @@ export function FamilyLedgerWorkspace({ ledger, menu }: { ledger: FamilyLedger; 
             );
           })
         )}
-        <div className="flex flex-wrap items-center gap-x-6 gap-y-2 border-t border-border/70 px-5 py-4 text-xs sm:px-6" data-testid="family-footer">
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-1.5 border-t border-border/70 px-5 py-2.5 text-xs sm:px-6" data-testid="family-footer">
           <span className="text-muted-foreground">
             {filtered.length} de {ledger.entries.length} lançamentos
           </span>
@@ -613,7 +626,7 @@ function EntryRow({
       data-testid="family-entry-row"
       data-status={entry.status}
       onClick={openFromRow}
-      className="grid cursor-pointer grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-2 px-5 py-3.5 transition-colors hover:bg-white/[0.018] sm:grid-cols-[minmax(0,1fr)_minmax(8rem,0.6fr)_auto] sm:gap-4 sm:px-6"
+      className="grid cursor-pointer grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-2 px-5 py-2.5 transition-colors hover:bg-white/[0.018] sm:grid-cols-[minmax(0,1fr)_minmax(8rem,0.6fr)_auto] sm:gap-4 sm:px-6 sm:py-2"
     >
       <div className="min-w-0">
         <button
@@ -635,7 +648,7 @@ function EntryRow({
             <span className="sr-only">{series.kind === "MONTHLY" ? "mensal" : "parcelado"}</span>
           </span>
         ) : null}
-        <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground">
+        <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground">
           <span className="[overflow-wrap:anywhere]">{contactName}</span>
           <DirectionBadge direction={entry.direction} />
         </p>
@@ -655,7 +668,7 @@ function EntryRow({
             disabled={settling}
             aria-label={`Acertar ${description}`}
             title="Acertar"
-            className="grid size-8 shrink-0 place-items-center rounded-lg border border-border text-muted-foreground outline-none transition-colors hover:border-primary/40 hover:bg-primary/10 hover:text-primary focus-visible:ring-2 focus-visible:ring-ring/50 disabled:opacity-40"
+            className="grid size-8 shrink-0 place-items-center rounded-lg border border-border text-muted-foreground outline-none transition-colors hover:border-primary/40 hover:bg-primary/10 hover:text-primary focus-visible:ring-2 focus-visible:ring-ring/50 disabled:opacity-40 sm:size-7"
           >
             <CheckIcon aria-hidden="true" size={13} weight="bold" />
           </button>
@@ -666,7 +679,7 @@ function EntryRow({
             disabled={settling}
             aria-label={`Reverter acerto de ${description}`}
             title="Voltar a pendente"
-            className="grid size-8 shrink-0 place-items-center rounded-lg border border-border text-muted-foreground outline-none transition-colors hover:border-primary/40 hover:bg-primary/10 hover:text-primary focus-visible:ring-2 focus-visible:ring-ring/50 disabled:opacity-40"
+            className="grid size-8 shrink-0 place-items-center rounded-lg border border-border text-muted-foreground outline-none transition-colors hover:border-primary/40 hover:bg-primary/10 hover:text-primary focus-visible:ring-2 focus-visible:ring-ring/50 disabled:opacity-40 sm:size-7"
           >
             <ArrowCounterClockwiseIcon aria-hidden="true" size={14} />
           </button>
@@ -722,16 +735,6 @@ function FooterValue({ label, cents, emphasis = false }: { label: string; cents:
       <span className={cn("font-mono text-sm", emphasis ? "text-primary" : "text-foreground")}>{formatCents(cents, { signed: true })}</span>
     </span>
   );
-}
-
-/**
- * Meses à vista para um toque, como a segmentação da planilha: o mês atual, os
- * anteriores com lançamentos e até dois próximos, das parcelas já geradas.
- */
-function quickCompetences(competences: readonly string[], current: string) {
-  const future = competences.filter((competence) => competence > current).slice(-2);
-  const past = competences.filter((competence) => competence <= current);
-  return [...future, ...past].slice(0, QUICK_MONTHS);
 }
 
 function groupByCompetence(entries: readonly LedgerEntry[]) {

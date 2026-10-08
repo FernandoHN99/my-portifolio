@@ -52,7 +52,8 @@ export function resolveLedgerFilters(
 /**
  * A tela abre no mês atual e sempre representa uma pessoa (spec 086).
  * A busca não troca a pessoa: sem correspondência, a lista fica vazia.
- * As alternativas de pessoa dependem apenas das competências selecionadas.
+ * As alternativas de pessoa dependem apenas das competências selecionadas
+ * (competência → pessoa → status → tipo; mantido na spec 091).
  */
 export function resolveFamilyWorkspaceFilters(
   entries: readonly LedgerEntry[],
@@ -71,6 +72,12 @@ export function resolveFamilyWorkspaceFilters(
   );
 
   return { ...state, contactIds: monthState.contactIds, filters: { ...state.filters, contacts } };
+}
+
+/** Doze meses para cada ano representado, inclusive meses sem lançamentos. */
+export function fullYearCompetences(competences: readonly string[]) {
+  const years = [...new Set(competences.map((competence) => competence.slice(0, 4)))].sort().reverse();
+  return years.flatMap((year) => Array.from({ length: 12 }, (_, index) => `${year}-${String(12 - index).padStart(2, "0")}`));
 }
 
 /** Ao retirar o último mês, volta ao atual; no modo único, cada clique troca. */
