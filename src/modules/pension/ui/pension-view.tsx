@@ -26,6 +26,8 @@ export function PensionView({ data, menu }: { data: PensionData; menu?: ReactNod
   // Marca a página hidratada para os testes de interface.
   const hydrated = useSyncExternalStore(subscribeNothing, isClient, isServer);
   const over = summary.remainingCents < 0;
+  const counted = summary.periods.filter((period) => period.counted).length;
+  const progress = summary.limitCents > 0 ? Math.round((summary.contributedCents / summary.limitCents) * 100) : 0;
 
   return (
     <div
@@ -61,14 +63,44 @@ export function PensionView({ data, menu }: { data: PensionData; menu?: ReactNod
       </fieldset>
 
       <section aria-label="Resumo do ano" className="mt-6 grid grid-cols-1 gap-3 min-[360px]:grid-cols-2 xl:grid-cols-4">
-        <SummaryCard label="Renda tributável" cents={summary.taxableCents} testId="pension-kpi-taxable" />
-        <SummaryCard label={`Limite de ${PGBL_DEDUCTION_PERCENT}%`} cents={summary.limitCents} testId="pension-kpi-limit" />
-        <SummaryCard label="Aportado" cents={summary.contributedCents} testId="pension-kpi-contributed" />
         <SummaryCard
-          label={over ? "Acima do limite" : "Falta aportar"}
+          label="Renda tributável"
+          cents={summary.taxableCents}
+          detail={`${counted} ${counted === 1 ? "holerite" : "holerites"} no cálculo`}
+          testId="pension-kpi-taxable"
+        />
+        <SummaryCard
+          label={`Limite de ${PGBL_DEDUCTION_PERCENT}%`}
+          cents={summary.limitCents}
+          detail="dedutível no ano"
+          testId="pension-kpi-limit"
+        />
+        <SummaryCard
+          label="Aportado"
+          cents={summary.contributedCents}
+          detail={summary.limitCents > 0 ? `${progress}% do limite` : `${summary.contributions.length} aportes`}
+          testId="pension-kpi-contributed"
+          tone="up"
+        >
+          {summary.limitCents > 0 ? (
+            <span
+              role="meter"
+              aria-label="Aportado em relação ao limite"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={Math.min(progress, 100)}
+              className="mt-3 block h-1.5 overflow-hidden rounded-full bg-white/[0.06]"
+            >
+              <span className="block h-full rounded-full bg-primary" style={{ width: `${Math.min(progress, 100)}%` }} />
+            </span>
+          ) : null}
+        </SummaryCard>
+        <SummaryCard
+          label={over ? "Acima do limite" : summary.remainingCents === 0 && summary.limitCents > 0 ? "Limite atingido" : "Falta aportar"}
           cents={Math.abs(summary.remainingCents)}
+          detail={over ? "além do dedutível" : summary.remainingCents > 0 ? "para chegar ao limite" : "nada a aportar"}
           testId="pension-kpi-remaining"
-          tone={over ? "down" : summary.remainingCents > 0 ? "up" : undefined}
+          tone={over ? undefined : "up"}
           emphasis
         />
       </section>
@@ -120,7 +152,9 @@ function Contributions({ summary }: { summary: PensionYear }) {
               data-testid="pension-contribution"
               className="group flex items-center gap-3 rounded-xl px-1 py-2.5 outline-none transition-colors hover:bg-white/[0.03] focus-visible:ring-2 focus-visible:ring-ring/50 sm:px-2"
             >
-              <span className="w-6 shrink-0 font-mono text-[11px] text-muted-foreground">{contribution.number}</span>
+              <span className="grid size-6 shrink-0 place-items-center rounded-full bg-primary/10 font-mono text-[10px] font-semibold text-primary">
+                {contribution.number}
+              </span>
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-xs font-medium text-foreground">{contribution.assetName}</span>
                 <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">
@@ -128,7 +162,7 @@ function Contributions({ summary }: { summary: PensionYear }) {
                   {contribution.kind === "OPENING" ? " · saldo inicial" : ""}
                 </span>
               </span>
-              <span className="shrink-0 font-mono text-xs text-foreground">{formatCents(contribution.amountCents)}</span>
+              <span className="shrink-0 font-mono text-xs text-primary">{formatCents(contribution.amountCents)}</span>
               <ArrowSquareOutIcon aria-hidden="true" size={13} className="shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
             </Link>
           </li>
@@ -179,19 +213,25 @@ function Periods({ summary }: { summary: PensionYear }) {
                 <Link
                   href={`/recebimentos?mes=${period.month}`}
                   aria-label={`Abrir ${formatCompetenceLong(period.month)} em Recebimentos`}
-                  className="rounded font-medium text-foreground underline-offset-4 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring/50"
+                  className="rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
                 >
-                  {payslipName(period)}
+                  <KindBadge period={period} />
                 </Link>
               </td>
               <td className="px-2 py-2.5 text-left">{date(period.startsOn)}</td>
               <td className="px-2 py-2.5 text-left">{date(period.endsOn)}</td>
               <td className="max-w-[160px] truncate px-2 py-2.5 text-left font-sans">{period.employer}</td>
               <td className="px-2 py-2.5">{period.days}</td>
-              <td className="px-2 py-2.5 text-center font-sans">{period.prorated ? "Sim" : "Não"}</td>
+              <td className="px-2 py-2.5 text-center font-sans">
+                {period.prorated ? (
+                  <span className="inline-flex rounded-full bg-accent px-2 py-0.5 text-[10px] font-semibold text-accent-foreground">Sim</span>
+                ) : (
+                  <span className="text-muted-foreground">Não</span>
+                )}
+              </td>
               <td className="px-2 py-2.5">{formatCents(period.grossCents)}</td>
               <td className="px-2 py-2.5 text-muted-foreground">{formatCents(period.dailyRateCents)}</td>
-              <td className="px-2 py-2.5 text-foreground">
+              <td className="px-2 py-2.5 text-primary">
                 {period.counted ? formatCents(period.taxableCents) : <span className="font-sans text-[11px] text-muted-foreground">fora do cálculo</span>}
               </td>
             </tr>
@@ -211,10 +251,11 @@ function Periods({ summary }: { summary: PensionYear }) {
               )}
             >
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-xs font-medium text-foreground">
-                  {payslipName(period)} · {period.employer}
+                <span className="flex min-w-0 items-center gap-2">
+                  <KindBadge period={period} />
+                  <span className="truncate text-xs font-medium text-foreground">{period.employer}</span>
                 </span>
-                <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">
+                <span className="mt-1 block truncate text-[11px] text-muted-foreground">
                   <span className="font-mono">
                     {date(period.startsOn)} a {date(period.endsOn)}
                   </span>{" "}
@@ -222,8 +263,8 @@ function Periods({ summary }: { summary: PensionYear }) {
                   {period.prorated ? " · proporcional" : ""}
                 </span>
               </span>
-              <span className="shrink-0 text-right font-mono text-xs">
-                {period.counted ? formatCents(period.taxableCents) : <span className="font-sans text-[11px]">fora do cálculo</span>}
+              <span className="shrink-0 text-right font-mono text-xs text-primary">
+                {period.counted ? formatCents(period.taxableCents) : <span className="font-sans text-[11px] text-muted-foreground">fora do cálculo</span>}
               </span>
             </Link>
           </li>
@@ -238,28 +279,46 @@ function TotalRow({ label, cents, testId }: { label: string; cents: Cents; testI
   return (
     <p className="mt-1 flex items-center justify-between gap-3 border-t border-border px-1 pt-3 sm:px-2">
       <span className="text-[10px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">{label}</span>
-      <span className="font-mono text-sm text-foreground" data-testid={testId} data-cents={cents}>
+      <span className="font-mono text-sm text-primary" data-testid={testId} data-cents={cents}>
         {formatCents(cents)}
       </span>
     </p>
   );
 }
 
+/** Nome da linha do holerite em selo: verde quando entra no cálculo. */
+function KindBadge({ period }: { period: PensionYear["periods"][number] }) {
+  return (
+    <span
+      className={cn(
+        "inline-flex shrink-0 rounded-full px-2 py-0.5 font-sans text-[10px] font-semibold tracking-[0.04em] whitespace-nowrap uppercase",
+        period.counted ? "bg-primary/10 text-primary" : "bg-white/[0.05] text-muted-foreground",
+      )}
+    >
+      {payslipName(period)}
+    </span>
+  );
+}
+
 function SummaryCard({
   label,
   cents,
+  detail,
   tone,
   emphasis = false,
   testId,
+  children,
 }: {
   label: string;
   cents: Cents;
-  /** Verde da marca para o que ainda cabe; atenção para o que passou. */
-  tone?: "up" | "down";
+  detail: string;
+  /** Verde da marca no que foi aportado e no que ainda cabe; o resto, neutro. */
+  tone?: "up";
   emphasis?: boolean;
   testId: string;
+  children?: ReactNode;
 }) {
-  const color = tone === "up" ? "text-primary" : tone === "down" ? "text-warning-foreground" : "text-foreground";
+  const color = tone === "up" && cents > 0 ? "text-primary" : "text-foreground";
 
   return (
     <article className={cn("metric-card rounded-2xl p-4 sm:p-5", emphasis && "border-primary/25")}>
@@ -271,6 +330,8 @@ function SummaryCard({
       >
         {formatCents(cents)}
       </p>
+      <p className="mt-1.5 text-xs text-muted-foreground">{detail}</p>
+      {children}
     </article>
   );
 }

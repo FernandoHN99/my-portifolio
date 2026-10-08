@@ -178,7 +178,7 @@ export function IncomeWorkspace({ ledger, menu }: { ledger: IncomeLedger; menu?:
 
       <section aria-label="Resumo do ano" className="mt-6 grid grid-cols-1 gap-3 min-[360px]:grid-cols-2 xl:grid-cols-4">
         <SummaryCard label="Entradas" cents={summary.totals.incomeCents} testId="income-kpi-income" />
-        <SummaryCard label="Saídas" cents={summary.totals.spendCents} testId="income-kpi-spend" tone="down" />
+        <SummaryCard label="Saídas" cents={summary.totals.spendCents} testId="income-kpi-spend" />
         <SummaryCard label="Poupado" cents={summary.totals.balanceCents} testId="income-kpi-balance" tone="up" emphasis />
         <SummaryCard label="Salário bruto" cents={summary.totals.grossCents} testId="income-kpi-gross" />
       </section>
@@ -366,13 +366,13 @@ function SummaryCard({
 }: {
   label: string;
   cents: Cents;
-  /** Valores seguem Gastos familiares; a paleta acessível fica no gráfico. */
-  tone?: "up" | "down";
+  /** Só o poupado tem tom: verde quando sobra, atenção quando falta. */
+  tone?: "up";
   emphasis?: boolean;
   testId: string;
 }) {
   const color =
-    cents === 0 ? "text-foreground" : tone === "down" ? "text-warning-foreground" : tone === "up" ? balanceColor(cents) : "text-foreground";
+    cents === 0 || tone !== "up" ? "text-foreground" : balanceColor(cents);
 
   return (
     <article className={cn("metric-card rounded-2xl p-4 sm:p-5", emphasis && "border-primary/25")}>

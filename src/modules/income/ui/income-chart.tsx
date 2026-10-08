@@ -81,11 +81,20 @@ export function IncomeChart({ summary, selectedMonth }: { summary: YearSummary; 
                   <div className="min-w-[180px] rounded-xl border border-border bg-card/95 p-3 shadow-lg backdrop-blur">
                     <p className="text-[11px] font-medium text-foreground">{formatCompetenceLong(row.month)}</p>
                     <div className="mt-2 space-y-0.5 text-[10px]">
-                      <p className="flex justify-between gap-4 text-muted-foreground">
-                        Gastos <span className="font-mono text-chart-down">{formatCents(row.spendCents)}</span>
+                      {/* A cor da série fica na marca; o valor, em texto neutro (guia de estilos). */}
+                      <p className="flex items-center justify-between gap-4 text-muted-foreground">
+                        <span className="inline-flex items-center gap-1.5">
+                          <span aria-hidden="true" className="size-2 rounded-[2px] bg-chart-down" />
+                          Gastos
+                        </span>
+                        <span className="font-mono text-foreground">{formatCents(row.spendCents)}</span>
                       </p>
-                      <p className="flex justify-between gap-4 text-muted-foreground">
-                        Poupado <span className="font-mono text-chart-up">{formatCents(row.savedCents, { signed: true })}</span>
+                      <p className="flex items-center justify-between gap-4 text-muted-foreground">
+                        <span className="inline-flex items-center gap-1.5">
+                          <span aria-hidden="true" className="size-2 rounded-[2px] bg-chart-up" />
+                          Poupado
+                        </span>
+                        <span className="font-mono text-foreground">{formatCents(row.savedCents, { signed: true })}</span>
                       </p>
                     </div>
                   </div>

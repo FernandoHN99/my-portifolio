@@ -37,15 +37,22 @@ copie valores hexadecimais/OKLCH para cada componente.
 | Séries dos gráficos e marcas associadas | `chart-up`, `chart-down` e o mapa de categorias, conforme a seção seguinte |
 
 Em Gastos familiares, receber/DEVE usa `primary`, pagar/DEVO usa
-`warning-foreground`. Em Recebimentos, poupado positivo usa `primary`, saídas
-e balanço negativo usam `warning-foreground`. O sinal e os rótulos continuam
-visíveis. Valor zero usa `foreground`, inclusive no resumo do formulário e
-nos totais. Valores informativos sem direção (bruto, patrimônio, total de
-entradas) podem permanecer neutros.
+`warning-foreground`. Em Recebimentos, poupado positivo usa `primary`; saídas
+ficam neutras (o usuário não quis o laranja nelas, 2026-10-07) e só o balanço
+negativo usa `warning-foreground`. O sinal e os rótulos continuam visíveis.
+Valor zero usa `foreground`, inclusive no resumo do formulário e nos totais.
+Valores informativos sem direção (bruto, patrimônio, total de entradas) podem
+permanecer neutros.
 
-Em Previdência, o valor que falta aportar usa `primary`; acima do limite usa
-`warning-foreground`. Isso indica a situação em relação ao limite, não alta
-ou queda de um investimento.
+Em Previdência, o que conta a favor usa `primary`: aportado, a barra do
+limite, os aportes, a renda tributável e o que falta aportar. Os nomes das
+linhas do holerite são selos `primary/10` quando entram no cálculo e neutros
+quando ficam fora (13º, PLR); "proporcional" usa `accent`. Acima do limite
+fica neutro, com o rótulo dizendo a situação (pedido do usuário, que achou a
+tela "toda branca" e não quer laranja nos textos).
+
+Tooltips de gráfico mostram a cor da série numa marca ao lado do nome e o
+valor em texto neutro.
 
 Nos indicadores de variação de Investimentos, conservar `primary` para alta
 e `destructive` para queda, com sinal/seta. Uma saída de caixa não é, por si
