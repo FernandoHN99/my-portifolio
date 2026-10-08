@@ -1,6 +1,5 @@
 "use client";
 
-import { ListChecksIcon } from "@phosphor-icons/react/dist/ssr";
 import { AnimatePresence, motion, useReducedMotion, type Transition } from "motion/react";
 import {
   useCallback,
@@ -16,17 +15,17 @@ import { tv } from "tailwind-variants";
 
 import { cn } from "@/lib/utils";
 
-// A faixa de competências do app: cápsulas de ano e, no ano aberto, os meses.
-// Nasceu na Visão Geral (specs 030, 034 e 075) e é a mesma peça em Gastos
-// familiares (spec 096), onde aceita vários meses. O componente só desenha e
-// responde ao toque; quem decide o que a seleção significa (URL, travas,
-// filtros) é a página que o usa. Os átomos usam `tailwind-variants`.
+// A faixa de competências da carteira: cápsulas de ano e, no ano aberto, os
+// meses (specs 030, 034 e 075). Um mês por vez. O componente só desenha e
+// responde ao toque; quem decide o que a seleção significa (URL, travas de
+// mês) é a página que o usa. As áreas pessoais escolhem a competência no
+// `YearMonthPicker`, que aceita vários meses. Os átomos usam `tailwind-variants`.
 //
 // Toque (spec 096): alvos de 44 px e espaço entre os meses em telas de toque,
-// `touch-manipulation` (sem atraso nem zoom no toque duplo), retorno ao pressionar
-// e o contador de meses no seletor múltiplo; no computador nada muda.
+// `touch-manipulation` (sem atraso nem zoom no toque duplo) e retorno ao
+// pressionar; no computador nada muda.
 
-export type MonthStripMarker = "up" | "down" | "pending" | "none";
+export type MonthStripMarker = "up" | "down" | "none";
 
 export type MonthStripItem = {
   /** "AAAA-MM". */
@@ -37,7 +36,7 @@ export type MonthStripItem = {
   short: string;
   /** Complemento do nome acessível, como "+1,20% no mês". */
   description?: string;
-  /** Marca sob o mês: alta, queda, pendência ou nenhuma. */
+  /** Marca sob o mês: alta, queda ou nenhuma. */
   marker: MonthStripMarker;
 };
 
@@ -105,14 +104,13 @@ const monthButton = tv({
 const monthMarker = tv({
   base: "mt-1 h-0.5 w-4 rounded-full transition-colors",
   variants: {
-    marker: { none: "bg-transparent", up: "", down: "", pending: "" },
+    marker: { none: "bg-transparent", up: "", down: "" },
     selected: { true: "", false: "" },
   },
   compoundVariants: [
-    { selected: true, marker: ["up", "down", "pending"], class: "bg-primary-foreground/50" },
+    { selected: true, marker: ["up", "down"], class: "bg-primary-foreground/50" },
     { selected: false, marker: "up", class: "bg-chart-up/70" },
     { selected: false, marker: "down", class: "bg-chart-down/70" },
-    { selected: false, marker: "pending", class: "bg-warning-foreground/70" },
   ],
   defaultVariants: { marker: "none", selected: false },
 });
@@ -126,39 +124,25 @@ const yearTick = tv({
       none: "bg-muted-foreground/45",
       up: "bg-chart-up",
       down: "bg-chart-down",
-      pending: "bg-warning-foreground",
     },
   },
-});
-
-const multiToggle = tv({
-  base: "relative inline-flex h-10 shrink-0 touch-manipulation items-center justify-center gap-1.5 rounded-xl border px-2.5 text-[11px] font-medium outline-none transition-colors select-none focus-visible:ring-2 focus-visible:ring-ring/50 pointer-coarse:h-11 pointer-coarse:min-w-11 sm:px-3",
-  variants: {
-    active: {
-      true: "border-primary/30 bg-primary/[0.08] text-primary",
-      false: "border-border bg-card/70 text-muted-foreground hover:text-foreground pointer-coarse:active:bg-white/[0.09]",
-    },
-  },
-  defaultVariants: { active: false },
 });
 
 type MonthStripProps = {
   /** Do mais antigo ao mais recente. */
   items: readonly MonthStripItem[];
-  /** Meses selecionados; o último é o que a faixa mantém à vista. */
-  selected: readonly string[];
-  /** Vários meses: os botões viram marcações (`aria-pressed`) e a faixa não troca de ano sozinha. */
-  multiple?: boolean;
+  /** O mês selecionado, "AAAA-MM". */
+  selected: string;
   onSelect: (month: string) => void;
   /** Mostra a barra de progresso enquanto a página carrega a competência. */
   pending?: boolean;
   /** Faixa restrita aos meses de uma posição (specs 075 e 077): destaque da trilha e entrada animada. */
   scoped?: boolean;
-  /** À direita da faixa: a situação do mês, o seletor de vários meses. */
+  /** À direita da faixa: a situação do mês selecionado. */
   trailing?: ReactNode;
 };
 
-export function MonthStrip({ items, selected, multiple = false, onSelect, pending = false, scoped = false, trailing }: MonthStripProps) {
+export function MonthStrip({ items, selected, onSelect, pending = false, scoped = false, trailing }: MonthStripProps) {
   const reduceMotion = useReducedMotion() ?? false;
   const stripRef = useRef<HTMLElement>(null);
   const [browsing, setBrowsing] = useState<{ year: number; from: string } | null>(null);
@@ -176,20 +160,17 @@ export function MonthStrip({ items, selected, multiple = false, onSelect, pendin
     return () => window.clearTimeout(done);
   }, [intro]);
 
-  const selectedSet = useMemo(() => new Set(selected), [selected]);
-  const anchor = selected.at(-1) ?? items.at(-1)?.month ?? null;
-  const anchorYear = anchor ? Number(anchor.slice(0, 4)) : null;
+  const selectedYear = Number(selected.slice(0, 4));
 
-  // O ano aberto para consulta só vale para a seleção em que foi aberto. Com um
-  // mês só, qualquer troca (clique, teclado, URL) devolve a faixa ao ano dele; sem
-  // limpar aqui, o ano consultado reabriria sozinho se a seleção voltasse à de
-  // antes. Com vários meses, a faixa fica no ano em que o usuário está marcando.
-  const selectionKey = multiple ? "multiple" : (selected[0] ?? "");
-  if (browsing !== null && browsing.from !== selectionKey) {
+  // O ano aberto para consulta só vale para a competência em que foi aberto.
+  // Qualquer troca de competência, pelo mês, pelo teclado ou pela URL, devolve
+  // a faixa ao ano dela; sem limpar aqui, o ano consultado reabriria sozinho se
+  // a competência voltasse à de antes.
+  if (browsing !== null && browsing.from !== selected) {
     setBrowsing(null);
   }
 
-  const expandedYear = browsing?.year ?? anchorYear;
+  const expandedYear = browsing?.year ?? selectedYear;
   const hydrated = useSyncExternalStore(subscribeNothing, isClient, isServer);
   const years = useMemo(() => groupByYear(items), [items]);
 
@@ -198,7 +179,7 @@ export function MonthStrip({ items, selected, multiple = false, onSelect, pendin
     // O painel do ano que está fechando continua no DOM até a saída terminar;
     // por isso a busca parte do ano aberto, e não da faixa inteira.
     const expanded = element?.querySelector<HTMLElement>("[data-expanded]");
-    const target = expanded?.querySelector<HTMLElement>("[data-anchor]") ?? expanded;
+    const target = expanded?.querySelector<HTMLElement>("[aria-current='date']") ?? expanded;
 
     if (!element || !target) {
       return;
@@ -206,13 +187,6 @@ export function MonthStrip({ items, selected, multiple = false, onSelect, pendin
 
     const stripBox = element.getBoundingClientRect();
     const targetBox = target.getBoundingClientRect();
-
-    // Marcando vários meses seguidos, a faixa só anda quando o mês sai da vista;
-    // recentralizar a cada toque faria os botões fugirem do dedo.
-    if (multiple && targetBox.left >= stripBox.left + 20 && targetBox.right <= stripBox.right - 20) {
-      return;
-    }
-
     const offset = targetBox.left - stripBox.left + element.scrollLeft;
     const left = targetBox.width >= element.clientWidth ? offset : offset - (element.clientWidth - targetBox.width) / 2;
 
@@ -220,7 +194,7 @@ export function MonthStrip({ items, selected, multiple = false, onSelect, pendin
     // faixa é invertida, então o deslocamento vai de zero, no fim, a negativo;
     // o navegador limita o valor ao intervalo válido.
     element.scrollTo({ left, behavior });
-  }, [multiple]);
+  }, []);
 
   const lastExpandedYear = useRef(expandedYear);
   const firstReveal = useRef(true);
@@ -249,7 +223,7 @@ export function MonthStrip({ items, selected, multiple = false, onSelect, pendin
     }
 
     const expanded = element.querySelector<HTMLElement>("[data-expanded]");
-    const target = expanded?.querySelector<HTMLElement>("[data-anchor]") ?? expanded?.querySelector<HTMLElement>("button");
+    const target = expanded?.querySelector<HTMLElement>("[aria-current='date']") ?? expanded?.querySelector<HTMLElement>("button");
 
     target?.focus({ preventScroll: true });
   }, [expandedYear]);
@@ -266,7 +240,7 @@ export function MonthStrip({ items, selected, multiple = false, onSelect, pendin
 
     reveal(firstReveal.current || reduceMotion ? "auto" : "smooth");
     firstReveal.current = false;
-  }, [anchor, expandedYear, reduceMotion, reveal]);
+  }, [selected, expandedYear, reduceMotion, reveal]);
 
   const updateEdges = useCallback(() => {
     const element = stripRef.current;
@@ -301,18 +275,8 @@ export function MonthStrip({ items, selected, multiple = false, onSelect, pendin
     return () => observer.disconnect();
   }, [updateEdges]);
 
-  const choose = (month: string) => {
-    // Marcando vários meses, a faixa fica no ano do último toque, mesmo que a
-    // marcação seguinte mude o último mês para outro ano.
-    if (multiple) {
-      setBrowsing({ year: Number(month.slice(0, 4)), from: "multiple" });
-    }
-
-    onSelect(month);
-  };
-
   const expandYear = (year: number) => {
-    setBrowsing(year === anchorYear && !multiple ? null : { year, from: selectionKey });
+    setBrowsing(year === selectedYear ? null : { year, from: selected });
   };
 
   if (items.length === 0) {
@@ -326,8 +290,7 @@ export function MonthStrip({ items, selected, multiple = false, onSelect, pendin
   return (
     // Na tela larga a faixa fica centralizada (spec 030): a coluna do meio
     // encolhe e rola quando falta espaço. À direita, o que a página põe em
-    // `trailing`: a situação do mês na Visão Geral (spec 034), o seletor de
-    // vários meses em Gastos familiares.
+    // `trailing`: a situação do mês, aberto ou fechado (spec 034).
     <div className={slots.band()}>
       <span aria-hidden="true" className={slots.progress()}>
         <span className="month-progress block h-full w-1/3 bg-primary" />
@@ -335,6 +298,7 @@ export function MonthStrip({ items, selected, multiple = false, onSelect, pendin
       <span aria-live="polite" className="sr-only">
         {pending ? "Carregando competência" : ""}
       </span>
+
 
       {/* Invertida para que, sem rolagem, a faixa mostre o fim, onde fica a
           competência mais recente; assim o celular já abre no lugar certo antes
@@ -344,7 +308,6 @@ export function MonthStrip({ items, selected, multiple = false, onSelect, pendin
         aria-label="Competências"
         data-hydrated={hydrated || undefined}
         data-scoped={scoped || undefined}
-        data-multiple={multiple || undefined}
         onScroll={updateEdges}
         className={slots.nav()}
         style={{ maskImage: fade, WebkitMaskImage: fade }}
@@ -356,13 +319,11 @@ export function MonthStrip({ items, selected, multiple = false, onSelect, pendin
               group={group}
               expanded={group.year === expandedYear}
               scoped={scoped}
-              multiple={multiple}
               intro={intro && !reduceMotion}
-              selected={selectedSet}
-              anchor={anchor}
+              selected={selected}
               panelMotion={panelMotion}
               onExpand={() => expandYear(group.year)}
-              onSelect={choose}
+              onSelect={onSelect}
               onOpened={handleYearOpened}
             />
           ))}
@@ -374,40 +335,12 @@ export function MonthStrip({ items, selected, multiple = false, onSelect, pendin
   );
 }
 
-/**
- * Seletor de vários meses, para o `trailing` da faixa. Com vários meses
- * marcados mostra quantos são, para o usuário que está com a faixa rolada e não
- * vê todos.
- */
-export function MultiMonthToggle({ active, count, onToggle }: { active: boolean; count: number; onToggle: () => void }) {
-  return (
-    <button
-      type="button"
-      aria-label="Selecionar vários meses"
-      aria-pressed={active}
-      title={active ? "Usar seleção única de mês" : "Selecionar vários meses"}
-      onClick={onToggle}
-      className={multiToggle({ active })}
-    >
-      <ListChecksIcon aria-hidden="true" size={16} weight={active ? "bold" : "regular"} />
-      <span className="hidden sm:inline">Vários meses</span>
-      {active && count > 1 ? (
-        <span aria-hidden="true" data-testid="multi-month-count" className="font-mono text-[10px] font-semibold">
-          {count}
-        </span>
-      ) : null}
-    </button>
-  );
-}
-
 function YearCapsule({
   group,
   expanded,
   scoped,
-  multiple,
   intro,
   selected,
-  anchor,
   panelMotion,
   onExpand,
   onSelect,
@@ -416,25 +349,20 @@ function YearCapsule({
   group: YearGroup;
   expanded: boolean;
   scoped: boolean;
-  multiple: boolean;
   intro: boolean;
-  selected: ReadonlySet<string>;
-  anchor: string | null;
+  selected: string;
   panelMotion: { enter: Transition; exit: Transition };
   onExpand: () => void;
   onSelect: (month: string) => void;
   onOpened: () => void;
 }) {
-  const chosen = group.months.filter((month) => selected.has(month.month));
-  const holdsSelected = chosen.length > 0;
+  const chosen = group.months.find((month) => month.month === selected);
+  const holdsSelected = chosen !== undefined;
   const panelId = `competencias-${group.year}`;
   const hintId = `${panelId}-selecionada`;
-  // Com outro ano aberto para consulta, os meses selecionados saem da árvore de
-  // acessibilidade; a cápsula do ano deles avisa quais são, além da cor.
-  const hint =
-    holdsSelected && !expanded
-      ? `${multiple ? "Competências selecionadas" : "Competência selecionada"}: ${chosen.map((month) => month.name).join(", ")}`
-      : null;
+  // Com outro ano aberto para consulta, o mês selecionado sai da árvore de
+  // acessibilidade; a cápsula do ano dele avisa qual é, além da cor.
+  const hint = chosen && !expanded ? `Competência selecionada: ${chosen.name}` : null;
   const slots = yearCapsule({ expanded, holdsSelected, scoped });
 
   return (
@@ -481,9 +409,7 @@ function YearCapsule({
                 <MonthButton
                   key={month.month}
                   item={month}
-                  selected={selected.has(month.month)}
-                  anchor={month.month === anchor}
-                  multiple={multiple}
+                  selected={month.month === selected}
                   onSelect={onSelect}
                   intro={intro ? Math.min(index, 12) * 0.025 : null}
                 />
@@ -499,15 +425,11 @@ function YearCapsule({
 function MonthButton({
   item,
   selected,
-  anchor,
-  multiple,
   onSelect,
   intro,
 }: {
   item: MonthStripItem;
   selected: boolean;
-  anchor: boolean;
-  multiple: boolean;
   onSelect: (month: string) => void;
   /** Atraso da entrada animada, na faixa restrita a uma posição; nulo sem animação. */
   intro: number | null;
@@ -519,10 +441,7 @@ function MonthButton({
       transition={{ type: "spring", stiffness: 420, damping: 30, delay: intro ?? 0 }}
       type="button"
       aria-label={item.description ? `${item.name}, ${item.description}` : item.name}
-      aria-current={!multiple && selected ? "date" : undefined}
-      aria-pressed={multiple ? selected : undefined}
-      data-anchor={anchor && selected ? true : undefined}
-      data-competence={item.month}
+      aria-current={selected ? "date" : undefined}
       onClick={() => onSelect(item.month)}
       className={monthButton({ selected })}
     >
@@ -532,7 +451,7 @@ function MonthButton({
   );
 }
 
-function YearTicks({ group, selected, hidden }: { group: YearGroup; selected: ReadonlySet<string>; hidden: boolean }) {
+function YearTicks({ group, selected, hidden }: { group: YearGroup; selected: string; hidden: boolean }) {
   const byMonth = new Map(group.months.map((month) => [Number(month.month.slice(5, 7)) - 1, month]));
 
   // Marcas de 3 px em cor cheia: com 2 px e a opacidade das barras dos meses,
@@ -542,12 +461,7 @@ function YearTicks({ group, selected, hidden }: { group: YearGroup; selected: Re
       {Array.from({ length: 12 }, (_, index) => {
         const month = byMonth.get(index);
 
-        return (
-          <span
-            key={index}
-            className={yearTick({ state: !month ? "absent" : selected.has(month.month) ? "selected" : month.marker })}
-          />
-        );
+        return <span key={index} className={yearTick({ state: !month ? "absent" : month.month === selected ? "selected" : month.marker })} />;
       })}
     </span>
   );

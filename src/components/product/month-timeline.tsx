@@ -23,7 +23,7 @@ type MonthTimelineProps = {
 /**
  * A faixa de competências da carteira: um mês por vez, na URL (`?mes=`), com as
  * setas do teclado e a situação do mês à direita (spec 034). O desenho e o
- * toque vivem em `MonthStrip`, que Gastos familiares também usa.
+ * toque vivem em `MonthStrip`.
  */
 export function MonthTimeline({ months, selectedMonth, scoped = false }: MonthTimelineProps) {
   const [isPending, startTransition] = useTransition();
@@ -37,7 +37,6 @@ export function MonthTimeline({ months, selectedMonth, scoped = false }: MonthTi
     monthParam !== null && months.some((month) => month.month === monthParam) ? monthParam : selectedMonth;
   const activeIndex = months.findIndex((month) => month.month === activeMonth);
   const active = months[activeIndex];
-  const selected = useMemo(() => [activeMonth], [activeMonth]);
 
   const goTo = (month: string) => {
     if (month === activeMonth || !confirmDiscardChanges()) {
@@ -66,7 +65,7 @@ export function MonthTimeline({ months, selectedMonth, scoped = false }: MonthTi
   return (
     <MonthStrip
       items={items}
-      selected={selected}
+      selected={activeMonth}
       onSelect={goTo}
       pending={isPending}
       scoped={scoped}

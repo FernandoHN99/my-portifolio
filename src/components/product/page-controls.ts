@@ -12,8 +12,12 @@ export const filterBadge = tv({
       true: "border-primary/30 bg-primary/[0.08] text-primary",
       false: "border-border bg-card/60 text-muted-foreground hover:text-foreground",
     },
+    // Selo de um grupo que não está aberto mas guarda itens selecionados, como o
+    // ano com meses marcados quando outro ano está na tela.
+    marked: { true: "", false: "" },
   },
-  defaultVariants: { active: false },
+  compoundVariants: [{ active: false, marked: true, class: "border-primary/25 text-foreground" }],
+  defaultVariants: { active: false, marked: false },
 });
 
 export const headerButton = tv({

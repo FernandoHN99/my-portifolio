@@ -62,3 +62,19 @@ export function formatCompetenceLong(competence: Competence) {
 export function formatCompetenceMonth(competence: Competence) {
   return SHORT_MONTHS[Number(competence.split("-")[1]) - 1];
 }
+
+/**
+ * Resumo de uma seleção de meses para um botão estreito: "Set/26", "Ago/26, Set/26",
+ * "2026 inteiro" quando são os doze meses de um ano e "5 meses" nos demais casos.
+ */
+export function summarizeCompetences(selected: readonly string[]) {
+  const months = [...new Set(selected)].sort();
+
+  if (months.length === 0) return "";
+  if (months.length === 12 && months.every((month) => month.slice(0, 4) === months[0].slice(0, 4))) {
+    return `${months[0].slice(0, 4)} inteiro`;
+  }
+  if (months.length <= 3) return months.map(formatCompetence).join(", ");
+
+  return `${months.length} meses`;
+}

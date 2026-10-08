@@ -90,42 +90,100 @@ test.describe("com a concessão", () => {
     expect(new URL(page.url()).searchParams.get("pessoa")).not.toContain(",");
   });
 
-  test("a competência é a faixa do topo, a mesma da Visão Geral, com meses únicos ou múltiplos", async ({ page }) => {
+  test("a competência fica embaixo do título, com os anos e os meses do ano, únicos ou vários", async ({ page }) => {
     await openLedger(page);
     const now = new Date();
     const current = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
     await expect(page).toHaveURL(new RegExp(`competencia=${current}`));
 
-    // A competência é a faixa do topo, a mesma da Visão Geral (spec 096): o ano
-    // inteiro, fixa no alto, acima das pessoas.
-    const bar = page.getByRole("navigation", { name: "Competências" });
-    await expect(bar).toHaveAttribute("data-hydrated");
-    const monthButtons = bar.getByRole("button", { name: / de 20\d\d/ });
-    await expect(monthButtons).toHaveCount(12);
-    await expect(bar.locator('[aria-current="date"]')).toHaveCount(1);
-    const barBottom = await page.getByTestId("family-month-bar").evaluate((element) => element.getBoundingClientRect().bottom);
-    const filtersTop = await page.getByRole("region", { name: "Filtros" }).evaluate((element) => element.getBoundingClientRect().top);
-    expect(filtersTop).toBeGreaterThan(barBottom);
-    await expect(page.getByTestId("family-month-bar")).toHaveCSS("position", "sticky");
+    // Abaixo de sm (celular), um botão com o resumo abre a escolha numa folha, como os
+    // filtros; de sm para cima ela fica embutida entre o título e os cartões (spec 096).
+    const mobile = (page.viewportSize()?.width ?? 1280) < 640;
+    const trigger = page.getByTestId("family-month-trigger");
+    const scope = page.getByTestId(mobile ? "family-month-sheet" : "family-month-picker");
+    const open = async () => {
+      if (mobile && !(await scope.isVisible())) {
+        await trigger.click();
+        await expect(scope).toBeVisible();
+      }
+    };
+    const monthPills = scope.getByTestId("family-month-badges");
+    const years = scope.getByTestId("family-year-badges");
 
-    const toggle = page.getByRole("button", { name: "Selecionar vários meses" });
+    if (mobile) {
+      await expect(trigger).toBeVisible();
+      await expect(page.getByTestId("family-month-picker")).toBeHidden();
+      await expect(trigger).toContainText(/^Competência\s*\p{L}{3}\/\d{2}$/u);
+      await open();
+    } else {
+      await expect(trigger).toBeHidden();
+      await expect(scope).toBeVisible();
+    }
+
+    await expect(monthPills.getByRole("button")).toHaveCount(12);
+    await expect(monthPills.locator('[aria-pressed="true"]')).toHaveCount(1);
+    await expect(years.locator('[aria-pressed="true"]')).toHaveCount(1);
+    const order = await page.evaluate((target) => {
+      const top = (selector: string) => document.querySelector(selector)!.getBoundingClientRect().top;
+      return {
+        title: top("h1"),
+        picker: top(`[data-testid="${target}"]`),
+        summary: top('section[aria-label="Resumo"]'),
+        filters: top('section[aria-label="Filtros"]'),
+      };
+    }, mobile ? "family-month-trigger" : "family-month-picker");
+    expect(order.picker).toBeGreaterThan(order.title);
+    expect(order.summary).toBeGreaterThan(order.picker);
+    expect(order.filters).toBeGreaterThan(order.summary);
+    await expect(page.getByRole("navigation", { name: "Competências" })).toHaveCount(0);
+
+    const toggle = scope.getByRole("button", { name: "Selecionar vários meses" });
     await expect(toggle).toHaveAttribute("aria-pressed", "false");
-    await monthButtons.nth(1).click();
-    await expect(bar.locator('[aria-current="date"]')).toHaveCount(1);
+    await monthPills.getByRole("button").nth(1).click();
+    // Com um mês só, a folha do celular fecha ao escolher.
+    if (mobile) {
+      await expect(scope).toBeHidden();
+      await expect(trigger).toContainText(/\p{L}{3}\/\d{2}$/u);
+    }
+    await open();
+    await expect(monthPills.locator('[aria-pressed="true"]')).toHaveCount(1);
+
     await toggle.click();
     await expect(toggle).toHaveAttribute("aria-pressed", "true");
-    await monthButtons.first().click();
-    const marked = bar.getByRole("button", { name: / de 20\d\d/, pressed: true });
-    await expect(marked).toHaveCount(2);
-    await expect(page.getByTestId("multi-month-count")).toHaveText("2");
+    await monthPills.getByRole("button").first().click();
+    await expect(monthPills.locator('[aria-pressed="true"]')).toHaveCount(2);
+    await expect(scope.getByTestId("multi-month-count")).toHaveText("2");
     await expect(page).toHaveURL(/competencia=[^&]*%2C|competencia=[^&]*,/);
+
+    // Outro ano só troca os meses na tela; os marcados continuam marcados.
+    if ((await years.getByRole("button").count()) > 1) {
+      await years.locator('[aria-pressed="false"]').first().click();
+      await expect(years.locator('[aria-pressed="true"]')).not.toHaveText(String(now.getFullYear()));
+      await expect(monthPills.locator('[aria-pressed="true"]')).toHaveCount(0);
+      await expect(years.getByRole("button", { name: /meses selecionados/ })).toHaveCount(1);
+      await expect(scope.getByTestId("multi-month-count")).toHaveText("2");
+    }
+
+    // "Ano todo" marca os doze meses do ano aberto e, de novo, os desmarca.
+    const whole = scope.getByRole("button", { name: /^Ano todo de / });
+    await whole.click();
+    await expect(whole).toHaveAttribute("aria-pressed", "true");
+    await expect(monthPills.locator('[aria-pressed="true"]')).toHaveCount(12);
+    await whole.click();
+    await expect(whole).toHaveAttribute("aria-pressed", "false");
+
     await toggle.click();
     await expect(toggle).toHaveAttribute("aria-pressed", "false");
-    await expect(bar.locator('[aria-current="date"]')).toHaveCount(1);
-    // No modo múltiplo, tirar o último mês retorna ao atual automaticamente.
+    // No modo único, só o último mês fica. No múltiplo, tirar o último mês marcado volta ao atual.
+    await expect(monthPills.locator('[aria-pressed="true"]')).toHaveCount(1);
     await toggle.click();
-    await marked.click();
+    await monthPills.getByRole("button", { pressed: true }).click();
     await expect(page).toHaveURL(new RegExp(`competencia=${current}`));
+
+    if (mobile) {
+      await scope.getByRole("button", { name: /^Ver \d+ lançamentos?$/ }).click();
+      await expect(scope).toBeHidden();
+    }
   });
 
   test("competência limita pessoas e status no computador e na folha do celular", async ({ page }, testInfo) => {

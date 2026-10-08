@@ -27,6 +27,7 @@ import { useHotkeys } from "react-hotkeys-hook";
 import { reopenFamilyEntryAction, settleFamilyEntriesAction, undoFamilyChangeAction, type FamilyActionResult } from "@/app/actions/family-expenses";
 import { KpiCard } from "@/components/product/kpi-card";
 import { filterBadge, headerButton } from "@/components/product/page-controls";
+import { YearMonthPicker } from "@/components/product/year-month-picker";
 import { cn } from "@/lib/utils";
 import type { FamilyLedger } from "@/modules/family-expenses/application/get-family-ledger";
 import { formatCompetenceLong, isCompetence } from "@/lib/competence";
@@ -47,7 +48,6 @@ import { fullYearCompetences, pendingFilterActivity, resolveFamilyWorkspaceFilte
 import { formatCents, type Cents } from "@/lib/money";
 import { EntryDialog, type EntryDialogTarget } from "@/modules/family-expenses/ui/entry-dialog";
 import { FamilyBackupDialog } from "@/modules/family-expenses/ui/family-backup-dialog";
-import { FamilyMonthBar } from "@/modules/family-expenses/ui/family-month-bar";
 import { balanceMeaning, DirectionBadge, SignedAmount, StatusBadge } from "@/modules/family-expenses/ui/ledger-parts";
 import { SettleDialog, type SettleTarget } from "@/modules/family-expenses/ui/settle-dialog";
 import { headerPrimaryButtonClass } from "@/modules/portfolio/ui/edit-dialogs";
@@ -189,6 +189,22 @@ export function FamilyLedgerWorkspace({ ledger, menu }: { ledger: FamilyLedger; 
   const chooseMonth = (value: string) =>
     updateFilters({ competences: selectCompetence(filters.competences, value, multipleMonths, ledger.currentCompetence) });
 
+  // "Ano todo": marca os doze meses do ano aberto, ou os desmarca quando já estão
+  // todos marcados. Passa ao modo de vários meses; sem nenhum mês, volta ao atual.
+  const toggleYear = (year: number) => {
+    const months = Array.from({ length: 12 }, (_, index) => `${year}-${String(index + 1).padStart(2, "0")}`);
+    const rest = filters.competences.filter((month) => !months.includes(month));
+    const whole = months.every((month) => filters.competences.includes(month));
+    const next = whole ? rest : [...rest, ...months];
+    const resolvedNext = resolveFamilyWorkspaceFilters(
+      ledger.entries,
+      { ...filters, competences: next.length > 0 ? next : [ledger.currentCompetence] },
+      { contacts, series },
+      ledger.currentCompetence,
+    );
+    void setQuery({ ...queryFromFilters(resolvedNext.filters), multimes: true });
+  };
+
   const toggleMultipleMonths = () => {
     const next = resolveFamilyWorkspaceFilters(ledger.entries, {
       ...filters,
@@ -290,16 +306,6 @@ export function FamilyLedgerWorkspace({ ledger, menu }: { ledger: FamilyLedger; 
   const peopleWithPayable = summary.people.filter((person) => person.pendingCents < 0).length;
 
   return (
-    <>
-      <FamilyMonthBar
-        competences={competences}
-        selected={filters.competences}
-        multiple={multipleMonths}
-        pendingMonths={activity.months}
-        keysEnabled={!entryDialog.open && !settle.open && !backupOpen}
-        onChoose={chooseMonth}
-        onToggleMultiple={toggleMultipleMonths}
-      />
     <div
       data-testid="family-ledger"
       data-hydrated={hydrated || undefined}
@@ -321,6 +327,19 @@ export function FamilyLedgerWorkspace({ ledger, menu }: { ledger: FamilyLedger; 
         </div>
         {actions}
       </header>
+
+      <div className="mt-6">
+        <YearMonthPicker
+          months={competences}
+          selected={filters.competences}
+          multiple={multipleMonths}
+          pendingMonths={activity.months}
+          resultLabel={`Ver ${filtered.length} ${filtered.length === 1 ? "lançamento" : "lançamentos"}`}
+          onSelect={chooseMonth}
+          onToggleYear={toggleYear}
+          onToggleMultiple={toggleMultipleMonths}
+        />
+      </div>
 
       <section aria-label="Resumo" className="mt-6 grid grid-cols-1 gap-3 min-[360px]:grid-cols-2 lg:grid-cols-4">
         <BalanceCard
@@ -507,7 +526,6 @@ export function FamilyLedgerWorkspace({ ledger, menu }: { ledger: FamilyLedger; 
 
       {dialogs}
     </div>
-    </>
   );
 }
 

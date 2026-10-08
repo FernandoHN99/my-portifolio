@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import { test } from "node:test";
 
-import { addCompetenceMonths, formatCompetence, formatCompetenceMonth } from "@/lib/competence";
+import { addCompetenceMonths, formatCompetence, formatCompetenceMonth, summarizeCompetences } from "@/lib/competence";
 import {
   displayDescription,
   filterEntries,
@@ -60,6 +60,17 @@ test("competências somam meses sem depender do fuso", () => {
   assert.equal(formatCompetence("2026-10"), "Out/26");
   assert.equal(formatCompetenceMonth("2026-10"), "Out");
   assert.equal(formatCompetenceMonth("2026-03"), "Mar");
+});
+
+test("o resumo da seleção de meses cabe num botão estreito", () => {
+  const year = Array.from({ length: 12 }, (_, index) => `2026-${String(index + 1).padStart(2, "0")}`);
+
+  assert.equal(summarizeCompetences([]), "");
+  assert.equal(summarizeCompetences(["2026-09"]), "Set/26");
+  assert.equal(summarizeCompetences(["2026-09", "2025-12"]), "Dez/25, Set/26");
+  assert.equal(summarizeCompetences(["2026-01", "2026-02", "2026-03", "2026-04"]), "4 meses");
+  assert.equal(summarizeCompetences(year), "2026 inteiro");
+  assert.equal(summarizeCompetences([...year.slice(1), "2025-12"]), "12 meses");
 });
 
 const contacts = new Map([
