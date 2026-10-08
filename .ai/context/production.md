@@ -2,10 +2,12 @@
 
 Registrado em: 2026-10-03
 Origem: pedido do usuário de publicar o app, na conversa de 2026-10-03.
-Estado em 2026-10-07: no ar com as specs 053 a 087 (deploy
-`dpl_3sRsmdbo1ms9wEamMbKkUiEy1pRy`, commit `341786b`), com a conta do usuário,
-os dados atuais da carteira e os 494 lançamentos de Gastos familiares na conta
-dele, a única com essa área. As cotações, a meta Selic e o cálculo dos ativos com
+Estado em 2026-10-08: no ar com as specs 053 a 092 (deploys
+`dpl_Apa6K8KzKQoKUArXKgk595Ypkmrv` e `dpl_AoQj5zmXxYFZ6usYxBj7xM18wRHw`, da correção de cores, commit `05958e6`),
+com a conta do usuário, os dados atuais da carteira, os lançamentos de Gastos
+familiares e as áreas Recebimentos e Previdência na conta dele, a única com as
+áreas pessoais. Os recebimentos ainda não foram importados na produção: o
+usuário importa o arquivo pela página. As cotações, a meta Selic e o cálculo dos ativos com
 rendimento automático vêm da função `quotesync` do projeto de jobs
 (deployment 4), de hora em hora. A `main` recebe a branch `dev`, que a Vercel não
 publica ([fluxo de Git](../../docs/git-workflow.md)).
@@ -205,6 +207,27 @@ A produção começa sem usuários. Para entrar:
     tentativas: 8 atualizadas e BTC e SOL sem cotação (CoinGecko excedeu o
     tempo e a Binance respondeu HTTP 451), o caso já listado em Pendente.
 
+- 2026-10-08 (noite de 2026-10-07 em Brasília), publicação das specs 088 a 092
+  (Recebimentos, Previdência, guia de estilos, faixa de meses de Gastos
+  familiares e backup de Recebimentos):
+  - antes do deploy, a branch de segurança `snapshot-antes-da-088`
+    (`br-frosty-cake-b6cml08o`, sem compute) e as contagens: 26 migrações,
+    2 usuários, 837 posições, 742 movimentações, 66 competências e 512
+    lançamentos de Gastos familiares;
+  - commits `a1e9f86`, `e611a0c` e `3fad48f` na `dev`, levados à `main` por
+    avanço direto; deploy `dpl_Apa6K8KzKQoKUArXKgk595Ypkmrv` pronto, com as
+    migrações `20261008090000_income_and_pension_modules` e
+    `20261008090100_income_tables` aplicadas pelo build (28 no total);
+  - concessões conferidas: `nandohneto@gmail.com` com `FAMILY_EXPENSES`,
+    `INCOME` e `PENSION`; carteira e gastos com as mesmas contagens;
+    `income_months` vazia;
+  - depois, a correção de cores pedida pelo usuário (commit `05958e6`):
+    saídas neutras em Recebimentos e o verde do app na Previdência (deploy
+    `dpl_AoQj5zmXxYFZ6usYxBj7xM18wRHw`);
+  - arquivo para a carga, gerado da conta local (cópia validada da produção):
+    `backups/recebimentos/meu-portfolio-recebimentos-2026-10-08-0253.json`
+    (21 meses, 24 holerites). O usuário importa em Recebimentos → Backup.
+
 ## Pendente
 
 - o backup com movimentações v3 ([spec 071](../specs/071-backup-with-movements.md)
@@ -248,6 +271,12 @@ Em 2026-10-07:
 - deu permissão total para finalizar Gastos familiares: commit, push, merge na
   `main`, deploy pela Vercel e pelo Neon e a carga dos dados; só
   `nandohneto@gmail.com` acessa as outras áreas, os demais só Investimentos.
+
+Em 2026-10-07 (noite):
+
+- deu acesso total para concluir Recebimentos, Previdência e os ajustes de
+  Gastos familiares: commits, merge na `main`, deploy e um backup novo; a carga
+  dos recebimentos na produção fica com ele, pela importação na página.
 
 ## Observações
 
