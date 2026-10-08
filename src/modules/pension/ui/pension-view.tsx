@@ -14,6 +14,8 @@ import { parseAsInteger, useQueryState } from "nuqs";
 import { useSyncExternalStore, type ReactNode } from "react";
 
 import { RateBar, SummaryCard, TONES } from "@/components/product/finance-parts";
+import { Badge } from "@/components/product/badge";
+import { filterBadge } from "@/components/product/page-controls";
 import { formatCompetenceLong } from "@/lib/competence";
 import { formatCents, type Cents } from "@/lib/money";
 import { cn } from "@/lib/utils";
@@ -69,7 +71,7 @@ export function PensionView({ data, menu }: { data: PensionData; menu?: ReactNod
               type="button"
               aria-pressed={option === year}
               onClick={() => void setQueryYear(option === currentYear ? null : option)}
-              className={cn(filterBadgeClass, "font-mono", option === year ? activeFilterBadgeClass : inactiveFilterBadgeClass)}
+              className={filterBadge({ active: option === year, class: "font-mono" })}
             >
               {option}
             </button>
@@ -144,10 +146,10 @@ export function PensionView({ data, menu }: { data: PensionData; menu?: ReactNod
 function Panel({ title, count, testId, children }: { title: string; count: number; testId: string; children: ReactNode }) {
   return (
     <section aria-label={title} data-testid={testId} className="premium-panel min-w-0 rounded-[24px] p-4 sm:p-6">
-      <h2 className="mb-4 flex items-center gap-2.5 px-1 text-sm font-semibold tracking-[-0.01em]">
-        {title}
-        <span className="rounded-full bg-white/[0.06] px-2 py-0.5 font-mono text-[10px] font-medium text-muted-foreground">{count}</span>
-      </h2>
+      <div className="mb-4 flex items-baseline gap-2 px-1">
+        <h2 className="text-sm font-semibold tracking-[-0.025em]">{title}</h2>
+        <p className="font-mono text-[11px] text-muted-foreground">{count}</p>
+      </div>
       {children}
     </section>
   );
@@ -156,8 +158,8 @@ function Panel({ title, count, testId, children }: { title: string; count: numbe
 function Empty({ children }: { children: ReactNode }) {
   return (
     <div className="flex flex-col items-center gap-3 px-3 py-10 text-center text-sm text-muted-foreground">
-      <span className={cn("grid size-10 place-items-center rounded-xl", TONES.saved.chip)}>
-        <PiggyBankIcon aria-hidden="true" size={20} weight="duotone" />
+      <span className="grid size-12 place-items-center rounded-2xl border border-border bg-card text-primary">
+        <PiggyBankIcon aria-hidden="true" size={22} weight="duotone" />
       </span>
       {children}
     </div>
@@ -177,8 +179,8 @@ function LimitUsage({ summary }: { summary: PensionYear }) {
 
   if (limitCents <= 0 || usagePercent === null) {
     return (
-      <section aria-label="Uso do limite" data-testid="pension-limit" className="premium-panel mt-6 rounded-[24px] p-4 sm:p-6">
-        <h2 className="mb-1 px-1 text-sm font-semibold tracking-[-0.01em]">Uso do limite</h2>
+      <section aria-label="Uso do limite" data-testid="pension-limit" className="premium-panel mt-6 rounded-[24px] p-5 sm:p-7">
+        <h2 className="mb-1 text-base font-semibold tracking-[-0.025em]">Uso do limite</h2>
         <Empty>
           Nenhum holerite em {summary.year}.{" "}
           <Link href="/recebimentos" className="text-primary underline-offset-4 hover:underline">
@@ -196,13 +198,9 @@ function LimitUsage({ summary }: { summary: PensionYear }) {
   const free = Math.max(limitCents - contributedCents, 0);
 
   return (
-    <section aria-label="Uso do limite" data-testid="pension-limit" className="premium-panel relative mt-6 overflow-hidden rounded-[24px] p-5 sm:p-6">
-      <span
-        aria-hidden="true"
-        className={cn("pointer-events-none absolute -top-16 -right-10 size-48 rounded-full blur-3xl", over ? TONES.spent.glow : TONES.saved.glow)}
-      />
-      <div className="relative flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
-        <h2 className="px-1 text-sm font-semibold tracking-[-0.01em]">Uso do limite</h2>
+    <section aria-label="Uso do limite" data-testid="pension-limit" className="premium-panel mt-6 rounded-[24px] p-5 sm:p-7">
+      <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
+        <h2 className="text-base font-semibold tracking-[-0.025em]">Uso do limite</h2>
         <p className="flex items-baseline gap-2 font-mono" data-testid="pension-usage" data-percent={usagePercent}>
           <span className={cn("text-3xl font-medium tracking-[-0.05em]", over ? "text-chart-spent" : "text-primary")}>{usagePercent}%</span>
           <span className="text-xs text-muted-foreground">de {formatCents(limitCents)}</span>
@@ -240,7 +238,7 @@ function LimitUsage({ summary }: { summary: PensionYear }) {
         ) : null}
       </div>
 
-      <div className="relative mt-2.5 flex justify-between font-mono text-[10px] text-muted-foreground" aria-hidden="true">
+      <div className="mt-2.5 flex justify-between font-mono text-[10px] text-muted-foreground" aria-hidden="true">
         <span>R$ 0</span>
         {over ? (
           <span className="absolute -translate-x-full pr-1.5 whitespace-nowrap text-foreground/80" style={{ left: `${limitAt}%` }}>
@@ -250,20 +248,20 @@ function LimitUsage({ summary }: { summary: PensionYear }) {
         {over ? null : <span>limite {formatCents(limitCents)}</span>}
       </div>
 
-      <ul aria-label="Legenda" className="relative mt-5 flex flex-wrap items-center gap-2">
-        <li className="inline-flex items-center gap-2 rounded-full border border-chart-saved/25 bg-chart-saved/[0.08] px-2.5 py-1 text-[11px] font-medium text-foreground/90">
-          <span aria-hidden="true" className="size-2 rounded-full bg-chart-saved" />
-          Aportado <span className="font-mono text-muted-foreground">{formatCents(Math.min(contributedCents, limitCents))}</span>
+      <ul aria-label="Legenda" className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-1.5">
+        <li className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+          <span aria-hidden="true" className="size-2.5 rounded-[3px] bg-chart-saved" />
+          Aportado <span className="font-mono text-foreground">{formatCents(Math.min(contributedCents, limitCents))}</span>
         </li>
         {over ? (
-          <li className="inline-flex items-center gap-2 rounded-full border border-chart-spent/25 bg-chart-spent/[0.08] px-2.5 py-1 text-[11px] font-medium text-foreground/90">
-            <span aria-hidden="true" className="size-2 rounded-full bg-chart-spent" />
-            Acima do limite <span className="font-mono text-muted-foreground">{formatCents(contributedCents - limitCents)}</span>
+          <li className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+            <span aria-hidden="true" className="size-2.5 rounded-[3px] bg-chart-spent" />
+            Acima do limite <span className="font-mono text-foreground">{formatCents(contributedCents - limitCents)}</span>
           </li>
         ) : (
-          <li className="inline-flex items-center gap-2 rounded-full border border-border bg-white/[0.03] px-2.5 py-1 text-[11px] font-medium text-foreground/90">
-            <span aria-hidden="true" className="size-2 rounded-full border border-muted-foreground/60" />
-            Livre <span className="font-mono text-muted-foreground">{formatCents(free)}</span>
+          <li className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+            <span aria-hidden="true" className="size-2.5 rounded-[3px] border border-muted-foreground/60" />
+            Livre <span className="font-mono text-foreground">{formatCents(free)}</span>
           </li>
         )}
       </ul>
@@ -282,16 +280,7 @@ function contributionHref(contribution: Contribution) {
 function ContributionKind({ contribution }: { contribution: Contribution }) {
   const opening = contribution.kind === "OPENING";
 
-  return (
-    <span
-      className={cn(
-        "inline-flex rounded-full px-2 py-0.5 font-sans text-[10px] font-semibold tracking-[0.04em] whitespace-nowrap uppercase",
-        opening ? "bg-accent text-accent-foreground" : TONES.saved.chip,
-      )}
-    >
-      {opening ? "Saldo inicial" : "Aporte"}
-    </span>
-  );
+  return <Badge tone={opening ? "accent" : "primary"}>{opening ? "Saldo inicial" : "Aporte"}</Badge>;
 }
 
 function NumberChip({ number }: { number: number }) {
@@ -432,20 +421,11 @@ function Contributions({ summary }: { summary: PensionYear }) {
 
 /** Nome da linha do holerite em selo: menta quando entra no cálculo, neutro quando não (13º, PLR). */
 function KindBadge({ period }: { period: Period }) {
-  return (
-    <span
-      className={cn(
-        "inline-flex shrink-0 rounded-full px-2 py-0.5 font-sans text-[10px] font-semibold tracking-[0.04em] whitespace-nowrap uppercase",
-        period.counted ? TONES.saved.chip : TONES.neutral.chip,
-      )}
-    >
-      {payslipName(period)}
-    </span>
-  );
+  return <Badge tone={period.counted ? "primary" : "neutral"}>{payslipName(period)}</Badge>;
 }
 
 function ProratedBadge() {
-  return <span className="inline-flex rounded-full bg-accent px-2 py-0.5 font-sans text-[10px] font-semibold text-accent-foreground">Sim</span>;
+  return <Badge tone="accent">Sim</Badge>;
 }
 
 function Periods({ summary }: { summary: PensionYear }) {
@@ -591,8 +571,3 @@ function Periods({ summary }: { summary: PensionYear }) {
 const subscribeNothing = () => () => {};
 const isClient = () => true;
 const isServer = () => false;
-
-const filterBadgeClass =
-  "inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border px-3 text-[11px] font-medium whitespace-nowrap outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring/50 sm:h-8";
-const activeFilterBadgeClass = "border-primary/30 bg-primary/[0.08] text-primary";
-const inactiveFilterBadgeClass = "border-border bg-card/60 text-muted-foreground hover:text-foreground";

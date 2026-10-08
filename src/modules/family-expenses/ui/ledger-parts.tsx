@@ -2,6 +2,7 @@
 
 import { CheckIcon, ClockIcon } from "@phosphor-icons/react/dist/ssr";
 
+import { Badge } from "@/components/product/badge";
 import { cn } from "@/lib/utils";
 import {
   DIRECTION_LABELS,
@@ -17,16 +18,10 @@ import { formatCents, type Cents } from "@/lib/money";
 
 export function DirectionBadge({ direction }: { direction: Direction }) {
   return (
-    <span
-      title={DIRECTION_MEANINGS[direction]}
-      className={cn(
-        "inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold tracking-[0.04em] whitespace-nowrap uppercase",
-        direction === "RECEIVABLE" ? "bg-primary/10 text-primary" : "bg-warning/50 text-warning-foreground",
-      )}
-    >
+    <Badge tone={direction === "RECEIVABLE" ? "primary" : "warning"} title={DIRECTION_MEANINGS[direction]}>
       {DIRECTION_LABELS[direction]}
       <span className="sr-only">: {DIRECTION_MEANINGS[direction]}</span>
-    </span>
+    </Badge>
   );
 }
 

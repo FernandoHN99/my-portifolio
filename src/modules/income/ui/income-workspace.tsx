@@ -15,6 +15,7 @@ import { useHotkeys } from "react-hotkeys-hook";
 
 import { undoIncomeChangeAction, type IncomeActionResult } from "@/app/actions/income";
 import { RateBar, SummaryCard, TONES, type Tone } from "@/components/product/finance-parts";
+import { filterBadge, headerButton } from "@/components/product/page-controls";
 import { formatCompetence, formatCompetenceLong, isCompetence } from "@/lib/competence";
 import { formatAmountInput, formatCents, type Cents } from "@/lib/money";
 import { cn } from "@/lib/utils";
@@ -127,7 +128,7 @@ export function IncomeWorkspace({ ledger, menu }: { ledger: IncomeLedger; menu?:
 
   const actions = (
     <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-      <button type="button" onClick={() => setBackupOpen(true)} className={secondaryHeaderButtonClass}>
+      <button type="button" onClick={() => setBackupOpen(true)} className={headerButton({ variant: "secondary" })}>
         <ArchiveIcon aria-hidden="true" className="text-primary" size={16} weight="duotone" />
         Backup
       </button>
@@ -164,10 +165,6 @@ export function IncomeWorkspace({ ledger, menu }: { ledger: IncomeLedger; menu?:
   return (
     <div data-testid="income-workspace" data-hydrated={hydrated || undefined} className={shellClass}>
       <div className="ambient-glow pointer-events-none absolute top-0 right-0 -z-10 h-[460px] w-[460px]" />
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute top-24 left-0 -z-10 hidden h-[380px] w-[380px] rounded-full bg-chart-spent/[0.06] blur-3xl sm:block"
-      />
 
       <header className="flex flex-col gap-6 border-b border-border/70 pb-8 sm:flex-row sm:items-end sm:justify-between">
         <div>
@@ -192,7 +189,7 @@ export function IncomeWorkspace({ ledger, menu }: { ledger: IncomeLedger; menu?:
               type="button"
               aria-pressed={option === year}
               onClick={() => void setQuery({ ano: option === currentYear ? null : option })}
-              className={cn(filterBadgeClass, "font-mono", option === year ? activeFilterBadgeClass : inactiveFilterBadgeClass)}
+              className={filterBadge({ active: option === year, class: "font-mono" })}
             >
               {option}
             </button>
@@ -255,12 +252,12 @@ export function IncomeWorkspace({ ledger, menu }: { ledger: IncomeLedger; menu?:
       </section>
 
       <section aria-label="Gastos e poupado" className="premium-panel mt-6 rounded-[24px] p-5 sm:p-7">
-        <h2 className="mb-4 text-sm font-semibold tracking-[-0.01em]">Gastos × Poupado</h2>
+        <h2 className="mb-4 text-base font-semibold tracking-[-0.025em]">Gastos × Poupado</h2>
         <IncomeChart summary={summary} />
       </section>
 
       <section aria-label="Meses" className="premium-panel mt-6 rounded-[24px] p-4 sm:p-6">
-        <h2 className="mb-4 px-1 text-sm font-semibold tracking-[-0.01em]">Mês a mês</h2>
+        <h2 className="mb-4 px-1 text-sm font-semibold tracking-[-0.025em]">Mês a mês</h2>
         {summary.months.length === 0 ? (
           <p className="px-3 py-10 text-center text-sm text-muted-foreground">Nenhum mês lançado em {year}.</p>
         ) : (
@@ -662,10 +659,3 @@ function ListValue({
 const subscribeNothing = () => () => {};
 const isClient = () => true;
 const isServer = () => false;
-
-const filterBadgeClass =
-  "inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border px-3 text-[11px] font-medium whitespace-nowrap outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring/50 sm:h-8";
-const activeFilterBadgeClass = "border-primary/30 bg-primary/[0.08] text-primary";
-const inactiveFilterBadgeClass = "border-border bg-card/60 text-muted-foreground hover:text-foreground";
-const secondaryHeaderButtonClass =
-  "inline-flex h-9 items-center gap-2 rounded-xl border border-border bg-card/70 px-3.5 text-xs font-semibold text-foreground outline-none transition-colors hover:bg-white/[0.05] focus-visible:ring-2 focus-visible:ring-ring/50";

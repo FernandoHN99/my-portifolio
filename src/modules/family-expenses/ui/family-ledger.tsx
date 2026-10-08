@@ -5,7 +5,6 @@ import {
   ArrowCounterClockwiseIcon,
   CheckIcon,
   MagnifyingGlassIcon,
-  ListChecksIcon,
   PlusIcon,
   RepeatIcon,
   UsersThreeIcon,
@@ -26,9 +25,11 @@ import {
 import { useHotkeys } from "react-hotkeys-hook";
 
 import { reopenFamilyEntryAction, settleFamilyEntriesAction, undoFamilyChangeAction, type FamilyActionResult } from "@/app/actions/family-expenses";
+import { KpiCard } from "@/components/product/kpi-card";
+import { filterBadge, headerButton } from "@/components/product/page-controls";
 import { cn } from "@/lib/utils";
 import type { FamilyLedger } from "@/modules/family-expenses/application/get-family-ledger";
-import { formatCompetence, formatCompetenceLong, isCompetence } from "@/lib/competence";
+import { formatCompetenceLong, isCompetence } from "@/lib/competence";
 import {
   DIRECTION_LABELS,
   DIRECTION_MEANINGS,
@@ -46,6 +47,7 @@ import { fullYearCompetences, pendingFilterActivity, resolveFamilyWorkspaceFilte
 import { formatCents, type Cents } from "@/lib/money";
 import { EntryDialog, type EntryDialogTarget } from "@/modules/family-expenses/ui/entry-dialog";
 import { FamilyBackupDialog } from "@/modules/family-expenses/ui/family-backup-dialog";
+import { FamilyMonthBar } from "@/modules/family-expenses/ui/family-month-bar";
 import { balanceMeaning, DirectionBadge, SignedAmount, StatusBadge } from "@/modules/family-expenses/ui/ledger-parts";
 import { SettleDialog, type SettleTarget } from "@/modules/family-expenses/ui/settle-dialog";
 import { headerPrimaryButtonClass } from "@/modules/portfolio/ui/edit-dialogs";
@@ -76,7 +78,6 @@ export function FamilyLedgerWorkspace({ ledger, menu }: { ledger: FamilyLedger; 
   const [settlingId, setSettlingId] = useState<string | null>(null);
   const [, startSettling] = useTransition();
   const sequence = useRef(0);
-  const monthStrip = useRef<HTMLDivElement>(null);
   // Marca a página hidratada para os testes de interface (como a faixa de competências).
   const hydrated = useSyncExternalStore(subscribeNothing, isClient, isServer);
 
@@ -95,17 +96,6 @@ export function FamilyLedgerWorkspace({ ledger, menu }: { ledger: FamilyLedger; 
   );
   const activity = pendingFilterActivity(ledger.entries, filters);
   const multipleMonths = query.multimes || filters.competences.length > 1;
-
-  useEffect(() => {
-    const strip = monthStrip.current;
-    const selected = strip?.querySelector<HTMLButtonElement>(`[data-competence="${filters.competences.at(-1)}"]`);
-    if (!strip || !selected) return;
-    const bounds = strip.getBoundingClientRect();
-    const item = selected.getBoundingClientRect();
-    if (item.left < bounds.left || item.right > bounds.right) {
-      strip.scrollLeft += item.left - bounds.left - (strip.clientWidth - selected.offsetWidth) / 2;
-    }
-  }, [filters.competences]);
 
   // Mantém URL e opções em acordo, inclusive ao voltar no histórico ou quando
   // um acerto muda os status disponíveis. Nunca fica seleção invisível ativa.
@@ -211,16 +201,6 @@ export function FamilyLedgerWorkspace({ ledger, menu }: { ledger: FamilyLedger; 
 
   const filterGroups: FilterGroup[] = [
     {
-      key: "competencia",
-      label: "Competência",
-      options: competences,
-      selected: filters.competences,
-      onChange: (next) => updateFilters({ competences: multipleMonths ? next : next.slice(-1) }),
-      multiple: multipleMonths,
-      subtle: true,
-      formatOption: formatCompetence,
-    },
-    {
       key: "pessoa",
       label: "Pessoa",
       options: resolved.contactIds,
@@ -275,7 +255,7 @@ export function FamilyLedgerWorkspace({ ledger, menu }: { ledger: FamilyLedger; 
 
   const actions = (
     <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-      <button type="button" onClick={() => setBackupOpen(true)} className={secondaryHeaderButtonClass}>
+      <button type="button" onClick={() => setBackupOpen(true)} className={headerButton({ variant: "secondary" })}>
         <ArchiveIcon aria-hidden="true" className="text-primary" size={16} weight="duotone" />
         Backup
       </button>
@@ -306,11 +286,20 @@ export function FamilyLedgerWorkspace({ ledger, menu }: { ledger: FamilyLedger; 
     );
   }
 
-  const visibleMonths = fullYearCompetences(filters.competences);
   const peopleWithReceivable = summary.people.filter((person) => person.pendingCents > 0).length;
   const peopleWithPayable = summary.people.filter((person) => person.pendingCents < 0).length;
 
   return (
+    <>
+      <FamilyMonthBar
+        competences={competences}
+        selected={filters.competences}
+        multiple={multipleMonths}
+        pendingMonths={activity.months}
+        keysEnabled={!entryDialog.open && !settle.open && !backupOpen}
+        onChoose={chooseMonth}
+        onToggleMultiple={toggleMultipleMonths}
+      />
     <div
       data-testid="family-ledger"
       data-hydrated={hydrated || undefined}
@@ -364,47 +353,6 @@ export function FamilyLedgerWorkspace({ ledger, menu }: { ledger: FamilyLedger; 
       </section>
 
       <section aria-label="Filtros" className="mt-6 space-y-4">
-        <fieldset className="min-w-0" data-testid="family-month-badges">
-          <legend className="mb-2">
-            <span className="inline-flex items-center gap-2">
-              <span className="text-[10px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">Competência</span>
-              <button
-                type="button"
-                aria-label="Selecionar vários meses"
-                aria-pressed={multipleMonths}
-                title={multipleMonths ? "Usar seleção única de mês" : "Selecionar vários meses"}
-                onClick={toggleMultipleMonths}
-                className={cn(
-                  "relative grid size-6 shrink-0 place-items-center rounded-md border outline-none transition-colors after:absolute after:-inset-2 after:content-[''] focus-visible:ring-2 focus-visible:ring-ring/50 sm:after:hidden",
-                  multipleMonths ? activeFilterBadgeClass : inactiveFilterBadgeClass,
-                )}
-              >
-                <ListChecksIcon aria-hidden="true" size={12} weight={multipleMonths ? "bold" : "regular"} />
-              </button>
-            </span>
-          </legend>
-          <div className="flex min-w-0 items-start gap-2">
-            <div ref={monthStrip} className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto overscroll-x-contain pb-1 [scrollbar-width:thin]" data-testid="family-month-scroll">
-              {visibleMonths.map((competence) => (
-                <button
-                  key={competence}
-                  type="button"
-                  aria-pressed={filters.competences.includes(competence)}
-                  aria-label={formatCompetenceLong(competence)}
-                  title={activity.months.has(competence) ? "Há lançamentos pendentes" : "Sem pendências para esta pessoa"}
-                  data-no-pending={!activity.months.has(competence)}
-                  data-competence={competence}
-                  onClick={() => chooseMonth(competence)}
-                  className={cn(filterBadgeClass, "font-mono", filters.competences.includes(competence) ? activeFilterBadgeClass : inactiveFilterBadgeClass)}
-                >
-                  {formatCompetence(competence)}
-                  {!activity.months.has(competence) ? <CheckIcon aria-hidden="true" size={11} className="opacity-60" /> : null}
-                </button>
-              ))}
-            </div>
-          </div>
-        </fieldset>
-
         {resolved.contactIds.length > 0 ? (
           <fieldset className="min-w-0" data-testid="family-person-badges">
             <legend className="mb-2 text-[10px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">Pessoa</legend>
@@ -417,7 +365,7 @@ export function FamilyLedgerWorkspace({ ledger, menu }: { ledger: FamilyLedger; 
                   title={activity.contacts.has(id) ? "Há lançamentos pendentes" : "Sem pendências nestes meses"}
                   data-no-pending={!activity.contacts.has(id)}
                   onClick={() => updateFilters({ contacts: [id] })}
-                  className={cn(filterBadgeClass, "max-w-full", filters.contacts.includes(id) ? activeFilterBadgeClass : inactiveFilterBadgeClass)}
+                  className={filterBadge({ active: filters.contacts.includes(id), class: "max-w-full" })}
                 >
                   <span className="truncate">{contacts.get(id)}</span>
                   {!activity.contacts.has(id) ? <CheckIcon aria-hidden="true" size={11} className="opacity-60" /> : null}
@@ -559,6 +507,7 @@ export function FamilyLedgerWorkspace({ ledger, menu }: { ledger: FamilyLedger; 
 
       {dialogs}
     </div>
+    </>
   );
 }
 
@@ -585,13 +534,6 @@ function queryFromFilters(filters: LedgerFilters) {
 const subscribeNothing = () => () => {};
 const isClient = () => true;
 const isServer = () => false;
-
-const filterBadgeClass = "inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border px-3 text-[11px] font-medium whitespace-nowrap outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring/50 sm:h-8";
-const activeFilterBadgeClass = "border-primary/30 bg-primary/[0.08] text-primary";
-const inactiveFilterBadgeClass = "border-border bg-card/60 text-muted-foreground hover:text-foreground";
-
-const secondaryHeaderButtonClass =
-  "inline-flex h-9 items-center gap-2 rounded-xl border border-border bg-card/70 px-3.5 text-xs font-semibold text-foreground outline-none transition-colors hover:bg-white/[0.05] focus-visible:ring-2 focus-visible:ring-ring/50";
 
 function EntryRow({
   entry,
@@ -714,17 +656,16 @@ function BalanceCard({
         : "text-warning-foreground";
 
   return (
-    <article className={cn("metric-card rounded-2xl p-4 sm:p-5", emphasis && "border-primary/25")}>
-      <p className="text-[10px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">{label}</p>
-      <p
-        data-testid={testId}
-        data-cents={cents}
-        className={cn("mt-4 font-mono text-xl font-medium tracking-[-0.05em] min-[360px]:text-base min-[400px]:text-xl sm:text-2xl sm:tracking-[-0.04em]", color)}
-      >
-        {formatCents(cents, { signed: !tone })}
-      </p>
-      <p className="mt-1.5 text-xs text-muted-foreground">{detail}</p>
-    </article>
+    <KpiCard
+      dense
+      label={label}
+      value={formatCents(cents, { signed: !tone })}
+      valueClassName={color}
+      valueData={{ "data-cents": cents }}
+      detail={detail}
+      emphasis={emphasis}
+      testId={testId}
+    />
   );
 }
 

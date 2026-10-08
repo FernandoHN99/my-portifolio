@@ -57,3 +57,8 @@ export function formatCompetenceLong(competence: Competence) {
   const [year, month] = competence.split("-");
   return `${LONG_MONTHS[Number(month) - 1]} de ${year}`;
 }
+
+/** "Out", o mês sem o ano, para os botões da faixa de competências. */
+export function formatCompetenceMonth(competence: Competence) {
+  return SHORT_MONTHS[Number(competence.split("-")[1]) - 1];
+}

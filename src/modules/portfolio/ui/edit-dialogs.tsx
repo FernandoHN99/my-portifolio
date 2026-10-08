@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 
+import { headerButton } from "@/components/product/page-controls";
 import { Picker } from "@/components/ui/picker";
 import { LIQUIDITY_SUGGESTIONS } from "@/modules/portfolio/domain/liquidity";
 import { isRedemption, redemptionLabel, REDEMPTION_VALUES } from "@/modules/portfolio/domain/redemption";
@@ -21,8 +22,7 @@ export const secondaryButtonClass =
   "inline-flex h-9 items-center justify-center rounded-lg border border-border px-3.5 text-xs font-medium text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50";
 
 /** Botão principal do cabeçalho, como "Adicionar posição" e o clone do mês. */
-export const headerPrimaryButtonClass =
-  "inline-flex h-9 items-center gap-2 rounded-xl bg-primary px-3.5 text-xs font-semibold text-primary-foreground outline-none transition-[background-color,transform] duration-150 hover:bg-primary/90 focus-visible:ring-3 focus-visible:ring-ring/40 active:scale-[0.98] disabled:opacity-40";
+export const headerPrimaryButtonClass = headerButton({ variant: "primary" });
 
 /**
  * Classificação do rateio (spec 068): só as opções da lista fixa, dependentes

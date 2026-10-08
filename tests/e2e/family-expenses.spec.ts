@@ -73,7 +73,7 @@ test.describe("com a concessão", () => {
     expect(new URL(page.url()).searchParams.get("pessoa")).toBe(selected.get("pessoa"));
   });
 
-  test("mês atual por padrão, badges de pessoa única e alternância de meses únicos ou múltiplos", async ({ page }) => {
+  test("mês atual por padrão e badges de pessoa única em ordem alfabética", async ({ page }) => {
     await openLedger(page);
     const now = new Date();
     const current = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
@@ -88,31 +88,43 @@ test.describe("com a concessão", () => {
     await expect(badges.nth(1)).toHaveAttribute("aria-pressed", "true");
     await expect(people.locator('[aria-pressed="true"]')).toHaveCount(1);
     expect(new URL(page.url()).searchParams.get("pessoa")).not.toContain(",");
+  });
 
-    const months = page.getByTestId("family-month-badges");
-    const monthBadges = months.getByRole("button", { name: /de 20\d\d$/ });
-    // O ano inteiro na faixa (spec 091), com os meses acima das pessoas.
-    await expect(monthBadges).toHaveCount(12);
-    const filterGap = await page.evaluate(() => {
-      const months = document.querySelector('[data-testid="family-month-badges"]')!.getBoundingClientRect();
-      const people = document.querySelector('[data-testid="family-person-badges"]')!.getBoundingClientRect();
-      return people.top - months.bottom;
-    });
-    expect(filterGap).toBeGreaterThan(0);
+  test("a competência é a faixa do topo, a mesma da Visão Geral, com meses únicos ou múltiplos", async ({ page }) => {
+    await openLedger(page);
+    const now = new Date();
+    const current = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+    await expect(page).toHaveURL(new RegExp(`competencia=${current}`));
+
+    // A competência é a faixa do topo, a mesma da Visão Geral (spec 096): o ano
+    // inteiro, fixa no alto, acima das pessoas.
+    const bar = page.getByRole("navigation", { name: "Competências" });
+    await expect(bar).toHaveAttribute("data-hydrated");
+    const monthButtons = bar.getByRole("button", { name: / de 20\d\d/ });
+    await expect(monthButtons).toHaveCount(12);
+    await expect(bar.locator('[aria-current="date"]')).toHaveCount(1);
+    const barBottom = await page.getByTestId("family-month-bar").evaluate((element) => element.getBoundingClientRect().bottom);
+    const filtersTop = await page.getByRole("region", { name: "Filtros" }).evaluate((element) => element.getBoundingClientRect().top);
+    expect(filtersTop).toBeGreaterThan(barBottom);
+    await expect(page.getByTestId("family-month-bar")).toHaveCSS("position", "sticky");
+
     const toggle = page.getByRole("button", { name: "Selecionar vários meses" });
     await expect(toggle).toHaveAttribute("aria-pressed", "false");
-    await monthBadges.nth(1).click();
-    await expect(months.getByRole("button", { name: /de 20\d\d$/, pressed: true })).toHaveCount(1);
+    await monthButtons.nth(1).click();
+    await expect(bar.locator('[aria-current="date"]')).toHaveCount(1);
     await toggle.click();
-    await monthBadges.first().click();
-    await expect(months.getByRole("button", { name: /de 20\d\d$/, pressed: true })).toHaveCount(2);
+    await expect(toggle).toHaveAttribute("aria-pressed", "true");
+    await monthButtons.first().click();
+    const marked = bar.getByRole("button", { name: / de 20\d\d/, pressed: true });
+    await expect(marked).toHaveCount(2);
+    await expect(page.getByTestId("multi-month-count")).toHaveText("2");
     await expect(page).toHaveURL(/competencia=[^&]*%2C|competencia=[^&]*,/);
     await toggle.click();
     await expect(toggle).toHaveAttribute("aria-pressed", "false");
-    await expect(months.getByRole("button", { name: /de 20\d\d$/, pressed: true })).toHaveCount(1);
+    await expect(bar.locator('[aria-current="date"]')).toHaveCount(1);
     // No modo múltiplo, tirar o último mês retorna ao atual automaticamente.
     await toggle.click();
-    await months.getByRole("button", { name: /de 20\d\d$/, pressed: true }).click();
+    await marked.click();
     await expect(page).toHaveURL(new RegExp(`competencia=${current}`));
   });
 

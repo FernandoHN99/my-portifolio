@@ -26,6 +26,7 @@ import {
   undoChangeAction,
   type EditActionResult,
 } from "@/app/actions/edit-month";
+import { KpiCard } from "@/components/product/kpi-card";
 import { cn } from "@/lib/utils";
 import type { EditingCatalog } from "@/modules/portfolio/application/get-editing-catalog";
 import type { MonthPosition } from "@/modules/portfolio/application/get-month-positions";
@@ -52,7 +53,7 @@ import { AssetPriceChart } from "@/modules/portfolio/ui/asset-price-chart";
 import { BalanceChangeChart } from "@/modules/portfolio/ui/balance-change-chart";
 import { backdropClass, centeredPopupClass, secondaryButtonClass } from "@/modules/portfolio/ui/edit-dialogs";
 import { EditToast, handOffToast, type EditToastState } from "@/modules/portfolio/ui/edit-toast";
-import { ChangeKpiCard, KpiCard } from "@/modules/portfolio/ui/kpi-card";
+import { ChangeKpiCard } from "@/modules/portfolio/ui/kpi-card";
 import { MaturityBadge } from "@/modules/portfolio/ui/maturity-badge";
 import { PositionAttribution } from "@/modules/portfolio/ui/position-attribution";
 import { PositionAllocation } from "@/modules/portfolio/ui/position-allocation";

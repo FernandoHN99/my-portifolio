@@ -4,9 +4,10 @@ import NumberFlow from "@number-flow/react";
 import { BankIcon, CurrencyBtcIcon, CurrencyDollarIcon, TrendUpIcon } from "@phosphor-icons/react/dist/ssr";
 import type { ReactNode } from "react";
 
+import { KpiCard } from "@/components/product/kpi-card";
 import type { OverviewData } from "@/modules/portfolio/application/get-overview-data";
 import { formatBrl, formatMonthCompact } from "@/modules/portfolio/presentation/portfolio-format";
-import { ChangeKpiCard, KpiCard } from "@/modules/portfolio/ui/kpi-card";
+import { ChangeKpiCard } from "@/modules/portfolio/ui/kpi-card";
 import type { SelicMonthView } from "@/modules/quotes/application/selic-reference";
 import { describeSelic, formatSelic } from "@/modules/quotes/presentation/selic-format";
 

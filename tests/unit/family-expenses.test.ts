@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import { test } from "node:test";
 
-import { addCompetenceMonths, formatCompetence } from "@/lib/competence";
+import { addCompetenceMonths, formatCompetence, formatCompetenceMonth } from "@/lib/competence";
 import {
   displayDescription,
   filterEntries,
@@ -58,6 +58,8 @@ test("competências somam meses sem depender do fuso", () => {
   assert.equal(addCompetenceMonths("2026-11", 2), "2027-01");
   assert.equal(addCompetenceMonths("2026-01", -1), "2025-12");
   assert.equal(formatCompetence("2026-10"), "Out/26");
+  assert.equal(formatCompetenceMonth("2026-10"), "Out");
+  assert.equal(formatCompetenceMonth("2026-03"), "Mar");
 });
 
 const contacts = new Map([

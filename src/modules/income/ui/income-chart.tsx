@@ -55,13 +55,13 @@ export function IncomeChart({ summary, selectedMonth }: { summary: YearSummary; 
 
   return (
     <div data-testid="income-chart">
-      <ul aria-label="Legenda" className="mb-4 flex flex-wrap items-center gap-2">
-        <li className="inline-flex items-center gap-2 rounded-full border border-chart-spent/25 bg-chart-spent/[0.08] px-2.5 py-1 text-[11px] font-medium text-foreground/90">
-          <span aria-hidden="true" className="size-2 rounded-full bg-chart-spent" />
+      <ul aria-label="Legenda" className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-1.5">
+        <li className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+          <span className="size-2.5 rounded-[3px] bg-chart-spent" />
           Gastos
         </li>
-        <li className="inline-flex items-center gap-2 rounded-full border border-chart-saved/25 bg-chart-saved/[0.08] px-2.5 py-1 text-[11px] font-medium text-foreground/90">
-          <span aria-hidden="true" className="size-2 rounded-full bg-chart-saved" />
+        <li className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+          <span className="size-2.5 rounded-[3px] bg-chart-saved" />
           Poupado
         </li>
       </ul>
