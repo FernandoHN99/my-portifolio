@@ -12,6 +12,28 @@ const priceSchema = z.object({ price: z.coerce.number().positive() });
 const klinesSchema = z.array(z.tuple([z.number(), z.string(), z.string(), z.string(), z.string()]).rest(z.unknown()));
 
 const BASE = "https://api.binance.com/api/v3";
+// Espelho oficial só de dados de mercado, sem a restrição regional do endereço
+// principal, que responde HTTP 451 nas regiões dos EUA.
+const MARKET_DATA_BASE = "https://data-api.binance.vision/api/v3";
+
+/** Consulta pública; com HTTP 451, repete no espelho de dados de mercado. */
+async function fetchBinance(path: string, params: Record<string, string>) {
+  const build = (base: string) => {
+    const url = new URL(`${base}${path}`);
+    for (const [key, value] of Object.entries(params)) url.searchParams.set(key, value);
+    return url;
+  };
+
+  try {
+    return await fetchJson(build(BASE));
+  } catch (error) {
+    if (error instanceof QuoteHttpError && error.statusCode === 451) {
+      return fetchJson(build(MARKET_DATA_BASE));
+    }
+
+    throw error;
+  }
+}
 
 async function firstPair<T>(symbol: string, read: (pair: string) => Promise<T>) {
   for (const quote of ["BRL", "USDT"] as const) {
@@ -30,11 +52,9 @@ async function firstPair<T>(symbol: string, read: (pair: string) => Promise<T>) 
 
 /** Preço em reais; pares em USDT são convertidos pelo dólar informado. */
 export async function fetchBinancePriceBrl(symbol: string, usdBrl: number | null) {
-  const { quote, value } = await firstPair(symbol, async (pair) => {
-    const url = new URL(`${BASE}/ticker/price`);
-    url.searchParams.set("symbol", pair);
-    return priceSchema.parse(await fetchJson(url)).price;
-  });
+  const { quote, value } = await firstPair(symbol, async (pair) =>
+    priceSchema.parse(await fetchBinance("/ticker/price", { symbol: pair })).price,
+  );
 
   if (quote === "BRL") {
     return value;
@@ -53,13 +73,9 @@ export async function fetchBinancePriceBrl(symbol: string, usdBrl: number | null
  * USDT.
  */
 export async function fetchBinanceMonthlyCloses(symbol: string, months = 40) {
-  const { quote, value } = await firstPair(symbol, async (pair) => {
-    const url = new URL(`${BASE}/klines`);
-    url.searchParams.set("symbol", pair);
-    url.searchParams.set("interval", "1M");
-    url.searchParams.set("limit", String(months));
-    return klinesSchema.parse(await fetchJson(url));
-  });
+  const { quote, value } = await firstPair(symbol, async (pair) =>
+    klinesSchema.parse(await fetchBinance("/klines", { symbol: pair, interval: "1M", limit: String(months) })),
+  );
 
   return {
     currency: quote === "BRL" ? "BRL" : "USD",

@@ -56,6 +56,7 @@ const PROVIDER_LABELS: Record<string, string> = {
   bcb: "Banco Central (PTAX)",
   binance: "Binance",
   brapi: "brapi",
+  coinbase: "Coinbase",
   coingecko: "CoinGecko",
   configuration: "Configuração",
   finnhub: "Finnhub",

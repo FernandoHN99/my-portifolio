@@ -236,7 +236,12 @@ A produção começa sem usuários. Para entrar:
   a conferência deste deploy encontrou 739 movimentações e preservou esses
   dados. Uma nova importação pela Configuração substitui a carteira atual;
 - a Binance não serve de reserva para a função em `aws-us-east-1` (HTTP 451):
-  sem a CoinGecko, BTC e SOL esperam a execução seguinte;
+  sem a CoinGecko, BTC e SOL esperam a execução seguinte (cerca de 1 em 4
+  execuções desde 05/10). Correção pronta e testada localmente em 2026-10-08,
+  sem commit e sem publicação: [spec 093](../specs/093-crypto-quote-fallbacks.md)
+  (nova tentativa na CoinGecko, Coinbase e Yahoo como reservas e a Binance por
+  último). Falta republicar a função `quotesync` no Neon, com a autorização do
+  usuário;
 - o backup passou à versão 5; arquivos antigos continuam restaurando.
 
 ## Decisões do usuário

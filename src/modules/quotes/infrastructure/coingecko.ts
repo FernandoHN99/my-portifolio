@@ -61,11 +61,18 @@ export async function resolveCoinGeckoCoin(symbol: string, apiKey?: string): Pro
   return (await searchCoinGeckoCoins(symbol, apiKey))[0] ?? null;
 }
 
+/**
+ * Preço do dia em reais. Das funções do Neon, na região dos EUA, a CoinGecko
+ * às vezes não responde: duas tentativas de 6 s têm o mesmo pior caso de uma de
+ * 12 s e recuperam a maior parte dessas falhas passageiras.
+ */
 export async function fetchCoinGeckoPrices(ids: string[], apiKey?: string) {
   const url = new URL("https://api.coingecko.com/api/v3/simple/price");
   url.searchParams.set("ids", ids.join(","));
   url.searchParams.set("vs_currencies", "brl");
-  const payload = coinGeckoSchema.parse(await fetchJson(url, { headers: headersFor(apiKey) }));
+  const payload = coinGeckoSchema.parse(
+    await fetchJson(url, { headers: headersFor(apiKey) }, { timeoutMs: 6_000, attempts: 2 }),
+  );
 
   return new Map(Object.entries(payload).map(([id, quote]) => [id, quote.brl]));
 }

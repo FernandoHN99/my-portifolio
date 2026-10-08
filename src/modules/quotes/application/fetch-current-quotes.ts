@@ -10,6 +10,7 @@ import { fetchUsdBrl } from "@/modules/quotes/infrastructure/awesome-api";
 import { fetchPtaxUsdLatest } from "@/modules/quotes/infrastructure/bcb";
 import { fetchBinancePriceBrl } from "@/modules/quotes/infrastructure/binance";
 import { fetchBrapiPrice } from "@/modules/quotes/infrastructure/brapi";
+import { fetchCoinbasePriceBrl } from "@/modules/quotes/infrastructure/coinbase";
 import { fetchCryptoQuotes } from "@/modules/quotes/infrastructure/coingecko";
 import { fetchFinnhubQuotes } from "@/modules/quotes/infrastructure/finnhub";
 import { describeProviderError } from "@/modules/quotes/infrastructure/http";
@@ -21,7 +22,8 @@ import { fetchTreasuryQuotes } from "@/modules/quotes/infrastructure/treasury";
 // final lista o motivo de cada provedor tentado.
 //
 // - câmbio: AwesomeAPI → PTAX do Banco Central → Yahoo Finance;
-// - cripto: CoinGecko → Binance;
+// - cripto: CoinGecko → Coinbase → Yahoo Finance → Binance. A Binance fica por
+//   último: ela recusa (HTTP 451) a região dos EUA onde roda o job do Neon;
 // - ativos em dólar (EUA): Finnhub → Yahoo Finance → Alpha Vantage;
 // - demais (B3): Yahoo Finance → brapi, com BRAPI_TOKEN → Alpha Vantage.
 //
@@ -89,6 +91,15 @@ export async function fetchCurrentQuotes(
             pending.map((request) => ({ symbol: request.symbol, coinId: request.providerId })),
             configuration.coinGeckoApiKey,
           ),
+      },
+      { provider: "coinbase", enabled: true, fetch: (pending) => perSymbol(pending, "coinbase", fetchCoinbasePriceBrl) },
+      {
+        provider: "yahoo",
+        enabled: true,
+        fetch: async (pending) =>
+          usdBrl === null
+            ? usdMissing(pending, "yahoo")
+            : perSymbol(pending, "yahoo", async (symbol) => (await fetchYahooPrice(`${symbol}-USD`)).price * usdBrl),
       },
       { provider: "binance", enabled: true, fetch: (pending) => perSymbol(pending, "binance", (symbol) => fetchBinancePriceBrl(symbol, usdBrl)) },
     ])),

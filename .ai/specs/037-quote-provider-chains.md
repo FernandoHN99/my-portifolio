@@ -40,7 +40,7 @@ de cada provedor tentado, e o provedor gravado é o que respondeu.
 | Grupo | Cadeia |
 |---|---|
 | Dólar | AwesomeAPI → PTAX → Yahoo (BRL=X) |
-| Cripto | CoinGecko → Binance (par em BRL; senão USDT × dólar) |
+| Cripto | CoinGecko → Binance (par em BRL; senão USDT × dólar); desde a [spec 093](093-crypto-quote-fallbacks.md): CoinGecko → Coinbase → Yahoo → Binance |
 | EUA | Finnhub (com chave) → Yahoo → Alpha Vantage |
 | B3 | Yahoo → brapi (com `BRAPI_TOKEN`) → Alpha Vantage |
 
