@@ -11,6 +11,7 @@ import {
   payslipIncomeCents,
   payslipName,
   payslipProblem,
+  savingsRatePercent,
   summarizeYear,
   taxableIncomeCents,
   type IncomeMonth,
@@ -115,4 +116,34 @@ test("o período do holerite precisa caber no mês do registro", () => {
 
 test("os anos vão do mais recente ao mais antigo, sempre com o atual", () => {
   assert.deepEqual(incomeYears([{ month: "2025-01" }, { month: "2026-03" }], 2027), [2027, 2026, 2025]);
+});
+
+test("taxa de poupança: balanço como parte das entradas, sem entradas não há taxa", () => {
+  assert.equal(savingsRatePercent(842988, 515767), 61);
+  assert.equal(savingsRatePercent(2159770, 1696228), 79);
+  assert.equal(savingsRatePercent(100000, -25000), -25);
+  assert.equal(savingsRatePercent(0, 0), null);
+});
+
+test("rodapé da tabela: total e média de cada coluna, só dos meses com valor", () => {
+  const months = [
+    ...SHEET_2026.map((row) =>
+      month(row, row[0] === "2026-08" ? [payslip("2026-08-01", "2026-08-31", 1388427, false)] : []),
+    ),
+    month(["2025-12", null, null, null, null, null], [payslip("2025-12-01", "2025-12-31", 1050000, false)]),
+  ];
+  const { columns, launched } = summarizeYear(months, 2026);
+
+  assert.equal(launched, 9);
+  assert.deepEqual(columns.income, { totalCents: 9115785, averageCents: Math.round(9115785 / 9), months: 9 });
+  assert.deepEqual(columns.spend, { totalCents: 3495309, averageCents: Math.round(3495309 / 9), months: 9 });
+  assert.equal(columns.balance.totalCents, 5620476);
+  // Setembro só tem VA/VR: a média do líquido considera os oito meses que o têm.
+  assert.equal(columns.net.months, 8);
+  assert.equal(columns.net.averageCents, Math.round((776988 + 824639 + 920899 + 800813 + 860174 + 2049770 + 910655 + 1025847) / 8));
+  assert.equal(columns.mealVoucher.months, 9);
+  assert.equal(columns.card.months, 8);
+  // O bruto vem dos holerites, e dezembro de 2025 é de outro ano.
+  assert.deepEqual(columns.gross, { totalCents: 1388427, averageCents: 1388427, months: 1 });
+  assert.equal(summarizeYear([], 2026).columns.income.averageCents, 0);
 });

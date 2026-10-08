@@ -302,7 +302,10 @@ function MonthForm({
 
         {(["Entradas", "Saídas"] as const).map((group) => (
           <fieldset key={group} className="min-w-0">
-            <legend className="mb-2 text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">{group}</legend>
+            <legend className="mb-2 flex items-center gap-2 text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
+              <span aria-hidden="true" className={cn("size-1.5 rounded-full", group === "Entradas" ? "bg-chart-saved" : "bg-chart-spent")} />
+              {group}
+            </legend>
             <div className={cn("grid gap-3", group === "Entradas" ? "grid-cols-1 min-[420px]:grid-cols-2" : "grid-cols-1 min-[420px]:grid-cols-3")}>
               {VALUE_FIELDS.filter((field) => field.group === group).map((field) => (
                 <Field key={field.key} label={field.label}>
@@ -441,7 +444,7 @@ function MonthForm({
           <PreviewRow label="Entradas">{formatCents(incomeCents)}</PreviewRow>
           <PreviewRow label="Saídas">{formatCents(spendCents)}</PreviewRow>
           <PreviewRow label="Balanço">
-            <span className={incomeCents === spendCents ? "text-foreground" : incomeCents > spendCents ? "text-primary" : "text-warning-foreground"}>
+            <span className={incomeCents === spendCents ? "text-foreground" : incomeCents > spendCents ? "text-primary" : "text-chart-spent"}>
               {formatCents(incomeCents - spendCents, { signed: true })}
             </span>
           </PreviewRow>

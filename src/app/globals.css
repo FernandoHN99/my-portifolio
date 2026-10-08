@@ -22,6 +22,8 @@
   --color-destructive: var(--destructive);
   --color-chart-up: var(--chart-up);
   --color-chart-down: var(--chart-down);
+  --color-chart-saved: var(--chart-saved);
+  --color-chart-spent: var(--chart-spent);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -71,6 +73,15 @@
    */
   --chart-up: #56b4e9;
   --chart-down: #e69f00;
+  /*
+   * Recebimentos (spec 088, revisão de 2026-10-08): o que sobra em menta, a cor
+   * da marca, e o que sai em violeta, no lugar do laranja. Simulando protanopia,
+   * deuteranopia e tritanopia, o par fica com ΔE2000 de 41 a 49 (menta e laranja
+   * caem a 16-18 em protanopia e deuteranopia). Só Recebimentos usa; os gráficos
+   * de Investimentos seguem o azul e o laranja acima.
+   */
+  --chart-saved: oklch(0.79 0.15 158);
+  --chart-spent: oklch(0.7 0.17 305);
   --border: oklch(0.255 0.014 165 / 0.72);
   --input: oklch(0.255 0.014 165);
   --ring: oklch(0.71 0.12 158);

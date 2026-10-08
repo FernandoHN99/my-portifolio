@@ -151,11 +151,40 @@ export function monthTotals(month: IncomeValues & { payslips: readonly Payslip[]
   };
 }
 
+/** Soma de uma coluna no ano e a média dos meses em que ela tem valor. */
+export type ColumnStat = { totalCents: Cents; averageCents: Cents; months: number };
+
+export const YEAR_COLUMN_KEYS = [
+  "gross",
+  "net",
+  "mealVoucher",
+  "income",
+  "card",
+  "pix",
+  "mealVoucherSpend",
+  "spend",
+  "balance",
+] as const;
+export type YearColumnKey = (typeof YEAR_COLUMN_KEYS)[number];
+export type YearColumns = Record<YearColumnKey, ColumnStat>;
+
 export type YearSummary = {
   year: number;
   months: (IncomeMonth & { totals: MonthTotals })[];
   totals: { incomeCents: Cents; spendCents: Cents; balanceCents: Cents; grossCents: Cents };
+  /** Total e média de cada coluna da tabela, para o rodapé. */
+  columns: YearColumns;
+  /** Meses com entradas ou saídas lançadas. */
+  launched: number;
 };
+
+/**
+ * Taxa de poupança: o balanço como parte das entradas, em % inteiro. Sem
+ * entradas não há taxa; um balanço negativo dá taxa negativa.
+ */
+export function savingsRatePercent(incomeCents: Cents, balanceCents: Cents): number | null {
+  return incomeCents > 0 ? Math.round((balanceCents / incomeCents) * 100) : null;
+}
 
 export function yearOf(month: Competence) {
   return Number(month.slice(0, 4));
@@ -172,9 +201,30 @@ export function summarizeYear(months: readonly IncomeMonth[], year: number): Yea
     .sort((a, b) => a.month.localeCompare(b.month))
     .map((month) => ({ ...month, totals: monthTotals(month) }));
 
+  const picks: Record<YearColumnKey, (month: (typeof selected)[number]) => Cents | null> = {
+    gross: (month) => (month.payslips.length > 0 ? month.totals.grossCents : null),
+    net: (month) => month.netIncomeCents,
+    mealVoucher: (month) => month.mealVoucherCents,
+    income: (month) => (month.totals.hasValues ? month.totals.incomeCents : null),
+    card: (month) => month.cardSpendCents,
+    pix: (month) => month.pixSpendCents,
+    mealVoucherSpend: (month) => month.mealVoucherSpendCents,
+    spend: (month) => (month.totals.hasValues ? month.totals.spendCents : null),
+    balance: (month) => (month.totals.hasValues ? month.totals.balanceCents : null),
+  };
+  const columns = Object.fromEntries(
+    YEAR_COLUMN_KEYS.map((key) => {
+      const values = selected.map(picks[key]).filter((value): value is Cents => value !== null);
+      const totalCents = values.reduce((sum, value) => sum + value, 0);
+      return [key, { totalCents, averageCents: values.length > 0 ? Math.round(totalCents / values.length) : 0, months: values.length }];
+    }),
+  ) as YearColumns;
+
   return {
     year,
     months: selected,
+    columns,
+    launched: selected.filter((month) => month.totals.hasValues).length,
     totals: selected.reduce(
       (sum, month) => ({
         incomeCents: sum.incomeCents + month.totals.incomeCents,

@@ -85,8 +85,27 @@ test.describe("com a concessão", () => {
     await expect(form).toBeHidden();
   });
 
+  test("tabela larga: o bruto fica nas Entradas, e os totais batem com os cartões", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== "desktop-chrome", "A tabela só aparece a partir de 1420 px.");
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await openIncome(page);
+    const table = page.getByTestId("income-table");
+    test.skip(!(await table.isVisible()), "Sem meses no ano atual.");
+
+    const headers = (await table.locator("thead tr").nth(1).locator("th").allTextContents()).map((text) => text.replace(/ref\.$/, "").trim());
+    expect(headers).toEqual(["Bruto", "Líquido + extras", "VA/VR", "Total", "Cartão", "PIX", "VA/VR", "Total", "Balanço"]);
+    await expect(table.locator("thead tr").first().locator("th").nth(1)).toHaveText("Entradas");
+    // O bruto é referência: o total de entradas não o soma.
+    for (const [total, card] of [["income-total-income", "income-kpi-income"], ["income-total-spend", "income-kpi-spend"], ["income-total-balance", "income-kpi-balance"]]) {
+      expect(await page.getByTestId(total).getAttribute("data-cents")).toBe(await page.getByTestId(card).getAttribute("data-cents"));
+    }
+    await expect(table.locator("tfoot tr")).toHaveCount(2);
+    const { scrollWidth, innerWidth } = await page.evaluate(() => ({ scrollWidth: document.documentElement.scrollWidth, innerWidth: window.innerWidth }));
+    expect(scrollWidth).toBeLessThanOrEqual(innerWidth);
+  });
+
   test("sem rolagem lateral no celular e no computador", async ({ page }, testInfo) => {
-    const widths = testInfo.project.name === "desktop-chrome" ? [1024, 1280] : [320, 375, 430];
+    const widths = testInfo.project.name === "desktop-chrome" ? [1024, 1280, 1420, 1440] : [320, 375, 430];
     for (const width of widths) {
       await page.setViewportSize({ width, height: 860 });
       await openIncome(page);

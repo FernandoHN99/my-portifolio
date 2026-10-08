@@ -1,16 +1,34 @@
 "use client";
 
-import { ArchiveIcon, PlusIcon, WalletIcon } from "@phosphor-icons/react/dist/ssr";
+import {
+  ArchiveIcon,
+  ArrowCircleDownIcon,
+  ArrowCircleUpIcon,
+  BriefcaseIcon,
+  PiggyBankIcon,
+  PlusIcon,
+  WalletIcon,
+} from "@phosphor-icons/react/dist/ssr";
 import { parseAsInteger, parseAsString, useQueryStates } from "nuqs";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore, useTransition, type ReactNode } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 
 import { undoIncomeChangeAction, type IncomeActionResult } from "@/app/actions/income";
+import { RateBar, SummaryCard, TONES, type Tone } from "@/components/product/finance-parts";
 import { formatCompetence, formatCompetenceLong, isCompetence } from "@/lib/competence";
 import { formatAmountInput, formatCents, type Cents } from "@/lib/money";
 import { cn } from "@/lib/utils";
 import type { IncomeLedger } from "@/modules/income/application/get-income-ledger";
-import { incomeYears, summarizeYear, yearOf, type IncomeMonth, type MonthTotals } from "@/modules/income/domain/income";
+import {
+  incomeYears,
+  savingsRatePercent,
+  summarizeYear,
+  yearOf,
+  type IncomeMonth,
+  type MonthTotals,
+  type YearColumnKey,
+  type YearColumns,
+} from "@/modules/income/domain/income";
 import { IncomeBackupDialog } from "@/modules/income/ui/income-backup-dialog";
 import { IncomeChart } from "@/modules/income/ui/income-chart";
 import { MonthDialog, type MonthDialogTarget } from "@/modules/income/ui/month-dialog";
@@ -23,7 +41,6 @@ import { EditToast, type EditToastState } from "@/modules/portfolio/ui/edit-toas
 // Previdência.
 
 type DialogState = { open: boolean; target: MonthDialogTarget | null; key: number };
-type Row = IncomeMonth & { totals: MonthTotals };
 
 export function IncomeWorkspace({ ledger, menu }: { ledger: IncomeLedger; menu?: ReactNode }) {
   const [query, setQuery] = useQueryStates({ ano: parseAsInteger, mes: parseAsString }, { clearOnDefault: true });
@@ -139,11 +156,18 @@ export function IncomeWorkspace({ ledger, menu }: { ledger: IncomeLedger; menu?:
     );
   }
 
-  const launched = summary.months.filter((month) => month.totals.hasValues).length;
+  const launched = summary.launched;
+  const { columns } = summary;
+  const yearRate = savingsRatePercent(summary.totals.incomeCents, summary.totals.balanceCents);
+  const payslipCount = summary.months.reduce((sum, month) => sum + month.payslips.length, 0);
 
   return (
     <div data-testid="income-workspace" data-hydrated={hydrated || undefined} className={shellClass}>
       <div className="ambient-glow pointer-events-none absolute top-0 right-0 -z-10 h-[460px] w-[460px]" />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute top-24 left-0 -z-10 hidden h-[380px] w-[380px] rounded-full bg-chart-spent/[0.06] blur-3xl sm:block"
+      />
 
       <header className="flex flex-col gap-6 border-b border-border/70 pb-8 sm:flex-row sm:items-end sm:justify-between">
         <div>
@@ -177,10 +201,44 @@ export function IncomeWorkspace({ ledger, menu }: { ledger: IncomeLedger; menu?:
       </fieldset>
 
       <section aria-label="Resumo do ano" className="mt-6 grid grid-cols-1 gap-3 min-[360px]:grid-cols-2 xl:grid-cols-4">
-        <SummaryCard label="Entradas" cents={summary.totals.incomeCents} testId="income-kpi-income" />
-        <SummaryCard label="Saídas" cents={summary.totals.spendCents} testId="income-kpi-spend" />
-        <SummaryCard label="Poupado" cents={summary.totals.balanceCents} testId="income-kpi-balance" tone="up" emphasis />
-        <SummaryCard label="Salário bruto" cents={summary.totals.grossCents} testId="income-kpi-gross" />
+        <SummaryCard
+          tone="saved"
+          icon={ArrowCircleDownIcon}
+          label="Entradas"
+          cents={summary.totals.incomeCents}
+          detail={columns.income.months > 0 ? `média de ${formatCents(columns.income.averageCents)} por mês` : "sem meses lançados"}
+          testId="income-kpi-income"
+        />
+        <SummaryCard
+          tone="spent"
+          icon={ArrowCircleUpIcon}
+          label="Saídas"
+          cents={summary.totals.spendCents}
+          detail={columns.spend.months > 0 ? `média de ${formatCents(columns.spend.averageCents)} por mês` : "sem meses lançados"}
+          valueClassName="text-chart-spent"
+          testId="income-kpi-spend"
+        />
+        <SummaryCard
+          tone="saved"
+          icon={PiggyBankIcon}
+          label="Poupado"
+          cents={summary.totals.balanceCents}
+          detail={yearRate === null ? "sem entradas" : `${yearRate}% das entradas`}
+          valueClassName={balanceColor(summary.totals.balanceCents)}
+          signed
+          emphasis
+          testId="income-kpi-balance"
+        >
+          {yearRate !== null ? <RateBar rate={yearRate} className="mt-3 h-1.5 w-full" /> : null}
+        </SummaryCard>
+        <SummaryCard
+          tone="neutral"
+          icon={BriefcaseIcon}
+          label="Salário bruto"
+          cents={summary.totals.grossCents}
+          detail={`${payslipCount} ${payslipCount === 1 ? "holerite" : "holerites"} no ano`}
+          testId="income-kpi-gross"
+        />
       </section>
 
       <section aria-label="Gastos e poupado" className="premium-panel mt-6 rounded-[24px] p-5 sm:p-7">
@@ -188,13 +246,14 @@ export function IncomeWorkspace({ ledger, menu }: { ledger: IncomeLedger; menu?:
         <IncomeChart summary={summary} />
       </section>
 
-      <section aria-label="Meses" className="premium-panel mt-6 rounded-[24px] p-3 sm:p-5">
+      <section aria-label="Meses" className="premium-panel mt-6 rounded-[24px] p-4 sm:p-6">
+        <h2 className="mb-4 px-1 text-sm font-semibold tracking-[-0.01em]">Mês a mês</h2>
         {summary.months.length === 0 ? (
           <p className="px-3 py-10 text-center text-sm text-muted-foreground">Nenhum mês lançado em {year}.</p>
         ) : (
           <>
-            <MonthTable rows={summary.months} totals={summary.totals} onOpen={openMonth} />
-            <MonthList rows={summary.months} totals={summary.totals} onOpen={openMonth} />
+            <MonthTable rows={summary.months} columns={columns} currentMonth={ledger.currentCompetence} onOpen={openMonth} />
+            <MonthList rows={summary.months} totals={summary.totals} currentMonth={ledger.currentCompetence} onOpen={openMonth} />
           </>
         )}
       </section>
@@ -204,187 +263,386 @@ export function IncomeWorkspace({ ledger, menu }: { ledger: IncomeLedger; menu?:
   );
 }
 
-type YearTotals = { incomeCents: Cents; spendCents: Cents; balanceCents: Cents; grossCents: Cents };
-
 /** Na tabela, só o número, como as colunas do Excel: "20.497,70", "+5.157,67". */
 function amount(cents: Cents, { signed = false }: { signed?: boolean } = {}) {
   const text = formatAmountInput(Math.abs(cents));
   return cents < 0 ? `−${text}` : signed && cents > 0 ? `+${text}` : text;
 }
 
-const cell = (cents: Cents | null) => (cents === null ? "—" : amount(cents));
+/** Saldo do mês: menta quando sobra, violeta quando falta, neutro no zero. */
+function balanceColor(cents: Cents) {
+  if (cents === 0) return "text-foreground";
+  return cents > 0 ? "text-primary" : "text-chart-spent";
+}
 
-/** Tabela como a do Excel: Entradas, Saídas e Resumo, com o bruto ao fim. */
-function MonthTable({ rows, totals, onOpen }: { rows: Row[]; totals: YearTotals; onOpen: (month: string) => void }) {
+type Row = IncomeMonth & { totals: MonthTotals };
+
+type Column = {
+  key: YearColumnKey;
+  label: string;
+  /** Soma do grupo: ganha o tom do grupo e um fundo discreto. */
+  total?: boolean;
+  /** Referência que não entra no total, como o salário bruto. */
+  reference?: boolean;
+};
+
+const GROUPS: { key: string; label: string; tone: Tone; columns: Column[] }[] = [
+  {
+    key: "in",
+    label: "Entradas",
+    tone: "saved",
+    columns: [
+      { key: "gross", label: "Bruto", reference: true },
+      { key: "net", label: "Líquido + extras" },
+      { key: "mealVoucher", label: "VA/VR" },
+      { key: "income", label: "Total", total: true },
+    ],
+  },
+  {
+    key: "out",
+    label: "Saídas",
+    tone: "spent",
+    columns: [
+      { key: "card", label: "Cartão" },
+      { key: "pix", label: "PIX" },
+      { key: "mealVoucherSpend", label: "VA/VR" },
+      { key: "spend", label: "Total", total: true },
+    ],
+  },
+  { key: "sum", label: "Resumo", tone: "neutral", columns: [{ key: "balance", label: "Balanço", total: true }] },
+];
+
+/** Valor de uma coluna num mês; nulo é não lançado e aparece como "—". */
+function valueOf(row: Row, key: YearColumnKey): Cents | null {
+  const hasValues = row.totals.hasValues;
+
+  switch (key) {
+    case "gross":
+      return row.payslips.length > 0 ? row.totals.grossCents : null;
+    case "net":
+      return row.netIncomeCents;
+    case "mealVoucher":
+      return row.mealVoucherCents;
+    case "income":
+      return hasValues ? row.totals.incomeCents : null;
+    case "card":
+      return row.cardSpendCents;
+    case "pix":
+      return row.pixSpendCents;
+    case "mealVoucherSpend":
+      return row.mealVoucherSpendCents;
+    case "spend":
+      return hasValues ? row.totals.spendCents : null;
+    case "balance":
+      return hasValues ? row.totals.balanceCents : null;
+  }
+}
+
+const cellPadding = "px-3 py-3";
+
+/**
+ * Tabela como a do Excel, agora com o bruto nas Entradas (só como referência,
+ * fora do total), grupos coloridos e a taxa de poupança no Balanço. O rodapé
+ * traz o total e a média de cada coluna.
+ */
+function MonthTable({
+  rows,
+  columns,
+  currentMonth,
+  onOpen,
+}: {
+  rows: Row[];
+  columns: YearColumns;
+  currentMonth: string;
+  onOpen: (month: string) => void;
+}) {
+  const balanceRate = (income: Cents, balance: Cents) => savingsRatePercent(income, balance);
+
   return (
-    <table className="hidden w-full text-right text-xs tabular-nums xl:table" data-testid="income-table">
-      <thead>
-        <tr className="text-[9px] font-semibold tracking-[0.13em] text-muted-foreground uppercase">
-          <th className="px-2.5 pt-2 text-left font-semibold" rowSpan={2}>
-            Mês <span className="font-normal tracking-normal normal-case">(R$)</span>
-          </th>
-          <th className="px-2.5 pt-2 text-center font-semibold" colSpan={3}>
-            Entradas
-          </th>
-          <th className="px-2.5 pt-2 text-center font-semibold" colSpan={4}>
-            Saídas
-          </th>
-          <th className="px-2.5 pt-2 font-semibold" rowSpan={2}>
-            Balanço
-          </th>
-          <th className="px-2.5 pt-2 font-semibold" rowSpan={2}>
-            Bruto
-          </th>
-        </tr>
-        <tr className="text-[9px] font-semibold tracking-[0.1em] whitespace-nowrap text-muted-foreground/80 uppercase">
-          <th className="px-2.5 pt-1 pb-2 font-medium">Salário + extras</th>
-          <th className="px-2.5 pt-1 pb-2 font-medium">VA/VR</th>
-          <th className="px-2.5 pt-1 pb-2 font-medium">Total</th>
-          <th className="px-2.5 pt-1 pb-2 font-medium">Cartão</th>
-          <th className="px-2.5 pt-1 pb-2 font-medium">PIX</th>
-          <th className="px-2.5 pt-1 pb-2 font-medium">VA/VR</th>
-          <th className="px-2.5 pt-1 pb-2 font-medium">Total</th>
-        </tr>
-      </thead>
-      <tbody className="font-mono">
-        {rows.map((row) => (
-          <tr
-            key={row.id}
-            data-testid="income-row"
-            data-month={row.month}
-            onClick={() => onOpen(row.month)}
-            className="cursor-pointer border-t border-border/60 transition-colors hover:bg-white/[0.03]"
-          >
-            <td className="px-2.5 py-2.5 text-left font-sans">
-              <button
-                type="button"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  onOpen(row.month);
-                }}
-                aria-label={`Abrir ${formatCompetenceLong(row.month)}`}
-                className="rounded font-medium text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-              >
-                {formatCompetence(row.month)}
-              </button>
-            </td>
-            <td className="px-2.5 py-2.5 text-foreground/85">{cell(row.netIncomeCents)}</td>
-            <td className="px-2.5 py-2.5 text-foreground/85">{cell(row.mealVoucherCents)}</td>
-            <td className="px-2.5 py-2.5 text-foreground">{row.totals.hasValues ? amount(row.totals.incomeCents) : "—"}</td>
-            <td className="px-2.5 py-2.5 text-foreground/85">{cell(row.cardSpendCents)}</td>
-            <td className="px-2.5 py-2.5 text-foreground/85">{cell(row.pixSpendCents)}</td>
-            <td className="px-2.5 py-2.5 text-foreground/85">{cell(row.mealVoucherSpendCents)}</td>
-            <td className="px-2.5 py-2.5 text-foreground">{row.totals.hasValues ? amount(row.totals.spendCents) : "—"}</td>
-            <td className={cn("px-2.5 py-2.5", balanceColor(row.totals.balanceCents))}>
-              {row.totals.hasValues ? amount(row.totals.balanceCents, { signed: true }) : "—"}
-            </td>
-            <td className="px-2.5 py-2.5 text-muted-foreground">{row.payslips.length > 0 ? amount(row.totals.grossCents) : "—"}</td>
+    <div className="hidden overflow-x-auto min-[1420px]:block">
+      <table className="w-full border-separate border-spacing-0 text-right text-xs tabular-nums" data-testid="income-table">
+        <thead>
+          <tr>
+            <th rowSpan={2} className="px-3 pb-2 text-left align-bottom text-[9px] font-semibold tracking-[0.13em] text-muted-foreground uppercase">
+              Mês
+            </th>
+            {GROUPS.map((group) => (
+              <th key={group.key} colSpan={group.columns.length} className="px-1.5 pb-2">
+                <span
+                  className={cn(
+                    "flex items-center justify-center gap-2 rounded-lg border-b-2 py-1.5 text-[10px] font-semibold tracking-[0.14em] uppercase",
+                    TONES[group.tone].tint,
+                    TONES[group.tone].rule,
+                    group.tone === "neutral" ? "text-muted-foreground" : "text-foreground/90",
+                  )}
+                >
+                  <span aria-hidden="true" className={cn("size-1.5 rounded-full", TONES[group.tone].dot)} />
+                  {group.label}
+                </span>
+              </th>
+            ))}
           </tr>
-        ))}
-      </tbody>
-      <tfoot className="font-mono">
-        <tr className="border-t border-border text-foreground">
-          <td className="px-2.5 py-3 text-left font-sans text-[10px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">Total</td>
-          <td colSpan={2} />
-          <td className="px-2.5 py-3" data-testid="income-total-income">
-            {amount(totals.incomeCents)}
-          </td>
-          <td colSpan={3} />
-          <td className="px-2.5 py-3" data-testid="income-total-spend">
-            {amount(totals.spendCents)}
-          </td>
-          <td className={cn("px-2.5 py-3", balanceColor(totals.balanceCents))} data-testid="income-total-balance">
-            {amount(totals.balanceCents, { signed: true })}
-          </td>
-          <td className="px-2.5 py-3 text-muted-foreground">{amount(totals.grossCents)}</td>
-        </tr>
-      </tfoot>
-    </table>
+          <tr className="text-[9px] font-semibold tracking-[0.1em] whitespace-nowrap uppercase">
+            {GROUPS.flatMap((group) =>
+              group.columns.map((column, index) => (
+                <th
+                  key={column.key}
+                  title={column.reference ? "Salário bruto dos holerites: referência, fora do total" : undefined}
+                  className={cn(
+                    "px-3 pt-1 pb-2.5",
+                    index === 0 && "border-l border-border/60",
+                    column.total ? TONES[group.tone].text : "text-muted-foreground/80",
+                    column.total && group.tone === "neutral" && "text-foreground/80",
+                  )}
+                >
+                  {column.label}
+                  {column.reference ? <span className="ml-1 text-[8px] tracking-normal text-muted-foreground/60 normal-case">ref.</span> : null}
+                </th>
+              )),
+            )}
+          </tr>
+        </thead>
+        <tbody className="font-mono">
+          {rows.map((row) => (
+            <tr
+              key={row.id}
+              data-testid="income-row"
+              data-month={row.month}
+              onClick={() => onOpen(row.month)}
+              className="group cursor-pointer transition-colors hover:bg-white/[0.035]"
+            >
+              <td className={cn(cellPadding, "rounded-l-xl border-t border-border/50 text-left font-sans group-first:border-t-0")}>
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onOpen(row.month);
+                  }}
+                  aria-label={`Abrir ${formatCompetenceLong(row.month)}`}
+                  className="inline-flex items-baseline gap-px rounded text-sm font-semibold text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                >
+                  {formatCompetence(row.month).split("/")[0]}
+                  <span className="text-[10px] font-normal text-muted-foreground">/{row.month.slice(2, 4)}</span>
+                  {row.month === currentMonth ? <span aria-label="mês atual" title="Mês atual" className="ml-1.5 size-1.5 self-center rounded-full bg-primary" /> : null}
+                </button>
+              </td>
+              {GROUPS.flatMap((group) =>
+                group.columns.map((column, index) => {
+                  const value = valueOf(row, column.key);
+                  const border = cn(cellPadding, "border-t border-border/50 group-first:border-t-0", index === 0 && "border-l border-l-border/60");
+
+                  if (column.key === "balance") {
+                    const rate = balanceRate(row.totals.incomeCents, row.totals.balanceCents);
+
+                    return (
+                      <td key={column.key} className={cn(border, TONES[group.tone].tint, "rounded-r-xl")}>
+                        {value === null ? (
+                          <span className="text-muted-foreground/50">—</span>
+                        ) : (
+                          <span className="flex items-center justify-end gap-2.5">
+                            {rate !== null ? (
+                              <>
+                                <span className="w-9 text-[10px] text-muted-foreground">{rate}%</span>
+                                <RateBar rate={rate} className="h-1 w-10" />
+                              </>
+                            ) : null}
+                            <span className={cn("min-w-[5.5rem] text-[13px] font-semibold", balanceColor(value))}>{amount(value, { signed: true })}</span>
+                          </span>
+                        )}
+                      </td>
+                    );
+                  }
+
+                  return (
+                    <td
+                      key={column.key}
+                      className={cn(
+                        border,
+                        column.total && cn(TONES[group.tone].tint, "font-semibold text-foreground"),
+                        column.reference && "text-muted-foreground/75",
+                        !column.total && !column.reference && "text-foreground/85",
+                      )}
+                    >
+                      {value === null ? <span className="text-muted-foreground/45">—</span> : amount(value)}
+                    </td>
+                  );
+                }),
+              )}
+            </tr>
+          ))}
+        </tbody>
+        <tfoot className="font-mono">
+          {(["total", "average"] as const).map((kind) => (
+            <tr key={kind} className={kind === "total" ? "bg-white/[0.03]" : undefined}>
+              <td
+                title={kind === "average" ? "Média dos meses com valor em cada coluna" : undefined}
+                className={cn(
+                  "px-3 py-3 text-left font-sans text-[10px] font-semibold tracking-[0.12em] uppercase",
+                  kind === "total" ? "rounded-l-xl border-t-2 border-border text-foreground" : "text-muted-foreground",
+                )}
+              >
+                {kind === "total" ? "Total" : "Média"}
+              </td>
+              {GROUPS.flatMap((group) =>
+                group.columns.map((column, index) => {
+                  const stat = columns[column.key];
+                  const cents = kind === "total" ? stat.totalCents : stat.averageCents;
+                  const rate = column.key === "balance" ? balanceRate(
+                    kind === "total" ? columns.income.totalCents : columns.income.averageCents,
+                    cents,
+                  ) : null;
+                  const testId =
+                    kind === "total" ? { income: "income-total-income", spend: "income-total-spend", balance: "income-total-balance" }[column.key as string] : undefined;
+
+                  return (
+                    <td
+                      key={column.key}
+                      data-testid={testId}
+                      data-cents={testId ? cents : undefined}
+                      className={cn(
+                        cellPadding,
+                        index === 0 && "border-l border-l-border/60",
+                        kind === "total" ? "border-t-2 border-border font-semibold" : "text-[11px]",
+                        column.total && TONES[group.tone].tint,
+                        column.key === "balance" && kind === "total" && "rounded-r-xl",
+                        kind === "total"
+                          ? column.key === "balance"
+                            ? balanceColor(cents)
+                            : column.total
+                              ? "text-foreground"
+                              : "text-foreground/85"
+                          : "text-muted-foreground",
+                      )}
+                    >
+                      {stat.months === 0 ? (
+                        <span className="text-muted-foreground/45">—</span>
+                      ) : column.key === "balance" ? (
+                        <span className="flex items-center justify-end gap-2.5">
+                          {rate !== null ? (
+                            <>
+                              <span className="w-9 text-[10px] text-muted-foreground">{rate}%</span>
+                              <RateBar rate={rate} className="h-1 w-10" />
+                            </>
+                          ) : null}
+                          <span className="min-w-[5.5rem]">{amount(cents, { signed: true })}</span>
+                        </span>
+                      ) : (
+                        amount(cents)
+                      )}
+                    </td>
+                  );
+                }),
+              )}
+            </tr>
+          ))}
+        </tfoot>
+      </table>
+    </div>
   );
 }
 
-/** No celular e em telas médias, um bloco por mês, sem rolagem lateral. */
-function MonthList({ rows, totals, onOpen }: { rows: Row[]; totals: YearTotals; onOpen: (month: string) => void }) {
+type YearTotals = { incomeCents: Cents; spendCents: Cents; balanceCents: Cents; grossCents: Cents };
+
+/** Abaixo de 1420 px (onde a tabela cabe inteira), um bloco por mês, sem rolagem lateral. */
+function MonthList({
+  rows,
+  totals,
+  currentMonth,
+  onOpen,
+}: {
+  rows: Row[];
+  totals: YearTotals;
+  currentMonth: string;
+  onOpen: (month: string) => void;
+}) {
+  const yearRate = savingsRatePercent(totals.incomeCents, totals.balanceCents);
+
   return (
-    <div className="xl:hidden" data-testid="income-list">
-      <ul className="grid grid-cols-1 gap-2 md:grid-cols-2">
-        {rows.map((row) => (
-          <li key={row.id}>
-            <button
-              type="button"
-              data-testid="income-card"
-              data-month={row.month}
-              onClick={() => onOpen(row.month)}
-              aria-label={`Abrir ${formatCompetenceLong(row.month)}`}
-              className="w-full rounded-2xl border border-border/70 bg-card/50 p-3.5 text-left outline-none transition-colors hover:bg-white/[0.03] focus-visible:ring-2 focus-visible:ring-ring/50"
-            >
-              <span className="flex items-baseline justify-between gap-3">
-                <span className="text-sm font-semibold">{formatCompetenceLong(row.month)}</span>
-                <span className={cn("font-mono text-sm", balanceColor(row.totals.balanceCents))}>
-                  {row.totals.hasValues ? formatCents(row.totals.balanceCents, { signed: true }) : "—"}
+    <div className="min-[1420px]:hidden" data-testid="income-list">
+      <ul className="grid grid-cols-1 gap-3 md:grid-cols-2">
+        {rows.map((row) => {
+          const rate = savingsRatePercent(row.totals.incomeCents, row.totals.balanceCents);
+
+          return (
+            <li key={row.id}>
+              <button
+                type="button"
+                data-testid="income-card"
+                data-month={row.month}
+                onClick={() => onOpen(row.month)}
+                aria-label={`Abrir ${formatCompetenceLong(row.month)}`}
+                className="group relative w-full overflow-hidden rounded-2xl border border-border/70 bg-card/50 p-4 pl-5 text-left outline-none transition-colors hover:border-primary/25 hover:bg-white/[0.035] focus-visible:ring-2 focus-visible:ring-ring/50"
+              >
+                <span aria-hidden="true" className="absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-chart-saved to-chart-spent" />
+                <span className="flex items-center justify-between gap-3">
+                  <span className="flex items-center gap-2 text-sm font-semibold">
+                    {formatCompetenceLong(row.month)}
+                    {row.month === currentMonth ? <span aria-label="mês atual" title="Mês atual" className="size-1.5 rounded-full bg-primary" /> : null}
+                  </span>
+                  {row.totals.hasValues ? (
+                    <span className={cn("rounded-full px-2.5 py-0.5 font-mono text-xs font-semibold", row.totals.balanceCents < 0 ? TONES.spent.chip : TONES.saved.chip)}>
+                      {formatCents(row.totals.balanceCents, { signed: true })}
+                    </span>
+                  ) : (
+                    <span className="text-muted-foreground/50">—</span>
+                  )}
                 </span>
-              </span>
-              <span className="mt-2.5 grid grid-cols-1 gap-1 text-[10px] text-muted-foreground min-[360px]:grid-cols-3 min-[360px]:gap-2">
-                <ListValue label="Entradas" value={row.totals.hasValues ? formatCents(row.totals.incomeCents) : "—"} />
-                <ListValue label="Saídas" value={row.totals.hasValues ? formatCents(row.totals.spendCents) : "—"} />
-                <ListValue label="Bruto" value={row.payslips.length > 0 ? formatCents(row.totals.grossCents) : "—"} />
-              </span>
-            </button>
-          </li>
-        ))}
+                <span className="mt-3.5 grid grid-cols-1 gap-1.5 min-[360px]:grid-cols-3 min-[360px]:gap-2">
+                  <ListValue tone="saved" label="Entradas" value={row.totals.hasValues ? formatCents(row.totals.incomeCents) : "—"} />
+                  <ListValue tone="spent" label="Saídas" value={row.totals.hasValues ? formatCents(row.totals.spendCents) : "—"} />
+                  <ListValue tone="neutral" label="Bruto" value={row.payslips.length > 0 ? formatCents(row.totals.grossCents) : "—"} />
+                </span>
+                {rate !== null ? (
+                  <span className="mt-3.5 flex items-center gap-2.5 text-[10px] text-muted-foreground">
+                    <RateBar rate={rate} className="h-1 flex-1" />
+                    <span className="w-24 text-right">{rate}% poupado</span>
+                  </span>
+                ) : null}
+              </button>
+            </li>
+          );
+        })}
       </ul>
-      <dl className="mt-3 grid grid-cols-1 gap-1 rounded-2xl border border-border bg-background/30 p-3.5 text-[10px] text-muted-foreground min-[360px]:grid-cols-3 min-[360px]:gap-2">
-        <ListValue label="Entradas" value={formatCents(totals.incomeCents)} />
-        <ListValue label="Saídas" value={formatCents(totals.spendCents)} />
-        <ListValue label="Poupado" value={formatCents(totals.balanceCents, { signed: true })} valueClassName={balanceColor(totals.balanceCents)} />
+      <dl className="mt-4 grid grid-cols-1 gap-1.5 rounded-2xl border border-border bg-white/[0.03] p-4 min-[420px]:grid-cols-3 min-[420px]:gap-2">
+        <ListValue wide tone="saved" label="Entradas" value={formatCents(totals.incomeCents)} />
+        <ListValue wide tone="spent" label="Saídas" value={formatCents(totals.spendCents)} />
+        <ListValue
+          wide
+          tone="saved"
+          label={yearRate === null ? "Poupado" : `Poupado · ${yearRate}%`}
+          value={formatCents(totals.balanceCents, { signed: true })}
+          valueClassName={balanceColor(totals.balanceCents)}
+        />
       </dl>
     </div>
   );
 }
 
-/** Rótulo e valor: em linha abaixo de 360 px, empilhados nas colunas acima. */
-function ListValue({ label, value, valueClassName = "text-foreground" }: { label: string; value: string; valueClassName?: string }) {
-  return (
-    <span className="flex min-w-0 items-baseline justify-between gap-2 min-[360px]:block">
-      <span className="tracking-[0.08em] uppercase min-[360px]:block">{label}</span>
-      <span className={cn("truncate font-mono text-[11px] min-[360px]:mt-0.5 min-[360px]:block", valueClassName)}>{value}</span>
-    </span>
-  );
-}
-
-function balanceColor(cents: Cents) {
-  if (cents === 0) return "text-foreground";
-  return cents > 0 ? "text-primary" : "text-warning-foreground";
-}
-
-function SummaryCard({
-  label,
-  cents,
+/** Rótulo com a marca do tom e o valor: em linha abaixo de 360 px, empilhados acima. */
+function ListValue({
   tone,
-  emphasis = false,
-  testId,
+  label,
+  value,
+  valueClassName = "text-foreground",
+  wide = false,
 }: {
+  tone: Tone;
   label: string;
-  cents: Cents;
-  /** Só o poupado tem tom: verde quando sobra, atenção quando falta. */
-  tone?: "up";
-  emphasis?: boolean;
-  testId: string;
+  value: string;
+  valueClassName?: string;
+  /** Valores maiores, como os totais do ano: só viram colunas a partir de 420 px. */
+  wide?: boolean;
 }) {
-  const color =
-    cents === 0 || tone !== "up" ? "text-foreground" : balanceColor(cents);
-
   return (
-    <article className={cn("metric-card rounded-2xl p-4 sm:p-5", emphasis && "border-primary/25")}>
-      <p className="text-[10px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">{label}</p>
-      <p
-        data-testid={testId}
-        data-cents={cents}
-        className={cn("mt-4 font-mono text-xl font-medium tracking-[-0.05em] min-[360px]:text-[15px] min-[400px]:text-base sm:text-xl xl:text-2xl xl:tracking-[-0.04em]", color)}
-      >
-        {formatCents(cents, { signed: tone === "up" })}
-      </p>
-    </article>
+    <span className={cn("flex min-w-0 items-baseline justify-between gap-2", wide ? "min-[420px]:block" : "min-[360px]:block")}>
+      <span className="flex items-center gap-1.5 text-[10px] tracking-[0.08em] text-muted-foreground uppercase">
+        <span aria-hidden="true" className={cn("size-1.5 rounded-full", TONES[tone].dot)} />
+        {label}
+      </span>
+      <span className={cn("truncate font-mono text-[11px]", wide ? "min-[420px]:mt-1 min-[420px]:block" : "min-[360px]:mt-1 min-[360px]:block", valueClassName)}>
+        {value}
+      </span>
+    </span>
   );
 }
 
