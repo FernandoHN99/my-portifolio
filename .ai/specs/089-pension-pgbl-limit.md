@@ -64,7 +64,8 @@ sem o mesmo cuidado. Mesma linguagem de Recebimentos
 `src/components/product/finance-parts.tsx` (tons menta e violeta, barra de taxa
 e cartão de resumo).
 
-- **Cartões:** ícone, brilho e detalhe (holerites no cálculo, % do limite);
+- **Cartões:** o `KpiCard` do app ([spec 090](090-shared-visual-language.md)),
+  com ícone à direita e detalhe (holerites no cálculo, % do limite);
   Aportado e Falta aportar em menta; **Acima do limite em violeta**, com a
   borda destacada também violeta. Sem holerites no ano, "Falta aportar" mostra
   R$ 0,00 e o detalhe "sem holerites no ano", em vez de chamar tudo de excesso.
@@ -72,7 +73,7 @@ e cartão de resumo).
   ordem em que entraram (cada trecho com a data e o valor no `title`), o
   percentual grande ao lado, a marca do limite quando há excesso, e o que passa
   do limite em violeta. A escala vai até o maior entre o limite e o aportado.
-  Legenda com Aportado e Livre, ou Aportado e Acima do limite. Sem holerites,
+  Legenda simples, com amostra quadrada, com Aportado e Livre, ou Aportado e Acima do limite. Sem holerites,
   o painel leva a Recebimentos.
 - **Aportes** (tabela a partir de 1280 px; abaixo, cartões): Nº, Data, Plano,
   Tipo (Saldo inicial ou Aporte, em selo), Valor e **Acumulado**, com a

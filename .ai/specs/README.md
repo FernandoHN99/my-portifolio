@@ -97,12 +97,13 @@ Esta pasta organiza a implementação em fatias pequenas e revisáveis.
 
 - [088 — Recebimentos](088-income-ledger.md): entradas, saídas e balanço do mês, gráfico Gastos × Poupado e holerites do mês, por concessão.
 - [089 — Previdência](089-pension-pgbl-limit.md): limite de 12% do PGBL por ano-base, com os holerites de Recebimentos e os aportes das posições de previdência.
-- [090 — Cores e linguagem visual compartilhadas](090-shared-visual-language.md): guia de estilos obrigatório, valores e formulários coerentes entre áreas, paleta acessível dos gráficos preservada.
+- [090 — Cores e linguagem visual compartilhadas](090-shared-visual-language.md): guia de estilos obrigatório, valores e formulários coerentes entre áreas, paleta acessível dos gráficos preservada; revisão de 2026-10-08: padrão dos cards e dos componentes core (`KpiCard`, `page-controls.ts`), só as tabelas com estilo próprio.
 - [091 — Ano inteiro e controles compactos](091-family-person-first-and-year-strip.md): doze meses por ano na faixa de Gastos familiares, meses acima das pessoas (pedido de inversão retirado pelo usuário) e lista, cabeçalho e ícone compactos.
 - [092 — Backup de Recebimentos e carga da planilha](092-income-backup-and-load.md): arquivo próprio e carga de 21 meses e 24 holerites; na produção, o usuário importa.
 - [093 — Reservas na cotação de cripto](093-crypto-quote-fallbacks.md): nova tentativa na CoinGecko e Coinbase, Yahoo e Binance como reservas, por causa do 451 e dos tempos esgotados na região do job; pronta localmente, sem publicação.
 - [094 — Horas do mês em Recebimentos](094-income-hours-model.md): tabela `income_hour_records` (horas declaradas, pagas e trabalhadas por tipo e mês, sem tela), backup de Recebimentos na versão 2 e arquivo de carga dos 11 holerites de 2026 com o 13º de junho; pronta localmente, sem publicação.
 - [095 — Holerite tributável](095-payslip-taxable-flag.md): campo `taxable` em cada linha do holerite (checkbox no formulário, padrão pelo tipo), Previdência seguindo a marcação, bruto tributável no card Salário bruto e backup de Recebimentos na versão 3; pronta localmente, sem publicação.
+- [096 — Faixa de competência compartilhada e átomos com tailwind-variants](096-shared-month-strip-and-variants.md): a faixa da Visão Geral, extraída em `MonthStrip`, no alto de Gastos familiares com seleção múltipla e alvos de toque maiores no celular; `KpiCard`, `Badge`, filtros, botões do topo e a faixa em `tailwind-variants`.
 
 As specs 088 a 092 foram feitas em 2026-10-07 (a 090 e a 091 começadas por
 outro agente em paralelo) e conferidas juntas: lint, tipos, 78 testes

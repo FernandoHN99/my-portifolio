@@ -87,10 +87,12 @@ para as Entradas.
   Recebimentos. A escolha veio da simulação de daltonismo registrada no
   [guia de estilos](../../docs/style-guide.md) (menta × violeta fica entre 41 e
   49 nos três tipos; menta × laranja cai a 16-18).
-- **Cartões:** ícone, detalhe (média por mês, taxa de poupança, número de
-  holerites) e brilho na cor do grupo; o Poupado leva a barra da taxa.
-- **Gráfico:** barras com degradê, grade tracejada, legenda em selos e tooltip
-  com entradas, gastos, poupado e taxa de poupança.
+- **Cartões:** o `KpiCard` do app ([spec 090](090-shared-visual-language.md)):
+  ícone à direita, detalhe (média por mês, taxa de poupança, número de
+  holerites) e violeta só nas Saídas; o Poupado leva a barra da taxa.
+- **Gráfico:** barras com degradê, grade tracejada, legenda simples (amostra
+  quadrada, como nos gráficos de Investimentos) e tooltip com entradas,
+  gastos, poupado e taxa de poupança.
 - **Tabela** (a partir de 1420 px; abaixo, blocos por mês): colunas por grupo,
   com o **Bruto dentro de Entradas**, em cinza e marcado "ref.", fora do total
   (o Total de Entradas continua sendo líquido + extras + VA/VR, como no Excel):

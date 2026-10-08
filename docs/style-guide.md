@@ -52,8 +52,8 @@ do limite é violeta (`chart-spent`), no cartão, no percentual e no trecho
 excedente da barra; nunca amarelo ou laranja. Os cartões de renda tributável
 e limite são neutros. As linhas do holerite são selos `primary/10` quando entram
 no cálculo e neutros quando ficam fora (13º, PLR); "proporcional" e "saldo
-inicial" usam `accent`. O usuário achou a tela "toda branca": cartões com ícone
-e brilho, tabelas com colunas de valor tingidas e barras de acumulado devolvem a
+inicial" usam `accent`. O usuário achou a tela "toda branca": o ícone menta dos
+cartões, tabelas com colunas de valor tingidas e barras de acumulado devolvem a
 cor sem inventar paleta.
 
 Tooltips de gráfico mostram a cor da série numa marca ao lado do nome e o
@@ -62,6 +62,48 @@ valor em texto neutro.
 Nos indicadores de variação de Investimentos, conservar `primary` para alta
 e `destructive` para queda, com sinal/seta. Uma saída de caixa não é, por si
 só, erro nem perda de rentabilidade.
+
+## Padrão dos cards e dos componentes core
+
+Pedido do usuário em 2026-10-08, depois de comparar as áreas: Investimentos e
+Gastos familiares, mais simples, são a referência de identidade; Recebimentos e
+Previdência, detalhados demais, fugiram dela (ícone do lado errado, brilhos,
+legendas em pílulas). O que é do núcleo do app se repete igual em toda área;
+só o miolo das tabelas pode ter estilo próprio.
+
+**Átomos com `tailwind-variants`** (spec 096): todo componente atômico, novo ou
+alterado, declara suas variantes com `tv` (`tailwind-variants`, que usa o
+`tailwind-merge` para resolver conflitos de classe). As classes ficam completas
+nas variantes, para o Tailwind encontrá-las, e o chamador só escolhe a variante
+(`tone`, `active`, `dense`…); `className` serve para ajuste de encaixe, não para
+refazer o visual. Exemplos: `KpiCard`, `Badge`, `filterBadge`, `headerButton`,
+`MonthStrip` e o `Button` de `components/ui`. O `cva` saiu do projeto.
+
+**Regra:** antes de desenhar um card, painel, selo, legenda, botão ou filtro,
+use o componente core. Se faltar uma opção, estenda o componente (tom, `dense`,
+`footer`) em vez de copiá-lo para a área. Cada área reaproveita; ninguém
+redefine as mesmas classes (o filtro de pessoa, de ano e o botão do topo tinham
+três cópias e hoje vivem em `page-controls.ts`).
+
+| Peça | Padrão do app | Onde fica |
+| --- | --- | --- |
+| Card de indicador | `metric-card rounded-2xl p-4 sm:p-5`: rótulo à esquerda (10 px, caixa alta, `tracking-[0.14em]`), **ícone à direita** num selo `size-8 rounded-lg ring-1` com o desenho duotone de 18 px, valor mono (`mt-5`, `text-2xl`), detalhe `text-xs` e, se preciso, um `footer` discreto. O ícone só ganha cor pelo tom: menta, violeta (saída, excesso) ou vermelho (queda). Gastos familiares usa o mesmo componente sem ícone (`BalanceCard` é o `KpiCard` sem `icon`); se um card tiver ícone, ele fica à direita, nunca ao lado do rótulo. | `components/product/kpi-card.tsx` (`KpiCard`); `SummaryCard` (`finance-parts.tsx`) e `BalanceCard` (`family-ledger.tsx`) são o `KpiCard` com valor em centavos |
+| Valor do card | Neutro em `foreground`; cor só quando o número diz algo (alta em `primary`, queda em `destructive`, saída em `chart-spent`). `dense` reduz a fonte nas grades de duas colunas do celular. | `KpiCard` |
+| Painel | `premium-panel rounded-[24px]`. Painel de gráfico ou resumo: `p-5 sm:p-7` e título `text-base font-semibold tracking-[-0.025em]`. Painel de tabela: título `text-sm`, com o total ao lado em texto discreto (`text-[11px] text-muted-foreground`, como "12 de 40"), nunca num selo. | `globals.css` |
+| Brilho | Só o `ambient-glow` no canto superior direito da página. Sem manchas coloridas dentro de cards, painéis ou atrás deles. | `globals.css` |
+| Legenda de gráfico | `ul` simples: amostra quadrada `size-2.5 rounded-[3px]` (série) ou redonda `size-2` (marca), texto `text-[11px] text-muted-foreground`, valores em mono. Sem pílulas, bordas ou fundos. | `balance-change-chart.tsx` |
+| Selo de estado | `Badge`: pílula de 10 px em caixa alta, com o tom no significado: `primary` (a favor), `spent` (saída, excesso), `accent` (saldo inicial, proporcional), `warning` (pendência), `neutral` (fora do cálculo). | `components/product/badge.tsx` |
+| Faixa de competência | A da Visão Geral: cápsulas de ano e, no ano aberto, os meses, fixa no alto da página. Um mês por vez ou, em Gastos familiares, vários (seletor à direita, com o número de meses). Em telas de toque, alvos de 44 px; no computador, o desenho de sempre. Nenhuma tela desenha a sua própria faixa de meses. | `components/product/month-strip.tsx` (`MonthStrip`), usada por `month-timeline.tsx` e `family-month-bar.tsx` |
+| Filtros e botões do topo | Selos de filtro (ano, pessoa), botão secundário do topo e botão principal. | `components/product/page-controls.ts` (`filterBadge`, `headerButton`), `edit-dialogs.tsx` |
+| Cabeçalho da página | Faixa "Finanças", título `text-[2.65rem]`, linha de contagem, ações à direita, `ambient-glow`. | `family-ledger.tsx` |
+| Estado vazio | Ícone num quadrado `size-12 rounded-2xl border border-border bg-card text-primary` e uma frase. | `empty-portfolio.tsx` |
+
+**Tabelas podem ser diferentes.** Cabeçalhos agrupados, coluna de total
+tingida, barra de acumulado, lista no celular e selos por linha são decisões
+de cada tabela e ficam descritas na spec da área (Recebimentos e Previdência
+usam todas elas). Mesmo assim, a moldura é a do núcleo (painel `premium-panel`),
+o cabeçalho segue o das Posições (9 px, caixa alta), os valores são mono e as
+cores saem do mapa de tons (`TONES`) em vez de valores soltos.
 
 ## Gráficos e acessibilidade
 
@@ -121,6 +163,9 @@ comportamento de toque existente.
 ## Referências de implementação
 
 - Tokens e superfícies: `src/app/globals.css`.
+- Card de indicador, selo, faixa de competência, controles do topo e peças de
+  Recebimentos/Previdência: `src/components/product/kpi-card.tsx`, `badge.tsx`,
+  `month-strip.tsx`, `page-controls.ts` e `finance-parts.tsx`.
 - Marca e navegação: `src/components/product/area-nav.tsx` e `app-shell.tsx`.
 - Formulários e controles: `src/components/ui/` e
   `src/modules/portfolio/ui/edit-dialogs.tsx`.

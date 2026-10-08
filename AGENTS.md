@@ -86,6 +86,23 @@ noite: duas áreas novas em Finanças, também só de `nandohneto@gmail.com`
   vale para todas as áreas; Gastos familiares mostra o ano inteiro na faixa de
   meses, com os meses acima das pessoas e controles mais compactos
   ([spec 091](.ai/specs/091-family-person-first-and-year-strip.md)).
+- **Padrão dos cards e dos componentes core** (2026-10-08, pedido do usuário,
+  [spec 090](.ai/specs/090-shared-visual-language.md)): Investimentos e Gastos
+  familiares, mais simples, são a referência de identidade. O card de
+  indicador é um só (`KpiCard`, `src/components/product/kpi-card.tsx`: rótulo à
+  esquerda, **ícone à direita**, valor, detalhe; Gastos familiares o usa sem ícone),
+  sem brilhos coloridos; as
+  legendas dos gráficos, os selos, os painéis, os filtros e o botão do topo
+  (`page-controls.ts`) também se repetem iguais em toda área. Só o miolo das
+  tabelas pode ter estilo próprio, descrito na spec da área. Quem precisar de
+  uma opção que o componente não tem estende o componente, não o copia. A
+  tabela está na seção "Padrão dos cards e dos componentes core" do guia de estilos.
+- **Átomos com `tailwind-variants`** e **faixa de competência única**
+  ([spec 096](.ai/specs/096-shared-month-strip-and-variants.md), 2026-10-08):
+  componente atômico novo ou alterado declara as variantes com `tv`
+  (`KpiCard`, `Badge`, `filterBadge`, `headerButton`, `MonthStrip`, `Button`); a
+  faixa de meses da Visão Geral é o `MonthStrip` de `components/product`, fixa
+  no alto de Gastos familiares, com seleção múltipla e alvos de 44 px no toque.
 - Dinheiro e competências das áreas pessoais ficam em `src/lib/money.ts` e
   `src/lib/competence.ts`. Os cenários com Recebimentos e Previdência rodam no
   schema `recebimentos_teste` (configuração `recebimentos-teste`, porta 3120),
@@ -262,7 +279,10 @@ B3 sem chave, e o Alpha Vantage, de 25 consultas por dia, fica por último.
    já usados no app. Reutilize seus tokens, cores e estados em todas as áreas;
    a planilha orienta dados e regras, não a aparência. Preserve a paleta
    acessível dos gráficos e sua distinção em relação aos indicadores e
-   formulários, conforme o guia.
+   formulários, conforme o guia. Cards, painéis, selos, legendas e controles
+   do topo vêm dos componentes core (`KpiCard`, `Badge`, `MonthStrip`,
+   `page-controls.ts`, `premium-panel`), declarados com `tailwind-variants`; detalhar uma área nova não é motivo para refazê-los, e só
+   o miolo das tabelas pode ter estilo próprio.
 
 Existirão outros `AGENTS.md` em partes específicas do projeto quando
 essas áreas justificarem contexto próprio. Cada arquivo deve trazer
