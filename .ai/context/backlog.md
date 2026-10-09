@@ -9,8 +9,29 @@ uma spec quando o usuário decidir.
 Implementada em 2026-10-07 como área própria, com Recebimentos: specs
 [088](../specs/088-income-ledger.md), [089](../specs/089-pension-pgbl-limit.md)
 e [092](../specs/092-income-backup-and-load.md). Fica para depois, se o usuário
-pedir: anexar o PDF do holerite ao mês, projeção do limite até dezembro e
-distinção PGBL/VGBL por plano.
+pedir: projeção do limite até dezembro e distinção PGBL/VGBL por plano. Anexar
+o PDF do holerite está em "Anexos e leitura automática de documentos".
+
+## Anexos e leitura automática de documentos
+
+Origem: pedido do usuário em 2026-10-08, junto com as horas extras
+([spec 098](../specs/098-overtime-control.md)). Estado: só registro, para dar
+contexto; nada a implementar agora. O usuário disse que conversa sobre isso
+depois.
+
+- **Anexos (futuro próximo):** poder anexar à plataforma os próprios arquivos,
+  como os holerites (PDF) e as planilhas (.xlsx, como as folhas de horas), ligados
+  ao mês. O armazenamento pensado é o da Cloudflare (provavelmente R2; o usuário
+  falou em "Cloud Fair", entendido como Cloudflare).
+- **Leitura automática (futuro longo):** ao anexar o PDF, transformá-lo num JSON
+  estruturado por uma API de IA (o usuário citou o Gemini, no plano gratuito),
+  validado contra um schema, e fazer o POST numa rota do app que grava tudo
+  certo (o mês, os holerites, as horas pagas, o DSR). Objetivo: subir o PDF e ter
+  o lançamento pronto, sem digitar.
+- Pontos para quando virar spec: onde guardar e quem acessa os arquivos (dados
+  pessoais e de salário), o schema do JSON (o formato do backup de Recebimentos
+  é um ponto de partida), a conferência antes de gravar (como a prévia da
+  importação das folhas) e o custo e os limites do plano gratuito.
 
 ## Gastos familiares e outras áreas da vida
 

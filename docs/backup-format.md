@@ -112,7 +112,8 @@ próprio arquivo, no formato `meu-portfolio-recebimentos`, com as tabelas
 `incomeMonths` e `incomePayslips` (versão 1) e, desde a
 [spec 094](../.ai/specs/094-income-hours-model.md), `incomeHourRecords`
 (versão 2), sem `userId`. A versão 3 ([spec 095](../.ai/specs/095-payslip-taxable-flag.md))
-acrescenta `taxable` aos holerites. O código fica em
+acrescenta `taxable` aos holerites, e a versão 4
+([spec 098](../.ai/specs/098-overtime-control.md)) as horas extras. O código fica em
 `src/modules/income/domain/income-backup-format.ts` e
 `application/income-backup.ts`; as portas são o botão Backup de Recebimentos,
 `/api/recebimentos/backup` e `pnpm income:backup`.
@@ -120,7 +121,10 @@ acrescenta `taxable` aos holerites. O código fica em
 - restaurar a carteira ou Gastos familiares não toca nos recebimentos, e
   restaurar os recebimentos não toca nas outras áreas;
 - a conferência é estrita como a de Gastos familiares e recusa também mês
-  repetido e holerite com período fora do mês;
+  repetido, holerite com período fora do mês, dois meses de horas extras na
+  mesma competência, período da folha fora do mês, dia fora do período, dois
+  pagamentos do mesmo holerite para o mesmo mês e duas regras a partir do mesmo
+  mês;
 - a Previdência só lê a carteira e os holerites: não tem arquivo próprio;
 - uma mudança nas tabelas da área segue o roteiro abaixo, com
   `INCOME_BACKUP_VERSION` no lugar de `BACKUP_VERSION`.
@@ -133,6 +137,13 @@ Versões do arquivo de Recebimentos (a restauração aceita as listadas em
 | 1 | 2026-10-07, spec 092 | `incomeMonths` e `incomePayslips` |
 | 2 | 2026-10-08, spec 094 | entra `incomeHourRecords` (horas declaradas, pagas e trabalhadas por tipo e mês); o arquivo da versão 1 entra sem conversão, com as horas vazias |
 | 3 | 2026-10-08, spec 095 | `incomePayslips` ganha `taxable` (obrigatório: a linha entra na renda tributável do limite do PGBL); os arquivos das versões 1 e 2 entram com `taxable` pelo tipo (13º e PLR fora, o resto dentro), a regra de antes |
+| 4 | 2026-10-08, spec 098 | horas extras: entram `overtimeRules`, `overtimeMonths`, `overtimeDays` e `overtimePayments` (vazias na conversão); `incomeHourRecords` perde `declaredHours` e `workedHours`, que saem da linha das versões 2 e 3 quando vazias (com valor, o arquivo é recusado, para não perder dado sem aviso) |
+
+Na quarta rodada da spec 098 (2026-10-09, ainda local), os pagamentos guardam
+só horas por adicional. Valores e DSR são derivados da base do holerite e do
+calendário. Arquivos v4 locais antigos com `amount50`, `amount75`, `amount100`
+e `dsrAmount` continuam aceitos, mas esses valores não são restaurados: a
+prévia informa o recálculo e orienta guardar o arquivo original.
 
 ## Restauração
 

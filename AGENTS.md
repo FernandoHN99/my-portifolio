@@ -107,6 +107,24 @@ noite: duas áreas novas em Finanças, também só de `nandohneto@gmail.com`
   antigo) e, embaixo, a régua dos meses do ano aberto (Jan a Dez), um mês ou
   vários (meses seguidos viram uma faixa), "Ano todo"; no celular vira um botão
   com o resumo que abre a folha (`BottomSheet`, a mesma dos filtros).
+- **Horas extras** ([spec 098](.ai/specs/098-overtime-control.md), 2026-10-08/09,
+  publicação autorizada em 2026-10-09): aba de Recebimentos
+  (`/recebimentos/horas-extras`, abas no topo como Investimentos) com cards,
+  gráfico e a tabela dos meses (sem o quadro "Holerites"). Um **formulário
+  único** por mês, como a inclusão de posição: ao declarar, etapas
+  Declaração → Anexo (folha .xlsx, opcional) → Pagamento (opcional); ao clicar
+  na linha, as mesmas partes em abas. Dados: `overtime_months`/`overtime_days`
+  (declaração e folha) e `overtime_payments` (um por holerite, com horas por adicional; valor e DSR calculados).
+  Nada de horas no formulário de Recebimentos, nem "Para conferir", nem botão de
+  pagamento na linha. Conciliação derivada com a defasagem de um mês; regra
+  única desde jan/26 com os adicionais da CLT; backup de Recebimentos na versão
+  4; migrações `20261008231327_income_overtime` e
+  `20261009010000_overtime_payments` e `20261009150000_overtime_payment_hours`. A declaração é editável, pagamentos abrem preenchidos e os valores usam a base do holerite (ou estimativa pelo bruto). Análise das planilhas e respostas do
+  usuário em [Análise das folhas de horas](.ai/context/overtime-analysis.md); a
+  produção segue os passos da spec. Em
+  Gastos familiares, a marca de pendência do mês considera todas as pessoas
+  ([spec 097](.ai/specs/097-family-pending-month-marker.md)). Anexos de PDF e a
+  leitura automática ficaram no [backlog](.ai/context/backlog.md).
 - Dinheiro e competências das áreas pessoais ficam em `src/lib/money.ts` e
   `src/lib/competence.ts`. Os cenários com Recebimentos e Previdência rodam no
   schema `recebimentos_teste` (configuração `recebimentos-teste`, porta 3120),

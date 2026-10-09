@@ -31,8 +31,13 @@ const OWNED_MODELS = new Set([
   // Previdência (spec 089), que conferem antes a concessão de cada área.
   "IncomeMonth",
   "IncomePayslip",
-  // Horas do mês (spec 094): só pelo backup e pela exclusão com desfazer.
+  // Horas do holerite (specs 094 e 098), gravadas com o mês de Recebimentos.
   "IncomeHourRecord",
+  // Horas extras (spec 098), também só pelo cliente de Recebimentos.
+  "OvertimeMonth",
+  "OvertimeDay",
+  "OvertimeRule",
+  "OvertimePayment",
 ]);
 
 const WHERE_OPERATIONS = new Set([

@@ -1,7 +1,8 @@
-// Horas do mês de Recebimentos (spec 094): para cada tipo de hora, o que o
-// usuário declarou à empresa, o que o holerite pagou e o que ele realmente
-// trabalhou. Só são guardadas e entram no backup; nenhuma tela as mostra ainda.
-// O DSR e os dias de férias não são horas trabalhadas e ficam de fora.
+// Horas do holerite de Recebimentos (spec 094): a transcrição, por tipo, das
+// horas e do valor que cada holerite de 2026 pagou. Não têm tela; as horas extras
+// declaradas e pagas ficam nas Horas extras (spec 098), que daqui usam só o valor
+// da hora normal. O DSR e os dias de
+// férias não são horas trabalhadas e ficam de fora.
 
 export const HOUR_KINDS = ["NORMAL", "OVERTIME_50", "OVERTIME_75", "OVERTIME_100"] as const;
 export type HourKind = (typeof HOUR_KINDS)[number];

@@ -2,11 +2,9 @@
 
 import { ChartLineUpIcon, ChartPieSliceIcon, CoinsIcon, GearSixIcon, ListBulletsIcon } from "@phosphor-icons/react/dist/ssr";
 import { AnimatePresence, motion, useReducedMotion, type Transition } from "motion/react";
-import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 
-import { confirmDiscardChanges } from "@/components/product/unsaved-changes";
-import { cn } from "@/lib/utils";
+import { TabLink } from "@/components/product/section-tabs";
 
 export type TabKey = "overview" | "positions" | "settings";
 
@@ -23,7 +21,6 @@ export const MAIN_TABS = [
   { key: "positions", label: "Posições", href: "/posicoes", icon: ListBulletsIcon },
 ] as const;
 
-const SPRING: Transition = { type: "spring", stiffness: 420, damping: 36 };
 const ENTER: Transition = { type: "spring", stiffness: 380, damping: 30, mass: 0.9 };
 
 const TRAIL_ICONS = {
@@ -70,46 +67,6 @@ export function MainTabs({ active }: { active: TabKey | "none" }) {
         ) : null}
       </AnimatePresence>
     </nav>
-  );
-}
-
-function TabLink({
-  href,
-  active,
-  testId,
-  children,
-}: {
-  href: string;
-  active: boolean;
-  testId?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <Link
-      href={href}
-      aria-current={active ? "page" : undefined}
-      data-testid={testId}
-      onClick={(event) => {
-        if (!confirmDiscardChanges()) {
-          event.preventDefault();
-        }
-      }}
-      className={cn(
-        "relative rounded-lg px-3 py-1.5 text-[13px] font-medium whitespace-nowrap outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring/50",
-        // Destaque discreto, como o item ativo da barra lateral: fundo verde
-        // translúcido, contorno fino e o ícone na cor primária.
-        active ? "text-foreground [&_svg]:text-primary" : "text-muted-foreground hover:text-foreground",
-      )}
-    >
-      {active ? (
-        <motion.span
-          layoutId="main-tab-indicator"
-          className="absolute inset-0 rounded-lg bg-primary/12 ring-1 ring-primary/25 ring-inset"
-          transition={SPRING}
-        />
-      ) : null}
-      <span className="relative z-10 flex items-center gap-1.5">{children}</span>
-    </Link>
   );
 }
 

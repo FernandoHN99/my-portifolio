@@ -3,6 +3,14 @@
 Estado: implementada e conferida localmente em 2026-10-08, sem commit nem
 publicação. Nenhuma tela mostra as horas (pedido do usuário); o dado só existe
 no banco e no backup.
+
+Atualização (spec 098, 2026-10-08/09): as horas declaradas e trabalhadas saíram
+da linha do holerite (são do mês de trabalho, outra competência). As horas
+extras declaradas e pagas vivem agora nas Horas extras
+([spec 098](098-overtime-control.md)), com o pagamento registrado por mês de
+trabalho; esta tabela continua sem tela, como a transcrição dos holerites de
+2026, e dá a base do valor da hora normal.
+
 Origem: pedido do usuário em 2026-10-08, com os 11 PDFs dos holerites de 2026
 (Amaris, jan a set): analisar todos, gerar o arquivo de carga completo para o
 banco local e, depois, a produção, e modelar as horas, porque "declaro umas
