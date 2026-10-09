@@ -1,7 +1,7 @@
 # 097 — Marca de pendência do mês igual para todas as pessoas
 
-Estado: implementada e conferida localmente em 2026-10-08, sem commit nem
-publicação.
+Estado: implementada e conferida localmente em 2026-10-08; publicada na
+produção em 2026-10-09 pelo PR #1 (commit `c5ad2f1`).
 Origem: pedido do usuário em 2026-10-08 sobre o seletor de competência de Gastos
 familiares ([spec 096](096-shared-month-strip-and-variants.md)).
 

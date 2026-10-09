@@ -108,7 +108,7 @@ noite: duas áreas novas em Finanças, também só de `nandohneto@gmail.com`
   vários (meses seguidos viram uma faixa), "Ano todo"; no celular vira um botão
   com o resumo que abre a folha (`BottomSheet`, a mesma dos filtros).
 - **Horas extras** ([spec 098](.ai/specs/098-overtime-control.md), 2026-10-08/09,
-  publicação autorizada em 2026-10-09): aba de Recebimentos
+  na produção desde 2026-10-09): aba de Recebimentos
   (`/recebimentos/horas-extras`, abas no topo como Investimentos) com cards,
   gráfico e a tabela dos meses (sem o quadro "Holerites"). Um **formulário
   único** por mês, como a inclusão de posição: ao declarar, etapas
@@ -121,7 +121,7 @@ noite: duas áreas novas em Finanças, também só de `nandohneto@gmail.com`
   4; migrações `20261008231327_income_overtime` e
   `20261009010000_overtime_payments` e `20261009150000_overtime_payment_hours`. A declaração é editável, pagamentos abrem preenchidos e os valores usam a base do holerite (ou estimativa pelo bruto). Análise das planilhas e respostas do
   usuário em [Análise das folhas de horas](.ai/context/overtime-analysis.md); a
-  produção segue os passos da spec. Em
+  carga dos dados locais na produção segue os passos da spec (o deploy não os importa). Em
   Gastos familiares, a marca de pendência do mês considera todas as pessoas
   ([spec 097](.ai/specs/097-family-pending-month-marker.md)). Anexos de PDF e a
   leitura automática ficaram no [backlog](.ai/context/backlog.md).

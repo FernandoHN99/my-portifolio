@@ -1,10 +1,11 @@
 # 098 — Controle de horas extras em Recebimentos
 
-Estado: implementada e conferida localmente em 2026-10-08 e revista na
-segunda, terceira e quarta rodadas (2026-10-09), com commit, PR e deploy autorizados pelo usuário em 2026-10-09; publicação
-em andamento. Os dados reais de 2026
-estão no banco local; a produção precisa do deploy (migrações) e dos passos da
-seção "Como levar à produção".
+Estado: implementada e conferida localmente em 2026-10-08 e revista em
+2026-10-09; publicada em produção pelo PR #1 (commit `539d02b`, merge
+`5f4697c`, deploy `dpl_85ik8getJEMv6J3GVFr2GDfmzDcX`). As três migrações
+foram aplicadas com sucesso e o app e o banco responderam como online.
+Os dados reais de 2026 estão no banco local; este deploy não os importou
+na produção. A carga segue a seção "Como levar à produção".
 Origem: pedido do usuário em 2026-10-08, com as folhas de horas de 2026 e a
 planilha de controle. A análise das planilhas, com os números, os erros e as
 respostas do usuário, está em [Análise das folhas de horas](../context/overtime-analysis.md).
@@ -167,7 +168,7 @@ linha do holerite saem se vazias, com valor o arquivo é recusado). Detalhes em
 
 ## Como levar à produção
 
-1. Commit e deploy, quando o usuário autorizar. O build aplica as três
+1. Commit e deploy concluídos em 2026-10-09, com autorização do usuário. O build aplicou as três
    migrações; a primeira para se houver horas declaradas ou trabalhadas nas
    linhas do holerite (eram 0 de 25 em 2026-10-08).
 2. Carregar 2026: pelo app, Declarar horas → Anexo com a folha de cada mês (um

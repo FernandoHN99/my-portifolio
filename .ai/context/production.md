@@ -2,10 +2,12 @@
 
 Registrado em: 2026-10-03
 Origem: pedido do usuário de publicar o app, na conversa de 2026-10-03.
-Estado em 2026-10-08: no ar com as specs 053 a 092 e 094 a 096 (deploy
-`dpl_4f2NDoKcF8nmQsX4KD89BRFRGnRA`, commit `9a00281`; antes dele, os de 088 a 092,
-`dpl_Apa6K8KzKQoKUArXKgk595Ypkmrv` e `dpl_AoQj5zmXxYFZ6usYxBj7xM18wRHw`),
-com a conta do usuário, os dados atuais da carteira, os lançamentos de Gastos
+Estado em 2026-10-09: no ar com as specs 053 a 092 e 094 a 098. A publicação
+das specs 097 e 098 ocorreu pelo [PR #1](https://github.com/FernandoHN99/my-portifolio/pull/1),
+merge `5f4697c`, deploy `dpl_85ik8getJEMv6J3GVFr2GDfmzDcX` (READY).
+As três migrações de horas extras foram aplicadas com sucesso; `/api/health`
+confirmou app e banco online. O deploy não importou os dados locais de horas extras.
+O app segue com a conta do usuário, os dados atuais da carteira, os lançamentos de Gastos
 familiares e as áreas Recebimentos e Previdência na conta dele, a única com as
 áreas pessoais. Os recebimentos ainda não foram importados na produção: o
 usuário importa o arquivo pela página. As cotações, a meta Selic e o cálculo dos ativos com
