@@ -15,7 +15,8 @@ Origem: nove comentários no navegador sobre Gastos familiares.
    verde discreto e subtotal. O valor de cada linha ocupa uma coluna central
    no computador; descrição, status e ação continuam separados.
 5. Meses e pessoas sem pendências recebem o mesmo pequeno ✓ e título acessível.
-   Meses consideram a pessoa atual; pessoas consideram as competências escolhidas.
+   Meses consideram a pessoa atual (substituído pela [spec 097](097-family-pending-month-marker.md):
+   os meses consideram todas as pessoas); pessoas consideram as competências escolhidas.
    Busca, status e tipo não escondem pendências nesses indicadores. Saldo zero
    com lançamentos pendentes não equivale a “sem pendências”.
 6. O botão Pessoas sai do cabeçalho. O formulário mantém inclusão de pessoa.

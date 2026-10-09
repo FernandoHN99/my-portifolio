@@ -46,7 +46,7 @@ meses do ano.
      vários meses) ou, com todos marcados, os desmarca; sem nenhum mês marcado,
      volta ao atual;
    - "Vários meses" alterna o modo e mostra quantos meses estão marcados;
-   - mês com pendência da pessoa escolhida leva um ponto de atenção e o nome
+   - mês com pendência (de qualquer pessoa desde a [spec 097](097-family-pending-month-marker.md)) leva um ponto de atenção e o nome
      acessível "…, com pendências"; mês sem lançamentos continua escolhível;
    - saiu o grupo Competência dos filtros (menu do computador e folha do
      celular); pessoa, status, tipo e busca ficam como estavam.
