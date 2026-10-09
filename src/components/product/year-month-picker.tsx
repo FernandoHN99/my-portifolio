@@ -120,7 +120,7 @@ export function YearMonthPicker({
   /** Os meses selecionados, "AAAA-MM"; o último é o que a tela mostra primeiro. */
   selected: readonly string[];
   multiple: boolean;
-  /** Meses com lançamentos pendentes da pessoa escolhida. */
+  /** Meses com lançamentos pendentes de qualquer pessoa (spec 097). */
   pendingMonths: ReadonlySet<string>;
   /** Texto do botão que fecha a folha do celular, como "Ver 12 lançamentos". */
   resultLabel?: string;

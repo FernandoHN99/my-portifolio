@@ -17,5 +17,9 @@ export default async function IncomePage() {
   await requireModulePage("INCOME");
   const ledger = await getIncomeLedger();
 
-  return <IncomeShell>{(menu) => <IncomeWorkspace ledger={ledger} menu={menu} />}</IncomeShell>;
+  return (
+    <IncomeShell tab="income">
+      <IncomeWorkspace ledger={ledger} />
+    </IncomeShell>
+  );
 }

@@ -227,7 +227,7 @@ test("horas do mês: uma linha por tipo, limites do banco, escopo e desfazer da 
 
   const hours = { userId: owner, incomeMonthId: requestId };
   await prisma.incomeHourRecord.create({
-    data: { ...hours, kind: "NORMAL", declaredHours: "200", paidHours: "200", workedHours: "210.5", paidAmount: "10780.35", note: "teste" },
+    data: { ...hours, kind: "NORMAL", paidHours: "200", paidAmount: "10780.35", note: "teste" },
   });
   await prisma.incomeHourRecord.create({ data: { ...hours, kind: "OVERTIME_75", paidHours: "9", paidAmount: "848.95" } });
 
@@ -236,8 +236,8 @@ test("horas do mês: uma linha por tipo, limites do banco, escopo e desfazer da 
   await prisma.incomeHourRecord.delete({ where: { incomeMonthId_kind: { incomeMonthId: requestId, kind: "OVERTIME_50" } } });
 
   await assert.rejects(prisma.incomeHourRecord.create({ data: { ...hours, kind: "NORMAL", paidHours: "1" } }), "um registro por mês e tipo");
-  await assert.rejects(prisma.incomeHourRecord.create({ data: { ...hours, kind: "OVERTIME_100", workedHours: "-1" } }), "horas negativas");
-  await assert.rejects(prisma.incomeHourRecord.create({ data: { ...hours, kind: "OVERTIME_100", declaredHours: "744.01" } }), "mais que o mês");
+  await assert.rejects(prisma.incomeHourRecord.create({ data: { ...hours, kind: "OVERTIME_100", paidHours: "-1" } }), "horas negativas");
+  await assert.rejects(prisma.incomeHourRecord.create({ data: { ...hours, kind: "OVERTIME_100", paidHours: "744.01" } }), "mais que o mês");
   await assert.rejects(prisma.incomeHourRecord.create({ data: { ...hours, kind: "OVERTIME_100", paidAmount: "-0.01" } }), "valor negativo");
   await assert.rejects(
     prisma.incomeHourRecord.create({ data: { userId: other, incomeMonthId: requestId, kind: "OVERTIME_100" } }),
@@ -261,7 +261,7 @@ test("horas do mês: uma linha por tipo, limites do banco, escopo e desfazer da 
 
 test("backup das horas: ida e volta exata e conferência estrita", { skip: !isolated }, async () => {
   const exported = await as(owner, () => exportIncomeBackup());
-  assert.equal(exported.version, 3);
+  assert.equal(exported.version, 4);
   assert.equal(exported.tables.incomeHourRecords.length, 2);
   assert.ok(!("userId" in exported.tables.incomeHourRecords[0]));
 
@@ -277,7 +277,8 @@ test("backup das horas: ida e volta exata e conferência estrita", { skip: !isol
 
   await assert.rejects(broken((file) => (first(file).userId = owner)), IncomeBackupValidationError, "userId");
   await assert.rejects(broken((file) => (first(file).kind = "OVERTIME_200")), IncomeBackupValidationError, "tipo desconhecido");
-  await assert.rejects(broken((file) => (first(file).workedHours = "744.01")), IncomeBackupValidationError, "mais que o mês");
+  await assert.rejects(broken((file) => (first(file).paidHours = "744.01")), IncomeBackupValidationError, "mais que o mês");
+  await assert.rejects(broken((file) => (first(file).workedHours = null)), IncomeBackupValidationError, "na versão 4, a coluna saiu");
   await assert.rejects(broken((file) => (first(file).paidAmount = "-1")), IncomeBackupValidationError, "valor negativo");
   await assert.rejects(broken((file) => (first(file).incomeMonthId = randomUUID())), IncomeBackupValidationError, "mês que não existe");
   await assert.rejects(
@@ -285,7 +286,7 @@ test("backup das horas: ida e volta exata e conferência estrita", { skip: !isol
     IncomeBackupValidationError,
     "mesmo tipo duas vezes no mês",
   );
-  await assert.rejects(broken((file) => (file.version = 4)), IncomeBackupValidationError, "versão mais nova");
+  await assert.rejects(broken((file) => (file.version = 5)), IncomeBackupValidationError, "versão mais nova");
 
   // A versão 1 não tem a tabela de horas: vale como vazia.
   const v1 = { ...structuredClone(exported), version: 1, tables: { ...exported.tables, incomeHourRecords: undefined } };
@@ -328,7 +329,6 @@ test(
 
     const records = await prisma.incomeHourRecord.findMany({ where: { userId: other }, include: { month: true } });
     assert.equal(records.length, 18);
-    assert.ok(records.every((record) => record.declaredHours === null && record.workedHours === null));
 
     const of = (month: string, kind: "NORMAL" | "OVERTIME_50" | "OVERTIME_75" | "OVERTIME_100") =>
       records.find((record) => record.month.month.toISOString().startsWith(month) && record.kind === kind);

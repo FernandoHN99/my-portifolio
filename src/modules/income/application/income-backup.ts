@@ -20,8 +20,9 @@ import {
 } from "@/modules/income/domain/income-backup-format";
 import { defaultTaxable, PAYSLIP_KINDS, PAYSLIP_PROBLEMS, payslipProblem, type PayslipKind } from "@/modules/income/domain/income";
 import { HOUR_KINDS, MAX_MONTH_HOURS } from "@/modules/income/domain/income-hours";
+import { DAY_TYPES, MAX_PERCENT } from "@/modules/income/domain/overtime";
 
-// Backup de Recebimentos (spec 092). A exportação lê os dados do usuário numa
+// Backup de Recebimentos (spec 092; horas extras desde a versão 4, spec 098). A exportação lê os dados do usuário numa
 // leitura consistente; a restauração substitui só as tabelas desta área, numa
 // transação: a carteira, Gastos familiares e as concessões não mudam. A
 // conferência é estrita: campo ou tabela desconhecidos, valores fora das regras
@@ -50,7 +51,9 @@ function decimal(minimumCents: number, maximumCents = MAX_AMOUNT_CENTS) {
 
 const optionalValue = decimal(0).nullable();
 /** Horas com duas casas, de 0 às 744 de um mês de 31 dias. */
-const optionalHours = decimal(0, MAX_MONTH_HOURS * 100).nullable();
+const monthHours = decimal(0, MAX_MONTH_HOURS * 100);
+const optionalHours = monthHours.nullable();
+const percent = z.number().int().min(0).max(MAX_PERCENT);
 
 const ROW_SCHEMAS = {
   incomeMonths: z
@@ -87,27 +90,98 @@ const ROW_SCHEMAS = {
       id: uuid,
       incomeMonthId: uuid,
       kind: z.enum(HOUR_KINDS),
-      declaredHours: optionalHours,
       paidHours: optionalHours,
-      workedHours: optionalHours,
       paidAmount: optionalValue,
       note: z.string().trim().max(200).nullable(),
       createdAt: instant,
       updatedAt: instant,
     })
     .strict(),
+  overtimeRules: z
+    .object({
+      id: uuid,
+      effectiveFrom: monthStart,
+      dailyHours: decimal(100, 1200),
+      weekdayPercent: percent,
+      weekdayBeyondPercent: percent,
+      saturdayPercent: percent,
+      sundayPercent: percent,
+      holidayPercent: percent,
+      usualDailyLimit: decimal(0, 1600).nullable(),
+      exceptionalDailyLimit: decimal(0, 1600).nullable(),
+      netShortfall: z.boolean(),
+      note: z.string().trim().max(300).nullable(),
+      createdAt: instant,
+      updatedAt: instant,
+    })
+    .strict(),
+  overtimeMonths: z
+    .object({
+      id: uuid,
+      month: monthStart,
+      startsOn: day,
+      endsOn: day,
+      source: z.enum(["IMPORT", "MANUAL"]),
+      weekdayHours: monthHours,
+      weekdayBeyondHours: monthHours,
+      saturdayHours: monthHours,
+      sundayHours: monthHours,
+      holidayHours: monthHours,
+      shortfallHours: monthHours,
+      compensatedHours: monthHours,
+      sourceName: z.string().trim().max(200).nullable(),
+      importWarnings: z.array(z.string().max(400)).max(40),
+      note: z.string().trim().max(500).nullable(),
+      createdAt: instant,
+      updatedAt: instant,
+    })
+    .strict(),
+  overtimeDays: z
+    .object({
+      id: uuid,
+      overtimeMonthId: uuid,
+      date: day,
+      hours: decimal(0, 2400),
+      dayType: z.enum(DAY_TYPES),
+      manualType: z.boolean(),
+      activity: z.string().max(300).nullable(),
+      createdAt: instant,
+      updatedAt: instant,
+    })
+    .strict(),
+  overtimePayments: z
+    .object({
+      id: uuid,
+      overtimeMonthId: uuid,
+      paymentMonth: monthStart,
+      hours50: monthHours,
+      hours75: monthHours,
+      hours100: monthHours,
+      note: z.string().trim().max(500).nullable(),
+      createdAt: instant,
+      updatedAt: instant,
+    })
+    .strict(),
 } satisfies Record<IncomeBackupTableKey, z.ZodType>;
 
-const MODELS: Record<IncomeBackupTableKey, { model: "incomeMonth" | "incomePayslip" | "incomeHourRecord"; table: string }> = {
+const MODELS: Record<IncomeBackupTableKey, { model: string; table: string }> = {
   incomeMonths: { model: "incomeMonth", table: "income_months" },
   incomePayslips: { model: "incomePayslip", table: "income_payslips" },
   incomeHourRecords: { model: "incomeHourRecord", table: "income_hour_records" },
+  overtimeRules: { model: "overtimeRule", table: "overtime_rules" },
+  overtimeMonths: { model: "overtimeMonth", table: "overtime_months" },
+  overtimeDays: { model: "overtimeDay", table: "overtime_days" },
+  overtimePayments: { model: "overtimePayment", table: "overtime_payments" },
 };
 
 const REFERENCES: Record<IncomeBackupTableKey, Record<string, IncomeBackupTableKey>> = {
   incomeMonths: {},
   incomePayslips: { incomeMonthId: "incomeMonths" },
   incomeHourRecords: { incomeMonthId: "incomeMonths" },
+  overtimeRules: {},
+  overtimeMonths: {},
+  overtimeDays: { overtimeMonthId: "overtimeMonths" },
+  overtimePayments: { overtimeMonthId: "overtimeMonths" },
 };
 
 type Delegate = {
@@ -208,7 +282,7 @@ export function parseIncomeBackup(input: unknown): ParsedBackup {
     }
 
     rows[key] = list.map((row, index) => {
-      const parsed = ROW_SCHEMAS[key].safeParse(key === "incomePayslips" ? withTaxable(row, fileVersion) : row);
+      const parsed = ROW_SCHEMAS[key].safeParse(convertRow(key, row, fileVersion));
 
       if (!parsed.success) {
         const issue = parsed.error.issues[0];
@@ -227,18 +301,58 @@ export function parseIncomeBackup(input: unknown): ParsedBackup {
   };
 }
 
+/** Linhas das versões antigas no formato atual; a conferência estrita vem depois. */
+function convertRow(key: IncomeBackupTableKey, row: unknown, version: number) {
+  if (!row || typeof row !== "object" || Array.isArray(row)) {
+    return row;
+  }
+
+  if (key === "incomePayslips") return withTaxable(row, version);
+  if (key === "incomeHourRecords" && version < 4) return withoutWorkedHours(row);
+  if (key === "overtimePayments") return withoutPaymentValues(row);
+  return row;
+}
+
+/**
+ * Os primeiros arquivos da versão 4, antes de publicada, guardavam o valor e o
+ * DSR de cada pagamento; agora os valores são calculados pela base do holerite.
+ * A prévia informa a conversão para que o arquivo original seja preservado.
+ */
+const PAYMENT_VALUE_KEYS: readonly string[] = ["amount50", "amount75", "amount100", "dsrAmount"];
+
+function withoutPaymentValues(row: object) {
+  return Object.fromEntries(Object.entries(row).filter(([key]) => !PAYMENT_VALUE_KEYS.includes(key)));
+}
+
 /**
  * Conversão das versões 1 e 2: sem `taxable`, o holerite fica tributável salvo
  * 13º e PLR, a regra de antes (spec 095). Da versão 3 em diante o campo é
  * obrigatório e a conferência estrita o cobra.
  */
-function withTaxable(row: unknown, version: number) {
-  if (version >= 3 || !row || typeof row !== "object" || Array.isArray(row) || "taxable" in row) {
+function withTaxable(row: object, version: number) {
+  if (version >= 3 || "taxable" in row) {
     return row;
   }
 
   const { kind } = row as { kind?: unknown };
   return (PAYSLIP_KINDS as readonly unknown[]).includes(kind) ? { ...row, taxable: defaultTaxable(kind as PayslipKind) } : row;
+}
+
+/**
+ * Versões 2 e 3: as horas declaradas e trabalhadas saíram da linha do holerite
+ * (spec 098), porque são do mês de trabalho. Vazias, somem; com valor, o arquivo
+ * é recusado em vez de perder o dado sem avisar.
+ */
+function withoutWorkedHours(row: object) {
+  const { declaredHours, workedHours, ...rest } = row as { declaredHours?: unknown; workedHours?: unknown };
+
+  if ((declaredHours ?? null) !== null || (workedHours ?? null) !== null) {
+    throw new IncomeBackupValidationError(
+      "O backup tem horas declaradas ou trabalhadas na linha do holerite; elas agora ficam nos meses de horas extras. Lance-as lá e exporte de novo.",
+    );
+  }
+
+  return rest;
 }
 
 const dateOnly = (value: unknown) => String(value).slice(0, 10);
@@ -295,6 +409,73 @@ function checkConsistency(rows: Record<IncomeBackupTableKey, IncomeBackupRow[]>)
 
     hourKeys.add(key);
   }
+
+  const ruleMonths = rows.overtimeRules.map((row) => dateOnly(row.effectiveFrom));
+  if (new Set(ruleMonths).size !== ruleMonths.length) {
+    throw new IncomeBackupValidationError("O backup tem duas regras de horas extras a partir do mesmo mês.");
+  }
+
+  for (const rule of rows.overtimeRules) {
+    const usual = rule.usualDailyLimit === null ? null : decimalToCents(rule.usualDailyLimit as string);
+    const exceptional = rule.exceptionalDailyLimit === null ? null : decimalToCents(rule.exceptionalDailyLimit as string);
+    if (usual !== null && exceptional !== null && exceptional < usual) {
+      throw new IncomeBackupValidationError("O backup tem uma regra de horas extras com o limite excepcional abaixo do habitual.");
+    }
+  }
+
+  const workMonths = rows.overtimeMonths.map((row) => dateOnly(row.month));
+  if (new Set(workMonths).size !== workMonths.length) {
+    throw new IncomeBackupValidationError("O backup tem dois meses de horas extras na mesma competência.");
+  }
+
+  const periodById = new Map<string, { startsOn: string; endsOn: string }>();
+
+  for (const month of rows.overtimeMonths) {
+    const startsOn = dateOnly(month.startsOn);
+    const endsOn = dateOnly(month.endsOn);
+    const span = (Date.parse(endsOn) - Date.parse(startsOn)) / 86_400_000;
+
+    if (span < 0 || span >= 45 || endsOn.slice(0, 7) !== dateOnly(month.month).slice(0, 7)) {
+      throw new IncomeBackupValidationError(`O backup tem um mês de horas extras (${dateOnly(month.month).slice(0, 7)}) com período inválido.`);
+    }
+
+    periodById.set(month.id as string, { startsOn, endsOn });
+  }
+
+  const dayKeys = new Set<string>();
+
+  for (const day of rows.overtimeDays) {
+    const period = periodById.get(day.overtimeMonthId as string);
+
+    if (!period) {
+      throw new IncomeBackupValidationError("O backup tem overtimeDays apontando para overtimeMonths que não existe.");
+    }
+
+    const date = dateOnly(day.date);
+    if (date < period.startsOn || date > period.endsOn) {
+      throw new IncomeBackupValidationError(`O backup tem o dia ${date} fora do período do mês de horas extras.`);
+    }
+
+    const key = `${day.overtimeMonthId as string}:${date}`;
+    if (dayKeys.has(key)) {
+      throw new IncomeBackupValidationError("O backup repete um dia no mesmo mês de horas extras.");
+    }
+    dayKeys.add(key);
+  }
+
+  const paymentKeys = new Set<string>();
+
+  for (const payment of rows.overtimePayments) {
+    if (!periodById.has(payment.overtimeMonthId as string)) {
+      throw new IncomeBackupValidationError("O backup tem overtimePayments apontando para overtimeMonths que não existe.");
+    }
+
+    const key = `${payment.overtimeMonthId as string}:${dateOnly(payment.paymentMonth)}`;
+    if (paymentKeys.has(key)) {
+      throw new IncomeBackupValidationError("O backup tem dois pagamentos do mesmo holerite para o mesmo mês de horas extras.");
+    }
+    paymentKeys.add(key);
+  }
 }
 
 /** Linhas no formato do Prisma: datas e instantes. */
@@ -322,6 +503,35 @@ function prepareRows(rows: Record<IncomeBackupTableKey, IncomeBackupRow[]>) {
       createdAt: new Date(row.createdAt as string),
       updatedAt: new Date(row.updatedAt as string),
     })),
+    overtimeRules: rows.overtimeRules.map((row) => ({
+      ...row,
+      effectiveFrom: date(row.effectiveFrom),
+      note: (row.note as string | null)?.trim() || null,
+      createdAt: new Date(row.createdAt as string),
+      updatedAt: new Date(row.updatedAt as string),
+    })),
+    overtimeMonths: rows.overtimeMonths.map((row) => ({
+      ...row,
+      month: date(row.month),
+      startsOn: date(row.startsOn),
+      endsOn: date(row.endsOn),
+      note: (row.note as string | null)?.trim() || null,
+      createdAt: new Date(row.createdAt as string),
+      updatedAt: new Date(row.updatedAt as string),
+    })),
+    overtimeDays: rows.overtimeDays.map((row) => ({
+      ...row,
+      date: date(row.date),
+      createdAt: new Date(row.createdAt as string),
+      updatedAt: new Date(row.updatedAt as string),
+    })),
+    overtimePayments: rows.overtimePayments.map((row) => ({
+      ...row,
+      paymentMonth: date(row.paymentMonth),
+      note: (row.note as string | null)?.trim() || null,
+      createdAt: new Date(row.createdAt as string),
+      updatedAt: new Date(row.updatedAt as string),
+    })),
   };
 }
 
@@ -342,6 +552,8 @@ export async function previewIncomeBackup(input: unknown): Promise<IncomeBackupP
   const prisma = await getIncomeDb();
   const { file } = parseIncomeBackup(input);
   const months = file.tables.incomeMonths.map((row) => dateOnly(row.month).slice(0, 7)).sort();
+  const original = input as { tables: { overtimePayments?: Record<string, unknown>[] } };
+  const legacyValues = original.tables.overtimePayments?.some((row) => PAYMENT_VALUE_KEYS.some((key) => key in row));
 
   return {
     exportedAt: file.exportedAt,
@@ -350,6 +562,7 @@ export async function previewIncomeBackup(input: unknown): Promise<IncomeBackupP
     lastMonth: months.at(-1) ?? null,
     file: countsOf(file.tables),
     current: await currentCounts(prisma as unknown as Transaction),
+    warnings: legacyValues ? ["Os valores e o DSR dos pagamentos de horas extras serão recalculados pelos holerites. Guarde o arquivo original para consultar os valores registrados nele."] : [],
   };
 }
 

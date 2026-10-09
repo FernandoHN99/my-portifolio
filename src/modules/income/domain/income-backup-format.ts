@@ -4,20 +4,27 @@
 // papéis ou dados de outra área. Formato: docs/backup-format.md.
 
 export const INCOME_BACKUP_FORMAT = "meu-portfolio-recebimentos";
-export const INCOME_BACKUP_VERSION = 3;
+export const INCOME_BACKUP_VERSION = 4;
 
 /**
  * Versões que a restauração aceita. A 1 (spec 092) não tem `incomeHourRecords`
  * (tabela ausente vale como vazia) e as versões 1 e 2 não têm `taxable` nos
  * holerites: a conversão o preenche pelo tipo, como a regra era antes (spec 095).
+ * Até a 3 não há horas extras (spec 098): as tabelas de horas extras ficam
+ * vazias e as horas declaradas e trabalhadas das linhas do holerite, que nunca
+ * foram preenchidas, saem (com valor, o arquivo é recusado).
  */
-export const INCOME_BACKUP_ACCEPTED_VERSIONS: readonly number[] = [1, 2, INCOME_BACKUP_VERSION];
+export const INCOME_BACKUP_ACCEPTED_VERSIONS: readonly number[] = [1, 2, 3, INCOME_BACKUP_VERSION];
 
 /** Tabelas na ordem de gravação: cada uma depois das que ela referencia. */
 export const INCOME_BACKUP_TABLES = [
   { key: "incomeMonths", label: "Meses" },
   { key: "incomePayslips", label: "Holerites" },
-  { key: "incomeHourRecords", label: "Horas" },
+  { key: "incomeHourRecords", label: "Horas do holerite" },
+  { key: "overtimeRules", label: "Regras das horas extras" },
+  { key: "overtimeMonths", label: "Meses de horas extras" },
+  { key: "overtimeDays", label: "Dias das folhas" },
+  { key: "overtimePayments", label: "Pagamentos das horas extras" },
 ] as const;
 
 export type IncomeBackupTableKey = (typeof INCOME_BACKUP_TABLES)[number]["key"];
@@ -42,6 +49,7 @@ export type IncomeBackupPreview = {
   lastMonth: string | null;
   file: IncomeBackupCounts;
   current: IncomeBackupCounts;
+  warnings?: string[];
 };
 
 export type IncomeRestoreResponse =

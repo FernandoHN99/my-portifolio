@@ -20,29 +20,33 @@ datasource db {
 // carteira. Os ids são UUID, como os das tabelas da carteira que apontam para o
 // usuário.
 model User {
-  id             String             @id @default(uuid()) @db.Uuid
-  name           String
-  email          String             @unique
-  emailVerified  Boolean            @default(false) @map("email_verified")
-  image          String?
-  createdAt      DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt      DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
-  sessions       Session[]
-  authAccounts   AuthAccount[]
-  dataImports    DataImport[]
-  institutions   Institution[]
-  assets         Asset[]
-  months         PortfolioMonth[]
-  targetPlans    TargetPlan[]
-  manualQuotes   ManualQuote[]
-  moduleGrants   ModuleGrant[]
-  roleGrants     RoleGrant[]
-  familyContacts FamilyContact[]
-  familySeries   FamilySeries[]
-  familyEntries  FamilyEntry[]
-  incomeMonths   IncomeMonth[]
-  incomePayslips IncomePayslip[]
-  incomeHours    IncomeHourRecord[]
+  id               String             @id @default(uuid()) @db.Uuid
+  name             String
+  email            String             @unique
+  emailVerified    Boolean            @default(false) @map("email_verified")
+  image            String?
+  createdAt        DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
+  sessions         Session[]
+  authAccounts     AuthAccount[]
+  dataImports      DataImport[]
+  institutions     Institution[]
+  assets           Asset[]
+  months           PortfolioMonth[]
+  targetPlans      TargetPlan[]
+  manualQuotes     ManualQuote[]
+  moduleGrants     ModuleGrant[]
+  roleGrants       RoleGrant[]
+  familyContacts   FamilyContact[]
+  familySeries     FamilySeries[]
+  familyEntries    FamilyEntry[]
+  incomeMonths     IncomeMonth[]
+  incomePayslips   IncomePayslip[]
+  incomeHours      IncomeHourRecord[]
+  overtimeMonths   OvertimeMonth[]
+  overtimeDays     OvertimeDay[]
+  overtimeRules    OvertimeRule[]
+  overtimePayments OvertimePayment[]
 
   @@map("users")
 }
@@ -250,20 +254,17 @@ enum HourKind {
   OVERTIME_100
 }
 
-/// Horas de um tipo no mês, em três versões que o usuário compara: o que ele
-/// declarou à empresa, o que o holerite pagou e o que ele realmente trabalhou.
-/// Só guardadas por enquanto: nenhuma tela as mostra (spec 094).
+/// Horas de um tipo no holerite do mês (spec 094): a transcrição dos holerites
+/// de 2026, sem tela. As horas extras declaradas e pagas ficam nas Horas extras
+/// (`OvertimeMonth` e `OvertimePayment`, spec 098); daqui saem só o valor da hora
+/// normal e a sugestão do que um holerite pagou.
 model IncomeHourRecord {
   id            String      @id @default(uuid()) @db.Uuid
   userId        String      @map("user_id") @db.Uuid
   incomeMonthId String      @map("income_month_id") @db.Uuid
   kind          HourKind
-  /// Horas declaradas à empresa; nulo é não informado.
-  declaredHours Decimal?    @map("declared_hours") @db.Decimal(7, 2)
   /// Horas da linha do holerite (a referência dela, em horas).
   paidHours     Decimal?    @map("paid_hours") @db.Decimal(7, 2)
-  /// Horas que o usuário realmente trabalhou, pelo controle dele.
-  workedHours   Decimal?    @map("worked_hours") @db.Decimal(7, 2)
   /// Valor em reais da linha do holerite, sem o DSR.
   paidAmount    Decimal?    @map("paid_amount") @db.Decimal(12, 2)
   /// Observação livre: de onde veio a hora, o que foi inferido.
@@ -277,6 +278,139 @@ model IncomeHourRecord {
   @@unique([id, userId])
   @@index([userId])
   @@map("income_hour_records")
+}
+
+// Horas extras (spec 098): o mês de trabalho é a folha de horas que o usuário
+// declara à empresa (do dia de corte do mês anterior ao do mês; ex.: 21/02 a
+// 21/03 é março). O pagamento vem no holerite do mês seguinte e é registrado à
+// parte (`OvertimePayment`); a conciliação é derivada e nunca guardada.
+enum OvertimeSource {
+  IMPORT
+  MANUAL
+}
+
+/// Como o dia conta para as horas extras.
+enum OvertimeDayType {
+  WORKDAY
+  SATURDAY
+  SUNDAY
+  HOLIDAY
+}
+
+/// Mês de trabalho das horas extras. Os totais são das horas a mais: em dia
+/// útil, além da jornada, divididas pelo limite de 2 h por dia do art. 59 da
+/// CLT; no fim de semana e no feriado, todas. Nos meses importados, os totais
+/// saem dos dias (e são recalculados quando um dia ou a regra muda); nos
+/// lançados à mão, são os digitados.
+model OvertimeMonth {
+  id                 String            @id @default(uuid()) @db.Uuid
+  userId             String            @map("user_id") @db.Uuid
+  /// Competência de trabalho (dia 1), única por usuário.
+  month              DateTime          @db.Date
+  startsOn           DateTime          @map("starts_on") @db.Date
+  endsOn             DateTime          @map("ends_on") @db.Date
+  source             OvertimeSource
+  /// Dia útil: horas a mais até 2 h por dia.
+  weekdayHours       Decimal           @default(0) @map("weekday_hours") @db.Decimal(7, 2)
+  /// Dia útil: horas a mais além de 2 h por dia.
+  weekdayBeyondHours Decimal           @default(0) @map("weekday_beyond_hours") @db.Decimal(7, 2)
+  saturdayHours      Decimal           @default(0) @map("saturday_hours") @db.Decimal(7, 2)
+  sundayHours        Decimal           @default(0) @map("sunday_hours") @db.Decimal(7, 2)
+  holidayHours       Decimal           @default(0) @map("holiday_hours") @db.Decimal(7, 2)
+  /// Horas abaixo da jornada em dias úteis trabalhados (informativo).
+  shortfallHours     Decimal           @default(0) @map("shortfall_hours") @db.Decimal(7, 2)
+  /// Horas extras compensadas com folga, que não serão pagas.
+  compensatedHours   Decimal           @default(0) @map("compensated_hours") @db.Decimal(7, 2)
+  /// Arquivo e aba de onde o mês veio, na importação.
+  sourceName         String?           @map("source_name")
+  /// Avisos da importação (datas corrigidas, dia da semana divergente).
+  importWarnings     String[]          @default([]) @map("import_warnings")
+  note               String?
+  createdAt          DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
+  user               User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  days               OvertimeDay[]
+  payments           OvertimePayment[]
+
+  @@unique([userId, month])
+  @@unique([id, userId])
+  @@map("overtime_months")
+}
+
+/// O que um holerite pagou de um mês de trabalho, em horas por adicional. O
+/// usuário registra quando recebe o holerite; um mês pode ter mais de um
+/// pagamento (o do holerite seguinte e uma regularização depois).
+model OvertimePayment {
+  id              String        @id @default(uuid()) @db.Uuid
+  userId          String        @map("user_id") @db.Uuid
+  overtimeMonthId String        @map("overtime_month_id") @db.Uuid
+  /// Competência do holerite que pagou (dia 1).
+  paymentMonth    DateTime      @map("payment_month") @db.Date
+  /// Horas pagas em cada adicional. O valor e o DSR não são guardados: saem do
+  /// salário bruto do holerite em Recebimentos e do calendário do mês dele.
+  hours50         Decimal       @default(0) @map("hours_50") @db.Decimal(7, 2)
+  hours75         Decimal       @default(0) @map("hours_75") @db.Decimal(7, 2)
+  hours100        Decimal       @default(0) @map("hours_100") @db.Decimal(7, 2)
+  note            String?
+  createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  month           OvertimeMonth @relation(fields: [overtimeMonthId, userId], references: [id, userId], onDelete: Cascade)
+
+  @@unique([overtimeMonthId, paymentMonth])
+  @@unique([id, userId])
+  @@index([userId])
+  @@map("overtime_payments")
+}
+
+/// Um dia da folha importada: as horas trabalhadas (todas) e como o dia conta.
+model OvertimeDay {
+  id              String          @id @default(uuid()) @db.Uuid
+  userId          String          @map("user_id") @db.Uuid
+  overtimeMonthId String          @map("overtime_month_id") @db.Uuid
+  date            DateTime        @db.Date
+  hours           Decimal         @db.Decimal(5, 2)
+  dayType         OvertimeDayType @map("day_type")
+  /// O usuário trocou o tipo à mão; a reimportação mantém a escolha.
+  manualType      Boolean         @default(false) @map("manual_type")
+  activity        String?
+  createdAt       DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  month           OvertimeMonth   @relation(fields: [overtimeMonthId, userId], references: [id, userId], onDelete: Cascade)
+
+  @@unique([overtimeMonthId, date])
+  @@unique([id, userId])
+  @@index([userId])
+  @@map("overtime_days")
+}
+
+/// Regra das horas extras a partir de uma competência de trabalho: jornada,
+/// adicionais e os limites diários informados pela empresa. Cada mês usa a
+/// versão mais recente que já vale nele; sem nenhuma, vale o piso da CLT.
+model OvertimeRule {
+  id                    String   @id @default(uuid()) @db.Uuid
+  userId                String   @map("user_id") @db.Uuid
+  effectiveFrom         DateTime @map("effective_from") @db.Date
+  dailyHours            Decimal  @map("daily_hours") @db.Decimal(4, 2)
+  weekdayPercent        Int      @map("weekday_percent")
+  weekdayBeyondPercent  Int      @map("weekday_beyond_percent")
+  saturdayPercent       Int      @map("saturday_percent")
+  sundayPercent         Int      @map("sunday_percent")
+  holidayPercent        Int      @map("holiday_percent")
+  /// Limites de horas extras por dia útil informados pela empresa; nulo é desconhecido.
+  usualDailyLimit       Decimal? @map("usual_daily_limit") @db.Decimal(4, 2)
+  exceptionalDailyLimit Decimal? @map("exceptional_daily_limit") @db.Decimal(4, 2)
+  /// Desconta das extras do mês as horas abaixo da jornada (compensação).
+  netShortfall          Boolean  @default(false) @map("net_shortfall")
+  note                  String?
+  createdAt             DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt             DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, effectiveFrom])
+  @@unique([id, userId])
+  @@map("overtime_rules")
 }
 
 model Session {

@@ -228,12 +228,24 @@ test("seleção de competência alterna único/múltiplo e nunca fica vazia", ()
 });
 
 
-test("indicadores consideram pendências por pessoa/mês, mesmo quando os valores se anulam", () => {
+test("indicadores consideram pendências reais, mesmo quando os valores se anulam", () => {
   const activity = pendingFilterActivity([...entries, entry({ id: "cancel", direction: "PAYABLE" })], {
-    competences: ["2026-10"], contacts: ["bruno"],
+    competences: ["2026-10"],
   });
-  assert.deepEqual([...activity.months], ["2026-09"]);
+  assert.deepEqual([...activity.months].sort(), ["2026-09", "2026-10", "2026-11"]);
   assert.deepEqual([...activity.contacts], ["ana"]);
-  assert.equal(activity.months.has("2026-10"), false);
   assert.equal(activity.contacts.has("bruno"), false);
+});
+
+test("a marca do mês considera as pendências de todas as pessoas (spec 097)", () => {
+  const pending = [
+    entry({ id: "ana-set", competence: "2026-09", contactId: "ana", status: "PENDING" }),
+    entry({ id: "bruno-ago", competence: "2026-08", contactId: "bruno", status: "PENDING" }),
+    entry({ id: "bruno-out", competence: "2026-10", contactId: "bruno", status: "SETTLED" }),
+  ];
+  const activity = pendingFilterActivity(pending, { competences: ["2026-10"] });
+  assert.deepEqual([...activity.months].sort(), ["2026-08", "2026-09"]);
+  assert.equal(activity.months.has("2026-10"), false);
+  const settled = pendingFilterActivity(pending.map((item) => ({ ...item, status: "SETTLED" as const })), { competences: ["2026-10"] });
+  assert.equal(settled.months.size, 0);
 });

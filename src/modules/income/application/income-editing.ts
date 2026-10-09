@@ -196,9 +196,7 @@ type HourRecordSnapshot = {
   id: string;
   incomeMonthId: string;
   kind: HourKind;
-  declaredHours: string | null;
   paidHours: string | null;
-  workedHours: string | null;
   paidAmount: string | null;
   note: string | null;
   createdAt: Date;
@@ -266,9 +264,7 @@ export async function deleteIncomeMonth(id: string) {
             id: true,
             incomeMonthId: true,
             kind: true,
-            declaredHours: true,
             paidHours: true,
-            workedHours: true,
             paidAmount: true,
             note: true,
             createdAt: true,
@@ -296,11 +292,9 @@ export async function deleteIncomeMonth(id: string) {
         mealVoucherSpend: text(mealVoucherSpend),
       },
       payslips: payslips.map(({ grossSalary, ...payslip }) => ({ ...payslip, grossSalary: grossSalary.toString() })),
-      hourRecords: hourRecords.map(({ declaredHours, paidHours, workedHours, paidAmount, ...record }) => ({
+      hourRecords: hourRecords.map(({ paidHours, paidAmount, ...record }) => ({
         ...record,
-        declaredHours: text(declaredHours),
         paidHours: text(paidHours),
-        workedHours: text(workedHours),
         paidAmount: text(paidAmount),
       })),
     });

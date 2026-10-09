@@ -87,13 +87,18 @@ export function selectCompetence(selected: string[], value: string, multiple: bo
   return next.length > 0 ? next : [current];
 }
 
-/** Pendências reais, sem esconder trabalho por busca, status ou tipo. */
-export function pendingFilterActivity(entries: readonly LedgerEntry[], filters: Pick<LedgerFilters, "competences" | "contacts">) {
+/**
+ * Pendências reais, sem esconder trabalho por busca, status ou tipo. Os meses
+ * contam todas as pessoas (spec 097): a marca do mês não muda ao trocar de
+ * pessoa e só some quando ninguém tem pendência nele. As pessoas consideram as
+ * competências escolhidas.
+ */
+export function pendingFilterActivity(entries: readonly LedgerEntry[], filters: Pick<LedgerFilters, "competences">) {
   const months = new Set<string>();
   const contacts = new Set<string>();
   for (const entry of entries) {
     if (entry.status !== "PENDING") continue;
-    if (filters.contacts.includes(entry.contactId)) months.add(entry.competence);
+    months.add(entry.competence);
     if (filters.competences.includes(entry.competence)) contacts.add(entry.contactId);
   }
   return { months, contacts };

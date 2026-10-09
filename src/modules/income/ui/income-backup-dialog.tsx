@@ -21,8 +21,8 @@ import {
 import { backdropClass, primaryButtonClass, secondaryButtonClass } from "@/modules/portfolio/ui/edit-dialogs";
 import { formatRefreshDateTime } from "@/modules/quotes/presentation/refresh-time";
 
-// Backup de Recebimentos (spec 092): exporta e importa só os meses e os
-// holerites, num arquivo próprio. A importação confere o arquivo, mostra o que
+// Backup de Recebimentos (spec 092): exporta e importa só os meses, os
+// holerites e as horas extras (spec 098), num arquivo próprio. A importação confere o arquivo, mostra o que
 // ele traz ao lado dos dados de hoje e só substitui os recebimentos depois da
 // confirmação; a carteira e Gastos familiares não mudam.
 
@@ -126,7 +126,7 @@ export function IncomeBackupDialog({ open, onOpenChange }: { open: boolean; onOp
                         ? `, de ${formatCompetence(pending.preview.firstMonth)} a ${formatCompetence(pending.preview.lastMonth)}`
                         : ""
                     }. Os recebimentos de hoje serão substituídos; as outras áreas não mudam.`
-                  : "Arquivo só com os meses e os holerites desta área."}
+                  : "Arquivo só com os meses, os holerites e as horas extras desta área."}
               </Dialog.Description>
             </div>
             <Dialog.Close
@@ -190,6 +190,10 @@ export function IncomeBackupDialog({ open, onOpenChange }: { open: boolean; onOp
                 />
               </div>
             )}
+
+            {pending?.preview.warnings?.map((message) => (
+              <p key={message} className="text-xs leading-5 text-muted-foreground">{message}</p>
+            ))}
 
             {error ? (
               <p role="alert" className="flex items-start gap-2 text-xs leading-5 text-destructive">
